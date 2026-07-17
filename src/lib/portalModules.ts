@@ -8,8 +8,11 @@ export type OfertaModuloId =
   | 'rotas'
   | 'transportadoras'
   | 'veiculos'
+  | 'motoristas'
   | 'grupos'
   | 'indicadores'
+  | 'configuracoes'
+  | 'historico'
   | 'hierarquia'
   | 'permissoes'
   | 'kanban_transportador'
@@ -25,8 +28,11 @@ export const OFERTA_MODULOS_CATALOGO: { id: OfertaModuloId; label: string; role?
   { id: 'rotas', label: 'Rotas', role: 'minerva' },
   { id: 'transportadoras', label: 'Transportadoras', role: 'minerva' },
   { id: 'veiculos', label: 'Veículos', role: 'ambos' },
+  { id: 'motoristas', label: 'Motoristas', role: 'ambos' },
   { id: 'grupos', label: 'Grupos', role: 'minerva' },
   { id: 'indicadores', label: 'Indicadores', role: 'minerva' },
+  { id: 'configuracoes', label: 'Configurações de Oferta', role: 'minerva' },
+  { id: 'historico', label: 'Histórico', role: 'minerva' },
   { id: 'hierarquia', label: 'Hierarquia', role: 'minerva' },
   { id: 'permissoes', label: 'Permissões', role: 'minerva' },
   { id: 'kanban_transportador', label: 'Kanban Ofertas', role: 'transportador' },
@@ -39,8 +45,11 @@ export const DEFAULT_PERMISSAO_MINERVA: OfertaPermissao = {
     rotas: 'editar',
     transportadoras: 'editar',
     veiculos: 'editar',
+    motoristas: 'editar',
     grupos: 'editar',
     indicadores: 'editar',
+    configuracoes: 'editar',
+    historico: 'editar',
   },
 }
 
@@ -49,6 +58,7 @@ export const DEFAULT_PERMISSAO_TRANSPORTADOR: OfertaPermissao = {
   modulos: {
     kanban_transportador: 'editar',
     veiculos: 'editar',
+    motoristas: 'editar',
   },
 }
 
@@ -89,8 +99,15 @@ export function moduloFromPath(pathname: string): OfertaModuloId | null {
   if (pathname.startsWith('/minerva/transportadores')) return 'transportadoras'
   if (pathname.startsWith('/minerva/veiculos') || pathname.startsWith('/transportador/veiculos'))
     return 'veiculos'
+  if (
+    pathname.startsWith('/minerva/motoristas') ||
+    pathname.startsWith('/transportador/motoristas')
+  )
+    return 'motoristas'
   if (pathname.startsWith('/minerva/grupos')) return 'grupos'
   if (pathname.startsWith('/minerva/indicadores')) return 'indicadores'
+  if (pathname.startsWith('/minerva/configuracoes')) return 'configuracoes'
+  if (pathname.startsWith('/minerva/historico')) return 'historico'
   if (pathname.startsWith('/minerva/hierarquia')) return 'hierarquia'
   if (pathname.startsWith('/minerva/permissoes') || pathname.startsWith('/minerva/config'))
     return 'permissoes'

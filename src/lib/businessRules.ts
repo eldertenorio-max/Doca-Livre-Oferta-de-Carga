@@ -32,12 +32,15 @@ export const PONTOS_ADERENCIA = {
   frete_fechado: 2,
 } as const
 
-export function calcularPrioridadeEModo(prazoMinutos: number): {
+export function calcularPrioridadeEModo(
+  prazoMinutos: number,
+  limiteUrgenciaMinutos = 30,
+): {
   prioridade: Prioridade
   modo: ModoPublicacao
   exigeJustificativa: boolean
 } {
-  if (prazoMinutos <= 30) {
+  if (prazoMinutos <= limiteUrgenciaMinutos) {
     return { prioridade: 'alta', modo: 'oferta', exigeJustificativa: true }
   }
   if (prazoMinutos <= 59) {

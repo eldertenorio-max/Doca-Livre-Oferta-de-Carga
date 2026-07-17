@@ -23,13 +23,19 @@ const COLUMNS: {
     key: 'negociando',
     title: 'Negociando',
     color: '#3b82f6',
-    description: 'Publicada, aguardando lances',
+    description: 'Publicada — quem negocia aguarda lances',
   },
   {
     key: 'propostas',
     title: 'Propostas',
     color: '#f59e0b',
-    description: 'Recebeu lances / frete fechado',
+    description: 'Recebeu lances ou frete fechado',
+  },
+  {
+    key: 'suspensas',
+    title: 'Suspensas',
+    color: '#8b5cf6',
+    description: 'Negociação pausada',
   },
   {
     key: 'recusadas',
@@ -38,10 +44,16 @@ const COLUMNS: {
     description: 'Frete fechado e depois recusado',
   },
   {
+    key: 'canceladas',
+    title: 'Canceladas',
+    color: '#64748b',
+    description: 'Publicação cancelada',
+  },
+  {
     key: 'alocadas',
     title: 'Alocadas',
     color: '#2f9e6a',
-    description: 'Placa e motorista alocados',
+    description: 'Placa e motorista confirmados',
   },
 ]
 
@@ -102,7 +114,9 @@ export function KanbanMinerva() {
                   mode="minerva"
                   selected={liveSelected?.id === c.id}
                   ofertasCount={
-                    col.key === 'propostas' ? lancesDaCarga(c.id).length : undefined
+                    col.key === 'negociando' || col.key === 'propostas'
+                      ? lancesDaCarga(c.id).length
+                      : undefined
                   }
                   onSelect={() => {
                     setSelected(c)

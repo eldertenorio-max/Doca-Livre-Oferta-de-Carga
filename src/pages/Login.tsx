@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Eye, EyeOff } from 'lucide-react'
+import { Link, Navigate } from 'react-router-dom'
 import { useData } from '../context/DataContext'
 import { BRAND_EMBARCADOR_LABEL, LOGO_DOCA_LIVRE_SRC } from '../lib/brandAssets'
 import { ProductMark } from '../components/ProductMark'
@@ -10,7 +11,7 @@ import {
   portalSenhaEnviarCodigo,
   portalSenhaRedefinir,
   portalSenhaVerificarCodigo,
-} from '../lib/portalAuth'
+} from '../lib/portalApi'
 import '../styles/login.css'
 import '../styles/shell.css'
 
@@ -19,7 +20,6 @@ type Step = 'form' | 'codigo' | 'dados'
 
 export function LoginPage() {
   const { login, user, demoUsers } = useData()
-  const navigate = useNavigate()
 
   const [mode, setMode] = useState<Mode>('login')
   const [step, setStep] = useState<Step>('form')
@@ -74,8 +74,7 @@ export function LoginPage() {
       setError(res.error ?? 'Falha no login')
       return
     }
-    // Destino resolvido pelo Navigate quando user estiver setado; fallback:
-    navigate('/minerva')
+    // Destino pelo <Navigate> quando `user` for atualizado (minerva / transportador / super)
   }
 
   async function handleCadastroEnviar(e: FormEvent) {
@@ -89,8 +88,8 @@ export function LoginPage() {
       setError(result.erro)
       return
     }
-    setInfo(result.mensagem || 'Código enviado para o e-mail.')
-    if (result.debug_codigo) setDebugCodigo(result.debug_codigo)
+    setInfo(result.mensagem || 'Código enviado para o e-mail. Verifique a caixa de entrada e o spam.')
+    setDebugCodigo(result.debug_codigo || '')
     setStep('codigo')
   }
 
@@ -316,15 +315,28 @@ export function LoginPage() {
               inputMode="numeric"
               maxLength={6}
             />
-            {debugCodigo && (
+            {debugCodigo ? (
               <p className="portal-login__info">
-                Modo local — código: <strong>{debugCodigo}</strong>
+                Debug — código: <strong>{debugCodigo}</strong>
+              </p>
+            ) : (
+              <p className="portal-login__hint">
+                Digite o código de 6 dígitos enviado para o e-mail informado.
               </p>
             )}
             {error && <p className="portal-login__erro">{error}</p>}
             {info && <p className="portal-login__info">{info}</p>}
             <button type="submit" className="portal-login__submit" disabled={loading}>
               {loading ? 'Validando…' : 'Confirmar e-mail'}
+            </button>
+            <button
+              type="button"
+              className="portal-login__link"
+              style={{ marginTop: 8 }}
+              disabled={loading}
+              onClick={() => void handleCadastroEnviar({ preventDefault() {} } as FormEvent)}
+            >
+              Reenviar código
             </button>
           </form>
         )}
@@ -402,9 +414,13 @@ export function LoginPage() {
               required
               maxLength={6}
             />
-            {debugCodigo && (
+            {debugCodigo ? (
               <p className="portal-login__info">
-                Modo local — código: <strong>{debugCodigo}</strong>
+                Debug — código: <strong>{debugCodigo}</strong>
+              </p>
+            ) : (
+              <p className="portal-login__hint">
+                Digite o código enviado ao e-mail da conta.
               </p>
             )}
             {error && <p className="portal-login__erro">{error}</p>}
@@ -521,8 +537,14 @@ function PasswordInput({
         required
         autoComplete="current-password"
       />
-      <button type="button" className="portal-login__password-toggle" onClick={onToggle}>
-        {visible ? 'Ocultar' : 'Ver'}
+      <button
+        type="button"
+        className="portal-login__password-toggle"
+        onClick={onToggle}
+        aria-label={visible ? 'Ocultar senha' : 'Mostrar senha'}
+        title={visible ? 'Ocultar senha' : 'Mostrar senha'}
+      >
+        {visible ? <EyeOff size={18} strokeWidth={1.75} /> : <Eye size={18} strokeWidth={1.75} />}
       </button>
     </div>
   )

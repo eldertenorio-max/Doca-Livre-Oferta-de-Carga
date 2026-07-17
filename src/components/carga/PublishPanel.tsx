@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useData } from '../../context/DataContext'
 import {
-  MARGENS_POR_ROTA,
   MOTIVOS_PRIORIDADE_ALTA,
-  PRAZOS_ALOCACAO_MINUTOS,
-  PRAZOS_LEILAO_MINUTOS,
   calcularFreteOferta,
   calcularPrioridadeEModo,
   formatCurrency,
   formatDateTime,
   formatNumber,
   formatPrazoLabel,
+  tempoRestante,
 } from '../../lib/businessRules'
-import type { Carga } from '../../types'
+import { prazosAlocacaoPermitidos, prazosOfertaPermitidos } from '../../lib/configNegocio'
+import { canEditModulo } from '../../lib/portalModules'
+import type { Carga, Transportador } from '../../types'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
 
 interface Props {
@@ -21,33 +21,80 @@ interface Props {
   onClose: () => void
 }
 
-export function PublishPanel({ carga, open, onClose }: Props) {
-  const { grupos, publicarCarga, lancesDaCarga, transportadorById, aceitarLance, recusarCargaMinerva } =
-    useData()
+function membrosDosGrupos(
+  grupoIds: string[],
+  grupos: { id: string; transportador_ids: string[]; descricao: string }[],
+  transportadores: Transportador[],
+): Transportador[] {
+  const ids = new Set<string>()
+  for (const g of grupos) {
+    if (!grupoIds.includes(g.id)) continue
+    for (const tid of g.transportador_ids) ids.add(tid)
+  }
+  return transportadores.filter((t) => ids.has(t.id) && t.situacao === 'ativo')
+}
 
+export function PublishPanel({ carga, open, onClose }: Props) {
+  const {
+    grupos,
+    transportadores,
+    publicarCarga,
+    lancesDaCarga,
+    transportadorById,
+    aceitarLance,
+    rejeitarLance,
+    encerrarComMelhorLance,
+    finalizarNegociacao,
+    cancelarPublicacao,
+    suspenderCarga,
+    retomarCarga,
+    republicarCarga,
+    reabrirNegociacao,
+    recusarCargaMinerva,
+    notificarTodosGrupos,
+    historicoPropostasDaCarga,
+    config,
+    user,
+    tick,
+  } = useData()
+  void tick
+
+  const canEdit = canEditModulo(user?.permissoes_modulos, 'kanban') || Boolean(user?.is_superuser)
   const classificacao = carga?.classificacao_rota ?? 'B'
-  const margens = MARGENS_POR_ROTA[classificacao]
+  const margens = config.margens[classificacao]
+  const prazosOferta = prazosOfertaPermitidos(config)
+  const prazosAlocacao = prazosAlocacaoPermitidos()
 
   const [margem, setMargem] = useState(margens[1])
   const [grupoIds, setGrupoIds] = useState<string[]>([])
-  const [prazoLeilao, setPrazoLeilao] = useState(60)
-  const [prazoAlocacao, setPrazoAlocacao] = useState(10)
+  const [escalonar, setEscalonar] = useState(false)
+  const [prazoLeilao, setPrazoLeilao] = useState(config.prazo_oferta_padrao_minutos)
+  const [prazoAlocacao, setPrazoAlocacao] = useState(config.prazo_alocacao_padrao_minutos)
   const [showJustificativa, setShowJustificativa] = useState(false)
   const [motivo, setMotivo] = useState('')
   const [obs, setObs] = useState('')
+  const [observacao, setObservacao] = useState('')
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
 
   useEffect(() => {
     if (!carga) return
-    const m = MARGENS_POR_ROTA[carga.classificacao_rota ?? 'B']
-    setMargem(m[1])
-    setGrupoIds(carga.grupo_ids.length ? carga.grupo_ids : [])
-    setPrazoLeilao(carga.prazo_leilao_minutos ?? 60)
-    setPrazoAlocacao(carga.prazo_alocacao_minutos ?? 10)
+    const m = config.margens[carga.classificacao_rota ?? 'B']
+    setMargem(m[1] ?? m[0])
+    const ativos = grupos.filter((g) => g.situacao === 'ativo').map((g) => g.id)
+    setGrupoIds(carga.grupo_ids.length ? carga.grupo_ids : ativos)
+    setEscalonar(false)
+    setPrazoLeilao(carga.prazo_leilao_minutos ?? config.prazo_oferta_padrao_minutos)
+    setPrazoAlocacao(carga.prazo_alocacao_minutos ?? config.prazo_alocacao_padrao_minutos)
     setError('')
     setMotivo(carga.justificativa_motivo ?? '')
     setObs(carga.justificativa_obs ?? '')
-  }, [carga])
+    setObservacao(carga.observacao ?? '')
+  }, [carga?.id, grupos, config])
+
+  useEffect(() => {
+    if (!carga) setInfo('')
+  }, [carga?.id])
 
   const { ganho, freteOferta } = useMemo(
     () => calcularFreteOferta(carga?.frete_tabela ?? 0, margem),
@@ -55,12 +102,43 @@ export function PublishPanel({ carga, open, onClose }: Props) {
   )
 
   const { prioridade, modo, exigeJustificativa } = useMemo(
-    () => calcularPrioridadeEModo(prazoLeilao),
-    [prazoLeilao],
+    () => calcularPrioridadeEModo(prazoLeilao, config.limite_urgencia_minutos),
+    [prazoLeilao, config.limite_urgencia_minutos],
   )
+
+  const previewTransportadores = useMemo(() => {
+    const notificadosAgora =
+      escalonar && grupoIds.length > 1 ? [grupoIds[0]] : grupoIds
+    const agora = membrosDosGrupos(notificadosAgora, grupos, transportadores)
+    const depois =
+      escalonar && grupoIds.length > 1
+        ? membrosDosGrupos(grupoIds.slice(1), grupos, transportadores).filter(
+            (t) => !agora.some((a) => a.id === t.id),
+          )
+        : []
+    return { agora, depois }
+  }, [grupoIds, escalonar, grupos, transportadores])
 
   const lances = carga ? lancesDaCarga(carga.id) : []
   const isNova = carga?.status === 'nova_carga'
+  const emNegociacao =
+    Boolean(carga) &&
+    ['negociando', 'propostas'].includes(carga!.status) &&
+    !carga!.transportador_vencedor_id
+
+  const negociadoresAtivos = useMemo(() => {
+    if (!carga || isNova) return []
+    const ids = carga.grupos_notificados.length ? carga.grupos_notificados : carga.grupo_ids
+    return membrosDosGrupos(ids, grupos, transportadores)
+  }, [carga, isNova, grupos, transportadores])
+
+  const negociadoresPendentes = useMemo(() => {
+    if (!carga || isNova) return []
+    const falta = carga.grupo_ids.filter((id) => !carga.grupos_notificados.includes(id))
+    return membrosDosGrupos(falta, grupos, transportadores).filter(
+      (t) => !negociadoresAtivos.some((a) => a.id === t.id),
+    )
+  }, [carga, isNova, grupos, transportadores, negociadoresAtivos])
 
   if (!open || !carga) return null
 
@@ -68,11 +146,11 @@ export function PublishPanel({ carga, open, onClose }: Props) {
     setGrupoIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   }
 
-  function handlePublicar() {
+  function doPublicar(justificativa?: { motivo: string; obs?: string }) {
     setError('')
-    if (exigeJustificativa && !motivo) {
-      setShowJustificativa(true)
-      return
+    if (!canEdit) {
+      setError('Seu perfil não permite publicar.')
+      return false
     }
     const res = publicarCarga({
       cargaId: carga!.id,
@@ -80,14 +158,36 @@ export function PublishPanel({ carga, open, onClose }: Props) {
       grupoIds,
       prazoLeilaoMinutos: prazoLeilao,
       prazoAlocacaoMinutos: prazoAlocacao,
-      justificativaMotivo: motivo || undefined,
-      justificativaObs: obs || undefined,
+      justificativaMotivo: justificativa?.motivo || motivo || undefined,
+      justificativaObs: (justificativa?.obs ?? obs) || undefined,
+      observacao: observacao.trim() || undefined,
+      escalonarGrupos: escalonar,
     })
     if (!res.ok) {
       setError(res.error ?? 'Erro ao publicar')
+      return false
+    }
+    return true
+  }
+
+  function handlePublicar() {
+    setError('')
+    setInfo('')
+    if (grupoIds.length === 0) {
+      setError('Selecione quem vai negociar: ao menos um grupo.')
       return
     }
-    onClose()
+    if (!observacao.trim()) {
+      setError('Observações são obrigatórias na publicação.')
+      return
+    }
+    if (exigeJustificativa && !motivo) {
+      setShowJustificativa(true)
+      return
+    }
+    if (doPublicar()) {
+      setInfo('Carga publicada. Os transportadores selecionados já podem negociar.')
+    }
   }
 
   function confirmJustificativa() {
@@ -96,33 +196,111 @@ export function PublishPanel({ carga, open, onClose }: Props) {
       return
     }
     setShowJustificativa(false)
-    const res = publicarCarga({
-      cargaId: carga!.id,
-      margemPercentual: margem,
-      grupoIds,
-      prazoLeilaoMinutos: prazoLeilao,
-      prazoAlocacaoMinutos: prazoAlocacao,
-      justificativaMotivo: motivo,
-      justificativaObs: obs,
-    })
-    if (!res.ok) {
-      setError(res.error ?? 'Erro ao publicar')
-      return
+    if (doPublicar({ motivo, obs })) {
+      setInfo('Carga publicada. Os transportadores selecionados já podem negociar.')
     }
-    onClose()
   }
+
+  function handleAceitar(lanceId: string) {
+    if (!canEdit) return
+    setError('')
+    setInfo('')
+    const res = aceitarLance(lanceId)
+    if (!res.ok) setError(res.error ?? 'Falha ao aceitar')
+    else setInfo('Frete fechado. Aguardando alocação do transportador.')
+  }
+
+  function handleRejeitar(lanceId: string) {
+    if (!canEdit) return
+    setError('')
+    setInfo('')
+    const res = rejeitarLance(lanceId)
+    if (!res.ok) setError(res.error ?? 'Falha ao rejeitar')
+    else setInfo('Proposta rejeitada.')
+  }
+
+  function handleEncerrar() {
+    if (!canEdit) return
+    setError('')
+    setInfo('')
+    const res = encerrarComMelhorLance(carga!.id)
+    if (!res.ok) setError(res.error ?? 'Falha ao encerrar')
+    else setInfo('Melhor lance aceito. Frete fechado.')
+  }
+
+  function handleFinalizar() {
+    if (!canEdit) return
+    setError('')
+    setInfo('')
+    const res = finalizarNegociacao(carga!.id)
+    if (!res.ok) setError(res.error ?? 'Falha ao finalizar')
+    else setInfo('Negociação finalizada.')
+  }
+
+  function handleCancelar() {
+    if (!canEdit) return
+    const motivo = window.prompt('Motivo do cancelamento (opcional):') ?? undefined
+    const res = cancelarPublicacao(carga!.id, motivo || undefined)
+    if (!res.ok) setError(res.error ?? 'Falha ao cancelar')
+    else setInfo('Publicação cancelada.')
+  }
+
+  function handleSuspender() {
+    if (!canEdit) return
+    const res = suspenderCarga(carga!.id)
+    if (!res.ok) setError(res.error ?? 'Falha ao suspender')
+    else setInfo('Negociação suspensa. O timer está pausado.')
+  }
+
+  function handleRetomar() {
+    if (!canEdit) return
+    const res = retomarCarga(carga!.id)
+    if (!res.ok) setError(res.error ?? 'Falha ao retomar')
+    else setInfo('Negociação retomada.')
+  }
+
+  function handleRepublicar() {
+    if (!canEdit) return
+    const res = republicarCarga(carga!.id)
+    if (!res.ok) setError(res.error ?? 'Falha ao republicar')
+    else setInfo('Carga pronta para nova publicação. Ajuste os dados e publique.')
+  }
+
+  function handleReabrir() {
+    if (!canEdit) return
+    const res = reabrirNegociacao(carga!.id)
+    if (!res.ok) setError(res.error ?? 'Falha ao reabrir')
+    else setInfo('Negociação reaberta com novo prazo.')
+  }
+
+  const histPropostas = carga ? historicoPropostasDaCarga(carga.id) : []
 
   const classColor =
     classificacao === 'A' ? 'bg-emerald-500' : classificacao === 'B' ? 'bg-amber-500' : 'bg-brand'
 
   return (
     <>
-      <aside className="animate-slide-in flex h-full w-[380px] shrink-0 flex-col overflow-hidden rounded-xl border border-ink/10 bg-white shadow-lg">
+      <aside className="animate-slide-in flex h-full w-[400px] shrink-0 flex-col overflow-hidden rounded-xl border border-ink/10 bg-white shadow-lg">
         <div className="border-b border-ink/10 bg-ink px-4 py-3 text-white">
           <p className="text-xs text-sand/70">Carga {carga.numero}</p>
           <p className="font-display text-sm font-semibold">
             {formatDateTime(carga.data_carregamento)}
           </p>
+          {!isNova && (
+            <p className="mt-1 text-xs text-sand/80">
+              Status:{' '}
+              <strong className="uppercase">{carga.status.replace('_', ' ')}</strong>
+              {carga.modo_publicacao && (
+                <>
+                  {' '}
+                  · {carga.modo_publicacao === 'oferta' ? 'Oferta' : 'Leilão'}
+                </>
+              )}
+              {carga.expira_em && !carga.transportador_vencedor_id && (
+                <> · Janela {tempoRestante(carga.expira_em)}</>
+              )}
+            </p>
+          )}
         </div>
 
         <div className="flex-1 space-y-3 overflow-y-auto p-4 text-sm">
@@ -141,9 +319,9 @@ export function PublishPanel({ carga, open, onClose }: Props) {
           {isNova ? (
             <div className="mt-2 space-y-3 rounded-lg border border-ink/10 bg-sand-light/40 p-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-ink-muted">Configurações de Oferta</span>
+                <span className="text-xs font-semibold text-ink-muted">Publicar para negociação</span>
                 <span className={`rounded px-2 py-0.5 text-xs font-bold text-white ${classColor}`}>
-                  Classificação {classificacao}
+                  Rota {classificacao}
                 </span>
               </div>
 
@@ -175,44 +353,100 @@ export function PublishPanel({ carga, open, onClose }: Props) {
                 Frete Oferta {formatCurrency(freteOferta)}
               </p>
 
-              <Field label="Grupos de Transportadores">
+              <Field label="Quem vai negociar? (grupos)">
                 <div className="flex flex-col gap-1 rounded-lg border border-ink/15 bg-white p-2">
-                  {grupos
-                    .filter((g) => g.situacao === 'ativo')
-                    .map((g) => (
-                      <label key={g.id} className="flex items-center gap-2 text-xs">
-                        <input
-                          type="checkbox"
-                          checked={grupoIds.includes(g.id)}
-                          onChange={() => toggleGrupo(g.id)}
-                        />
-                        {g.descricao}
-                      </label>
-                    ))}
+                  {grupos.filter((g) => g.situacao === 'ativo').length === 0 ? (
+                    <p className="text-xs text-brand">Cadastre grupos em Menu → Grupos.</p>
+                  ) : (
+                    grupos
+                      .filter((g) => g.situacao === 'ativo')
+                      .map((g) => {
+                        const qtd = g.transportador_ids.length
+                        return (
+                          <label key={g.id} className="flex items-start gap-2 text-xs">
+                            <input
+                              type="checkbox"
+                              className="mt-0.5"
+                              checked={grupoIds.includes(g.id)}
+                              onChange={() => toggleGrupo(g.id)}
+                            />
+                            <span>
+                              <strong>{g.descricao}</strong>
+                              <span className="block text-ink-muted">
+                                {qtd} transportador{qtd === 1 ? '' : 'es'}
+                              </span>
+                            </span>
+                          </label>
+                        )
+                      })
+                  )}
                 </div>
               </Field>
 
+              <label className="flex items-start gap-2 text-xs text-ink-muted">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={escalonar}
+                  onChange={(e) => setEscalonar(e.target.checked)}
+                  disabled={grupoIds.length < 2}
+                />
+                <span>
+                  Escalonar: notificar só o 1º grupo agora; os demais entram na metade do prazo.
+                </span>
+              </label>
+
+              <div className="rounded-lg border border-ink/10 bg-white p-2 text-xs">
+                <p className="mb-1 font-semibold text-ink">
+                  Recebem agora ({previewTransportadores.agora.length})
+                </p>
+                {previewTransportadores.agora.length === 0 ? (
+                  <p className="text-ink-muted">Nenhum — selecione um grupo.</p>
+                ) : (
+                  <ul className="list-inside list-disc text-ink-muted">
+                    {previewTransportadores.agora.map((t) => (
+                      <li key={t.id}>
+                        {t.nome_fantasia}{' '}
+                        <span className="uppercase">({t.classificacao})</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {previewTransportadores.depois.length > 0 && (
+                  <>
+                    <p className="mb-1 mt-2 font-semibold text-ink">
+                      Entram depois ({previewTransportadores.depois.length})
+                    </p>
+                    <ul className="list-inside list-disc text-ink-muted">
+                      {previewTransportadores.depois.map((t) => (
+                        <li key={t.id}>{t.nome_fantasia}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
-                <Field label="Prazo para Leilão">
+                <Field label="Prazo da negociação">
                   <select
                     className={inputClass}
                     value={prazoLeilao}
                     onChange={(e) => setPrazoLeilao(Number(e.target.value))}
                   >
-                    {PRAZOS_LEILAO_MINUTOS.map((m) => (
+                    {prazosOferta.map((m) => (
                       <option key={m} value={m}>
                         {formatPrazoLabel(m)}
                       </option>
                     ))}
                   </select>
                 </Field>
-                <Field label="Prazo para Alocação">
+                <Field label="Prazo para alocar">
                   <select
                     className={inputClass}
                     value={prazoAlocacao}
                     onChange={(e) => setPrazoAlocacao(Number(e.target.value))}
                   >
-                    {PRAZOS_ALOCACAO_MINUTOS.map((m) => (
+                    {prazosAlocacao.map((m) => (
                       <option key={m} value={m}>
                         {formatPrazoLabel(m)}
                       </option>
@@ -220,6 +454,16 @@ export function PublishPanel({ carga, open, onClose }: Props) {
                   </select>
                 </Field>
               </div>
+
+              <Field label="Observações *">
+                <textarea
+                  className={`${inputClass} min-h-16`}
+                  value={observacao}
+                  onChange={(e) => setObservacao(e.target.value)}
+                  placeholder="Informações da carga / restrições"
+                  disabled={!canEdit}
+                />
+              </Field>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -237,23 +481,26 @@ export function PublishPanel({ carga, open, onClose }: Props) {
                   </span>
                 </div>
                 <div>
-                  <p className="mb-1 text-xs text-ink-muted">Modo de Publicação</p>
+                  <p className="mb-1 text-xs text-ink-muted">Modo</p>
                   <span
                     className={`inline-block rounded-lg px-3 py-2 text-xs font-bold capitalize text-white ${
                       modo === 'oferta' ? 'bg-brand' : 'bg-ink'
                     }`}
                   >
-                    {modo === 'oferta' ? 'Oferta' : 'Leilão'}
+                    {modo === 'oferta' ? 'Oferta (1ª fecha)' : 'Leilão'}
                   </span>
                 </div>
               </div>
 
               {error && <p className="text-xs text-brand">{error}</p>}
+              {info && <p className="text-xs text-emerald-700">{info}</p>}
 
               <div className="flex gap-2">
-                <Button variant="success" className="flex-1" onClick={handlePublicar}>
-                  Publicar
-                </Button>
+                {canEdit && (
+                  <Button variant="success" className="flex-1" onClick={handlePublicar}>
+                    Publicar
+                  </Button>
+                )}
                 <Button variant="danger" className="flex-1" onClick={onClose}>
                   Fechar
                 </Button>
@@ -261,6 +508,97 @@ export function PublishPanel({ carga, open, onClose }: Props) {
             </div>
           ) : (
             <div className="space-y-3">
+              <div className="rounded-lg border border-blue-200 bg-blue-50/80 p-3 text-xs">
+                <p className="mb-1 font-semibold text-ink">Negociação</p>
+                <Detail
+                  label="Frete oferta"
+                  value={formatCurrency(carga.frete_oferta ?? carga.frete_tabela)}
+                />
+                {carga.frete_minimo != null && (
+                  <Detail label="Lance mínimo" value={formatCurrency(carga.frete_minimo)} />
+                )}
+                {carga.frete_maximo != null && (
+                  <Detail label="Lance máximo" value={formatCurrency(carga.frete_maximo)} />
+                )}
+                {carga.frete_fechado != null && (
+                  <Detail label="Frete fechado" value={formatCurrency(carga.frete_fechado)} />
+                )}
+                {carga.motivo_cancelamento && (
+                  <Detail label="Motivo cancelamento" value={carga.motivo_cancelamento} />
+                )}
+                <Detail
+                  label="Modo"
+                  value={
+                    carga.modo_publicacao === 'oferta'
+                      ? 'Oferta — 1º lance menor fecha'
+                      : 'Leilão — melhor ao fim / aceite manual'
+                  }
+                />
+                <Detail label="Prioridade" value={carga.prioridade ?? '—'} />
+                {!carga.transportador_vencedor_id && carga.expira_em && (
+                  <Detail label="Tempo restante" value={tempoRestante(carga.expira_em)} />
+                )}
+                {carga.transportador_vencedor_id && (
+                  <Detail
+                    label="Vencedor"
+                    value={
+                      transportadorById(carga.transportador_vencedor_id)?.nome_fantasia ?? '—'
+                    }
+                  />
+                )}
+              </div>
+
+              <div className="rounded-lg border border-ink/10 bg-white p-3 text-xs">
+                <p className="mb-1 font-semibold text-ink">Quem vai negociar?</p>
+                <p className="mb-2 text-[11px] text-ink-muted">
+                  Grupos:{' '}
+                  {carga.grupo_ids.length === 0
+                    ? '—'
+                    : carga.grupo_ids
+                        .map((id) => grupos.find((g) => g.id === id)?.descricao ?? id)
+                        .join(', ')}
+                </p>
+                <p className="mb-1 font-semibold text-ink">
+                  Negociando agora ({negociadoresAtivos.length})
+                </p>
+                {negociadoresAtivos.length === 0 ? (
+                  <p className="text-ink-muted">
+                    Nenhum transportador notificado. Publique com grupos ou use “Notificar todos”.
+                  </p>
+                ) : (
+                  <ul className="mb-2 list-inside list-disc text-ink-muted">
+                    {negociadoresAtivos.map((t) => (
+                      <li key={t.id}>
+                        {t.nome_fantasia}{' '}
+                        <span className="uppercase">({t.classificacao})</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {negociadoresPendentes.length > 0 && (
+                  <>
+                    <p className="mb-1 font-semibold text-ink">
+                      Entram na metade do prazo ({negociadoresPendentes.length})
+                    </p>
+                    <ul className="mb-2 list-inside list-disc text-ink-muted">
+                      {negociadoresPendentes.map((t) => (
+                        <li key={t.id}>{t.nome_fantasia}</li>
+                      ))}
+                    </ul>
+                    <Button
+                      variant="ghost"
+                      className="w-full text-xs"
+                      onClick={() => {
+                        notificarTodosGrupos(carga.id)
+                        setInfo('Demais grupos notificados agora.')
+                      }}
+                    >
+                      Notificar todos agora
+                    </Button>
+                  </>
+                )}
+              </div>
+
               <div className="grid grid-cols-3 gap-2 rounded-lg bg-sand-light/50 p-3 text-center text-xs">
                 <div>
                   <p className="text-ink-muted">Visualizações</p>
@@ -277,43 +615,97 @@ export function PublishPanel({ carga, open, onClose }: Props) {
               </div>
 
               <div>
-                <p className="mb-2 text-xs font-semibold text-ink-muted">Propostas recebidas</p>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-ink-muted">Propostas recebidas</p>
+                  <div className="flex flex-wrap gap-2">
+                    {canEdit &&
+                      emNegociacao &&
+                      !carga.transportador_vencedor_id &&
+                      lances.some((l) => l.status === 'ativo') && (
+                        <button
+                          type="button"
+                          className="text-[10px] font-bold text-emerald-700 hover:underline"
+                          onClick={handleEncerrar}
+                        >
+                          Aceitar melhor
+                        </button>
+                      )}
+                    {canEdit && emNegociacao && !carga.transportador_vencedor_id && (
+                      <button
+                        type="button"
+                        className="text-[10px] font-bold text-brand hover:underline"
+                        onClick={handleFinalizar}
+                      >
+                        Finalizar
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {carga.observacao && (
+                  <p className="mb-2 rounded bg-sand-light/60 p-2 text-[11px] text-ink-muted">
+                    <strong>Obs:</strong> {carga.observacao}
+                  </p>
+                )}
                 {lances.length === 0 ? (
-                  <p className="text-xs text-ink-muted">Nenhum lance ainda</p>
+                  <p className="text-xs text-ink-muted">
+                    Nenhum lance ainda. Os transportadores listados acima veem esta carga no Kanban
+                    deles.
+                  </p>
                 ) : (
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="border-b border-ink/10 text-left text-ink-muted">
-                        <th className="py-1">Transportador</th>
+                        <th className="py-1">#</th>
+                        <th>Transportadora</th>
+                        <th>Classe</th>
                         <th>Lance</th>
-                        <th>Ganho</th>
+                        <th>Data/Hora</th>
                         <th />
                       </tr>
                     </thead>
                     <tbody>
-                      {lances.map((l) => {
+                      {lances.map((l, idx) => {
                         const t = transportadorById(l.transportador_id)
-                        const ref = carga.frete_oferta ?? carga.frete_tabela
-                        const ganhoLance = ref - l.valor
                         return (
                           <tr key={l.id} className="border-b border-ink/5">
+                            <td className="py-2 pr-1">{idx + 1}º</td>
                             <td className="py-2 pr-1">{t?.nome_fantasia ?? '—'}</td>
+                            <td className="uppercase">{t?.classificacao ?? '—'}</td>
                             <td className="font-semibold">{formatCurrency(l.valor)}</td>
-                            <td className="text-emerald-700">{formatCurrency(ganhoLance)}</td>
-                            <td>
-                              {l.status === 'ativo' && !carga.transportador_vencedor_id && (
-                                <button
-                                  type="button"
-                                  className="text-[10px] font-bold text-emerald-700 hover:underline"
-                                  onClick={() => aceitarLance(l.id)}
-                                >
-                                  Aceitar
-                                </button>
-                              )}
+                            <td className="whitespace-nowrap text-[10px] text-ink-muted">
+                              {formatDateTime(l.updated_at ?? l.created_at)}
+                            </td>
+                            <td className="space-x-1 whitespace-nowrap">
+                              {canEdit &&
+                                l.status === 'ativo' &&
+                                !carga.transportador_vencedor_id && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="text-[10px] font-bold text-emerald-700 hover:underline"
+                                      onClick={() => handleAceitar(l.id)}
+                                    >
+                                      Aceitar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="text-[10px] font-bold text-brand hover:underline"
+                                      onClick={() => handleRejeitar(l.id)}
+                                    >
+                                      Rejeitar
+                                    </button>
+                                  </>
+                                )}
                               {l.status === 'vencedor' && (
                                 <span className="text-[10px] font-bold text-emerald-700">
                                   Vencedor
                                 </span>
+                              )}
+                              {l.status === 'perdido' && (
+                                <span className="text-[10px] text-ink-muted">Perdeu</span>
+                              )}
+                              {l.status === 'recusado' && (
+                                <span className="text-[10px] text-brand">Rejeitado</span>
                               )}
                             </td>
                           </tr>
@@ -324,7 +716,63 @@ export function PublishPanel({ carga, open, onClose }: Props) {
                 )}
               </div>
 
-              {carga.transportador_vencedor_id && carga.status !== 'alocadas' && (
+              {error && <p className="text-xs text-brand">{error}</p>}
+              {info && <p className="text-xs text-emerald-700">{info}</p>}
+
+              {histPropostas.length > 0 && (
+                <div className="rounded-lg border border-ink/10 p-3 text-xs">
+                  <p className="mb-1 font-semibold text-ink-muted">Histórico de alterações de lance</p>
+                  <ul className="max-h-28 space-y-1 overflow-y-auto text-ink-muted">
+                    {histPropostas.slice(0, 12).map((h) => (
+                      <li key={h.id}>
+                        {formatDateTime(h.created_at)}:{' '}
+                        {h.valor_anterior != null
+                          ? `${formatCurrency(h.valor_anterior)} → `
+                          : 'novo '}
+                        {formatCurrency(h.valor_novo)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {canEdit && (
+                <div className="flex flex-col gap-2">
+                  {['negociando', 'propostas'].includes(carga.status) &&
+                    !carga.transportador_vencedor_id && (
+                      <>
+                        <Button variant="ghost" className="w-full" onClick={handleSuspender}>
+                          Suspender negociação
+                        </Button>
+                        <Button variant="danger" className="w-full" onClick={handleCancelar}>
+                          Cancelar publicação
+                        </Button>
+                      </>
+                    )}
+                  {carga.status === 'suspensas' && (
+                    <>
+                      <Button variant="success" className="w-full" onClick={handleRetomar}>
+                        Retomar negociação
+                      </Button>
+                      <Button variant="danger" className="w-full" onClick={handleCancelar}>
+                        Cancelar publicação
+                      </Button>
+                    </>
+                  )}
+                  {['canceladas', 'recusadas', 'alocadas'].includes(carga.status) && (
+                    <Button variant="success" className="w-full" onClick={handleRepublicar}>
+                      Preparar republicação
+                    </Button>
+                  )}
+                  {carga.transportador_vencedor_id && carga.status === 'propostas' && (
+                    <Button variant="ghost" className="w-full" onClick={handleReabrir}>
+                      Reabrir negociação
+                    </Button>
+                  )}
+                </div>
+              )}
+
+              {carga.transportador_vencedor_id && carga.status !== 'alocadas' && canEdit && (
                 <Button
                   variant="danger"
                   className="w-full"
@@ -352,7 +800,8 @@ export function PublishPanel({ carga, open, onClose }: Props) {
       >
         <div className="space-y-3">
           <p className="text-sm text-ink-muted">
-            Prazo ≤ 30 min define prioridade alta e modo Oferta. Informe o motivo.
+            Prazo ≤ {config.limite_urgencia_minutos} min define prioridade alta e modo Oferta.
+            Informe o motivo.
           </p>
           <Field label="Motivo">
             <select className={inputClass} value={motivo} onChange={(e) => setMotivo(e.target.value)}>
@@ -374,7 +823,7 @@ export function PublishPanel({ carga, open, onClose }: Props) {
           {error && <p className="text-xs text-brand">{error}</p>}
           <div className="flex gap-2">
             <Button variant="success" className="flex-1" onClick={confirmJustificativa}>
-              Enviar
+              Publicar
             </Button>
             <Button variant="danger" className="flex-1" onClick={() => setShowJustificativa(false)}>
               Fechar

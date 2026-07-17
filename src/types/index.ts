@@ -11,6 +11,8 @@ export type StatusCargaMinerva =
   | 'propostas'
   | 'recusadas'
   | 'alocadas'
+  | 'canceladas'
+  | 'suspensas'
 
 export type StatusCargaTransportador =
   | 'nova_carga'
@@ -18,7 +20,10 @@ export type StatusCargaTransportador =
   | 'confirmadas'
   | 'alocadas'
 
-export type StatusLance = 'ativo' | 'vencedor' | 'perdido' | 'recusado'
+export type StatusLance = 'ativo' | 'vencedor' | 'perdido' | 'recusado' | 'cancelado'
+
+/** Perfil operacional PPT §9 (embarcador) */
+export type PerfilOperacional = 'administrador' | 'operador' | 'consulta'
 
 export interface Profile {
   id: string
@@ -29,7 +34,7 @@ export interface Profile {
   transportador_id?: string | null
   empresa_org_id?: string | null
   is_superuser?: boolean
-  /** null = acesso total (super) */
+  perfil_operacional?: PerfilOperacional | null
   permissoes_modulos?: Record<string, 'visualizar' | 'editar'> | null
 }
 
@@ -57,7 +62,6 @@ export interface TransportadorDocumento {
   transportador_id: string
   tipo: TipoDocumentoTransportador
   nome_arquivo: string
-  /** data URL (local) ou URL do Storage */
   url: string
   storage_path?: string
   created_at: string
@@ -89,7 +93,6 @@ export interface Transportador {
   created_at?: string
 }
 
-/** Roteiro de 5 fotos obrigatórias do veículo. */
 export type FotoVeiculoSlot =
   | 'dianteira'
   | 'lateral_esquerda'
@@ -112,7 +115,6 @@ export interface Veiculo {
   ano_fabricacao?: string
   ano_modelo?: string
   uf_licenciamento?: string
-  /** @deprecated use fotos.dianteira */
   foto_url?: string
   fotos?: FotosVeiculo
   tipo_carroceria?: string
@@ -127,6 +129,18 @@ export interface Veiculo {
   created_at: string
 }
 
+export interface Motorista {
+  id: string
+  transportador_id: string
+  nome: string
+  cpf?: string
+  cnh?: string
+  categoria_cnh?: string
+  validade_cnh?: string
+  telefone?: string
+  situacao: 'ativo' | 'inativo'
+  created_at: string
+}
 
 export interface GrupoTransportador {
   id: string
@@ -167,6 +181,9 @@ export interface Carga {
   valor_mercadorias: number
   frete_tabela: number
   frete_oferta: number | null
+  /** Limites opcionais de lance (R$) */
+  frete_minimo: number | null
+  frete_maximo: number | null
   margem_percentual: number | null
   data_carregamento: string
   previsao_entrega: string
@@ -180,6 +197,9 @@ export interface Carga {
   publicado_em: string | null
   expira_em: string | null
   alocacao_expira_em: string | null
+  /** Pausa (suspensa): ms restantes da janela de oferta */
+  pausado_em: string | null
+  tempo_restante_ms: number | null
   justificativa_motivo: string | null
   justificativa_obs: string | null
   grupo_ids: string[]
@@ -188,10 +208,16 @@ export interface Carga {
   frete_fechado: number | null
   placa: string | null
   motorista: string | null
+  veiculo_id: string | null
+  motorista_id: string | null
+  criado_por?: string | null
+  publicado_por?: string | null
   visualizacoes: number
   recusas: number
   observacao?: string
+  motivo_cancelamento?: string | null
   created_at: string
+  updated_at?: string
 }
 
 export interface Lance {
@@ -200,6 +226,17 @@ export interface Lance {
   transportador_id: string
   valor: number
   status: StatusLance
+  created_at: string
+  updated_at?: string
+}
+
+export interface HistoricoProposta {
+  id: string
+  lance_id: string
+  carga_id: string
+  transportador_id: string
+  valor_anterior: number | null
+  valor_novo: number
   created_at: string
 }
 
@@ -210,4 +247,63 @@ export interface InteracaoPontuacao {
   tipo: 'visualizada_sem_acao' | 'nao_visualizada' | 'recusada' | 'com_proposta' | 'frete_fechado'
   pontos: number
   created_at: string
+}
+
+export type TipoHistorico =
+  | 'carga_criada'
+  | 'carga_publicada'
+  | 'carga_cancelada'
+  | 'carga_suspensa'
+  | 'carga_retomada'
+  | 'carga_republicada'
+  | 'negociacao_reaberta'
+  | 'lance_enviado'
+  | 'lance_aceito'
+  | 'lance_rejeitado'
+  | 'negociacao_finalizada'
+  | 'frete_recusado'
+  | 'carga_alocada'
+  | 'grupos_notificados'
+  | 'integracao_fretes'
+  | 'pontuacao'
+  | 'alocacao_expirada'
+
+export interface HistoricoEvento {
+  id: string
+  tipo: TipoHistorico
+  carga_id?: string | null
+  transportador_id?: string | null
+  titulo: string
+  detalhe?: string
+  created_at: string
+  /** Auditoria */
+  ator_id?: string | null
+  ator_nome?: string | null
+  ip?: string | null
+  user_agent?: string | null
+  before?: Record<string, unknown> | null
+  after?: Record<string, unknown> | null
+}
+
+export interface NotificacaoInApp {
+  id: string
+  user_id?: string | null
+  role?: UserRole | 'todos' | null
+  transportador_id?: string | null
+  titulo: string
+  mensagem: string
+  carga_id?: string | null
+  lida: boolean
+  created_at: string
+}
+
+export type StatusIntegracaoFrete = 'pendente' | 'enviado' | 'erro' | 'simulado'
+
+export interface IntegracaoFrete {
+  id: string
+  carga_id: string
+  payload: Record<string, unknown>
+  status: StatusIntegracaoFrete
+  tentativa_em: string
+  resposta?: string
 }

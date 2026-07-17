@@ -5,6 +5,10 @@ import { LOGO_DOCA_LIVRE_SRC } from '../lib/brandAssets'
 import { ProductMark } from '../components/ProductMark'
 import { isSupabaseConfigured } from '../lib/supabase'
 import {
+  portalEmailEnviarCodigo,
+  portalEmailVerificarCodigo,
+} from '../lib/portalApi'
+import {
   DOCUMENTOS_TRANSPORTADOR,
   fileToDataUrl,
   isAcceptedDocFile,
@@ -59,6 +63,10 @@ export function CadastroTransportadorPage() {
     confirmarSenha: '',
     nome: '',
   })
+  const [emailCodigo, setEmailCodigo] = useState('')
+  const [emailConfirmado, setEmailConfirmado] = useState(false)
+  const [debugCodigo, setDebugCodigo] = useState('')
+  const [otpInfo, setOtpInfo] = useState('')
 
   const docsOk = useMemo(() => {
     return DOCUMENTOS_TRANSPORTADOR.filter((d) => d.obrigatorio).every((d) => Boolean(docs[d.tipo]))
@@ -140,10 +148,53 @@ export function CadastroTransportadorPage() {
     setStep(4)
   }
 
+  async function enviarCodigoEmail() {
+    setError('')
+    setOtpInfo('')
+    setDebugCodigo('')
+    if (!acesso.email.trim().includes('@')) {
+      setError('Informe um e-mail válido para receber o código.')
+      return
+    }
+    setLoading(true)
+    const res = await portalEmailEnviarCodigo(acesso.email.trim())
+    setLoading(false)
+    if (!res.ok) {
+      setError(res.erro)
+      return
+    }
+    setEmailConfirmado(false)
+    setOtpInfo(res.mensagem || 'Código enviado para o e-mail.')
+    setDebugCodigo(res.debug_codigo || '')
+  }
+
+  async function confirmarCodigoEmail() {
+    setError('')
+    setOtpInfo('')
+    setLoading(true)
+    const res = await portalEmailVerificarCodigo(acesso.email.trim(), emailCodigo.trim())
+    setLoading(false)
+    if (!res.ok) {
+      setError(res.erro)
+      return
+    }
+    setEmailConfirmado(true)
+    setDebugCodigo('')
+    setOtpInfo('E-mail confirmado. Defina a senha e envie o cadastro.')
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError('')
     setInfo('')
+    if (!emailConfirmado) {
+      setError('Confirme o e-mail com o código recebido antes de enviar o cadastro.')
+      return
+    }
+    if (acesso.senha !== acesso.confirmarSenha) {
+      setError('As senhas não coincidem.')
+      return
+    }
     setLoading(true)
     const result = await registrarCadastroTransportador({
       empresa,
@@ -439,35 +490,86 @@ export function CadastroTransportadorPage() {
                     <input
                       type="email"
                       value={acesso.email}
-                      onChange={(e) => setAcc('email', e.target.value)}
+                      onChange={(e) => {
+                        setEmailConfirmado(false)
+                        setAcc('email', e.target.value)
+                      }}
                       autoComplete="email"
+                      disabled={emailConfirmado}
                     />
                   </Field>
-                  <Field label="Senha" required>
-                    <input
-                      type="password"
-                      value={acesso.senha}
-                      onChange={(e) => setAcc('senha', e.target.value)}
-                      autoComplete="new-password"
-                    />
-                  </Field>
-                  <Field label="Confirmar senha" required>
-                    <input
-                      type="password"
-                      value={acesso.confirmarSenha}
-                      onChange={(e) => setAcc('confirmarSenha', e.target.value)}
-                      autoComplete="new-password"
-                    />
-                  </Field>
+
+                  {!emailConfirmado ? (
+                    <>
+                      <div className="cadastro-publico__nav" style={{ marginTop: 0 }}>
+                        <button
+                          type="button"
+                          className="portal-login__submit"
+                          disabled={loading}
+                          onClick={() => void enviarCodigoEmail()}
+                        >
+                          {loading ? 'Enviando…' : 'Enviar código por e-mail'}
+                        </button>
+                      </div>
+                      <Field label="Código recebido">
+                        <input
+                          value={emailCodigo}
+                          onChange={(e) => setEmailCodigo(e.target.value)}
+                          inputMode="numeric"
+                          maxLength={6}
+                          placeholder="6 dígitos"
+                        />
+                      </Field>
+                      {debugCodigo && (
+                        <p className="portal-login__info">
+                          Debug — código: <strong>{debugCodigo}</strong>
+                        </p>
+                      )}
+                      {otpInfo && <p className="portal-login__info">{otpInfo}</p>}
+                      <button
+                        type="button"
+                        className="cadastro-btn cadastro-btn--ghost"
+                        disabled={loading}
+                        onClick={() => void confirmarCodigoEmail()}
+                      >
+                        Confirmar e-mail
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="portal-login__info">E-mail confirmado ✓ {acesso.email}</p>
+                      <Field label="Senha" required>
+                        <input
+                          type="password"
+                          value={acesso.senha}
+                          onChange={(e) => setAcc('senha', e.target.value)}
+                          autoComplete="new-password"
+                        />
+                      </Field>
+                      <Field label="Confirmar senha" required>
+                        <input
+                          type="password"
+                          value={acesso.confirmarSenha}
+                          onChange={(e) => setAcc('confirmarSenha', e.target.value)}
+                          autoComplete="new-password"
+                        />
+                      </Field>
+                    </>
+                  )}
                 </div>
               </div>
             </section>
             {error && <p className="portal-login__erro">{error}</p>}
+            {otpInfo && emailConfirmado && <p className="portal-login__info">{otpInfo}</p>}
             <div className="cadastro-publico__nav">
               <button type="button" className="cadastro-btn cadastro-btn--ghost" onClick={() => setStep(3)}>
                 Voltar
               </button>
-              <button type="submit" className="portal-login__submit" disabled={loading}>
+              <button
+                type="submit"
+                className="portal-login__submit"
+                disabled={loading || !emailConfirmado}
+              >
                 {loading ? 'Enviando…' : 'Enviar cadastro'}
               </button>
             </div>

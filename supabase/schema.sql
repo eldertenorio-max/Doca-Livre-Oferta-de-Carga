@@ -30,12 +30,12 @@ exception when duplicate_object then null; end $$;
 
 do $$ begin
   create type status_carga as enum (
-    'nova_carga', 'negociando', 'propostas', 'recusadas', 'alocadas'
+    'nova_carga', 'negociando', 'propostas', 'recusadas', 'alocadas', 'canceladas', 'suspensas'
   );
 exception when duplicate_object then null; end $$;
 
 do $$ begin
-  create type status_lance as enum ('ativo', 'vencedor', 'perdido', 'recusado');
+  create type status_lance as enum ('ativo', 'vencedor', 'perdido', 'recusado', 'cancelado');
 exception when duplicate_object then null; end $$;
 
 do $$ begin

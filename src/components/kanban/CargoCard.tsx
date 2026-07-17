@@ -172,13 +172,20 @@ export function CargoCard({
           </IconBtn>
         )}
         {mode === 'minerva' && carga.status !== 'nova_carga' && (
-          <IconBtn title="Frete">
+          <IconBtn title="Negociação / frete" onClick={onView ?? onSelect}>
             <DollarSign size={14} />
           </IconBtn>
         )}
-        <IconBtn title="Chat">
-          <MessageSquare size={14} />
-        </IconBtn>
+        {mode === 'minerva' && carga.modo_publicacao && (
+          <span className="ml-auto rounded bg-ink/5 px-1.5 py-0.5 text-[10px] font-bold uppercase text-ink-muted">
+            {carga.modo_publicacao === 'oferta' ? 'Oferta' : 'Leilão'}
+          </span>
+        )}
+        {mode === 'transportador' && (
+          <IconBtn title="Mensagens">
+            <MessageSquare size={14} />
+          </IconBtn>
+        )}
         {(carga.status === 'alocadas' || onAllocate) && (
           <IconBtn title="Alocar" onClick={onAllocate}>
             <Truck size={14} />

@@ -36,10 +36,16 @@ export function TransportadoresPage() {
     documentosDoTransportador,
     aprovarTransportador,
     recusarTransportador,
+    historicoDoTransportador,
+    lances,
+    cargas,
+    grupos,
+    rankingTransportadores,
   } = useData()
-  const [mode, setMode] = useState<'lista' | 'form' | 'revisao'>('lista')
+  const [mode, setMode] = useState<'lista' | 'form' | 'revisao' | 'ficha'>('lista')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [revisaoId, setRevisaoId] = useState<string | null>(null)
+  const [fichaId, setFichaId] = useState<string | null>(null)
   const [form, setForm] = useState<Partial<Transportador>>(emptyForm)
   const [search, setSearch] = useState('')
   const [filtro, setFiltro] = useState<FilterSit>('todos')
@@ -85,6 +91,22 @@ export function TransportadoresPage() {
     setError('')
     setMode('revisao')
   }
+
+  function openFicha(t: Transportador) {
+    setFichaId(t.id)
+    setMode('ficha')
+  }
+
+  const ficha = fichaId ? transportadores.find((t) => t.id === fichaId) : null
+  const fichaHist = fichaId ? historicoDoTransportador(fichaId) : []
+  const fichaLances = fichaId ? lances.filter((l) => l.transportador_id === fichaId) : []
+  const fichaFretes = fichaId
+    ? cargas.filter((c) => c.transportador_vencedor_id === fichaId)
+    : []
+  const fichaGrupos = fichaId
+    ? grupos.filter((g) => g.transportador_ids.includes(fichaId))
+    : []
+  const ranking = rankingTransportadores()
 
   function set<K extends keyof Transportador>(key: K, value: Transportador[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -146,6 +168,72 @@ export function TransportadoresPage() {
     }
     setMode('lista')
     setRevisaoId(null)
+  }
+
+  if (mode === 'ficha' && ficha) {
+    const pos = ranking.findIndex((t) => t.id === ficha.id) + 1
+    return (
+      <div className="cadastro-page animate-fade-up">
+        <button type="button" className="cadastro-back" onClick={() => setMode('lista')}>
+          ← Voltar para Lista
+        </button>
+        <h1 className="cadastro-page-title">
+          Desempenho — {ficha.nome_fantasia}
+        </h1>
+        <div className="grid gap-4 lg:grid-cols-3 mb-4">
+          <div className="rounded-xl border border-ink/10 bg-white p-4">
+            <p className="text-xs text-ink-muted">Pontuação / Ranking</p>
+            <p className="font-display text-2xl font-bold">
+              {ficha.pontuacao} pts · {pos > 0 ? `${pos}º` : '—'}
+            </p>
+            <p className="text-xs uppercase">{ficha.classificacao}</p>
+          </div>
+          <div className="rounded-xl border border-ink/10 bg-white p-4">
+            <p className="text-xs text-ink-muted">Propostas</p>
+            <p className="font-display text-2xl font-bold">{fichaLances.length}</p>
+          </div>
+          <div className="rounded-xl border border-ink/10 bg-white p-4">
+            <p className="text-xs text-ink-muted">Fretes ganhos</p>
+            <p className="font-display text-2xl font-bold">
+              {cargas.filter((c) => c.transportador_vencedor_id === ficha.id && c.frete_fechado).length}
+            </p>
+          </div>
+        </div>
+        <section className="form-card form-card--blue mb-4">
+          <header className="form-card__head">
+            <h2 className="form-card__title">Grupos</h2>
+          </header>
+          <div className="form-card__body text-sm">
+            {fichaGrupos.length === 0
+              ? 'Não participa de grupos.'
+              : fichaGrupos.map((g) => g.descricao).join(', ')}
+          </div>
+        </section>
+        <section className="form-card form-card--green mb-4">
+          <header className="form-card__head">
+            <h2 className="form-card__title">Histórico de propostas / fretes</h2>
+          </header>
+          <div className="form-card__body">
+            <ul className="space-y-1 text-sm">
+              {fichaHist.slice(0, 40).map((h) => (
+                <li key={h.id} className="border-b border-ink/5 py-1">
+                  <strong>{h.titulo}</strong>
+                  <span className="ml-2 text-xs text-ink-muted">{h.detalhe}</span>
+                </li>
+              ))}
+              {fichaHist.length === 0 && (
+                <li className="text-ink-muted">Sem eventos ainda.</li>
+              )}
+            </ul>
+            {fichaFretes.length > 0 && (
+              <p className="mt-3 text-xs text-ink-muted">
+                Cargas vinculadas: {fichaFretes.map((c) => c.numero).join(', ')}
+              </p>
+            )}
+          </div>
+        </section>
+      </div>
+    )
   }
 
   if (mode === 'revisao' && revisao) {
@@ -357,6 +445,9 @@ export function TransportadoresPage() {
                           Revisar
                         </button>
                       )}
+                      <button type="button" className="cadastro-link" onClick={() => openFicha(t)}>
+                        Desempenho
+                      </button>
                       <button type="button" className="cadastro-link" onClick={() => openEdit(t)}>
                         Editar
                       </button>

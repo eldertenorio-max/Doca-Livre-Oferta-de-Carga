@@ -10,7 +10,10 @@ import { RotasPage } from './pages/minerva/Rotas'
 import { TransportadoresPage } from './pages/minerva/Transportadores'
 import { GruposPage } from './pages/minerva/Grupos'
 import { IndicadoresPage } from './pages/minerva/Indicadores'
+import { ConfiguracoesPage } from './pages/minerva/Configuracoes'
+import { HistoricoPage } from './pages/minerva/Historico'
 import { VeiculosPage } from './pages/minerva/Veiculos'
+import { MotoristasPage } from './pages/minerva/Motoristas'
 import { PortalConfigPage } from './pages/minerva/PortalConfig'
 import { KanbanTransportador } from './pages/transportador/KanbanTransportador'
 import type { UserRole } from './types'
@@ -83,6 +86,14 @@ export default function App() {
           }
         />
         <Route
+          path="/minerva/motoristas"
+          element={
+            <Protected role={['minerva', 'super', 'transportador']}>
+              <MotoristasPage />
+            </Protected>
+          }
+        />
+        <Route
           path="/minerva/grupos"
           element={
             <Protected role={['minerva', 'super']}>
@@ -95,6 +106,22 @@ export default function App() {
           element={
             <Protected role={['minerva', 'super']}>
               <IndicadoresPage />
+            </Protected>
+          }
+        />
+        <Route
+          path="/minerva/configuracoes"
+          element={
+            <Protected role={['minerva', 'super']}>
+              <ConfiguracoesPage />
+            </Protected>
+          }
+        />
+        <Route
+          path="/minerva/historico"
+          element={
+            <Protected role={['minerva', 'super']}>
+              <HistoricoPage />
             </Protected>
           }
         />
@@ -119,6 +146,14 @@ export default function App() {
           element={
             <Protected role={['transportador', 'super']}>
               <VeiculosPage />
+            </Protected>
+          }
+        />
+        <Route
+          path="/transportador/motoristas"
+          element={
+            <Protected role={['transportador', 'super']}>
+              <MotoristasPage />
             </Protected>
           }
         />

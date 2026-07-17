@@ -4,6 +4,7 @@ import { useData } from '../../context/DataContext'
 import { BRAND_EMBARCADOR_LABEL, LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { ProductMark } from '../ProductMark'
 import { canOpenModulo, moduloFromPath } from '../../lib/portalModules'
+import { PERFIL_OPERACIONAL_LABEL } from '../../lib/perfisOperacionais'
 import { isLocalSuperUser } from '../../lib/superUsers'
 import '../../styles/shell.css'
 
@@ -87,14 +88,18 @@ const minervaLinks: NavItem[] = [
   { to: '/minerva/rotas', label: 'Rotas', icon: <IconMap /> },
   { to: '/minerva/transportadores', label: 'Transportadoras', icon: <IconUsers /> },
   { to: '/minerva/veiculos', label: 'Veículos', icon: <IconTruck /> },
+  { to: '/minerva/motoristas', label: 'Motoristas', icon: <IconUsers /> },
   { to: '/minerva/grupos', label: 'Grupos', icon: <IconGroups /> },
   { to: '/minerva/indicadores', label: 'Indicadores', icon: <IconChart /> },
+  { to: '/minerva/configuracoes', label: 'Configurações', icon: <IconShield /> },
+  { to: '/minerva/historico', label: 'Histórico', icon: <IconChart /> },
   { to: '/minerva/config', label: 'Portal / Permissões', icon: <IconShield /> },
 ]
 
 const transportadorLinks: NavItem[] = [
   { to: '/transportador', label: 'Kanban Ofertas', icon: <IconTruck />, end: true },
   { to: '/transportador/veiculos', label: 'Meus Veículos', icon: <IconTruck /> },
+  { to: '/transportador/motoristas', label: 'Meus Motoristas', icon: <IconUsers /> },
 ]
 
 function formatClock(now: Date) {
@@ -112,10 +117,34 @@ function iniciais(nome: string) {
 }
 
 export function AppLayout() {
-  const { user, logout } = useData()
+  const {
+    user,
+    logout,
+    notificacoes,
+    marcarNotificacaoLida,
+    marcarTodasNotificacoesLidas,
+  } = useData()
   const navigate = useNavigate()
   const [sidebarWide, setSidebarWide] = useState(true)
   const [clock, setClock] = useState(() => formatClock(new Date()))
+  const [notifOpen, setNotifOpen] = useState(false)
+
+  const minhasNotifs = useMemo(() => {
+    if (!user) return []
+    return (notificacoes ?? [])
+      .filter((n) => {
+        if (n.user_id && n.user_id === user.id) return true
+        if (n.transportador_id && n.transportador_id === user.transportador_id) return true
+        if (n.role === 'todos') return true
+        if (n.role && n.role === user.role) return true
+        if (!n.user_id && !n.transportador_id && !n.role) return user.role === 'minerva' || user.is_superuser
+        return false
+      })
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 40)
+  }, [notificacoes, user])
+
+  const unread = minhasNotifs.filter((n) => !n.lida).length
 
   const isSuper =
     Boolean(user?.is_superuser) ||
@@ -144,7 +173,9 @@ export function AppLayout() {
   const roleLabel = isSuper
     ? 'Super Usuário'
     : user?.role === 'minerva'
-      ? BRAND_EMBARCADOR_LABEL
+      ? user.perfil_operacional
+        ? `${BRAND_EMBARCADOR_LABEL} · ${PERFIL_OPERACIONAL_LABEL[user.perfil_operacional]}`
+        : BRAND_EMBARCADOR_LABEL
       : 'Transportador'
 
   return (
@@ -169,6 +200,64 @@ export function AppLayout() {
         </div>
 
         <div className="app-topbar-right">
+          <div className="app-topbar-notif-wrap">
+            <button
+              type="button"
+              className="app-topbar-refresh"
+              onClick={() => setNotifOpen((v) => !v)}
+              title="Notificações"
+              aria-label="Notificações"
+              aria-expanded={notifOpen}
+            >
+              <svg viewBox="0 0 24 24" fill="none" width="18" height="18" aria-hidden>
+                <path
+                  d="M15 17H9m6 0a3 3 0 0 1-6 0m6 0h2.2c.9 0 1.3 0 1.5-.16.2-.14.35-.4.4-.7.05-.32-.1-.7-.4-1.45L17 12.5V10a5 5 0 1 0-10 0v2.5l-.7 2.2c-.3.74-.45 1.12-.4 1.44.05.3.2.56.4.7.2.16.6.16 1.5.16H9"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {unread > 0 && <span className="app-topbar-notif-badge">{unread > 9 ? '9+' : unread}</span>}
+            </button>
+            {notifOpen && (
+              <div className="app-topbar-notif-panel" role="dialog" aria-label="Lista de notificações">
+                <div className="app-topbar-notif-head">
+                  <strong>Notificações</strong>
+                  {unread > 0 && (
+                    <button
+                      type="button"
+                      className="app-topbar-notif-mark"
+                      onClick={() => marcarTodasNotificacoesLidas()}
+                    >
+                      Marcar todas lidas
+                    </button>
+                  )}
+                </div>
+                <ul className="app-topbar-notif-list">
+                  {minhasNotifs.length === 0 && (
+                    <li className="app-topbar-notif-empty">Nenhuma notificação.</li>
+                  )}
+                  {minhasNotifs.map((n) => (
+                    <li key={n.id}>
+                      <button
+                        type="button"
+                        className={`app-topbar-notif-item${n.lida ? '' : ' app-topbar-notif-item--unread'}`}
+                        onClick={() => {
+                          marcarNotificacaoLida(n.id)
+                          setNotifOpen(false)
+                        }}
+                      >
+                        <strong>{n.titulo}</strong>
+                        <span>{n.mensagem}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
           <button
             type="button"
             className="app-topbar-refresh"

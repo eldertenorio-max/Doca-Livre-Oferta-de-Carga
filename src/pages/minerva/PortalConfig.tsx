@@ -16,6 +16,11 @@ import {
   type OfertaPermissao,
 } from '../../lib/portalModules'
 import {
+  PERFIL_OPERACIONAL_LABEL,
+  permissaoPorPerfil,
+  type PerfilOperacional,
+} from '../../lib/perfisOperacionais'
+import {
   ORG_TIPO_LABEL,
   allowedOrgChildTypes,
   deleteOrgNo,
@@ -114,6 +119,19 @@ export function PortalConfigPage() {
     savePermissoesMap(perms)
     refreshPermissoes()
     setMsg('Permissões salvas.')
+  }
+
+  function applyPerfilOperacional(perfil: PerfilOperacional) {
+    if (!selectedUser) return
+    const account = accounts.find((a) => a.usuario === selectedUser)
+    if (!account || account.role === 'transportador') {
+      setMsg('Perfis Admin/Operador/Consulta aplicam-se a usuários embarcadores.')
+      return
+    }
+    const nextPerm = permissaoPorPerfil(perfil)
+    setPerms((prev) => ({ ...prev, [selectedUser]: nextPerm }))
+    updateAccount(selectedUser, { perfil_operacional: perfil })
+    setMsg(`Perfil ${PERFIL_OPERACIONAL_LABEL[perfil]} aplicado. Clique em Salvar permissões.`)
   }
 
   function updateAccount(usuario: string, patch: Partial<PortalAccount>) {
@@ -220,6 +238,22 @@ export function PortalConfigPage() {
                 <p className="cadastro-empty">Selecione um usuário à esquerda.</p>
               ) : (
                 <>
+                  <p className="portal-login__hint" style={{ marginBottom: 10 }}>
+                    Atalhos da especificação (PPT): Administrador (cadastrar/configurar/publicar),
+                    Operador (publicar/acompanhar), Consulta (somente leitura).
+                  </p>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                    {(Object.keys(PERFIL_OPERACIONAL_LABEL) as PerfilOperacional[]).map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        className="cadastro-btn cadastro-btn--ghost"
+                        onClick={() => applyPerfilOperacional(p)}
+                      >
+                        {PERFIL_OPERACIONAL_LABEL[p]}
+                      </button>
+                    ))}
+                  </div>
                   <table className="cadastro-table">
                     <thead>
                       <tr>
@@ -279,8 +313,8 @@ export function PortalConfigPage() {
                   <tr>
                     <th>Usuário</th>
                     <th>E-mail</th>
-                    <th>Perfil</th>
-                    <th>Nível</th>
+                    <th>Perfil sistema</th>
+                    <th>Perfil operacional</th>
                     <th>Ativo</th>
                   </tr>
                 </thead>
@@ -315,7 +349,15 @@ export function PortalConfigPage() {
                             </select>
                           )}
                         </td>
-                        <td>{a.nivel ?? '—'}</td>
+                        <td>
+                          {superU
+                            ? '—'
+                            : a.role === 'transportador'
+                              ? '—'
+                              : (a.perfil_operacional
+                                  ? PERFIL_OPERACIONAL_LABEL[a.perfil_operacional]
+                                  : '—')}
+                        </td>
                         <td>
                           {superU ? (
                             'sim'

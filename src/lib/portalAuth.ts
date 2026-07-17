@@ -1,7 +1,7 @@
 /**
- * Autenticação do Oferta de Carga (sistema independente).
- * Cadastro com confirmação por código de e-mail (OTP local por enquanto;
- * depois pode ir para Supabase/e-mail próprio deste projeto).
+ * Autenticação local do Oferta de Carga (contas em localStorage).
+ * Envio de e-mail OTP: use `portalApi.ts` (Edge Function + Resend, como no WMS).
+ * As funções OTP abaixo são fallback de desenvolvimento.
  */
 
 import { isLocalSuperUser } from './superUsers'
@@ -11,7 +11,7 @@ import {
   SUPER_PERMISSAO,
   type OfertaPermissao,
 } from './portalModules'
-import type { UserRole } from '../types'
+import type { PerfilOperacional, UserRole } from '../types'
 
 const USERS_KEY = 'doca-livre-oferta-users-v2'
 const OTP_KEY = 'doca-livre-oferta-otp-v1'
@@ -27,6 +27,8 @@ export type PortalAccount = {
   transportador_id?: string | null
   empresa_org_id?: string | null
   nivel?: 'super' | 'gestor' | 'operador'
+  /** PPT §9 — Administrador | Operador | Consulta */
+  perfil_operacional?: PerfilOperacional
   ativo: boolean
   created_at: string
 }
@@ -62,6 +64,7 @@ function seedAccounts(): PortalAccount[] {
       nome: 'Operador Doca Livre Oferta de Carga',
       role: 'minerva',
       nivel: 'gestor',
+      perfil_operacional: 'administrador',
       ativo: true,
       created_at: new Date().toISOString(),
     },
