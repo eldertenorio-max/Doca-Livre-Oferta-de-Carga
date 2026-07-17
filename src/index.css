@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #f9db00;
+  --color-brand-dark: #e0c500;
+  --color-brand-soft: #fff3a8;
+  --color-ink: #000000;
+  --color-ink-deep: #111111;
+  --color-ink-muted: #5c6670;
+  --color-sand: #f9db00;
+  --color-sand-dark: #e0c500;
+  --color-sand-light: #eef1f4;
+  --color-surface: #eef1f4;
+  --color-panel: #ffffff;
+}
+
+:root {
+  color-scheme: light;
+  --brand-black: #000000;
+  --brand-yellow: #f9db00;
+  --brand-yellow-hover: #e0c500;
+  --brand-yellow-soft: rgb(249 219 0 / 0.14);
+  --sidebar-bg: #000000;
+  --sidebar-border: #1f1f1f;
+  --sidebar-text: #ffffff;
+  --sidebar-text-muted: #b0b0b0;
+  --bg: #eef1f4;
+  --bg-panel: #ffffff;
+  --bg-elevated: #f8f9fb;
+  --border: #dde1e6;
+  --text: #000000;
+  --text-muted: #5c6670;
+  --accent: var(--brand-yellow);
+  --accent-hover: var(--brand-yellow-hover);
+  --accent-fg: var(--brand-black);
+  --btn-surface-bg: #ffffff;
+  --btn-surface-fg: #000000;
+  --btn-surface-border: #d0d7de;
+  --btn-surface-hover-bg: #eceef0;
+  --danger: #dc2626;
+  --success: #16a34a;
+  --highlight-bg: rgb(249 219 0 / 0.12);
+  --shadow-sidebar: 8px 0 28px rgb(0 0 0 / 0.45);
+  --sidebar-w: 280px;
+  --sidebar-w-collapsed: 72px;
+  --sidebar-icon-size: 28px;
+  --app-topbar-h: 54px;
+  --content-bg: #eef1f4;
+  --priority-high: #e84752;
+  --priority-medium: #e6a817;
+  --priority-low: #2f9e6a;
+  font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  min-height: 100%;
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #c5cdd2;
+  border-radius: 999px;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+
+.animate-fade-up { animation: fade-up 0.35s ease-out both; }
+.animate-slide-in { animation: slide-in-right 0.3s ease-out both; }
+.animate-pulse-soft { animation: pulse-soft 1.6s ease-in-out infinite; }

@@ -1,0 +1,407 @@
+/* Shell visual — espelho do Doca Livre WMS Plus */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  max-height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.app-workspace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+/* —— Topbar —— */
+.app-topbar {
+  flex-shrink: 0;
+  height: var(--app-topbar-h, 54px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 14px 0 10px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.06);
+  z-index: 120;
+}
+
+.app-topbar-left,
+.app-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.app-topbar-left { flex: 1; }
+.app-topbar-right { margin-left: auto; flex-shrink: 0; }
+
+.app-topbar-menu {
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #000000;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.app-topbar-menu:hover {
+  background: color-mix(in srgb, #dde1e6 50%, transparent);
+}
+
+.app-topbar-menu-icon {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 999px;
+  box-shadow:
+    0 -6px 0 currentColor,
+    0 6px 0 currentColor;
+}
+
+.app-topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.app-topbar-logo {
+  display: block;
+  height: 34px;
+  width: auto;
+  max-width: min(220px, 42vw);
+  object-fit: contain;
+  object-position: left center;
+}
+
+.app-topbar-wms,
+.product-mark {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  line-height: 1.05;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #000000;
+}
+
+.product-mark--lg {
+  font-size: clamp(1.45rem, 4.5vw, 1.95rem);
+  letter-spacing: -0.025em;
+}
+
+.product-mark--sm {
+  font-size: 1.05rem;
+}
+
+.app-topbar-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+  padding: 0 12px 0 4px;
+  border-right: 1px solid #e5e7eb;
+  margin-right: 4px;
+}
+
+.app-topbar-meta-time {
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #000000;
+}
+
+.app-topbar-meta-date,
+.app-topbar-meta-version {
+  font-size: 0.68rem;
+  color: #5c6670;
+}
+
+.app-topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: right;
+}
+
+.app-topbar-user:hover {
+  background: #eceef0;
+  border-color: #d0d7de;
+}
+
+.app-topbar-user-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.2;
+}
+
+.app-topbar-user-text strong {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.app-topbar-user-text span {
+  font-size: 0.72rem;
+  color: #5c6670;
+}
+
+.app-topbar-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--brand-yellow);
+  background: #fff;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-topbar-avatar-iniciais {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #fff;
+  background: #5c6670;
+}
+
+.app-topbar-logout {
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #fff;
+  color: #000;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.app-topbar-logout:hover {
+  background: #eceef0;
+}
+
+.app-topbar-refresh {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #fff;
+  color: #000;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-topbar-refresh:hover {
+  background: #eceef0;
+}
+
+/* —— Sidebar preta —— */
+.sidebar {
+  position: relative;
+  width: var(--sidebar-w-collapsed);
+  flex-shrink: 0;
+  align-self: stretch;
+  height: 100%;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  color: var(--sidebar-text);
+  padding: 16px 10px 0;
+  overflow: hidden;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.22s ease-out, padding 0.22s ease-out, box-shadow 0.22s ease-out;
+}
+
+.sidebar.sidebar--wide {
+  width: var(--sidebar-w);
+  padding: 20px 16px 10px;
+  box-shadow: var(--shadow-sidebar);
+}
+
+.sidebar-body {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+a.sidebar-section {
+  display: block;
+  padding: 0;
+  border-top: 1px solid var(--sidebar-border);
+  text-decoration: none;
+  color: inherit;
+}
+
+a.sidebar-section:first-of-type {
+  border-top: none;
+}
+
+.sidebar-section-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 10px 8px;
+  border: none;
+  background: transparent;
+  color: var(--sidebar-text);
+  text-align: left;
+  cursor: pointer;
+  border-radius: 0;
+  border-left: 3px solid transparent;
+  text-decoration: none;
+  box-sizing: border-box;
+  transition: background 0.2s ease, gap 0.28s ease, padding 0.28s ease;
+}
+
+.sidebar.sidebar--wide .sidebar-section-trigger {
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 14px 4px 14px 12px;
+}
+
+.sidebar-section-trigger:hover {
+  background: rgb(255 255 255 / 0.05);
+}
+
+.sidebar-section--open .sidebar-section-trigger,
+.sidebar-section-trigger.active {
+  background: var(--brand-yellow-soft);
+  border-left-color: var(--brand-yellow);
+}
+
+.sidebar-section-icon {
+  flex-shrink: 0;
+  width: var(--sidebar-icon-size);
+  height: var(--sidebar-icon-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--sidebar-text-muted);
+  box-sizing: border-box;
+}
+
+.sidebar-section--open .sidebar-section-icon,
+.sidebar-section-trigger:hover .sidebar-section-icon,
+.sidebar-section-trigger.active .sidebar-section-icon {
+  color: var(--brand-yellow);
+}
+
+.sidebar-section-icon svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.sidebar-section-title {
+  flex: 0;
+  width: 0;
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  color: var(--sidebar-text);
+  transition: opacity 0.22s ease, width 0.28s ease, flex 0.28s ease;
+}
+
+.sidebar.sidebar--wide .sidebar-section-title {
+  flex: 1;
+  width: auto;
+  opacity: 1;
+}
+
+.sidebar-section-chevron {
+  flex-shrink: 0;
+  font-size: 1.1rem;
+  color: var(--sidebar-text-muted);
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+}
+
+.sidebar.sidebar--wide .sidebar-section-chevron {
+  opacity: 1;
+  width: auto;
+}
+
+.sidebar-section--open .sidebar-section-chevron,
+.sidebar-section-trigger.active + .sidebar-section-chevron,
+.sidebar-section-trigger.active .sidebar-section-chevron {
+  color: var(--brand-yellow);
+}
+
+/* —— Main panel —— */
+.main-panel {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+  padding: 10px 14px 24px;
+  background: var(--content-bg);
+  position: relative;
+}
+
+.main-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    url('/logo-doca-livre.png') center 42% / min(420px, 70%) no-repeat,
+    radial-gradient(circle at center, rgb(249 219 0 / 0.04) 0%, transparent 55%);
+  opacity: 0.07;
+  z-index: 0;
+}
+
+.main-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 900px) {
+  .app-topbar-user-text { display: none; }
+  .app-topbar-meta { display: none; }
+  .sidebar.sidebar--wide {
+    width: min(280px, calc(100vw - 24px));
+  }
+}
