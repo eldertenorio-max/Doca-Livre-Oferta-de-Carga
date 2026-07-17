@@ -45,24 +45,41 @@ async function invokeOtp<T extends { ok?: boolean; erro?: string; smtp_motivo?: 
     const { data, error } = await supabase.functions.invoke('portal-otp', {
       body: { action, ...body },
     })
-    if (error) {
-      const msg = error.message || 'Falha ao chamar o serviço de e-mail.'
-      // Função não publicada → deixa o caller fazer fallback local
-      if (/not found|404|Failed to send/i.test(msg)) {
-        return { ok: false, erro: `__FALLBACK__:${msg}` }
-      }
-      return { ok: false, erro: msg }
-    }
-    const payload = (data ?? {}) as T & Fail
-    if (!payload.ok) {
-      const base = payload.erro || 'Não foi possível concluir a operação.'
+    // Em HTTP não-2xx o client às vezes só traz mensagem genérica; o corpo útil vem em `data`.
+    const payload = (data ?? {}) as T & Fail & { message?: string }
+    if (payload && typeof payload === 'object' && payload.ok === false) {
+      const base = payload.erro || payload.message || 'Não foi possível concluir a operação.'
       const detail = (payload.smtp_motivo || '').trim()
       return {
         ok: false,
         erro: detail && !base.includes(detail) ? `${base} (${detail})` : base,
       }
     }
-    return payload
+    if (error) {
+      let msg = error.message || 'Falha ao chamar o serviço de e-mail.'
+      // Extrai JSON do contexto (FunctionsHttpError) quando existir
+      const ctx = (error as { context?: Response }).context
+      if (ctx && typeof ctx.json === 'function') {
+        try {
+          const bodyErr = (await ctx.json()) as Fail & { smtp_motivo?: string; message?: string }
+          if (bodyErr?.erro || bodyErr?.message) {
+            const base = bodyErr.erro || bodyErr.message || msg
+            const detail = (bodyErr.smtp_motivo || '').trim()
+            msg = detail && !base.includes(detail) ? `${base} (${detail})` : base
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      if (/not found|404|Failed to send a request/i.test(msg)) {
+        return { ok: false, erro: `__FALLBACK__:${msg}` }
+      }
+      return { ok: false, erro: msg }
+    }
+    if (!payload || (payload as Fail).ok === false) {
+      return { ok: false, erro: 'Não foi possível concluir a operação.' }
+    }
+    return payload as T
   } catch (e) {
     return {
       ok: false,
