@@ -1,5 +1,5 @@
 -- Seed de dados iniciais (execute após schema.sql)
--- IDs fixos para facilitar testes
+-- IDs fixos válidos (UUID hex)
 
 insert into transportadores (id, razao_social, nome_fantasia, cnpj, cidade, uf, classificacao, pontuacao, situacao, telefone, email)
 values
@@ -29,10 +29,10 @@ on conflict do nothing;
 
 insert into rotas (id, descricao, origem, destino, classificacao, frete_tabela, km)
 values
-  ('r1111111-1111-1111-1111-111111111111', 'JOSE BONIFACIO-SP - GUARUJA-SP', 'José Bonifácio - SP', 'Guarujá - SP', 'A', 7357.26, 480),
-  ('r2222222-2222-2222-2222-222222222222', 'CAMPINAS-SP - SANTOS-SP', 'Campinas - SP', 'Santos - SP', 'B', 4200.00, 180),
-  ('r3333333-3333-3333-3333-333333333333', 'RIBEIRAO PRETO-SP - GUARULHOS-SP', 'Ribeirão Preto - SP', 'Guarulhos - SP', 'C', 5100.50, 320),
-  ('r4444444-4444-4444-4444-444444444444', 'CURITIBA-PR - SAO PAULO-SP', 'Curitiba - PR', 'São Paulo - SP', 'B', 6800.00, 408)
+  ('a1111111-1111-1111-1111-111111111111', 'JOSE BONIFACIO-SP - GUARUJA-SP', 'José Bonifácio - SP', 'Guarujá - SP', 'A', 7357.26, 480),
+  ('a2222222-2222-2222-2222-222222222222', 'CAMPINAS-SP - SANTOS-SP', 'Campinas - SP', 'Santos - SP', 'B', 4200.00, 180),
+  ('a3333333-3333-3333-3333-333333333333', 'RIBEIRAO PRETO-SP - GUARULHOS-SP', 'Ribeirão Preto - SP', 'Guarulhos - SP', 'C', 5100.50, 320),
+  ('a4444444-4444-4444-4444-444444444444', 'CURITIBA-PR - SAO PAULO-SP', 'Curitiba - PR', 'São Paulo - SP', 'B', 6800.00, 408)
 on conflict (id) do nothing;
 
 insert into cargas (
@@ -42,30 +42,30 @@ insert into cargas (
   data_carregamento, previsao_entrega, rota_id, classificacao_rota, status
 ) values
 (
-  'c1111111-1111-1111-1111-111111111111',
+  'b1111111-1111-1111-1111-111111111111',
   '128684', '11167526', 'O/69211-2', 'COMERCIAL - CONG - CTRN', 'CARRETA (CONTAINER 40)',
   'DOCA LIVRE OFERTA DE CARGA', '67.620.377/0001-00', 'José Bonifácio - SP', 'Guarujá - SP',
   'DOCA LIVRE / SANTOS BRASIL', '00.000.000/0001-00',
   19054.74, 699, 1, 0, 392530.44, 7357.26,
   now() + interval '1 day', now() + interval '2 days',
-  'r1111111-1111-1111-1111-111111111111', 'A', 'nova_carga'
+  'a1111111-1111-1111-1111-111111111111', 'A', 'nova_carga'
 ),
 (
-  'c2222222-2222-2222-2222-222222222222',
+  'b2222222-2222-2222-2222-222222222222',
   '128685', '11167527', 'O/69212-1', 'COMERCIAL - SECO', 'CARRETA BAU',
   'DOCA LIVRE OFERTA DE CARGA', '67.620.377/0001-00', 'Campinas - SP', 'Santos - SP',
   'PORTO SANTOS LOG', '11.111.111/0001-11',
   12500.00, 420, 1, 12, 180000.00, 4200.00,
   now() + interval '2 days', now() + interval '3 days',
-  'r2222222-2222-2222-2222-222222222222', 'B', 'nova_carga'
+  'a2222222-2222-2222-2222-222222222222', 'B', 'nova_carga'
 ),
 (
-  'c3333333-3333-3333-3333-333333333333',
+  'b3333333-3333-3333-3333-333333333333',
   '128686', '11167528', 'O/69213-1', 'COMERCIAL - CONG', 'BITREM',
   'DOCA LIVRE OFERTA DE CARGA', '67.620.377/0001-00', 'Ribeirão Preto - SP', 'Guarulhos - SP',
   'CD GUARULHOS', '22.222.222/0001-22',
   28000.00, 900, 2, 0, 510000.00, 5100.50,
   now() + interval '1 day', now() + interval '2 days',
-  'r3333333-3333-3333-3333-333333333333', 'C', 'nova_carga'
+  'a3333333-3333-3333-3333-333333333333', 'C', 'nova_carga'
 )
 on conflict (id) do nothing;

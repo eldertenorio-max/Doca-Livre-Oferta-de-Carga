@@ -13,7 +13,11 @@ dist-ssr
 *.local
 .env
 .env.local
+.env*.local
 _pptx_refs
+supabase/.temp
+supabase/.branches
+supabase/setup_completo.sql
 
 # Editor directories and files
 .vscode/*
