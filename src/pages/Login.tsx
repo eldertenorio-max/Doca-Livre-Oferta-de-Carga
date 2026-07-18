@@ -32,6 +32,7 @@ export function LoginPage() {
   const [verifyToken, setVerifyToken] = useState('')
   const [debugCodigo, setDebugCodigo] = useState('')
   const [visible, setVisible] = useState(false)
+  const [visibleConfirm, setVisibleConfirm] = useState(false)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
@@ -58,10 +59,30 @@ export function LoginPage() {
     setDebugCodigo('')
     setSenha('')
     setConfirmarSenha('')
+    setVisible(false)
+    setVisibleConfirm(false)
     setError('')
     setInfo('')
-    if (next === 'cadastro') setUsuario('')
+    if (next === 'cadastro') {
+      setUsuario('')
+      setEmail('')
+    }
+    if (next === 'login') {
+      setUsuario('minerva@docalivre.com')
+      setSenha('minerva123')
+    }
   }
+
+  // Etapa "Criar conta": garante campos vazios (evita autofill do navegador)
+  useEffect(() => {
+    if (mode === 'cadastro' && step === 'dados') {
+      setUsuario('')
+      setSenha('')
+      setConfirmarSenha('')
+      setVisible(false)
+      setVisibleConfirm(false)
+    }
+  }, [mode, step, verifyToken])
 
   async function handleLogin(e: FormEvent) {
     e.preventDefault()
@@ -215,7 +236,7 @@ export function LoginPage() {
             ? 'Criar conta'
             : 'Cadastro'
         : step === 'codigo'
-          ? 'Código no e-mail'
+          ? 'Confirmar e-mail'
           : step === 'dados'
             ? 'Nova senha'
             : 'Trocar senha'
@@ -230,7 +251,7 @@ export function LoginPage() {
             ? 'Escolha usuário e senha. Super Users: Diego ou Elder'
             : 'Informe o e-mail para receber o código de confirmação'
         : step === 'codigo'
-          ? 'Cole o código enviado para o e-mail da conta'
+          ? 'Cole o código enviado para o seu e-mail'
           : step === 'dados'
             ? 'Defina a nova senha de acesso'
             : 'Informe usuário ou e-mail cadastrado'
@@ -240,9 +261,11 @@ export function LoginPage() {
       <div className="portal-login__card">
         <header className="portal-login__header">
           <img src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" className="portal-login__logo" />
-          <div className="portal-login__product">
-            <ProductMark size="md" />
-          </div>
+          {step !== 'codigo' && (
+            <div className="portal-login__product">
+              <ProductMark size="md" />
+            </div>
+          )}
           <h1 className="portal-login__title">{title}</h1>
           <p className="portal-login__tagline">{tagline}</p>
         </header>
@@ -303,6 +326,10 @@ export function LoginPage() {
 
         {mode === 'cadastro' && step === 'codigo' && (
           <form className="portal-login__form" onSubmit={handleCadastroVerificar}>
+            <p className="portal-login__lead">
+              Enviamos um código para <strong>{email.trim().toLowerCase()}</strong>. Abra o
+              e-mail, copie o código e cole abaixo.
+            </p>
             <label className="portal-login__label" htmlFor="cad-codigo">
               Código
             </label>
@@ -310,70 +337,74 @@ export function LoginPage() {
               id="cad-codigo"
               className="portal-login__input portal-login__input--otp"
               value={codigo}
-              onChange={(e) => setCodigo(e.target.value)}
+              onChange={(e) => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
               required
               inputMode="numeric"
               maxLength={6}
+              placeholder="0 0 0 0 0 0"
+              autoComplete="one-time-code"
             />
-            {debugCodigo ? (
+            {debugCodigo && (
               <p className="portal-login__info">
                 Debug — código: <strong>{debugCodigo}</strong>
               </p>
-            ) : (
-              <p className="portal-login__hint">
-                Digite o código de 6 dígitos enviado para o e-mail informado.
-              </p>
             )}
             {error && <p className="portal-login__erro">{error}</p>}
-            {info && <p className="portal-login__info">{info}</p>}
+            {!error && (
+              <p className="portal-login__info">
+                {info || 'Código enviado. Confira sua caixa de entrada.'}
+              </p>
+            )}
             <button type="submit" className="portal-login__submit" disabled={loading}>
-              {loading ? 'Validando…' : 'Confirmar e-mail'}
-            </button>
-            <button
-              type="button"
-              className="portal-login__link"
-              style={{ marginTop: 8 }}
-              disabled={loading}
-              onClick={() => void handleCadastroEnviar({ preventDefault() {} } as FormEvent)}
-            >
-              Reenviar código
+              {loading ? 'Validando…' : 'Confirmar código'}
             </button>
           </form>
         )}
 
         {mode === 'cadastro' && step === 'dados' && (
-          <form className="portal-login__form" onSubmit={handleCadastroConcluir}>
-            <label className="portal-login__label" htmlFor="cad-user">
+          <form
+            key={`cadastro-dados-${verifyToken || 'new'}`}
+            className="portal-login__form"
+            onSubmit={handleCadastroConcluir}
+            autoComplete="off"
+          >
+            <label className="portal-login__label" htmlFor="cad-user-novo">
               Usuário
             </label>
             <input
-              id="cad-user"
+              id="cad-user-novo"
+              name="cadastro_usuario_novo"
               className="portal-login__input"
               value={usuario}
               onChange={(e) => setUsuario(e.target.value)}
               required
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
               placeholder="Ex.: Diego, Elder, operador1"
             />
-            <label className="portal-login__label" htmlFor="cad-senha">
+            <label className="portal-login__label" htmlFor="cad-senha-nova">
               Senha
             </label>
             <PasswordInput
-              id="cad-senha"
+              id="cad-senha-nova"
               value={senha}
               visible={visible}
               onToggle={() => setVisible((v) => !v)}
               onChange={setSenha}
+              autoComplete="new-password"
             />
-            <label className="portal-login__label" htmlFor="cad-senha2">
+            <label className="portal-login__label" htmlFor="cad-senha2-nova">
               Confirmar senha
             </label>
-            <input
-              id="cad-senha2"
-              className="portal-login__input"
-              type="password"
+            <PasswordInput
+              id="cad-senha2-nova"
               value={confirmarSenha}
-              onChange={(e) => setConfirmarSenha(e.target.value)}
-              required
+              visible={visibleConfirm}
+              onToggle={() => setVisibleConfirm((v) => !v)}
+              onChange={setConfirmarSenha}
+              autoComplete="new-password"
             />
             {error && <p className="portal-login__erro">{error}</p>}
             <button type="submit" className="portal-login__submit" disabled={loading}>
@@ -403,6 +434,10 @@ export function LoginPage() {
 
         {mode === 'senha' && step === 'codigo' && (
           <form className="portal-login__form" onSubmit={handleSenhaVerificar}>
+            <p className="portal-login__lead">
+              Enviamos um código para o e-mail da conta <strong>{identificador.trim()}</strong>.
+              Abra o e-mail, copie o código e cole abaixo.
+            </p>
             <label className="portal-login__label" htmlFor="senha-codigo">
               Código
             </label>
@@ -410,23 +445,26 @@ export function LoginPage() {
               id="senha-codigo"
               className="portal-login__input portal-login__input--otp"
               value={codigo}
-              onChange={(e) => setCodigo(e.target.value)}
+              onChange={(e) => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
               required
+              inputMode="numeric"
               maxLength={6}
+              placeholder="0 0 0 0 0 0"
+              autoComplete="one-time-code"
             />
-            {debugCodigo ? (
+            {debugCodigo && (
               <p className="portal-login__info">
                 Debug — código: <strong>{debugCodigo}</strong>
               </p>
-            ) : (
-              <p className="portal-login__hint">
-                Digite o código enviado ao e-mail da conta.
-              </p>
             )}
             {error && <p className="portal-login__erro">{error}</p>}
-            {info && <p className="portal-login__info">{info}</p>}
+            {!error && (
+              <p className="portal-login__info">
+                {info || 'Código enviado. Confira sua caixa de entrada.'}
+              </p>
+            )}
             <button type="submit" className="portal-login__submit" disabled={loading}>
-              Confirmar código
+              {loading ? 'Validando…' : 'Confirmar código'}
             </button>
           </form>
         )}
@@ -446,13 +484,13 @@ export function LoginPage() {
             <label className="portal-login__label" htmlFor="nova-senha2">
               Confirmar senha
             </label>
-            <input
+            <PasswordInput
               id="nova-senha2"
-              className="portal-login__input"
-              type="password"
               value={confirmarSenha}
-              onChange={(e) => setConfirmarSenha(e.target.value)}
-              required
+              visible={visibleConfirm}
+              onToggle={() => setVisibleConfirm((v) => !v)}
+              onChange={setConfirmarSenha}
+              autoComplete="new-password"
             />
             {error && <p className="portal-login__erro">{error}</p>}
             <button type="submit" className="portal-login__submit" disabled={loading}>
@@ -462,7 +500,49 @@ export function LoginPage() {
         )}
 
         <div className="portal-login__links">
-          {mode !== 'login' && (
+          {step === 'codigo' && mode === 'cadastro' && (
+            <>
+              <button
+                type="button"
+                className="portal-login__link"
+                disabled={loading}
+                onClick={() => {
+                  setCodigo('')
+                  setDebugCodigo('')
+                  setError('')
+                  setInfo('')
+                  setStep('form')
+                }}
+              >
+                Reenviar / outro e-mail
+              </button>
+              <button type="button" className="portal-login__link" onClick={() => goMode('login')}>
+                Voltar ao login
+              </button>
+            </>
+          )}
+          {step === 'codigo' && mode === 'senha' && (
+            <>
+              <button
+                type="button"
+                className="portal-login__link"
+                disabled={loading}
+                onClick={() => {
+                  setCodigo('')
+                  setDebugCodigo('')
+                  setError('')
+                  setInfo('')
+                  setStep('form')
+                }}
+              >
+                Reenviar / outro e-mail
+              </button>
+              <button type="button" className="portal-login__link" onClick={() => goMode('login')}>
+                Voltar ao login
+              </button>
+            </>
+          )}
+          {mode !== 'login' && step !== 'codigo' && (
             <button type="button" className="portal-login__link" onClick={() => goMode('login')}>
               Voltar ao login
             </button>
@@ -519,23 +599,26 @@ function PasswordInput({
   visible,
   onToggle,
   onChange,
+  autoComplete = 'current-password',
 }: {
   id: string
   value: string
   visible: boolean
   onToggle: () => void
   onChange: (v: string) => void
+  autoComplete?: string
 }) {
   return (
     <div className="portal-login__password-wrap">
       <input
         id={id}
+        name={id}
         className="portal-login__input portal-login__input--password"
         type={visible ? 'text' : 'password'}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required
-        autoComplete="current-password"
+        autoComplete={autoComplete}
       />
       <button
         type="button"
