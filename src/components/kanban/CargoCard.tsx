@@ -155,40 +155,40 @@ export function CargoCard({
           )}
       </dl>
 
-      <div className="mt-3 flex items-center gap-1 border-t border-ink/5 pt-2">
+      <div className="mt-3 flex items-center gap-1.5 border-t border-ink/5 pt-2.5">
         {onView && (
-          <IconBtn title="Ver detalhes" onClick={onView}>
-            <Eye size={14} />
+          <IconBtn title="Ver detalhes" tone="view" onClick={onView}>
+            <Eye size={15} strokeWidth={2.1} />
           </IconBtn>
         )}
         {onBid && (
-          <IconBtn title="Lance" onClick={onBid}>
-            <Gavel size={14} />
+          <IconBtn title="Fazer lance" tone="bid" onClick={onBid}>
+            <Gavel size={15} strokeWidth={2.1} />
           </IconBtn>
         )}
         {onRefuse && (
-          <IconBtn title="Recusar" onClick={onRefuse}>
-            <Ban size={14} />
+          <IconBtn title="Recusar" tone="danger" onClick={onRefuse}>
+            <Ban size={15} strokeWidth={2.1} />
           </IconBtn>
         )}
         {mode === 'minerva' && carga.status !== 'nova_carga' && (
-          <IconBtn title="Negociação / frete" onClick={onView ?? onSelect}>
-            <DollarSign size={14} />
+          <IconBtn title="Negociação / frete" tone="money" onClick={onView ?? onSelect}>
+            <DollarSign size={15} strokeWidth={2.1} />
           </IconBtn>
         )}
         {mode === 'minerva' && carga.modo_publicacao && (
-          <span className="ml-auto rounded bg-ink/5 px-1.5 py-0.5 text-[10px] font-bold uppercase text-ink-muted">
+          <span className="ml-auto rounded-md bg-ink/[0.06] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-ink-muted">
             {carga.modo_publicacao === 'oferta' ? 'Oferta' : 'Leilão'}
           </span>
         )}
         {mode === 'transportador' && (
-          <IconBtn title="Mensagens">
-            <MessageSquare size={14} />
+          <IconBtn title="Mensagens" tone="msg">
+            <MessageSquare size={15} strokeWidth={2.1} />
           </IconBtn>
         )}
         {(carga.status === 'alocadas' || onAllocate) && (
-          <IconBtn title="Alocar" onClick={onAllocate}>
-            <Truck size={14} />
+          <IconBtn title="Alocar" tone="alloc" onClick={onAllocate}>
+            <Truck size={15} strokeWidth={2.1} />
           </IconBtn>
         )}
       </div>
@@ -196,24 +196,38 @@ export function CargoCard({
   )
 }
 
+type IconTone = 'view' | 'bid' | 'danger' | 'money' | 'msg' | 'alloc'
+
+const TONE_CLASS: Record<IconTone, string> = {
+  view: 'bg-sky-50 text-sky-700 ring-sky-100 hover:bg-sky-100 hover:text-sky-800 hover:ring-sky-200',
+  bid: 'bg-teal-50 text-teal-700 ring-teal-100 hover:bg-teal-100 hover:text-teal-800 hover:ring-teal-200',
+  danger: 'bg-rose-50 text-rose-600 ring-rose-100 hover:bg-rose-100 hover:text-rose-700 hover:ring-rose-200',
+  money: 'bg-amber-50 text-amber-700 ring-amber-100 hover:bg-amber-100 hover:text-amber-800 hover:ring-amber-200',
+  msg: 'bg-slate-50 text-slate-600 ring-slate-100 hover:bg-slate-100 hover:text-slate-800 hover:ring-slate-200',
+  alloc: 'bg-emerald-50 text-emerald-700 ring-emerald-100 hover:bg-emerald-100 hover:text-emerald-800 hover:ring-emerald-200',
+}
+
 function IconBtn({
   children,
   title,
   onClick,
+  tone = 'view',
 }: {
   children: React.ReactNode
   title: string
   onClick?: () => void
+  tone?: IconTone
 }) {
   return (
     <button
       type="button"
       title={title}
+      aria-label={title}
       onClick={(e) => {
         e.stopPropagation()
         onClick?.()
       }}
-      className="rounded-md p-1.5 text-ink-muted hover:bg-sand-light hover:text-ink"
+      className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ring-1 transition duration-150 ease-out hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0 active:scale-95 ${TONE_CLASS[tone]}`}
     >
       {children}
     </button>
