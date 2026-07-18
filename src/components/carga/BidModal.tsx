@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useData } from '../../context/DataContext'
 import {
   formatCurrency,
@@ -18,15 +18,24 @@ interface BidModalProps {
 }
 
 export function BidModal({ carga, open, onClose }: BidModalProps) {
-  const { enviarLance, registrarVisualizacao, user, lancesDaCarga } = useData()
+  const {
+    enviarLance,
+    registrarVisualizacao,
+    lancesDaCarga,
+    historicoPropostasDaCarga,
+    transportadorById,
+    effectiveTransportadorId,
+  } = useData()
   const [valor, setValor] = useState('')
   const [error, setError] = useState('')
+
+  const tid = effectiveTransportadorId()
 
   useEffect(() => {
     if (open && carga) {
       registrarVisualizacao(carga.id)
       const meu = lancesDaCarga(carga.id).find(
-        (l) => l.transportador_id === user?.transportador_id && l.status === 'ativo',
+        (l) => l.transportador_id === tid && l.status === 'ativo',
       )
       const ref = roundMoney(carga.frete_oferta ?? carga.frete_tabela)
       const sugestao =
@@ -38,7 +47,25 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
       setValor(formatMoneyInput(sugestao))
       setError('')
     }
-  }, [open, carga, registrarVisualizacao, lancesDaCarga, user])
+  }, [open, carga, registrarVisualizacao, lancesDaCarga, tid])
+
+  const ranking = useMemo(() => {
+    if (!carga) return []
+    return lancesDaCarga(carga.id).filter((l) =>
+      ['ativo', 'vencedor'].includes(l.status),
+    )
+  }, [carga, lancesDaCarga])
+
+  const minhaPosicao = useMemo(() => {
+    if (!tid) return null
+    const idx = ranking.findIndex((l) => l.transportador_id === tid)
+    return idx >= 0 ? idx + 1 : null
+  }, [ranking, tid])
+
+  const histMeu = useMemo(() => {
+    if (!carga || !tid) return []
+    return historicoPropostasDaCarga(carga.id).filter((h) => h.transportador_id === tid)
+  }, [carga, tid, historicoPropostasDaCarga])
 
   if (!carga) return null
 
@@ -53,6 +80,10 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
   function submitValor(num: number) {
     if (Number.isNaN(num)) {
       setError('Valor inválido')
+      return
+    }
+    if (!tid) {
+      setError('Selecione uma transportadora (Ver como) ou entre com conta de transportador.')
       return
     }
     if (jaFechada) {
@@ -119,8 +150,73 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
               value={carga.modo_publicacao === 'oferta' ? 'Oferta (1ª menor fecha)' : 'Leilão'}
             />
             <Detail label="Prioridade" value={carga.prioridade ?? '—'} />
+            {minhaPosicao != null && (
+              <Detail label="Sua posição" value={`${minhaPosicao}º`} />
+            )}
           </div>
         </div>
+
+        {ranking.length > 0 && (
+          <div className="rounded-lg border border-ink/10 p-3">
+            <p className="mb-2 text-xs font-semibold text-ink-muted">Ranking de lances</p>
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-ink/10 text-left text-ink-muted">
+                  <th className="py-1">#</th>
+                  <th>Transportadora</th>
+                  <th>Lance</th>
+                  <th>Quando</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ranking.map((l, idx) => {
+                  const t = transportadorById(l.transportador_id)
+                  const souEu = l.transportador_id === tid
+                  return (
+                    <tr
+                      key={l.id}
+                      className={`border-b border-ink/5 ${souEu ? 'bg-teal-50 font-semibold' : ''}`}
+                    >
+                      <td className="py-1.5 pr-2">{idx + 1}º</td>
+                      <td className="py-1.5 pr-2">
+                        {t?.nome_fantasia ?? '—'}
+                        {souEu && (
+                          <span className="ml-1 rounded bg-teal-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                            você
+                          </span>
+                        )}
+                        {l.status === 'vencedor' && (
+                          <span className="ml-1 text-[10px] font-bold text-emerald-700">
+                            vencedor
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-1.5 pr-2 tabular-nums">{formatCurrency(l.valor)}</td>
+                      <td className="py-1.5 text-[10px] text-ink-muted">
+                        {formatDateTime(l.updated_at ?? l.created_at)}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {histMeu.length > 0 && (
+          <div className="rounded-lg border border-ink/10 p-3 text-xs">
+            <p className="mb-1 font-semibold text-ink-muted">Seu histórico de alterações</p>
+            <ul className="max-h-24 space-y-1 overflow-y-auto text-ink-muted">
+              {histMeu.slice(0, 8).map((h) => (
+                <li key={h.id}>
+                  {formatDateTime(h.created_at)}:{' '}
+                  {h.valor_anterior != null ? `${formatCurrency(h.valor_anterior)} → ` : 'novo '}
+                  {formatCurrency(h.valor_novo)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <Field label="Sua oferta (R$)">
           <input
@@ -153,6 +249,12 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
         {suspensa && (
           <p className="text-xs text-amber-800">Negociação suspensa — aguarde a retomada.</p>
         )}
+        {!tid && (
+          <p className="text-xs text-amber-800">
+            Conta sem transportadora. No Kanban Transportador, use “Ver como” (Super) ou entre com
+            santos@transportes.com.
+          </p>
+        )}
 
         {error && <p className="text-sm text-brand">{error}</p>}
 
@@ -161,7 +263,7 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
             variant="primary"
             className="min-w-[140px] flex-1"
             onClick={handleAccept}
-            disabled={bloqueado}
+            disabled={bloqueado || !tid}
           >
             Aceitar oferta
           </Button>
@@ -169,7 +271,7 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
             variant="success"
             className="min-w-[140px] flex-1"
             onClick={handleSend}
-            disabled={bloqueado}
+            disabled={bloqueado || !tid}
           >
             Enviar lance
           </Button>
@@ -189,14 +291,22 @@ interface AllocateModalProps {
 }
 
 export function AllocateModal({ carga, open, onClose }: AllocateModalProps) {
-  const { alocarComposicao, veiculos, motoristas, motoristasDoTransportador, user } = useData()
+  const {
+    alocarComposicao,
+    veiculos,
+    motoristas,
+    motoristasDoTransportador,
+    user,
+    effectiveTransportadorId,
+  } = useData()
   const [veiculoId, setVeiculoId] = useState('')
   const [motoristaId, setMotoristaId] = useState('')
   const [placa, setPlaca] = useState('')
   const [motorista, setMotorista] = useState('')
   const [error, setError] = useState('')
 
-  const tid = carga?.transportador_vencedor_id ?? user?.transportador_id ?? ''
+  const tid =
+    carga?.transportador_vencedor_id ?? user?.transportador_id ?? effectiveTransportadorId() ?? ''
   const veiculosOpts = (veiculos ?? []).filter(
     (v) => v.transportador_id === tid && v.situacao === 'ativo',
   )

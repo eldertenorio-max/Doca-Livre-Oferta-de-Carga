@@ -66,6 +66,7 @@ export function KanbanTransportador() {
     cargasVisiveisTransportador,
     lancesDaCarga,
     recusarCargaTransportador,
+    setActingTransportadorId,
   } = useData()
 
   const isSuper =
@@ -95,6 +96,12 @@ export function KanbanTransportador() {
   }, [defaultViewAs, viewAsId])
 
   const tid = user?.transportador_id || (isSuper ? viewAsId : '') || ''
+
+  useEffect(() => {
+    if (isSuper) setActingTransportadorId(viewAsId || null)
+    else setActingTransportadorId(user?.transportador_id ?? null)
+    return () => setActingTransportadorId(null)
+  }, [isSuper, viewAsId, user?.transportador_id, setActingTransportadorId])
 
   const cargas = useMemo(() => {
     const list = cargasVisiveisTransportador(tid)
@@ -198,7 +205,7 @@ export function KanbanTransportador() {
                   onRefuse={
                     col.key === 'nova_carga'
                       ? () => {
-                          if (user?.transportador_id) recusarCargaTransportador(c.id)
+                          if (tid) recusarCargaTransportador(c.id)
                         }
                       : undefined
                   }

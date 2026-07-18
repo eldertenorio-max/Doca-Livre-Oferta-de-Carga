@@ -14,11 +14,16 @@ import { prazosAlocacaoPermitidos, prazosOfertaPermitidos } from '../../lib/conf
 import { canEditModulo } from '../../lib/portalModules'
 import type { Carga, Transportador } from '../../types'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
+import { CargaDadosForm } from './CargaDadosForm'
+
+type PanelTab = 'dados' | 'publicar'
 
 interface Props {
   carga: Carga | null
   open: boolean
   onClose: () => void
+  /** Aba inicial: Nova carga → dados; demais → publicar/negociação */
+  initialTab?: PanelTab
 }
 
 function membrosDosGrupos(
@@ -34,7 +39,7 @@ function membrosDosGrupos(
   return transportadores.filter((t) => ids.has(t.id) && t.situacao === 'ativo')
 }
 
-export function PublishPanel({ carga, open, onClose }: Props) {
+export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
   const {
     grupos,
     transportadores,
@@ -65,6 +70,7 @@ export function PublishPanel({ carga, open, onClose }: Props) {
   const prazosOferta = prazosOfertaPermitidos(config)
   const prazosAlocacao = prazosAlocacaoPermitidos()
 
+  const [tab, setTab] = useState<PanelTab>(initialTab ?? 'dados')
   const [margem, setMargem] = useState(margens[1])
   const [grupoIds, setGrupoIds] = useState<string[]>([])
   const [escalonar, setEscalonar] = useState(false)
@@ -90,7 +96,10 @@ export function PublishPanel({ carga, open, onClose }: Props) {
     setMotivo(carga.justificativa_motivo ?? '')
     setObs(carga.justificativa_obs ?? '')
     setObservacao(carga.observacao ?? '')
-  }, [carga?.id, grupos, config])
+    const defaultTab =
+      initialTab ?? (carga.status === 'nova_carga' ? 'dados' : 'publicar')
+    setTab(defaultTab)
+  }, [carga?.id, grupos, config, initialTab])
 
   useEffect(() => {
     if (!carga) setInfo('')
@@ -282,10 +291,10 @@ export function PublishPanel({ carga, open, onClose }: Props) {
     <>
       <aside className="animate-slide-in flex h-full w-[400px] shrink-0 flex-col overflow-hidden rounded-xl border border-ink/10 bg-white shadow-lg">
         <div className="border-b border-ink/10 bg-ink px-4 py-3 text-white">
-          <p className="text-xs text-sand/70">Carga {carga.numero}</p>
-          <p className="font-display text-sm font-semibold">
-            {formatDateTime(carga.data_carregamento)}
+          <p className="font-display text-lg font-bold tracking-wide text-[#e8c547]">
+            Carga {carga.numero}
           </p>
+          <p className="text-sm text-sand/90">{formatDateTime(carga.data_carregamento)}</p>
           {!isNova && (
             <p className="mt-1 text-xs text-sand/80">
               Status:{' '}
@@ -303,20 +312,54 @@ export function PublishPanel({ carga, open, onClose }: Props) {
           )}
         </div>
 
+        <div className="flex border-b border-ink/10 bg-sand-light/30">
+          <button
+            type="button"
+            onClick={() => setTab('dados')}
+            className={`flex-1 px-3 py-2.5 text-xs font-bold uppercase tracking-wide transition ${
+              tab === 'dados'
+                ? 'border-b-2 border-brand bg-white text-ink'
+                : 'text-ink-muted hover:text-ink'
+            }`}
+          >
+            Dados da carga
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('publicar')}
+            className={`flex-1 px-3 py-2.5 text-xs font-bold uppercase tracking-wide transition ${
+              tab === 'publicar'
+                ? 'border-b-2 border-brand bg-white text-ink'
+                : 'text-ink-muted hover:text-ink'
+            }`}
+          >
+            {isNova ? 'Publicar' : 'Negociação'}
+          </button>
+        </div>
+
         <div className="flex-1 space-y-3 overflow-y-auto p-4 text-sm">
-          <Detail label="Pedido" value={carga.pedido} />
+          {tab === 'dados' && (
+            <CargaDadosForm
+              carga={carga}
+              canEdit={canEdit}
+              onGoPublish={() => setTab('publicar')}
+            />
+          )}
+
+          {tab === 'publicar' && isNova && (
+            <>
+          <Detail label="Pedido" value={carga.pedido || '—'} />
           <Detail label="Tipo de Carga" value={carga.tipo_carga} />
           <Detail label="Veículo" value={carga.veiculo} />
           <Detail label="Remetente" value={`${carga.remetente} — ${carga.remetente_cnpj}`} />
-          <Detail label="Origem" value={carga.origem} />
-          <Detail label="Destino" value={carga.destino} />
-          <Detail label="Destinatário" value={carga.destinatario} />
+          <Detail label="Origem" value={carga.origem || '—'} />
+          <Detail label="Destino" value={carga.destino || '—'} />
+          <Detail label="Destinatário" value={carga.destinatario || '—'} />
           <Detail label="Peso" value={formatNumber(carga.peso)} />
           <Detail label="Volumes" value={String(carga.volumes)} />
           <Detail label="Valor Frete (Tabela)" value={formatCurrency(carga.frete_tabela)} />
           <Detail label="Valor Mercadorias" value={formatCurrency(carga.valor_mercadorias)} />
 
-          {isNova ? (
             <div className="mt-2 space-y-3 rounded-lg border border-ink/10 bg-sand-light/40 p-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-ink-muted">Publicar para negociação</span>
@@ -497,7 +540,12 @@ export function PublishPanel({ carga, open, onClose }: Props) {
 
               <div className="flex gap-2">
                 {canEdit && (
-                  <Button variant="success" className="flex-1" onClick={handlePublicar}>
+                  <Button
+                    variant="success"
+                    className="flex-1"
+                    onClick={handlePublicar}
+                    disabled={!carga.pedido || !carga.origem || carga.peso <= 0}
+                  >
                     Publicar
                   </Button>
                 )}
@@ -505,8 +553,16 @@ export function PublishPanel({ carga, open, onClose }: Props) {
                   Fechar
                 </Button>
               </div>
+              {(!carga.pedido || !carga.origem || carga.peso <= 0) && (
+                <p className="text-[11px] text-amber-800">
+                  Complete e salve os dados na aba “Dados da carga” antes de publicar.
+                </p>
+              )}
             </div>
-          ) : (
+            </>
+          )}
+
+          {tab === 'publicar' && !isNova && (
             <div className="space-y-3">
               <div className="rounded-lg border border-blue-200 bg-blue-50/80 p-3 text-xs">
                 <p className="mb-1 font-semibold text-ink">Negociação</p>

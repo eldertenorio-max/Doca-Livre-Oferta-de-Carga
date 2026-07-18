@@ -150,6 +150,14 @@ interface DataContextValue extends DataState, AuthState {
   excluirMotorista: (id: string) => void
   salvarRota: (r: Rota) => void
   criarCarga: (partial?: Partial<Carga>) => Carga
+  atualizarCarga: (
+    id: string,
+    patch: Partial<Carga>,
+  ) => { ok: boolean; error?: string }
+  /** Super: transportadora usada para lances / Kanban (Ver como) */
+  actingTransportadorId: string | null
+  setActingTransportadorId: (id: string | null) => void
+  effectiveTransportadorId: () => string | null
   lancesDaCarga: (cargaId: string) => Lance[]
   historicoPropostasDaCarga: (cargaId: string) => HistoricoProposta[]
   transportadorById: (id: string) => Transportador | undefined
@@ -297,6 +305,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Profile | null>(loadAuth)
   const [tick, setTick] = useState(0)
   const [config, setConfig] = useState<ConfigNegocio>(loadConfigNegocio)
+  const [actingTransportadorId, setActingTransportadorId] = useState<string | null>(null)
+
+  const effectiveTransportadorId = useCallback(() => {
+    return user?.transportador_id || actingTransportadorId || null
+  }, [user?.transportador_id, actingTransportadorId])
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
@@ -742,7 +755,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const enviarLance = useCallback(
     (cargaId: string, valor: number) => {
-      if (!user?.transportador_id) return { ok: false, error: 'Usuário sem transportador' }
+      const tid = user?.transportador_id || actingTransportadorId
+      if (!tid) return { ok: false, error: 'Usuário sem transportador' }
       const carga = state.cargas.find((c) => c.id === cargaId)
       if (!carga) return { ok: false, error: 'Carga não encontrada' }
       if (!['negociando', 'propostas'].includes(carga.status)) {
@@ -778,18 +792,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const gruposOk =
         carga.grupos_notificados.length > 0 ? carga.grupos_notificados : carga.grupo_ids
       const autorizado = state.grupos.some(
-        (g) =>
-          gruposOk.includes(g.id) && g.transportador_ids.includes(user.transportador_id!),
+        (g) => gruposOk.includes(g.id) && (g.transportador_ids ?? []).includes(tid),
       )
       if (!autorizado) {
         return { ok: false, error: 'Você ainda não foi chamado para negociar esta carga' }
       }
 
       const jaTemLance = state.lances.some(
-        (l) =>
-          l.carga_id === cargaId &&
-          l.transportador_id === user.transportador_id &&
-          l.status === 'ativo',
+        (l) => l.carga_id === cargaId && l.transportador_id === tid && l.status === 'ativo',
       )
       if (jaTemLance && carga.modo_publicacao === 'oferta') {
         return { ok: false, error: 'No modo Oferta não é permitido alterar a proposta.' }
@@ -801,7 +811,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           const lance: Lance = {
             id: uid('lance'),
             carga_id: cargaId,
-            transportador_id: user.transportador_id!,
+            transportador_id: tid,
             valor,
             status: 'vencedor',
             created_at: new Date().toISOString(),
@@ -811,7 +821,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
               ? {
                   ...c,
                   status: 'propostas' as const,
-                  transportador_vencedor_id: user.transportador_id!,
+                  transportador_vencedor_id: tid,
                   frete_fechado: valor,
                   alocacao_expira_em: new Date(
                     Date.now() + (c.prazo_alocacao_minutos ?? 10) * 60_000,
@@ -820,7 +830,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
               : c,
           )
           const transportadores = prev.transportadores.map((t) => {
-            if (t.id !== user.transportador_id) return t
+            if (t.id !== tid) return t
             const pontuacao =
               t.pontuacao + PONTOS_ADERENCIA.com_proposta + PONTOS_ADERENCIA.frete_fechado
             return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
@@ -830,14 +840,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
             `Lance vencedor (modo Oferta) — ${carga.numero}`,
             {
               carga_id: cargaId,
-              transportador_id: user.transportador_id!,
+              transportador_id: tid,
               detalhe: `R$ ${valor.toFixed(2)}`,
             },
+            user,
           )
           return {
             ...prev,
             cargas,
-            lances: [...prev.lances.filter((l) => !(l.carga_id === cargaId && l.transportador_id === user.transportador_id && l.status === 'ativo')), lance],
+            lances: [
+              ...prev.lances.filter(
+                (l) => !(l.carga_id === cargaId && l.transportador_id === tid && l.status === 'ativo'),
+              ),
+              lance,
+            ],
             transportadores,
             historico: [hist, ...prev.historico].slice(0, 2000),
           }
@@ -847,10 +863,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       setState((prev) => {
         const existing = prev.lances.find(
-          (l) =>
-            l.carga_id === cargaId &&
-            l.transportador_id === user.transportador_id &&
-            l.status === 'ativo',
+          (l) => l.carga_id === cargaId && l.transportador_id === tid && l.status === 'ativo',
         )
         const agora = new Date().toISOString()
         let lances: Lance[]
@@ -861,7 +874,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
               id: uid('hp'),
               lance_id: existing.id,
               carga_id: cargaId,
-              transportador_id: user.transportador_id!,
+              transportador_id: tid,
               valor_anterior: existing.valor,
               valor_novo: valor,
               created_at: agora,
@@ -878,7 +891,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
               id: uid('hp'),
               lance_id: lanceId,
               carga_id: cargaId,
-              transportador_id: user.transportador_id!,
+              transportador_id: tid,
               valor_anterior: null,
               valor_novo: valor,
               created_at: agora,
@@ -890,7 +903,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             {
               id: lanceId,
               carga_id: cargaId,
-              transportador_id: user.transportador_id!,
+              transportador_id: tid,
               valor,
               status: 'ativo',
               created_at: agora,
@@ -905,7 +918,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const isNew = !existing
         const transportadores = isNew
           ? prev.transportadores.map((t) => {
-              if (t.id !== user.transportador_id) return t
+              if (t.id !== tid) return t
               const pontuacao = t.pontuacao + PONTOS_ADERENCIA.com_proposta
               return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
             })
@@ -915,7 +928,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           `${isNew ? 'Nova proposta' : 'Proposta atualizada'} — ${carga.numero}`,
           {
             carga_id: cargaId,
-            transportador_id: user.transportador_id!,
+            transportador_id: tid,
             detalhe: `R$ ${valor.toFixed(2)}`,
           },
           user,
@@ -938,7 +951,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       })
       return { ok: true }
     },
-    [state.cargas, state.grupos, user],
+    [state.cargas, state.grupos, state.lances, user, actingTransportadorId],
   )
 
   const aceitarLance = useCallback(
@@ -1328,10 +1341,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const recusarCargaTransportador = useCallback(
     (cargaId: string) => {
-      if (!user?.transportador_id) return
+      const tid = user?.transportador_id || actingTransportadorId
+      if (!tid) return
       setState((prev) => {
         const transportadores = prev.transportadores.map((t) => {
-          if (t.id !== user.transportador_id) return t
+          if (t.id !== tid) return t
           const pontuacao = t.pontuacao + PONTOS_ADERENCIA.recusada
           return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
         })
@@ -1341,7 +1355,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return { ...prev, transportadores, cargas }
       })
     },
-    [user],
+    [user, actingTransportadorId],
   )
 
   const alocarComposicao = useCallback(
@@ -1603,72 +1617,103 @@ export function DataProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const criarCarga = useCallback((partial?: Partial<Carga>) => {
-    const numero = String(128688 + Math.floor(Math.random() * 9000))
-    const rota = SEED_ROTAS[0]
-    const nova: Carga = {
-      id: uid('c'),
-      numero,
-      pedido: String(11167000 + Math.floor(Math.random() * 900)),
-      ordem: `O/${69000 + Math.floor(Math.random() * 900)}-1`,
-      tipo_carga: 'COMERCIAL - SECO',
-      veiculo: 'CARRETA BAU',
-      remetente: 'DOCA LIVRE OFERTA DE CARGA',
-      remetente_cnpj: '67.620.377/0001-00',
-      origem: rota.origem,
-      destino: rota.destino,
-      destinatario: 'DESTINATÁRIO DEMO',
-      destinatario_cnpj: '99.999.999/0001-99',
-      peso: 15000,
-      volumes: 400,
-      num_entregas: 1,
-      pallets: 0,
-      valor_mercadorias: 200000,
-      frete_tabela: rota.frete_tabela,
-      frete_oferta: null,
-      frete_minimo: null,
-      frete_maximo: null,
-      margem_percentual: null,
-      data_carregamento: new Date(Date.now() + 86400000).toISOString(),
-      previsao_entrega: new Date(Date.now() + 172800000).toISOString(),
-      rota_id: rota.id,
-      classificacao_rota: rota.classificacao,
-      status: 'nova_carga',
-      prioridade: null,
-      modo_publicacao: null,
-      prazo_leilao_minutos: null,
-      prazo_alocacao_minutos: null,
-      publicado_em: null,
-      expira_em: null,
-      alocacao_expira_em: null,
-      pausado_em: null,
-      tempo_restante_ms: null,
-      justificativa_motivo: null,
-      justificativa_obs: null,
-      grupo_ids: [],
-      grupos_notificados: [],
-      transportador_vencedor_id: null,
-      frete_fechado: null,
-      placa: null,
-      motorista: null,
-      veiculo_id: null,
-      motorista_id: null,
-      criado_por: user?.id ?? null,
-      visualizacoes: 0,
-      recusas: 0,
-      created_at: new Date().toISOString(),
-      ...partial,
-    }
-    setState((prev) => ({
-      ...prev,
-      cargas: [...prev.cargas, nova],
-      historico: [
-        makeHistorico('carga_criada', `Carga ${nova.numero} criada`, { carga_id: nova.id }, user),
-        ...prev.historico,
-      ].slice(0, 2000),
-    }))
-    return nova
-  }, [user])
+  const criarCarga = useCallback(
+    (partial?: Partial<Carga>) => {
+      const numero = String(128688 + Math.floor(Math.random() * 9000))
+      const rota =
+        state.rotas.find((r) => r.situacao === 'ativo') ?? state.rotas[0] ?? SEED_ROTAS[0]
+      const nova: Carga = {
+        id: uid('c'),
+        numero,
+        pedido: '',
+        ordem: `O/${69000 + Math.floor(Math.random() * 900)}-1`,
+        tipo_carga: 'COMERCIAL - SECO',
+        veiculo: 'CARRETA BAU',
+        remetente: 'DOCA LIVRE OFERTA DE CARGA',
+        remetente_cnpj: '67.620.377/0001-00',
+        origem: rota?.origem ?? '',
+        destino: rota?.destino ?? '',
+        destinatario: '',
+        destinatario_cnpj: '',
+        peso: 0,
+        volumes: 0,
+        num_entregas: 1,
+        pallets: 0,
+        valor_mercadorias: 0,
+        frete_tabela: rota?.frete_tabela ?? 0,
+        frete_oferta: null,
+        frete_minimo: null,
+        frete_maximo: null,
+        margem_percentual: null,
+        data_carregamento: new Date(Date.now() + 86400000).toISOString(),
+        previsao_entrega: new Date(Date.now() + 172800000).toISOString(),
+        rota_id: rota?.id ?? null,
+        classificacao_rota: rota?.classificacao ?? null,
+        status: 'nova_carga',
+        prioridade: null,
+        modo_publicacao: null,
+        prazo_leilao_minutos: null,
+        prazo_alocacao_minutos: null,
+        publicado_em: null,
+        expira_em: null,
+        alocacao_expira_em: null,
+        pausado_em: null,
+        tempo_restante_ms: null,
+        justificativa_motivo: null,
+        justificativa_obs: null,
+        grupo_ids: [],
+        grupos_notificados: [],
+        transportador_vencedor_id: null,
+        frete_fechado: null,
+        placa: null,
+        motorista: null,
+        veiculo_id: null,
+        motorista_id: null,
+        criado_por: user?.id ?? null,
+        visualizacoes: 0,
+        recusas: 0,
+        created_at: new Date().toISOString(),
+        ...partial,
+      }
+      setState((prev) => ({
+        ...prev,
+        cargas: [...prev.cargas, nova],
+        historico: [
+          makeHistorico('carga_criada', `Carga ${nova.numero} criada`, { carga_id: nova.id }, user),
+          ...prev.historico,
+        ].slice(0, 2000),
+      }))
+      return nova
+    },
+    [user, state.rotas],
+  )
+
+  const atualizarCarga = useCallback(
+    (id: string, patch: Partial<Carga>) => {
+      const atual = state.cargas.find((c) => c.id === id)
+      if (!atual) return { ok: false, error: 'Carga não encontrada' }
+      if (atual.status !== 'nova_carga') {
+        return { ok: false, error: 'Só é possível editar cargas ainda não publicadas' }
+      }
+      if (!patch.rota_id && !atual.rota_id && !(patch.origem && patch.destino)) {
+        /* ok — validação de campos obrigatórios fica na UI */
+      }
+      setState((prev) => ({
+        ...prev,
+        cargas: prev.cargas.map((c) =>
+          c.id === id
+            ? {
+                ...c,
+                ...patch,
+                updated_at: new Date().toISOString(),
+              }
+            : c,
+        ),
+      }))
+      return { ok: true }
+    },
+    [state.cargas],
+  )
 
   const lancesDaCarga = useCallback(
     (cargaId: string) =>
@@ -1843,6 +1888,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       excluirMotorista,
       salvarRota,
       criarCarga,
+      atualizarCarga,
+      actingTransportadorId,
+      setActingTransportadorId,
+      effectiveTransportadorId,
       lancesDaCarga,
       historicoPropostasDaCarga,
       transportadorById,
@@ -1892,6 +1941,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       excluirMotorista,
       salvarRota,
       criarCarga,
+      atualizarCarga,
+      actingTransportadorId,
+      effectiveTransportadorId,
       lancesDaCarga,
       historicoPropostasDaCarga,
       transportadorById,

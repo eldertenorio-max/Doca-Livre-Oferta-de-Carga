@@ -7,8 +7,10 @@ import { PublishPanel } from '../../components/carga/PublishPanel'
 import { Button } from '../../components/ui/Modal'
 import type { Carga, StatusCargaMinerva } from '../../types'
 
+type ColKey = StatusCargaMinerva | 'confirmadas'
+
 const COLUMNS: {
-  key: StatusCargaMinerva
+  key: ColKey
   title: string
   color: string
   description: string
@@ -29,7 +31,13 @@ const COLUMNS: {
     key: 'propostas',
     title: 'Propostas',
     color: '#f59e0b',
-    description: 'Recebeu lances ou frete fechado',
+    description: 'Recebeu lances — frete ainda aberto',
+  },
+  {
+    key: 'confirmadas',
+    title: 'Confirmadas',
+    color: '#ea580c',
+    description: 'Frete fechado — aguarda alocação',
   },
   {
     key: 'suspensas',
@@ -57,11 +65,30 @@ const COLUMNS: {
   },
 ]
 
+function matchesColumn(c: Carga, key: ColKey): boolean {
+  if (key === 'confirmadas') {
+    return (
+      Boolean(c.transportador_vencedor_id) &&
+      c.status !== 'alocadas' &&
+      c.status !== 'recusadas' &&
+      c.status !== 'canceladas'
+    )
+  }
+  if (key === 'propostas') {
+    return c.status === 'propostas' && !c.transportador_vencedor_id
+  }
+  if (key === 'negociando') {
+    return c.status === 'negociando' && !c.transportador_vencedor_id
+  }
+  return c.status === key
+}
+
 export function KanbanMinerva() {
   const { cargas, lancesDaCarga, criarCarga } = useData()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Carga | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
+  const [initialTab, setInitialTab] = useState<'dados' | 'publicar'>('dados')
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -74,8 +101,13 @@ export function KanbanMinerva() {
     )
   }, [cargas, search])
 
-  // Atualiza selected quando status muda
-  const liveSelected = selected ? cargas.find((c) => c.id === selected.id) ?? null : null
+  const liveSelected = selected ? (cargas.find((c) => c.id === selected.id) ?? null) : null
+
+  function openPanel(c: Carga, tab: 'dados' | 'publicar') {
+    setSelected(c)
+    setInitialTab(tab)
+    setPanelOpen(true)
+  }
 
   return (
     <div className="flex h-[calc(100vh-7rem)] gap-3">
@@ -94,8 +126,7 @@ export function KanbanMinerva() {
             variant="success"
             onClick={() => {
               const c = criarCarga()
-              setSelected(c)
-              setPanelOpen(true)
+              openPanel(c, 'dados')
             }}
           >
             <Plus size={16} /> Nova carga
@@ -106,7 +137,7 @@ export function KanbanMinerva() {
           columns={COLUMNS.map((col) => ({
             ...col,
             items: filtered
-              .filter((c) => c.status === col.key)
+              .filter((c) => matchesColumn(c, col.key))
               .map((c) => (
                 <CargoCard
                   key={c.id}
@@ -115,17 +146,16 @@ export function KanbanMinerva() {
                   selected={liveSelected?.id === c.id}
                   ofertasCount={
                     col.key === 'negociando' || col.key === 'propostas'
-                      ? lancesDaCarga(c.id).length
+                      ? lancesDaCarga(c.id).filter((l) => l.status === 'ativo' || l.status === 'vencedor')
+                          .length
                       : undefined
                   }
-                  onSelect={() => {
-                    setSelected(c)
-                    setPanelOpen(true)
-                  }}
-                  onView={() => {
-                    setSelected(c)
-                    setPanelOpen(true)
-                  }}
+                  onSelect={() =>
+                    openPanel(c, c.status === 'nova_carga' ? 'dados' : 'publicar')
+                  }
+                  onView={() =>
+                    openPanel(c, c.status === 'nova_carga' ? 'dados' : 'publicar')
+                  }
                 />
               )),
           }))}
@@ -134,8 +164,10 @@ export function KanbanMinerva() {
 
       {panelOpen && liveSelected && (
         <PublishPanel
+          key={`${liveSelected.id}-${initialTab}`}
           carga={liveSelected}
           open={panelOpen}
+          initialTab={initialTab}
           onClose={() => {
             setPanelOpen(false)
             setSelected(null)
