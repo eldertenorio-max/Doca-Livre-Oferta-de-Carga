@@ -41,6 +41,18 @@ export function LoginPage() {
     document.documentElement.setAttribute('data-theme', 'light')
   }, [])
 
+  // Etapa "Criar conta": garante campos vazios (evita autofill do navegador)
+  // IMPORTANTE: todos os hooks devem ficar acima de qualquer return condicional.
+  useEffect(() => {
+    if (mode === 'cadastro' && step === 'dados') {
+      setUsuario('')
+      setSenha('')
+      setConfirmarSenha('')
+      setVisible(false)
+      setVisibleConfirm(false)
+    }
+  }, [mode, step, verifyToken])
+
   if (user) {
     const dest =
       user.role === 'transportador'
@@ -72,17 +84,6 @@ export function LoginPage() {
       setSenha('minerva123')
     }
   }
-
-  // Etapa "Criar conta": garante campos vazios (evita autofill do navegador)
-  useEffect(() => {
-    if (mode === 'cadastro' && step === 'dados') {
-      setUsuario('')
-      setSenha('')
-      setConfirmarSenha('')
-      setVisible(false)
-      setVisibleConfirm(false)
-    }
-  }, [mode, step, verifyToken])
 
   async function handleLogin(e: FormEvent) {
     e.preventDefault()
@@ -382,7 +383,6 @@ export function LoginPage() {
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
-              placeholder="Ex.: Diego, Elder, operador1"
             />
             <label className="portal-login__label" htmlFor="cad-senha-nova">
               Senha

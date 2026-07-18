@@ -241,13 +241,20 @@ export function portalLoginLocal(
     }
   | { ok: false; erro: string } {
   const id = identificador.trim().toLowerCase()
+  const idAscii = id.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   const users = loadPortalAccounts()
-  const account = users.find(
-    (u) =>
-      u.usuario.toLowerCase() === id ||
-      u.email.toLowerCase() === id ||
-      u.email.toLowerCase() === identificador.trim().toLowerCase(),
-  )
+  const account = users.find((u) => {
+    const usuario = u.usuario.toLowerCase()
+    const email = u.email.toLowerCase()
+    const nome = (u.nome || '').toLowerCase()
+    return (
+      usuario === id ||
+      email === id ||
+      nome === id ||
+      usuario.normalize('NFD').replace(/[\u0300-\u036f]/g, '') === idAscii ||
+      nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '') === idAscii
+    )
+  })
   if (!account || account.password !== senha) {
     return { ok: false, erro: 'Usuário ou senha incorretos.' }
   }
