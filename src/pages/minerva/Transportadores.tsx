@@ -33,6 +33,8 @@ export function TransportadoresPage() {
   const {
     transportadores,
     salvarTransportador,
+    excluirTransportador,
+    vinculosTransportador,
     documentosDoTransportador,
     aprovarTransportador,
     recusarTransportador,
@@ -95,6 +97,38 @@ export function TransportadoresPage() {
   function openFicha(t: Transportador) {
     setFichaId(t.id)
     setMode('ficha')
+  }
+
+  function confirmarExclusao(t: Transportador) {
+    const v = vinculosTransportador(t.id)
+    const linhas = [
+      `Excluir a transportadora "${t.nome_fantasia}"?`,
+      '',
+      'Itens vinculados que também serão removidos:',
+      '',
+      v.placas.length
+        ? `Placas (${v.placas.length}): ${v.placas.join(', ')}`
+        : 'Placas: nenhuma',
+      v.motoristas.length
+        ? `Motoristas (${v.motoristas.length}): ${v.motoristas.join(', ')}`
+        : 'Motoristas: nenhum',
+      v.documentos > 0 ? `Documentos: ${v.documentos}` : 'Documentos: nenhum',
+      v.grupos.length
+        ? `Grupos: ${v.grupos.join(', ')}`
+        : 'Grupos: nenhum',
+      v.lances > 0 ? `Lances/propostas: ${v.lances}` : 'Lances/propostas: nenhum',
+      v.cargasVencedor.length
+        ? `Cargas como vencedor: ${v.cargasVencedor.join(', ')}`
+        : null,
+      '',
+      'Esta ação não pode ser desfeita.',
+    ].filter((x) => x !== null)
+
+    if (!window.confirm(linhas.join('\n'))) return
+    const res = excluirTransportador(t.id)
+    if (!res.ok) {
+      window.alert(res.error ?? 'Falha ao excluir')
+    }
   }
 
   const ficha = fichaId ? transportadores.find((t) => t.id === fichaId) : null
@@ -450,6 +484,14 @@ export function TransportadoresPage() {
                       </button>
                       <button type="button" className="cadastro-link" onClick={() => openEdit(t)}>
                         Editar
+                      </button>
+                      <button
+                        type="button"
+                        className="cadastro-link"
+                        style={{ color: '#b91c1c' }}
+                        onClick={() => confirmarExclusao(t)}
+                      >
+                        Excluir
                       </button>
                     </td>
                   </tr>

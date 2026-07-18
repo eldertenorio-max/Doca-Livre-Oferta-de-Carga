@@ -287,6 +287,12 @@ export function setPortalAccountAtivoPorTransportador(
   )
 }
 
+/** Remove contas de portal vinculadas à transportadora. */
+export function removePortalAccountsPorTransportador(transportadorId: string): void {
+  const users = loadPortalAccounts()
+  savePortalAccounts(users.filter((u) => u.transportador_id !== transportadorId))
+}
+
 export async function portalSenhaEnviarCodigo(identificador: string): Promise<
   | { ok: true; mensagem?: string; debug_codigo?: string; email_mascarado?: string }
   | { ok: false; erro: string }

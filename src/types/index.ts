@@ -267,6 +267,7 @@ export type TipoHistorico =
   | 'integracao_fretes'
   | 'pontuacao'
   | 'alocacao_expirada'
+  | 'transportador_excluido'
 
 export interface HistoricoEvento {
   id: string

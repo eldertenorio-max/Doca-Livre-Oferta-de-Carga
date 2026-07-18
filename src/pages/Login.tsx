@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { Link, Navigate } from 'react-router-dom'
 import { useData } from '../context/DataContext'
-import { BRAND_EMBARCADOR_LABEL, LOGO_DOCA_LIVRE_SRC } from '../lib/brandAssets'
+import { LOGO_DOCA_LIVRE_SRC } from '../lib/brandAssets'
 import { ProductMark } from '../components/ProductMark'
 import {
   portalCadastroConcluir,
@@ -19,12 +19,12 @@ type Mode = 'login' | 'cadastro' | 'senha'
 type Step = 'form' | 'codigo' | 'dados'
 
 export function LoginPage() {
-  const { login, user, demoUsers } = useData()
+  const { login, user } = useData()
 
   const [mode, setMode] = useState<Mode>('login')
   const [step, setStep] = useState<Step>('form')
-  const [usuario, setUsuario] = useState('minerva@docalivre.com')
-  const [senha, setSenha] = useState('minerva123')
+  const [usuario, setUsuario] = useState('')
+  const [senha, setSenha] = useState('')
   const [confirmarSenha, setConfirmarSenha] = useState('')
   const [email, setEmail] = useState('')
   const [identificador, setIdentificador] = useState('')
@@ -80,8 +80,8 @@ export function LoginPage() {
       setEmail('')
     }
     if (next === 'login') {
-      setUsuario('minerva@docalivre.com')
-      setSenha('minerva123')
+      setUsuario('')
+      setSenha('')
     }
   }
 
@@ -562,32 +562,6 @@ export function LoginPage() {
           )}
         </div>
 
-        {mode === 'login' && (
-          <div className="portal-login__demos">
-            <p className="portal-login__demos-title">Contas demo (operação)</p>
-            {demoUsers.map((u) => (
-              <button
-                key={u.id}
-                type="button"
-                className="portal-login__demo-btn"
-                onClick={() => {
-                  setUsuario(u.email)
-                  setSenha(u.password)
-                }}
-              >
-                <strong>
-                  {u.role === 'minerva' ? BRAND_EMBARCADOR_LABEL : u.role}
-                </strong>{' '}
-                — {u.email}
-              </button>
-            ))}
-            <p className="portal-login__hint" style={{ marginTop: 10 }}>
-              Transportadores novos: use o link <strong>Quero ser transportador</strong> (após
-              aprovação no menu Transportadoras). Super Users (Diego / Elder):{' '}
-              <strong>Criar conta (equipe / Super)</strong>.
-            </p>
-          </div>
-        )}
       </div>
     </div>
   )

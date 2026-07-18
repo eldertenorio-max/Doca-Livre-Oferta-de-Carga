@@ -55,6 +55,7 @@ import {
   portalLoginLocal,
   getPermissaoUsuario,
   loadPortalAccounts,
+  removePortalAccountsPorTransportador,
   setPortalAccountAtivoPorTransportador,
 } from '../lib/portalAuth'
 import {
@@ -133,6 +134,15 @@ interface DataContextValue extends DataState, AuthState {
   notificarTodosGrupos: (cargaId: string) => void
   salvarGrupo: (grupo: GrupoTransportador) => void
   salvarTransportador: (t: Transportador) => void
+  excluirTransportador: (id: string) => { ok: boolean; error?: string }
+  vinculosTransportador: (id: string) => {
+    placas: string[]
+    motoristas: string[]
+    documentos: number
+    grupos: string[]
+    lances: number
+    cargasVencedor: string[]
+  }
   salvarVeiculo: (v: Veiculo) => void
   excluirVeiculo: (id: string) => void
   salvarMotorista: (m: Motorista) => void
@@ -1375,6 +1385,80 @@ export function DataProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const vinculosTransportador = useCallback(
+    (id: string) => {
+      const placas = (state.veiculos ?? [])
+        .filter((v) => v.transportador_id === id)
+        .map((v) => v.placa)
+      const motoristas = (state.motoristas ?? [])
+        .filter((m) => m.transportador_id === id)
+        .map((m) => m.nome)
+      const documentos = (state.documentos ?? []).filter((d) => d.transportador_id === id).length
+      const grupos = (state.grupos ?? [])
+        .filter((g) => g.transportador_ids.includes(id))
+        .map((g) => g.descricao)
+      const lances = (state.lances ?? []).filter((l) => l.transportador_id === id).length
+      const cargasVencedor = (state.cargas ?? [])
+        .filter((c) => c.transportador_vencedor_id === id)
+        .map((c) => c.numero)
+      return { placas, motoristas, documentos, grupos, lances, cargasVencedor }
+    },
+    [state.veiculos, state.motoristas, state.documentos, state.grupos, state.lances, state.cargas],
+  )
+
+  const excluirTransportador = useCallback(
+    (id: string) => {
+      const t = state.transportadores.find((x) => x.id === id)
+      if (!t) return { ok: false, error: 'Transportadora não encontrada.' }
+
+      const vinculos = vinculosTransportador(id)
+      removePortalAccountsPorTransportador(id)
+
+      setState((prev) => {
+        const hist = makeHistorico(
+          'transportador_excluido',
+          `Transportadora excluída — ${t.nome_fantasia}`,
+          {
+            transportador_id: id,
+            detalhe: [
+              vinculos.placas.length ? `Placas: ${vinculos.placas.join(', ')}` : null,
+              vinculos.motoristas.length ? `Motoristas: ${vinculos.motoristas.join(', ')}` : null,
+              vinculos.documentos ? `${vinculos.documentos} documento(s)` : null,
+              vinculos.grupos.length ? `Grupos: ${vinculos.grupos.join(', ')}` : null,
+            ]
+              .filter(Boolean)
+              .join(' · '),
+          },
+          user,
+        )
+        return {
+          ...prev,
+          transportadores: prev.transportadores.filter((x) => x.id !== id),
+          veiculos: (prev.veiculos ?? []).filter((v) => v.transportador_id !== id),
+          motoristas: (prev.motoristas ?? []).filter((m) => m.transportador_id !== id),
+          documentos: (prev.documentos ?? []).filter((d) => d.transportador_id !== id),
+          lances: (prev.lances ?? []).filter((l) => l.transportador_id !== id),
+          historicoPropostas: (prev.historicoPropostas ?? []).filter(
+            (h) => h.transportador_id !== id,
+          ),
+          interacoes: (prev.interacoes ?? []).filter((i) => i.transportador_id !== id),
+          grupos: (prev.grupos ?? []).map((g) => ({
+            ...g,
+            transportador_ids: g.transportador_ids.filter((tid) => tid !== id),
+          })),
+          cargas: (prev.cargas ?? []).map((c) =>
+            c.transportador_vencedor_id === id
+              ? { ...c, transportador_vencedor_id: null }
+              : c,
+          ),
+          historico: [hist, ...prev.historico].slice(0, 2000),
+        }
+      })
+      return { ok: true }
+    },
+    [state.transportadores, vinculosTransportador, user],
+  )
+
   const documentosDoTransportador = useCallback(
     (transportadorId: string) =>
       (state.documentos ?? []).filter((d) => d.transportador_id === transportadorId),
@@ -1655,6 +1739,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       notificarTodosGrupos,
       salvarGrupo,
       salvarTransportador,
+      excluirTransportador,
+      vinculosTransportador,
       salvarVeiculo,
       excluirVeiculo,
       salvarMotorista,
@@ -1702,6 +1788,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       notificarTodosGrupos,
       salvarGrupo,
       salvarTransportador,
+      excluirTransportador,
+      vinculosTransportador,
       salvarVeiculo,
       excluirVeiculo,
       salvarMotorista,
