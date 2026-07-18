@@ -1650,8 +1650,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const criarCarga = useCallback(
     (partial?: Partial<Carga>) => {
       const numero = String(128688 + Math.floor(Math.random() * 9000))
-      const rota =
-        state.rotas.find((r) => r.situacao === 'ativo') ?? state.rotas[0] ?? SEED_ROTAS[0]
       const nova: Carga = {
         id: uid('c'),
         numero,
@@ -1661,8 +1659,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         veiculo: 'CARRETA BAU',
         remetente: 'DOCA LIVRE OFERTA DE CARGA',
         remetente_cnpj: '67.620.377/0001-00',
-        origem: rota?.origem ?? '',
-        destino: rota?.destino ?? '',
+        origem: '',
+        destino: '',
         destinatario: '',
         destinatario_cnpj: '',
         peso: 0,
@@ -1670,15 +1668,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
         num_entregas: 1,
         pallets: 0,
         valor_mercadorias: 0,
-        frete_tabela: rota?.frete_tabela ?? 0,
+        frete_tabela: 0,
         frete_oferta: null,
         frete_minimo: null,
         frete_maximo: null,
         margem_percentual: null,
         data_carregamento: new Date(Date.now() + 86400000).toISOString(),
         previsao_entrega: new Date(Date.now() + 172800000).toISOString(),
-        rota_id: rota?.id ?? null,
-        classificacao_rota: rota?.classificacao ?? null,
+        rota_id: null,
+        classificacao_rota: 'B',
         status: 'nova_carga',
         prioridade: null,
         modo_publicacao: null,
@@ -1715,7 +1713,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }))
       return nova
     },
-    [user, state.rotas],
+    [user],
   )
 
   const atualizarCarga = useCallback(
