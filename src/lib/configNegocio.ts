@@ -44,13 +44,14 @@ export function limitesLance(
   freteOferta: number,
   cfg: ConfigNegocio,
 ): { min: number | null; max: number | null } {
+  const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100
   const min =
     cfg.lance_min_percentual != null
-      ? freteOferta * (1 + cfg.lance_min_percentual / 100)
+      ? round2(freteOferta * (1 + cfg.lance_min_percentual / 100))
       : null
   const max =
     cfg.lance_max_percentual != null
-      ? freteOferta * (1 + cfg.lance_max_percentual / 100)
+      ? round2(freteOferta * (1 + cfg.lance_max_percentual / 100))
       : null
   return { min, max }
 }

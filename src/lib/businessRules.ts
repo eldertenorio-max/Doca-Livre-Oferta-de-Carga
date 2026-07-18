@@ -49,12 +49,37 @@ export function calcularPrioridadeEModo(
   return { prioridade: 'baixa', modo: 'leilao', exigeJustificativa: false }
 }
 
+/** Arredonda valor monetário em 2 casas (evita 6768.67920000000005). */
+export function roundMoney(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100
+}
+
 export function calcularFreteOferta(freteTabela: number, margemPercentual: number) {
-  const ganho = freteTabela * (margemPercentual / 100)
+  const ganho = roundMoney(freteTabela * (margemPercentual / 100))
   return {
     ganho,
-    freteOferta: freteTabela + ganho,
+    freteOferta: roundMoney(freteTabela + ganho),
   }
+}
+
+/** Exibe valor para input (ex.: 6.768,68). */
+export function formatMoneyInput(value: number): string {
+  return roundMoney(value).toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
+
+/** Converte texto pt-BR / en-US em número (2 casas). */
+export function parseMoneyInput(raw: string): number {
+  const s = raw.trim()
+  if (!s) return NaN
+  let normalized = s
+  if (s.includes(',')) {
+    normalized = s.replace(/\./g, '').replace(',', '.')
+  }
+  const n = Number(normalized)
+  return Number.isFinite(n) ? roundMoney(n) : NaN
 }
 
 export function classificacaoPorPontuacao(pontos: number): ClassificacaoTransportador {

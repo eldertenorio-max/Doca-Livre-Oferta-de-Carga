@@ -795,8 +795,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: 'No modo Oferta não é permitido alterar a proposta.' }
       }
 
-      // Modo Oferta: primeira oferta menor que o proposto fecha
-      if (carga.modo_publicacao === 'oferta' && valor < freteRef) {
+      // Modo Oferta: lance ≤ frete oferta fecha (inclui “Aceitar oferta”)
+      if (carga.modo_publicacao === 'oferta' && valor <= freteRef + 0.009) {
         setState((prev) => {
           const lance: Lance = {
             id: uid('lance'),

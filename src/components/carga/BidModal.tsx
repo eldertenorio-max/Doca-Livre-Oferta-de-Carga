@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useData } from '../../context/DataContext'
-import { formatCurrency, formatDateTime, formatNumber } from '../../lib/businessRules'
+import {
+  formatCurrency,
+  formatDateTime,
+  formatMoneyInput,
+  formatNumber,
+  parseMoneyInput,
+  roundMoney,
+} from '../../lib/businessRules'
 import type { Carga } from '../../types'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
 
@@ -21,27 +28,29 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
       const meu = lancesDaCarga(carga.id).find(
         (l) => l.transportador_id === user?.transportador_id && l.status === 'ativo',
       )
-      const ref = carga.frete_oferta ?? carga.frete_tabela
+      const ref = roundMoney(carga.frete_oferta ?? carga.frete_tabela)
       const sugestao =
-        carga.frete_maximo != null
-          ? Math.min(ref, carga.frete_maximo)
-          : Math.round(ref * 0.97)
-      setValor(String(meu?.valor ?? sugestao))
+        meu?.valor != null
+          ? roundMoney(meu.valor)
+          : carga.frete_maximo != null
+            ? roundMoney(Math.min(ref, carga.frete_maximo))
+            : ref
+      setValor(formatMoneyInput(sugestao))
       setError('')
     }
   }, [open, carga, registrarVisualizacao, lancesDaCarga, user])
 
   if (!carga) return null
 
-  const freteRef = carga.frete_oferta ?? carga.frete_tabela
+  const freteRef = roundMoney(carga.frete_oferta ?? carga.frete_tabela)
   const jaFechada = Boolean(carga.transportador_vencedor_id)
   const suspensa = carga.status === 'suspensas'
   const encerrada =
     Boolean(carga.expira_em && new Date(carga.expira_em).getTime() < Date.now()) &&
     !carga.transportador_vencedor_id
+  const bloqueado = jaFechada || encerrada || suspensa
 
-  function handleSend() {
-    const num = Number(String(valor).replace(',', '.'))
+  function submitValor(num: number) {
     if (Number.isNaN(num)) {
       setError('Valor inválido')
       return
@@ -74,6 +83,16 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
     onClose()
   }
 
+  function handleSend() {
+    submitValor(parseMoneyInput(valor))
+  }
+
+  function handleAccept() {
+    const aceito = roundMoney(freteRef)
+    setValor(formatMoneyInput(aceito))
+    submitValor(aceito)
+  }
+
   return (
     <Modal open={open} title="Registrar lance" onClose={onClose} wide>
       <div className="space-y-4">
@@ -90,10 +109,10 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
             <Detail label="Frete Tabela" value={formatCurrency(carga.frete_tabela)} />
             <Detail label="Frete Oferta" value={formatCurrency(freteRef)} />
             {carga.frete_minimo != null && (
-              <Detail label="Lance mínimo" value={formatCurrency(carga.frete_minimo)} />
+              <Detail label="Lance mínimo" value={formatCurrency(roundMoney(carga.frete_minimo))} />
             )}
             {carga.frete_maximo != null && (
-              <Detail label="Lance máximo" value={formatCurrency(carga.frete_maximo)} />
+              <Detail label="Lance máximo" value={formatCurrency(roundMoney(carga.frete_maximo))} />
             )}
             <Detail
               label="Modo"
@@ -105,23 +124,30 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
 
         <Field label="Sua oferta (R$)">
           <input
-            className={`${inputClass} text-lg font-bold`}
+            className={`${inputClass} text-lg font-bold tabular-nums`}
             value={valor}
+            inputMode="decimal"
             onChange={(e) => setValor(e.target.value)}
-            disabled={jaFechada || encerrada || suspensa}
+            onBlur={() => {
+              const n = parseMoneyInput(valor)
+              if (!Number.isNaN(n)) setValor(formatMoneyInput(n))
+            }}
+            disabled={bloqueado}
+            placeholder="0,00"
           />
         </Field>
 
         {carga.modo_publicacao === 'oferta' && (
           <p className="text-xs text-ink-muted">
-            Modo Oferta: o primeiro lance válido fecha o frete automaticamente. Após enviar, o
-            valor não pode ser alterado.
+            Modo Oferta: aceitar o frete oferta ou enviar lance até esse valor fecha o frete.
+            Após enviar, o valor não pode ser alterado.
           </p>
         )}
         {carga.modo_publicacao === 'leilao' && (
           <p className="text-xs text-ink-muted">
             Modo Leilão: você pode atualizar o lance até o fim do prazo. Em empate de valor, vence
-            o mais antigo (ou o embarcador decide manualmente).
+            o mais antigo (ou o embarcador decide manualmente). Use “Aceitar oferta” para propor
+            exatamente o frete oferta ({formatCurrency(freteRef)}).
           </p>
         )}
         {suspensa && (
@@ -130,16 +156,24 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
 
         {error && <p className="text-sm text-brand">{error}</p>}
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="primary"
+            className="min-w-[140px] flex-1"
+            onClick={handleAccept}
+            disabled={bloqueado}
+          >
+            Aceitar oferta
+          </Button>
           <Button
             variant="success"
-            className="flex-1"
+            className="min-w-[140px] flex-1"
             onClick={handleSend}
-            disabled={jaFechada || encerrada || suspensa}
+            disabled={bloqueado}
           >
             Enviar lance
           </Button>
-          <Button variant="danger" className="flex-1" onClick={onClose}>
+          <Button variant="danger" className="min-w-[100px] flex-1" onClick={onClose}>
             Fechar
           </Button>
         </div>
