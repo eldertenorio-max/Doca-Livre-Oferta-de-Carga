@@ -564,23 +564,62 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setUser((prev) => {
       if (!prev) return prev
       const accounts = loadPortalAccounts()
-      const account = accounts.find((a) => a.id === prev.id || a.usuario === prev.usuario)
+      const account = accounts.find(
+        (a) =>
+          a.id === prev.id ||
+          a.usuario === prev.usuario ||
+          a.email.toLowerCase() === (prev.email || '').toLowerCase(),
+      )
       if (!account) return prev
       const isSuperuser =
         Boolean(prev.is_superuser) ||
         isLocalSuperUser(account.usuario) ||
         isLocalSuperUser(account.email)
       const perms = getPermissaoUsuario(account)
+      // Conta demo / portal sempre manda no vínculo; evita sessão antiga sem transportador_id
+      const transportador_id =
+        account.transportador_id !== undefined && account.transportador_id !== null
+          ? account.transportador_id
+          : (prev.transportador_id ?? null)
+      const role = isSuperuser
+        ? prev.role === 'transportador'
+          ? prev.role
+          : prev.role === 'super'
+            ? prev.role
+            : ('minerva' as const)
+        : account.role === 'transportador'
+          ? ('transportador' as const)
+          : account.role === 'super'
+            ? ('super' as const)
+            : ('minerva' as const)
+      if (
+        prev.transportador_id === transportador_id &&
+        prev.is_superuser === isSuperuser &&
+        prev.empresa_org_id === (account.empresa_org_id ?? prev.empresa_org_id) &&
+        prev.role === role
+      ) {
+        return {
+          ...prev,
+          perfil_operacional: account.perfil_operacional ?? prev.perfil_operacional,
+          permissoes_modulos: isSuperuser ? null : perms.modulos,
+        }
+      }
       return {
         ...prev,
+        role,
         is_superuser: isSuperuser,
         perfil_operacional: account.perfil_operacional ?? prev.perfil_operacional,
         permissoes_modulos: isSuperuser ? null : perms.modulos,
         empresa_org_id: account.empresa_org_id ?? prev.empresa_org_id,
-        transportador_id: account.transportador_id ?? prev.transportador_id,
+        transportador_id,
       }
     })
   }, [])
+
+  // Revincula transportador_id da conta (sessões antigas / demo Santos)
+  useEffect(() => {
+    refreshPermissoes()
+  }, [refreshPermissoes])
 
   const publicarCarga = useCallback(
     (payload: PublishPayload) => {
@@ -1711,10 +1750,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const cargasVisiveisTransportador = useCallback(
     (transportadorId: string) => {
       if (!transportadorId) return []
-      const ativo = state.transportadores.some(
-        (t) => t.id === transportadorId && t.situacao === 'ativo',
-      )
-      if (!ativo) return []
+      const transportador = state.transportadores.find((t) => t.id === transportadorId)
+      // situacao ausente = ativo (dados antigos); só bloqueia inativo
+      if (!transportador || transportador.situacao === 'inativo') {
+        return []
+      }
 
       return state.cargas.filter((c) => {
         // Frete fechado / alocada / recusada do próprio vencedor
@@ -1726,26 +1766,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
         if (c.transportador_vencedor_id) return false
         if (!c.publicado_em) return false
 
-        const gruposOk =
+        const notificados =
           (c.grupos_notificados?.length ?? 0) > 0
             ? c.grupos_notificados
             : (c.grupo_ids ?? [])
+        const candidatos =
+          notificados.length > 0 ? notificados : (c.grupo_ids ?? [])
 
         // Sem grupo definido: todos os transportadores ativos veem
-        if (gruposOk.length === 0) return true
+        if (candidatos.length === 0) return true
 
-        const emGrupoNotificado = state.grupos.some(
-          (g) =>
-            g.situacao === 'ativo' &&
-            gruposOk.includes(g.id) &&
-            (g.transportador_ids ?? []).includes(transportadorId),
-        )
-        if (emGrupoNotificado) return true
+        const emGrupo = state.grupos.some((g) => {
+          if (g.situacao === 'inativo') return false
+          if (!candidatos.includes(g.id)) return false
+          return (g.transportador_ids ?? []).includes(transportadorId)
+        })
+        if (emGrupo) return true
 
-        // Fallback: se os IDs de grupo da carga não batem com o cadastro atual,
-        // ainda assim libera para ativos (evita Kanban vazio após republicar/migração).
+        // Fallback: IDs de grupo órfãos (migração) — libera para ativos
         const grupoIdsConhecidos = new Set(state.grupos.map((g) => g.id))
-        const gruposOrfaos = gruposOk.every((id) => !grupoIdsConhecidos.has(id))
+        const gruposOrfaos = candidatos.every((id) => !grupoIdsConhecidos.has(id))
         return gruposOrfaos
       })
     },

@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { CargoCard } from '../../components/kanban/CargoCard'
 import { KanbanBoard } from '../../components/kanban/KanbanBoard'
 import { AllocateModal, BidModal } from '../../components/carga/BidModal'
+import { DEMO_TRANSPORTADOR } from '../../lib/portalAuth'
+import { isLocalSuperUser } from '../../lib/superUsers'
 import type { Carga } from '../../types'
 
 type ColKey = 'nova_carga' | 'propostas' | 'confirmadas' | 'alocadas'
@@ -60,14 +62,39 @@ function columnForCarga(
 export function KanbanTransportador() {
   const {
     user,
+    transportadores,
     cargasVisiveisTransportador,
     lancesDaCarga,
     recusarCargaTransportador,
   } = useData()
-  const tid = user?.transportador_id ?? ''
+
+  const isSuper =
+    Boolean(user?.is_superuser) ||
+    user?.role === 'super' ||
+    isLocalSuperUser(user?.usuario ?? '') ||
+    isLocalSuperUser(user?.email ?? '')
+
+  const transportadoresAtivos = useMemo(
+    () => transportadores.filter((t) => t.situacao !== 'inativo'),
+    [transportadores],
+  )
+
+  const defaultViewAs =
+    user?.transportador_id ||
+    transportadoresAtivos.find((t) => t.id === DEMO_TRANSPORTADOR.transportador_id)?.id ||
+    transportadoresAtivos[0]?.id ||
+    ''
+
+  const [viewAsId, setViewAsId] = useState(defaultViewAs)
   const [search, setSearch] = useState('')
   const [bidCarga, setBidCarga] = useState<Carga | null>(null)
   const [allocCarga, setAllocCarga] = useState<Carga | null>(null)
+
+  useEffect(() => {
+    if (!viewAsId && defaultViewAs) setViewAsId(defaultViewAs)
+  }, [defaultViewAs, viewAsId])
+
+  const tid = user?.transportador_id || (isSuper ? viewAsId : '') || ''
 
   const cargas = useMemo(() => {
     const list = cargasVisiveisTransportador(tid)
@@ -81,23 +108,54 @@ export function KanbanTransportador() {
     )
   }, [cargasVisiveisTransportador, tid, search])
 
+  const nomeVista =
+    transportadores.find((t) => t.id === tid)?.nome_fantasia ??
+    (tid ? tid : 'nenhuma transportadora')
+
   return (
     <div className="flex h-[calc(100vh-7rem)] flex-col gap-3">
-      <div className="relative max-w-md">
-        <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-muted" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Pesquisar cargas..."
-          className="w-full rounded-lg border border-ink/15 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-        />
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="relative max-w-md flex-1 min-w-[220px]">
+          <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-muted" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Pesquisar cargas..."
+            className="w-full rounded-lg border border-ink/15 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+          />
+        </div>
+
+        {isSuper && (
+          <label className="flex flex-col gap-1 text-xs text-ink-muted">
+            Ver como transportadora
+            <select
+              value={viewAsId}
+              onChange={(e) => setViewAsId(e.target.value)}
+              className="min-w-[220px] rounded-lg border border-ink/15 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+            >
+              {transportadoresAtivos.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.nome_fantasia} ({t.classificacao})
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
 
-      {cargas.length === 0 && (
+      {!tid && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900">
+          Esta conta não está vinculada a uma transportadora. Entre com{' '}
+          <strong>{DEMO_TRANSPORTADOR.email}</strong> / {DEMO_TRANSPORTADOR.password} ou peça ao
+          Super para vincular o usuário.
+        </p>
+      )}
+
+      {tid && cargas.length === 0 && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          Nenhuma oferta no seu grupo ainda. O embarcador precisa <strong>publicar</strong> a carga
-          selecionando um grupo que inclua sua transportadora (ex.: Transportadores Fixos / OURO).
-          Cargas só em “Nova Carga” no lado embarcador ainda não aparecem aqui.
+          Nenhuma oferta visível para <strong>{nomeVista}</strong>. A carga precisa estar{' '}
+          <strong>publicada</strong> (status Negociando) em um grupo que inclua essa transportadora.
+          Use o mesmo navegador em que a carga foi publicada (dados locais).
         </p>
       )}
 
@@ -139,7 +197,9 @@ export function KanbanTransportador() {
                   }
                   onRefuse={
                     col.key === 'nova_carga'
-                      ? () => recusarCargaTransportador(c.id)
+                      ? () => {
+                          if (user?.transportador_id) recusarCargaTransportador(c.id)
+                        }
                       : undefined
                   }
                   onAllocate={

@@ -153,11 +153,15 @@ export function AppLayout() {
     isLocalSuperUser(user?.email ?? '')
 
   const links = useMemo(() => {
-    const base =
-      user?.role === 'transportador' && !isSuper ? transportadorLinks : minervaLinks
+    if (isSuper) {
+      return [
+        ...minervaLinks,
+        { to: '/transportador', label: 'Kanban Transportador', icon: <IconTruck />, end: true },
+      ]
+    }
+    const base = user?.role === 'transportador' ? transportadorLinks : minervaLinks
     return base.filter((item) => {
-      if (item.to === '/minerva/config') return isSuper
-      if (isSuper) return true
+      if (item.to === '/minerva/config') return false
       const mod = moduloFromPath(item.to)
       if (!mod) return true
       return canOpenModulo(user?.permissoes_modulos, mod)
