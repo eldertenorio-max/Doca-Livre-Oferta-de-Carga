@@ -1,15 +1,15 @@
 # https://render.com Blueprint
+# Web Service (Node) — serve -s faz o fallback SPA (/login, F5, etc.)
 services:
   - type: web
     name: doca-livre-oferta-de-carga
-    runtime: static
+    runtime: node
+    plan: free
     buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
+    startCommand: npm start
     envVars:
+      - key: NODE_VERSION
+        value: "22"
       - key: VITE_SUPABASE_URL
         sync: false
       - key: VITE_SUPABASE_ANON_KEY
