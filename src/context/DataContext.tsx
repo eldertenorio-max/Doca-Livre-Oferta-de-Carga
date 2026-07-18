@@ -64,6 +64,10 @@ import {
   type CadastroTransportadorInput,
 } from '../lib/cadastroTransportador'
 import { isLocalSuperUser } from '../lib/superUsers'
+import {
+  removeTransportadoraDaHierarquia,
+  syncTransportadoraNaHierarquia,
+} from '../lib/orgHierarchy'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
 const STORAGE_KEY = 'doca-livre-data-v7'
@@ -1455,6 +1459,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
           : [...prev.transportadores, t],
       }
     })
+    if (t.situacao === 'inativo' || t.situacao === 'recusado') {
+      removeTransportadoraDaHierarquia(t.id)
+    } else {
+      syncTransportadoraNaHierarquia({
+        id: t.id,
+        nome_fantasia: t.nome_fantasia,
+        cnpj: t.cnpj,
+      })
+    }
   }, [])
 
   const vinculosTransportador = useCallback(
@@ -1485,6 +1498,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       const vinculos = vinculosTransportador(id)
       removePortalAccountsPorTransportador(id)
+      removeTransportadoraDaHierarquia(id)
 
       setState((prev) => {
         const hist = makeHistorico(
@@ -1546,6 +1560,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         transportadores: [...prev.transportadores, result.transportador],
         documentos: [...(prev.documentos ?? []), ...result.documentos],
       }))
+      syncTransportadoraNaHierarquia({
+        id: result.transportador.id,
+        nome_fantasia: result.transportador.nome_fantasia,
+        cnpj: result.transportador.cnpj,
+      })
       return { ok: true, mensagem: result.mensagem }
     },
     [],
@@ -1561,12 +1580,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
       await supabase.from('profiles').update({ ativo: true }).eq('transportador_id', id)
     }
     setPortalAccountAtivoPorTransportador(id, true)
-    setState((prev) => ({
-      ...prev,
-      transportadores: prev.transportadores.map((t) =>
-        t.id === id ? { ...t, situacao: 'ativo', motivo_recusa: undefined } : t,
-      ),
-    }))
+    setState((prev) => {
+      const atual = prev.transportadores.find((t) => t.id === id)
+      if (atual) {
+        syncTransportadoraNaHierarquia({
+          id: atual.id,
+          nome_fantasia: atual.nome_fantasia,
+          cnpj: atual.cnpj,
+        })
+      }
+      return {
+        ...prev,
+        transportadores: prev.transportadores.map((t) =>
+          t.id === id ? { ...t, situacao: 'ativo', motivo_recusa: undefined } : t,
+        ),
+      }
+    })
     return { ok: true }
   }, [])
 
@@ -1580,6 +1609,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       await supabase.from('profiles').update({ ativo: false }).eq('transportador_id', id)
     }
     setPortalAccountAtivoPorTransportador(id, false)
+    removeTransportadoraDaHierarquia(id)
     setState((prev) => ({
       ...prev,
       transportadores: prev.transportadores.map((t) =>

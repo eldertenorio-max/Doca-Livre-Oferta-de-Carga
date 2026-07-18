@@ -163,3 +163,92 @@ export function deleteOrgNo(tree: OrgNo[], id: string): OrgNo[] {
   }
   return walk(structuredClone(tree))
 }
+
+/** Pai padrão para transportadoras: 1ª unidade, senão 1ª filial. */
+export function findDefaultTransportadoraParentId(tree: OrgNo[]): string | null {
+  const flat = flattenOrg(tree)
+  return (
+    flat.find((n) => n.tipo === 'unidade')?.id ??
+    flat.find((n) => n.tipo === 'filial_operador')?.id ??
+    flat.find((n) => n.tipo === 'operador_logistico')?.id ??
+    null
+  )
+}
+
+/**
+ * Inclui ou atualiza o nó da transportadora na hierarquia (localStorage).
+ * Usado ao criar/editar transportadora no cadastro ou no cadastro público.
+ */
+export function syncTransportadoraNaHierarquia(t: {
+  id: string
+  nome_fantasia: string
+  cnpj?: string | null
+}): OrgNo[] {
+  const tree = loadOrgTree()
+  const flat = flattenOrg(tree)
+  const existing = flat.find((n) => n.transportador_id === t.id)
+  const parentId =
+    existing?.parent_id ?? findDefaultTransportadoraParentId(tree)
+  if (!parentId) {
+    // Árvore vazia: cria raiz mínima + transportadora
+    const root: OrgNo = {
+      id: 'org-root',
+      parent_id: null,
+      tipo: 'operador_logistico',
+      nome: 'Doca Livre',
+      codigo: 'DL',
+      ordem: 0,
+      children: [
+        {
+          id: `org-${t.id}`,
+          parent_id: 'org-root',
+          tipo: 'transportadora',
+          nome: t.nome_fantasia,
+          cnpj: t.cnpj ?? null,
+          transportador_id: t.id,
+          ordem: 1,
+          children: [],
+        },
+      ],
+    }
+    const next = [root]
+    saveOrgTree(next)
+    return next
+  }
+
+  const siblings = flat.filter((n) => n.parent_id === parentId)
+  const no: OrgNo = {
+    id: existing?.id ?? `org-${t.id}`,
+    parent_id: parentId,
+    tipo: 'transportadora',
+    nome: t.nome_fantasia,
+    cnpj: t.cnpj ?? null,
+    transportador_id: t.id,
+    ordem: existing?.ordem ?? siblings.length + 1,
+    children: existing?.children ?? [],
+  }
+  const next = upsertOrgNo(tree, no)
+  saveOrgTree(next)
+  return next
+}
+
+export function removeTransportadoraDaHierarquia(transportadorId: string): OrgNo[] {
+  const tree = loadOrgTree()
+  const node = flattenOrg(tree).find((n) => n.transportador_id === transportadorId)
+  if (!node) return tree
+  const next = deleteOrgNo(tree, node.id)
+  saveOrgTree(next)
+  return next
+}
+
+/** Garante que todas as transportadoras ativas/pendentes existam na árvore. */
+export function syncTodasTransportadorasNaHierarquia(
+  transportadores: { id: string; nome_fantasia: string; cnpj?: string | null; situacao?: string }[],
+): OrgNo[] {
+  let tree = loadOrgTree()
+  for (const t of transportadores) {
+    if (t.situacao === 'inativo' || t.situacao === 'recusado') continue
+    tree = syncTransportadoraNaHierarquia(t)
+  }
+  return tree
+}

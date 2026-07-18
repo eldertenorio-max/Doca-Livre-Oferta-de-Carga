@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
 import {
@@ -26,6 +26,7 @@ import {
   deleteOrgNo,
   loadOrgTree,
   saveOrgTree,
+  syncTodasTransportadorasNaHierarquia,
   upsertOrgNo,
   type OrgNo,
 } from '../../lib/orgHierarchy'
@@ -35,7 +36,7 @@ import '../../styles/cadastro.css'
 type Tab = 'hierarquia' | 'permissoes' | 'usuarios'
 
 export function PortalConfigPage() {
-  const { user, refreshPermissoes } = useData()
+  const { user, refreshPermissoes, transportadores } = useData()
   const [tab, setTab] = useState<Tab>('hierarquia')
   const [tree, setTree] = useState<OrgNo[]>(() => loadOrgTree())
   const [accounts, setAccounts] = useState<PortalAccount[]>(() => loadPortalAccounts())
@@ -44,6 +45,13 @@ export function PortalConfigPage() {
   const [msg, setMsg] = useState('')
 
   const isSuper = Boolean(user?.is_superuser) || isLocalSuperUser(user?.usuario ?? '') || isLocalSuperUser(user?.email ?? '')
+
+  // Ao abrir Hierarquia (ou mudar cadastro), sincroniza transportadoras na árvore
+  useEffect(() => {
+    if (tab !== 'hierarquia') return
+    const next = syncTodasTransportadorasNaHierarquia(transportadores)
+    setTree(next)
+  }, [tab, transportadores])
 
   if (!user) return <Navigate to="/login" replace />
   if (!isSuper) {
