@@ -44,42 +44,79 @@ function uid() {
   return `u-${Math.random().toString(36).slice(2, 10)}`
 }
 
+/** Conta demo pronta para testar o Kanban do transportador. */
+export const DEMO_TRANSPORTADOR = {
+  id: 'u-santos',
+  usuario: 'santos',
+  email: 'santos@transportes.com',
+  password: 'santos123',
+  nome: 'Santos Transportes',
+  transportador_id: 't1',
+} as const
+
 export function loadPortalAccounts(): PortalAccount[] {
   try {
     const raw = localStorage.getItem(USERS_KEY)
-    if (raw) return JSON.parse(raw) as PortalAccount[]
+    if (raw) {
+      const parsed = JSON.parse(raw) as PortalAccount[]
+      let list = parsed.filter((u) => !isContaMinervaDemo(u))
+      list = ensureDemoTransportador(list)
+      savePortalAccounts(list)
+      return list
+    }
   } catch {
     /* ignore */
   }
   return seedAccounts()
 }
 
+function isContaMinervaDemo(u: PortalAccount) {
+  const email = (u.email || '').toLowerCase()
+  const usuario = (u.usuario || '').toLowerCase()
+  return (
+    u.id === 'u-minerva' ||
+    email === 'minerva@docalivre.com' ||
+    usuario === 'minerva'
+  )
+}
+
+function demoTransportadorAccount(): PortalAccount {
+  return {
+    id: DEMO_TRANSPORTADOR.id,
+    usuario: DEMO_TRANSPORTADOR.usuario,
+    email: DEMO_TRANSPORTADOR.email,
+    password: DEMO_TRANSPORTADOR.password,
+    nome: DEMO_TRANSPORTADOR.nome,
+    role: 'transportador',
+    transportador_id: DEMO_TRANSPORTADOR.transportador_id,
+    nivel: 'operador',
+    ativo: true,
+    created_at: new Date().toISOString(),
+  }
+}
+
+/** Garante que a conta demo Santos exista e esteja ativa. */
+function ensureDemoTransportador(list: PortalAccount[]): PortalAccount[] {
+  const demo = demoTransportadorAccount()
+  const idx = list.findIndex(
+    (u) =>
+      u.id === demo.id ||
+      u.email.toLowerCase() === demo.email ||
+      u.usuario.toLowerCase() === demo.usuario,
+  )
+  if (idx < 0) return [demo, ...list]
+  const next = [...list]
+  next[idx] = {
+    ...next[idx],
+    ...demo,
+    created_at: next[idx].created_at || demo.created_at,
+  }
+  return next
+}
+
 function seedAccounts(): PortalAccount[] {
   const seed: PortalAccount[] = [
-    {
-      id: 'u-minerva',
-      usuario: 'minerva',
-      email: 'minerva@docalivre.com',
-      password: 'minerva123',
-      nome: 'Operador Doca Livre Oferta de Carga',
-      role: 'minerva',
-      nivel: 'gestor',
-      perfil_operacional: 'administrador',
-      ativo: true,
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 'u-santos',
-      usuario: 'santos',
-      email: 'santos@transportes.com',
-      password: 'santos123',
-      nome: 'Santos Transportes',
-      role: 'transportador',
-      transportador_id: 't1',
-      nivel: 'operador',
-      ativo: true,
-      created_at: new Date().toISOString(),
-    },
+    demoTransportadorAccount(),
     {
       id: 'u-novaera',
       usuario: 'novaera',

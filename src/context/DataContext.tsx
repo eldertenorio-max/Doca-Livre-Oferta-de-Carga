@@ -30,6 +30,7 @@ import {
   type ConfigNegocio,
 } from '../lib/configNegocio'
 import { makeHist, normalizeCarga, resetNegociacaoFields } from '../lib/cargaDefaults'
+import { normalizeMotorista, normalizeVeiculo } from '../lib/motoristaDefaults'
 import { haEmpateDeValor, ordenarLancesParaVitoria } from '../lib/desempate'
 import { enviarControleFretes } from '../lib/integracaoFretes'
 import type {
@@ -65,9 +66,9 @@ import {
 import { isLocalSuperUser } from '../lib/superUsers'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
-const STORAGE_KEY = 'doca-livre-data-v5'
-const STORAGE_KEY_LEGACY = 'doca-livre-data-v4'
-const STORAGE_KEY_LEGACY2 = 'doca-livre-data-v3'
+const STORAGE_KEY = 'doca-livre-data-v7'
+const STORAGE_KEY_LEGACY = 'doca-livre-data-v6'
+const STORAGE_KEY_LEGACY2 = 'doca-livre-data-v5'
 const AUTH_KEY = 'doca-livre-auth-v1'
 
 interface PublishPayload {
@@ -174,7 +175,7 @@ function defaultState(): DataState {
     lances: structuredClone(SEED_LANCES),
     transportadores: structuredClone(SEED_TRANSPORTADORES),
     veiculos: structuredClone(SEED_VEICULOS),
-    motoristas: structuredClone(SEED_MOTORISTAS),
+    motoristas: structuredClone(SEED_MOTORISTAS).map(normalizeMotorista),
     documentos: [],
     grupos: structuredClone(SEED_GRUPOS),
     rotas: structuredClone(SEED_ROTAS),
@@ -259,8 +260,12 @@ function loadState(): DataState {
       transportadores: Array.isArray(parsed.transportadores)
         ? parsed.transportadores
         : defaults.transportadores,
-      veiculos: Array.isArray(parsed.veiculos) ? parsed.veiculos : defaults.veiculos,
-      motoristas: Array.isArray(parsed.motoristas) ? parsed.motoristas : defaults.motoristas,
+      veiculos: Array.isArray(parsed.veiculos)
+        ? parsed.veiculos.map(normalizeVeiculo)
+        : defaults.veiculos,
+      motoristas: Array.isArray(parsed.motoristas)
+        ? parsed.motoristas.map(normalizeMotorista)
+        : defaults.motoristas,
       documentos: Array.isArray(parsed.documentos) ? parsed.documentos : defaults.documentos,
       grupos,
       rotas: Array.isArray(parsed.rotas) ? parsed.rotas : defaults.rotas,
@@ -605,13 +610,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      const escalonar = Boolean(payload.escalonarGrupos) && payload.grupoIds.length > 1
       setState((prev) => {
         const cargas = prev.cargas.map((c) => {
           if (c.id !== payload.cargaId) return c
           const { freteOferta } = calcularFreteOferta(c.frete_tabela, payload.margemPercentual)
           const lim = limitesLance(freteOferta, config)
           const now = Date.now()
-          const escalonar = Boolean(payload.escalonarGrupos) && payload.grupoIds.length > 1
           return {
             ...c,
             margem_percentual: payload.margemPercentual,
@@ -646,12 +651,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
           },
           user,
         )
-        const notificacoes = pushNotif(prev.notificacoes, {
+        const gruposNotif = escalonar ? [payload.grupoIds[0]] : [...payload.grupoIds]
+        const transportadoresNotificados = new Set<string>()
+        for (const g of prev.grupos) {
+          if (!gruposNotif.includes(g.id)) continue
+          for (const tid of g.transportador_ids ?? []) transportadoresNotificados.add(tid)
+        }
+        let notificacoes = pushNotif(prev.notificacoes, {
           role: 'todos',
           titulo: 'Nova carga publicada',
           mensagem: `Carga ${carga?.numero ?? ''} disponível para negociação.`,
           carga_id: payload.cargaId,
         })
+        for (const tid of transportadoresNotificados) {
+          notificacoes = pushNotif(notificacoes, {
+            transportador_id: tid,
+            titulo: 'Nova oferta de carga',
+            mensagem: `Carga ${carga?.numero ?? ''} disponível no seu Kanban.`,
+            carga_id: payload.cargaId,
+          })
+        }
         return {
           ...prev,
           cargas,
@@ -1630,13 +1649,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
   )
 
   const salvarMotorista = useCallback((m: Motorista) => {
+    const normalized = normalizeMotorista(m)
     setState((prev) => {
       const list = prev.motoristas ?? []
-      const exists = list.some((x) => x.id === m.id)
-      return {
-        ...prev,
-        motoristas: exists ? list.map((x) => (x.id === m.id ? m : x)) : [...list, m],
+      const exists = list.some((x) => x.id === normalized.id)
+      // Um veículo só pode estar vinculado a um motorista ativo
+      let motoristas = exists
+        ? list.map((x) => (x.id === normalized.id ? normalized : x))
+        : [...list, normalized]
+      if (normalized.veiculo_id) {
+        motoristas = motoristas.map((x) =>
+          x.id !== normalized.id && x.veiculo_id === normalized.veiculo_id
+            ? { ...x, veiculo_id: null }
+            : x,
+        )
       }
+      const veiculos = (prev.veiculos ?? []).map((v) => {
+        if (v.id !== normalized.veiculo_id) return v
+        return {
+          ...v,
+          transportador_id: normalized.autonomo ? null : normalized.transportador_id,
+          condutor: normalized.nome,
+        }
+      })
+      return { ...prev, motoristas, veiculos }
     })
   }, [])
 
@@ -1674,6 +1710,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const cargasVisiveisTransportador = useCallback(
     (transportadorId: string) => {
+      if (!transportadorId) return []
+      const ativo = state.transportadores.some(
+        (t) => t.id === transportadorId && t.situacao === 'ativo',
+      )
+      if (!ativo) return []
+
       return state.cargas.filter((c) => {
         // Frete fechado / alocada / recusada do próprio vencedor
         if (c.transportador_vencedor_id === transportadorId) {
@@ -1682,18 +1724,32 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
         if (!['negociando', 'propostas'].includes(c.status)) return false
         if (c.transportador_vencedor_id) return false
+        if (!c.publicado_em) return false
 
         const gruposOk =
-          c.grupos_notificados.length > 0 ? c.grupos_notificados : c.grupo_ids
-        if (gruposOk.length === 0) return false
+          (c.grupos_notificados?.length ?? 0) > 0
+            ? c.grupos_notificados
+            : (c.grupo_ids ?? [])
 
-        return state.grupos.some(
+        // Sem grupo definido: todos os transportadores ativos veem
+        if (gruposOk.length === 0) return true
+
+        const emGrupoNotificado = state.grupos.some(
           (g) =>
-            gruposOk.includes(g.id) && g.transportador_ids.includes(transportadorId),
+            g.situacao === 'ativo' &&
+            gruposOk.includes(g.id) &&
+            (g.transportador_ids ?? []).includes(transportadorId),
         )
+        if (emGrupoNotificado) return true
+
+        // Fallback: se os IDs de grupo da carga não batem com o cadastro atual,
+        // ainda assim libera para ativos (evita Kanban vazio após republicar/migração).
+        const grupoIdsConhecidos = new Set(state.grupos.map((g) => g.id))
+        const gruposOrfaos = gruposOk.every((id) => !grupoIdsConhecidos.has(id))
+        return gruposOrfaos
       })
     },
-    [state.cargas, state.grupos],
+    [state.cargas, state.grupos, state.transportadores],
   )
 
   const historicoDoTransportador = useCallback(

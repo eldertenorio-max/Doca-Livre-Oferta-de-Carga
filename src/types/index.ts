@@ -105,7 +105,8 @@ export type FotosVeiculo = Partial<Record<FotoVeiculoSlot, string>>
 export interface Veiculo {
   id: string
   placa: string
-  transportador_id: string
+  /** null = veículo de motorista autônomo (sem transportadora) */
+  transportador_id: string | null
   renavam?: string
   condutor?: string
   tipo: string
@@ -131,7 +132,12 @@ export interface Veiculo {
 
 export interface Motorista {
   id: string
-  transportador_id: string
+  /** null quando autonomo = true */
+  transportador_id: string | null
+  /** Veículo (placa) vinculado à composição */
+  veiculo_id: string | null
+  /** Sem transportadora: motorista + placa autônomos */
+  autonomo: boolean
   nome: string
   cpf?: string
   cnh?: string

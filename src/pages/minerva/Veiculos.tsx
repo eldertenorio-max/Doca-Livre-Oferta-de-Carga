@@ -74,7 +74,9 @@ export function VeiculosPage() {
     const q = search.trim().toLowerCase()
     if (!q) return scopedVeiculos
     return scopedVeiculos.filter((v) => {
-      const emp = transportadorById(v.transportador_id)?.nome_fantasia ?? ''
+      const emp = v.transportador_id
+        ? (transportadorById(v.transportador_id)?.nome_fantasia ?? '')
+        : 'autônomo'
       return (
         (v.placa ?? '').toLowerCase().includes(q) ||
         (v.tipo ?? '').toLowerCase().includes(q) ||
@@ -147,8 +149,13 @@ export function VeiculosPage() {
   }
 
   function save() {
-    if (!form.placa?.trim() || !form.transportador_id || !form.tipo) {
-      setError('Preencha Placa, Empresa Vinculada e Tipo.')
+    const semEmpresa = form.transportador_id == null || form.transportador_id === ''
+    if (!form.placa?.trim() || !form.tipo) {
+      setError('Preencha Placa e Tipo.')
+      return
+    }
+    if (!semEmpresa && !form.transportador_id) {
+      setError('Selecione a empresa vinculada ou deixe em branco para veículo autônomo.')
       return
     }
     const fotos = normalizeFotosVeiculo(form.fotos, form.foto_url)
@@ -159,7 +166,7 @@ export function VeiculosPage() {
     const v: Veiculo = {
       id: editingId ?? `v-${Math.random().toString(36).slice(2, 8)}`,
       placa: form.placa!.trim().toUpperCase(),
-      transportador_id: form.transportador_id!,
+      transportador_id: semEmpresa ? null : form.transportador_id!,
       renavam: form.renavam,
       condutor: form.condutor,
       tipo: form.tipo!,
@@ -228,7 +235,11 @@ export function VeiculosPage() {
                     <td>
                       <strong>{v.placa}</strong>
                     </td>
-                    <td>{transportadorById(v.transportador_id)?.nome_fantasia ?? '—'}</td>
+                    <td>
+                      {v.transportador_id
+                        ? (transportadorById(v.transportador_id)?.nome_fantasia ?? '—')
+                        : 'Autônomo'}
+                    </td>
                     <td>{v.tipo}</td>
                     <td>
                       {[v.marca, v.modelo].filter(Boolean).join(' ') || '—'}
@@ -292,12 +303,13 @@ export function VeiculosPage() {
                 onChange={(e) => set('placa', e.target.value.toUpperCase())}
               />
             </Field>
-            <Field label="Empresa Vinculada" required>
+            <Field label="Empresa Vinculada">
               <select
                 value={form.transportador_id ?? ''}
-                onChange={(e) => set('transportador_id', e.target.value)}
+                onChange={(e) => set('transportador_id', e.target.value || null)}
+                disabled={user?.role === 'transportador'}
               >
-                <option value="">Buscar empresa...</option>
+                <option value="">Sem empresa (veículo autônomo)</option>
                 {scopedTransportadores.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.nome_fantasia}

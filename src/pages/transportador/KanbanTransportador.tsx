@@ -93,6 +93,14 @@ export function KanbanTransportador() {
         />
       </div>
 
+      {cargas.length === 0 && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          Nenhuma oferta no seu grupo ainda. O embarcador precisa <strong>publicar</strong> a carga
+          selecionando um grupo que inclua sua transportadora (ex.: Transportadores Fixos / OURO).
+          Cargas só em “Nova Carga” no lado embarcador ainda não aparecem aqui.
+        </p>
+      )}
+
       <KanbanBoard
         columns={COLUMNS.map((col) => ({
           ...col,

@@ -3,6 +3,8 @@ import type { Carga, HistoricoEvento, Profile, TipoHistorico } from '../types'
 export function normalizeCarga(c: Carga): Carga {
   return {
     ...c,
+    grupo_ids: Array.isArray(c.grupo_ids) ? c.grupo_ids : [],
+    grupos_notificados: Array.isArray(c.grupos_notificados) ? c.grupos_notificados : [],
     frete_minimo: c.frete_minimo ?? null,
     frete_maximo: c.frete_maximo ?? null,
     pausado_em: c.pausado_em ?? null,

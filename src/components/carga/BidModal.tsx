@@ -155,7 +155,7 @@ interface AllocateModalProps {
 }
 
 export function AllocateModal({ carga, open, onClose }: AllocateModalProps) {
-  const { alocarComposicao, veiculos, motoristasDoTransportador, user } = useData()
+  const { alocarComposicao, veiculos, motoristas, motoristasDoTransportador, user } = useData()
   const [veiculoId, setVeiculoId] = useState('')
   const [motoristaId, setMotoristaId] = useState('')
   const [placa, setPlaca] = useState('')
@@ -209,6 +209,13 @@ export function AllocateModal({ carga, open, onClose }: AllocateModalProps) {
               setVeiculoId(id)
               const v = veiculosOpts.find((x) => x.id === id)
               if (v) setPlaca(v.placa)
+              const mLink = (motoristas ?? []).find(
+                (m) => m.veiculo_id === id && m.situacao === 'ativo',
+              )
+              if (mLink) {
+                setMotoristaId(mLink.id)
+                setMotorista(mLink.nome)
+              }
             }}
           >
             <option value="">Digitar placa manualmente…</option>

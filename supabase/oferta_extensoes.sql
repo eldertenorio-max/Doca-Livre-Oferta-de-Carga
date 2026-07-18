@@ -26,7 +26,9 @@ alter table cargas
 
 create table if not exists motoristas (
   id uuid primary key default gen_random_uuid(),
-  transportador_id uuid not null references transportadores(id) on delete cascade,
+  transportador_id uuid references transportadores(id) on delete cascade,
+  veiculo_id uuid references veiculos(id) on delete set null,
+  autonomo boolean not null default false,
   nome text not null,
   cpf text,
   cnh text,
@@ -36,6 +38,10 @@ create table if not exists motoristas (
   situacao text not null default 'ativo' check (situacao in ('ativo', 'inativo')),
   created_at timestamptz not null default now()
 );
+
+alter table motoristas add column if not exists veiculo_id uuid references veiculos(id) on delete set null;
+alter table motoristas add column if not exists autonomo boolean not null default false;
+alter table motoristas alter column transportador_id drop not null;
 
 create index if not exists idx_motoristas_transportador on motoristas(transportador_id);
 

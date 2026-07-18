@@ -184,10 +184,16 @@
   cursor: wait;
 }
 
-.portal-login__demos {
+.portal-login__demos,
+.portal-login__demo-transportador {
   margin-top: 16px;
   padding-top: 14px;
   border-top: 1px solid #e2e8f0;
+}
+
+.portal-login__demo-transportador .portal-login__submit {
+  font-size: 0.9rem;
+  padding: 10px 14px;
 }
 
 .portal-login__demos-title {
