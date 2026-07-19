@@ -1018,9 +1018,15 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
           )}
           <Field label="Valor da contra-proposta (R$)">
             <input
-              className={inputClass}
+              className={`${inputClass} text-lg font-bold tabular-nums`}
               value={contraValor}
-              onChange={(e) => setContraValor(formatMoneyInput(parseMoneyInput(e.target.value)))}
+              inputMode="decimal"
+              autoFocus
+              onChange={(e) => setContraValor(e.target.value)}
+              onBlur={() => {
+                const n = parseMoneyInput(contraValor)
+                if (!Number.isNaN(n)) setContraValor(formatMoneyInput(n))
+              }}
               placeholder="0,00"
             />
           </Field>
