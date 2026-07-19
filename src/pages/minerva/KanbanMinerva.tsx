@@ -84,11 +84,12 @@ function matchesColumn(c: Carga, key: ColKey): boolean {
 }
 
 export function KanbanMinerva() {
-  const { cargas, lancesDaCarga, criarCarga } = useData()
+  const { cargas, lancesDaCarga, criarCarga, moverCargaKanban } = useData()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Carga | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const [initialTab, setInitialTab] = useState<'dados' | 'publicar'>('dados')
+  const [dragMsg, setDragMsg] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -107,6 +108,24 @@ export function KanbanMinerva() {
     setSelected(c)
     setInitialTab(tab)
     setPanelOpen(true)
+  }
+
+  function showDragMsg(text: string) {
+    setDragMsg(text)
+    window.setTimeout(() => setDragMsg(null), 3200)
+  }
+
+  function handleCardDrop(cardId: string, _from: string, toColumn: string) {
+    const carga = cargas.find((c) => c.id === cardId)
+    const result = moverCargaKanban(cardId, toColumn)
+    if (result.needsPublish && carga) {
+      openPanel(carga, 'publicar')
+      showDragMsg(result.error ?? 'Publique a carga para negociar')
+      return
+    }
+    if (!result.ok) {
+      showDragMsg(result.error ?? 'Movimento não permitido')
+    }
   }
 
   return (
@@ -133,31 +152,45 @@ export function KanbanMinerva() {
           </Button>
         </div>
 
+        {dragMsg && (
+          <p className="animate-fade-up rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+            {dragMsg}
+          </p>
+        )}
+
+        <p className="text-[11px] text-ink-muted">
+          Arraste o card entre as colunas para mudar o status (quando a regra do fluxo permitir).
+        </p>
+
         <KanbanBoard
+          onCardDrop={handleCardDrop}
           columns={COLUMNS.map((col) => ({
             ...col,
             items: filtered
               .filter((c) => matchesColumn(c, col.key))
-              .map((c) => (
-                <CargoCard
-                  key={c.id}
-                  carga={c}
-                  mode="minerva"
-                  selected={liveSelected?.id === c.id}
-                  ofertasCount={
-                    col.key === 'negociando' || col.key === 'propostas'
-                      ? lancesDaCarga(c.id).filter((l) => l.status === 'ativo' || l.status === 'vencedor')
-                          .length
-                      : undefined
-                  }
-                  onSelect={() =>
-                    openPanel(c, c.status === 'nova_carga' ? 'dados' : 'publicar')
-                  }
-                  onView={() =>
-                    openPanel(c, c.status === 'nova_carga' ? 'dados' : 'publicar')
-                  }
-                />
-              )),
+              .map((c) => ({
+                id: c.id,
+                node: (
+                  <CargoCard
+                    carga={c}
+                    mode="minerva"
+                    selected={liveSelected?.id === c.id}
+                    ofertasCount={
+                      col.key === 'negociando' || col.key === 'propostas'
+                        ? lancesDaCarga(c.id).filter(
+                            (l) => l.status === 'ativo' || l.status === 'vencedor',
+                          ).length
+                        : undefined
+                    }
+                    onSelect={() =>
+                      openPanel(c, c.status === 'nova_carga' ? 'dados' : 'publicar')
+                    }
+                    onView={() =>
+                      openPanel(c, c.status === 'nova_carga' ? 'dados' : 'publicar')
+                    }
+                  />
+                ),
+              })),
           }))}
         />
       </div>

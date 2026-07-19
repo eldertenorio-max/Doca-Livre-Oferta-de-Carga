@@ -99,7 +99,7 @@ export function CargoCard({
       tabIndex={0}
       onClick={onSelect}
       onKeyDown={(e) => e.key === 'Enter' && onSelect()}
-      className={`cargo-card group relative cursor-pointer rounded-md border bg-[#f4f4f4] p-3 text-left text-[12px] leading-snug shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#eee] hover:shadow-md ${
+      className={`cargo-card group relative rounded-md border bg-[#f4f4f4] p-3 text-left text-[12px] leading-snug shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#eee] hover:shadow-md ${
         selected
           ? 'border-brand ring-2 ring-brand ring-offset-1'
           : 'border-ink/70 hover:border-ink'

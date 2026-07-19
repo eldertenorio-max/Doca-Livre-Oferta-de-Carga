@@ -129,6 +129,11 @@ interface DataContextValue extends DataState, AuthState {
   retomarCarga: (cargaId: string) => { ok: boolean; error?: string }
   republicarCarga: (cargaId: string) => { ok: boolean; error?: string }
   reabrirNegociacao: (cargaId: string, prazoMinutos?: number) => { ok: boolean; error?: string }
+  /** Arrastar card no Kanban Minerva (coluna destino) */
+  moverCargaKanban: (
+    cargaId: string,
+    targetColumn: string,
+  ) => { ok: boolean; error?: string; needsPublish?: boolean }
   recusarCargaMinerva: (cargaId: string) => void
   recusarCargaTransportador: (cargaId: string) => void
   alocarComposicao: (
@@ -1349,6 +1354,152 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }))
   }, [])
 
+  const moverCargaKanban = useCallback(
+    (cargaId: string, targetColumn: string) => {
+      const carga = state.cargas.find((c) => c.id === cargaId)
+      if (!carga) return { ok: false, error: 'Carga não encontrada' }
+
+      const temLanceAtivo = state.lances.some(
+        (l) => l.carga_id === cargaId && l.status === 'ativo',
+      )
+
+      let fromCol: string = carga.status
+      if (
+        carga.transportador_vencedor_id &&
+        !['alocadas', 'recusadas', 'canceladas'].includes(carga.status)
+      ) {
+        fromCol = 'confirmadas'
+      } else if (carga.status === 'propostas' && !carga.transportador_vencedor_id) {
+        fromCol = 'propostas'
+      } else if (carga.status === 'negociando' && !carga.transportador_vencedor_id) {
+        fromCol = 'negociando'
+      }
+
+      if (fromCol === targetColumn) return { ok: true }
+
+      if (targetColumn === 'suspensas') {
+        return suspenderCarga(cargaId)
+      }
+
+      if (carga.status === 'suspensas') {
+        if (targetColumn === 'negociando' || targetColumn === 'propostas') {
+          return retomarCarga(cargaId)
+        }
+        if (targetColumn === 'canceladas') {
+          return cancelarPublicacao(cargaId)
+        }
+        if (targetColumn === 'nova_carga') {
+          return republicarCarga(cargaId)
+        }
+        return {
+          ok: false,
+          error: 'Da suspensa, solte em Negociando, Propostas, Canceladas ou Nova carga',
+        }
+      }
+
+      if (targetColumn === 'canceladas') {
+        return cancelarPublicacao(cargaId)
+      }
+
+      if (targetColumn === 'nova_carga') {
+        if (carga.status === 'nova_carga') return { ok: true }
+        return republicarCarga(cargaId)
+      }
+
+      if (targetColumn === 'confirmadas') {
+        return {
+          ok: false,
+          error: 'Para confirmar, aceite um lance no painel da carga',
+        }
+      }
+
+      if (targetColumn === 'alocadas') {
+        return {
+          ok: false,
+          error: 'Para alocar, informe placa e motorista no painel',
+        }
+      }
+
+      if (targetColumn === 'recusadas') {
+        if (!carga.transportador_vencedor_id) {
+          return { ok: false, error: 'Só é possível recusar frete já fechado' }
+        }
+        recusarCargaMinerva(cargaId)
+        return { ok: true }
+      }
+
+      if (targetColumn === 'negociando') {
+        if (carga.status === 'nova_carga') {
+          return {
+            ok: false,
+            needsPublish: true,
+            error: 'Publique a carga para iniciar a negociação',
+          }
+        }
+        if (carga.status === 'propostas' && !carga.transportador_vencedor_id) {
+          setState((prev) => ({
+            ...prev,
+            cargas: prev.cargas.map((c) =>
+              c.id === cargaId ? { ...c, status: 'negociando' as const } : c,
+            ),
+            historico: [
+              makeHistorico(
+                'negociacao_reaberta',
+                `Movida para Negociando — ${carga.numero}`,
+                { carga_id: cargaId },
+                user,
+              ),
+              ...prev.historico,
+            ].slice(0, 2000),
+          }))
+          return { ok: true }
+        }
+        if (
+          ['canceladas', 'recusadas', 'alocadas'].includes(carga.status) ||
+          Boolean(carga.transportador_vencedor_id)
+        ) {
+          return reabrirNegociacao(cargaId)
+        }
+        return { ok: false, error: 'Não é possível mover para Negociando' }
+      }
+
+      if (targetColumn === 'propostas') {
+        if (carga.status === 'negociando' && !carga.transportador_vencedor_id) {
+          if (!temLanceAtivo) {
+            return {
+              ok: false,
+              error: 'Ainda não há lances — a carga fica em Negociando',
+            }
+          }
+          setState((prev) => ({
+            ...prev,
+            cargas: prev.cargas.map((c) =>
+              c.id === cargaId ? { ...c, status: 'propostas' as const } : c,
+            ),
+          }))
+          return { ok: true }
+        }
+        return {
+          ok: false,
+          error: 'Propostas só recebe cargas em negociação com lances',
+        }
+      }
+
+      return { ok: false, error: 'Movimento não permitido nesta coluna' }
+    },
+    [
+      state.cargas,
+      state.lances,
+      suspenderCarga,
+      retomarCarga,
+      cancelarPublicacao,
+      republicarCarga,
+      reabrirNegociacao,
+      recusarCargaMinerva,
+      user,
+    ],
+  )
+
   const recusarCargaTransportador = useCallback(
     (cargaId: string) => {
       const tid = user?.transportador_id || actingTransportadorId
@@ -1944,6 +2095,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       retomarCarga,
       republicarCarga,
       reabrirNegociacao,
+      moverCargaKanban,
       recusarCargaMinerva,
       recusarCargaTransportador,
       alocarComposicao,
@@ -1999,6 +2151,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       retomarCarga,
       republicarCarga,
       reabrirNegociacao,
+      moverCargaKanban,
       recusarCargaMinerva,
       recusarCargaTransportador,
       alocarComposicao,

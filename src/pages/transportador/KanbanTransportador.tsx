@@ -185,37 +185,41 @@ export function KanbanTransportador() {
                   ? todos.findIndex((l) => l.id === meuLance.id) + 1
                   : null
 
-              return (
-                <CargoCard
-                  key={c.id}
-                  carga={c}
-                  mode="transportador"
-                  bidValue={meuLance?.valor ?? (col.key !== 'nova_carga' ? c.frete_fechado : null)}
-                  bidPosition={pos && pos > 0 ? pos : null}
-                  onSelect={() => {
-                    if (col.key === 'nova_carga' || col.key === 'propostas') setBidCarga(c)
-                    else if (col.key === 'confirmadas') setAllocCarga(c)
-                  }}
-                  onView={() => setBidCarga(c)}
-                  onBid={
-                    col.key === 'nova_carga' || col.key === 'propostas'
-                      ? () => setBidCarga(c)
-                      : undefined
-                  }
-                  onRefuse={
-                    col.key === 'nova_carga'
-                      ? () => {
-                          if (tid) recusarCargaTransportador(c.id)
-                        }
-                      : undefined
-                  }
-                  onAllocate={
-                    col.key === 'confirmadas' || col.key === 'alocadas'
-                      ? () => setAllocCarga(c)
-                      : undefined
-                  }
-                />
-              )
+              return {
+                id: c.id,
+                node: (
+                  <CargoCard
+                    carga={c}
+                    mode="transportador"
+                    bidValue={
+                      meuLance?.valor ?? (col.key !== 'nova_carga' ? c.frete_fechado : null)
+                    }
+                    bidPosition={pos && pos > 0 ? pos : null}
+                    onSelect={() => {
+                      if (col.key === 'nova_carga' || col.key === 'propostas') setBidCarga(c)
+                      else if (col.key === 'confirmadas') setAllocCarga(c)
+                    }}
+                    onView={() => setBidCarga(c)}
+                    onBid={
+                      col.key === 'nova_carga' || col.key === 'propostas'
+                        ? () => setBidCarga(c)
+                        : undefined
+                    }
+                    onRefuse={
+                      col.key === 'nova_carga'
+                        ? () => {
+                            if (tid) recusarCargaTransportador(c.id)
+                          }
+                        : undefined
+                    }
+                    onAllocate={
+                      col.key === 'confirmadas' || col.key === 'alocadas'
+                        ? () => setAllocCarga(c)
+                        : undefined
+                    }
+                  />
+                ),
+              }
             }),
         }))}
       />
