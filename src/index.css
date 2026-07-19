@@ -107,63 +107,28 @@ textarea {
 .animate-pulse-soft { animation: pulse-soft 1.6s ease-in-out infinite; }
 
 /* Kanban cargo card */
-@keyframes cargo-shine {
-  0% { transform: translateX(-120%) skewX(-12deg); }
-  100% { transform: translateX(220%) skewX(-12deg); }
-}
-@keyframes cargo-route-nudge {
-  0%, 100% { transform: translateX(0); opacity: 0.55; }
-  50% { transform: translateX(3px); opacity: 1; }
-}
 @keyframes cargo-semaforo-glow {
   0%, 100% { transform: scale(1); filter: brightness(1); }
-  50% { transform: scale(1.15); filter: brightness(1.2); }
+  50% { transform: scale(1.18); filter: brightness(1.25); }
 }
 @keyframes cargo-badge-pop {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.08); }
-}
-@keyframes cargo-icon-tick {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-12deg); }
-  75% { transform: rotate(12deg); }
+  50% { transform: scale(1.1); }
 }
 @keyframes cargo-icon-wiggle {
   0%, 100% { transform: rotate(0deg) scale(1); }
-  30% { transform: rotate(-8deg) scale(1.05); }
-  60% { transform: rotate(8deg) scale(1.05); }
+  30% { transform: rotate(-8deg) scale(1.06); }
+  60% { transform: rotate(8deg) scale(1.06); }
 }
 
 .cargo-card {
-  animation: fade-up 0.35s ease-out both;
-}
-.cargo-card-shine::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    105deg,
-    transparent 40%,
-    rgb(255 255 255 / 0.45) 50%,
-    transparent 60%
-  );
-  animation: cargo-shine 2.8s ease-in-out infinite;
-  animation-play-state: paused;
-}
-.cargo-card:hover .cargo-card-shine::after {
-  animation-play-state: running;
-}
-.cargo-route-arrow {
-  animation: cargo-route-nudge 1.8s ease-in-out infinite;
+  animation: fade-up 0.3s ease-out both;
 }
 .cargo-semaforo-on {
   animation: cargo-semaforo-glow 1.8s ease-in-out infinite;
 }
 .cargo-badge-pop {
   animation: cargo-badge-pop 2.2s ease-in-out infinite;
-}
-.cargo-icon-tick {
-  animation: cargo-icon-tick 1.2s ease-in-out infinite;
 }
 .cargo-icon-btn:hover .cargo-icon-inner {
   animation: cargo-icon-wiggle 0.45s ease-in-out;

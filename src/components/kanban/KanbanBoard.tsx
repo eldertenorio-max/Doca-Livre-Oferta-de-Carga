@@ -14,7 +14,7 @@ export function KanbanBoard({ columns }: { columns: Column[] }) {
       {columns.map((col) => (
         <section
           key={col.key}
-          className="flex w-[260px] shrink-0 flex-col rounded-xl border border-ink/10 bg-white/70 backdrop-blur-sm"
+          className="flex w-[280px] shrink-0 flex-col rounded-xl border border-ink/10 bg-white/70 backdrop-blur-sm"
         >
           <header
             className="rounded-t-xl px-3 py-2.5 text-white"
