@@ -1,11 +1,4 @@
-import {
-  Eye,
-  Gavel,
-  ThumbsDown,
-  MessagesSquare,
-  Truck,
-  DollarSign,
-} from 'lucide-react'
+import { Ban, Eye, Gavel, MessagesSquare, Truck } from 'lucide-react'
 import { formatCurrency, formatDate, formatNumber, tempoRestante } from '../../lib/businessRules'
 import type { Carga, Prioridade } from '../../types'
 import { useData } from '../../context/DataContext'
@@ -13,22 +6,35 @@ import { useData } from '../../context/DataContext'
 function TrafficLight({ prioridade }: { prioridade: Prioridade | null }) {
   const active = prioridade ?? 'baixa'
   return (
-    <div className="flex flex-col gap-0.5 rounded-full bg-ink-deep/90 p-1">
+    <div className="flex flex-col gap-0.5 rounded-sm border border-ink/80 bg-[#3a3a3a] p-0.5">
       {(['alta', 'media', 'baixa'] as const).map((p) => (
         <span
           key={p}
           className={`h-2 w-2 rounded-full ${
             active === p
               ? p === 'alta'
-                ? 'bg-brand'
+                ? 'bg-[#e84752]'
                 : p === 'media'
-                  ? 'bg-amber-400'
-                  : 'bg-emerald-400'
-              : 'bg-white/20'
+                  ? 'bg-[#f5c518]'
+                  : 'bg-[#2f9e6a]'
+              : 'bg-white/25'
           }`}
         />
       ))}
     </div>
+  )
+}
+
+/** Ícone R$ no estilo da referência (círculo bronze) */
+function IconReais({ size = 18 }: { size?: number }) {
+  return (
+    <span
+      className="inline-flex items-center justify-center rounded-full bg-[#b87333] font-bold text-white"
+      style={{ width: size + 2, height: size + 2, fontSize: Math.max(9, size * 0.48) }}
+      aria-hidden
+    >
+      R$
+    </span>
   )
 }
 
@@ -67,145 +73,153 @@ export function CargoCard({
     carga.frete_oferta ??
     (carga.status !== 'nova_carga' ? carga.frete_tabela : null)
 
+  const freteLinha =
+    mode === 'transportador' && bidValue != null
+      ? bidValue
+      : frete
+
+  const janela = tempoRestante(carga.expira_em ?? carga.alocacao_expira_em)
+  const urgente =
+    Boolean(carga.expira_em) &&
+    new Date(carga.expira_em!).getTime() - Date.now() < 5 * 60_000
+
+  const isAlocada = carga.status === 'alocadas' || Boolean(onAllocate)
+
   return (
     <article
       role="button"
       tabIndex={0}
       onClick={onSelect}
       onKeyDown={(e) => e.key === 'Enter' && onSelect()}
-      className={`group relative cursor-pointer rounded-lg border bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-        selected ? 'border-brand ring-2 ring-brand/30' : 'border-ink/10'
+      className={`group relative cursor-pointer border border-ink/80 bg-[#f2f2f2] p-2.5 text-left text-[12px] leading-snug transition hover:bg-[#ebebeb] ${
+        selected ? 'ring-2 ring-[#f9db00] ring-offset-1' : ''
       }`}
     >
-      <div className="absolute right-2 top-2">
+      {/* Cabeçalho: Carga + Janela + semáforo */}
+      <div className="mb-1 flex items-start gap-2">
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+            <p>
+              <span className="font-bold text-ink">Carga:</span>{' '}
+              <span className="text-ink">{carga.numero}</span>
+            </p>
+            <p className={urgente ? 'animate-pulse-soft font-semibold text-[#e84752]' : 'text-ink'}>
+              <span className="font-bold">Janela:</span> {janela}
+            </p>
+          </div>
+          <p>
+            <span className="font-bold text-ink">Carregamento:</span>{' '}
+            <span className="text-ink/90">{formatDate(carga.data_carregamento)}</span>
+          </p>
+          <p>
+            <span className="font-bold text-ink">Origem:</span>{' '}
+            <span className="text-ink/90">{carga.origem || '—'}</span>
+          </p>
+          <p>
+            <span className="font-bold text-ink">Destino:</span>{' '}
+            <span className="text-ink/90">{carga.destino || '—'}</span>
+          </p>
+          <p>
+            <span className="font-bold text-ink">Peso:</span>{' '}
+            <span className="text-ink/90">{formatNumber(carga.peso)}</span>
+          </p>
+          {bidPosition != null && (
+            <p>
+              <span className="font-bold text-ink">Posição:</span>{' '}
+              <span className="rounded bg-ink px-1.5 py-0.5 text-[10px] font-bold text-white">
+                {bidPosition}º
+              </span>
+            </p>
+          )}
+        </div>
         <TrafficLight prioridade={carga.prioridade} />
       </div>
 
-      {ofertasCount != null && ofertasCount > 0 && (
-        <span className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs font-bold text-white shadow">
-          {ofertasCount}
-        </span>
-      )}
-
-      <div className="mb-2 flex items-start justify-between gap-2 pr-5">
-        <div>
-          <p className="text-xs text-ink-muted">Carga</p>
-          <p className="font-display text-base font-bold text-ink">{carga.numero}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs text-ink-muted">Janela</p>
-          <p
-            className={`font-semibold tabular-nums ${
-              carga.expira_em && new Date(carga.expira_em).getTime() - Date.now() < 5 * 60_000
-                ? 'animate-pulse-soft text-brand'
-                : 'text-ink'
-            }`}
-          >
-            {tempoRestante(carga.expira_em ?? carga.alocacao_expira_em)}
+      {/* Rodapé: frete / ofertas + ícones */}
+      <div className="mt-2 border-t border-ink/70 pt-2">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <p>
+            <span className="font-bold text-ink">Frete:</span>{' '}
+            <span className="text-ink/90">
+              {freteLinha != null ? formatCurrency(freteLinha) : '—'}
+            </span>
           </p>
-        </div>
-      </div>
-
-      <dl className="space-y-1 text-xs">
-        <div className="flex justify-between gap-2">
-          <dt className="text-ink-muted">Carregamento</dt>
-          <dd className="font-medium">{formatDate(carga.data_carregamento)}</dd>
-        </div>
-        <div className="flex justify-between gap-2">
-          <dt className="text-ink-muted">Origem</dt>
-          <dd className="max-w-[60%] truncate text-right font-medium">{carga.origem}</dd>
-        </div>
-        <div className="flex justify-between gap-2">
-          <dt className="text-ink-muted">Destino</dt>
-          <dd className="max-w-[60%] truncate text-right font-medium">{carga.destino}</dd>
-        </div>
-        <div className="flex justify-between gap-2">
-          <dt className="text-ink-muted">Peso</dt>
-          <dd className="font-medium">{formatNumber(carga.peso)}</dd>
-        </div>
-        {mode === 'transportador' && bidValue != null && (
-          <div className="flex justify-between gap-2">
-            <dt className="text-ink-muted">Lance</dt>
-            <dd className="font-semibold text-ink">{formatCurrency(bidValue)}</dd>
-          </div>
-        )}
-        {bidPosition != null && (
-          <div className="flex justify-between gap-2">
-            <dt className="text-ink-muted">Posição</dt>
-            <dd>
-              <span className="rounded-full bg-ink px-2 py-0.5 text-[10px] font-bold text-sand-light">
-                {bidPosition}º
+          {ofertasCount != null && (
+            <p className="flex items-center gap-1.5">
+              <span className="font-bold text-ink">Ofertas:</span>
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#2f9e6a] px-1.5 text-[11px] font-bold text-white">
+                {ofertasCount}
               </span>
-            </dd>
-          </div>
-        )}
-        {frete != null && mode === 'minerva' && (
-          <div className="flex justify-between gap-2">
-            <dt className="text-ink-muted">Frete</dt>
-            <dd className="font-semibold">{formatCurrency(frete)}</dd>
-          </div>
-        )}
-        {(carga.status === 'alocadas' || (mode === 'transportador' && carga.frete_fechado)) &&
-          carga.frete_fechado != null &&
-          mode === 'transportador' && (
-            <div className="flex justify-between gap-2">
-              <dt className="text-ink-muted">Frete</dt>
-              <dd className="font-semibold">{formatCurrency(carga.frete_fechado)}</dd>
-            </div>
+            </p>
           )}
-      </dl>
+          {mode === 'minerva' && carga.modo_publicacao && ofertasCount == null && (
+            <span className="text-[10px] font-bold uppercase text-ink-muted">
+              {carga.modo_publicacao === 'oferta' ? 'Oferta' : 'Leilão'}
+            </span>
+          )}
+        </div>
 
-      <div className="mt-3 flex items-center gap-2 border-t border-ink/15 pt-2.5">
-        {onView && (
-          <IconBtn title="Ver detalhes" tone="view" onClick={onView}>
-            <Eye size={18} strokeWidth={2.25} />
-          </IconBtn>
-        )}
-        {onBid && (
-          <IconBtn title="Fazer lance" tone="bid" onClick={onBid}>
-            <Gavel size={18} strokeWidth={2.25} />
-          </IconBtn>
-        )}
-        {onRefuse && (
-          <IconBtn title="Recusar" tone="danger" onClick={onRefuse}>
-            <ThumbsDown size={18} strokeWidth={2.25} fill="currentColor" />
-          </IconBtn>
-        )}
-        {mode === 'minerva' && carga.status !== 'nova_carga' && (
-          <IconBtn title="Negociação / frete" tone="money" onClick={onView ?? onSelect}>
-            <DollarSign size={18} strokeWidth={2.25} />
-          </IconBtn>
-        )}
-        {mode === 'minerva' && carga.modo_publicacao && (
-          <span className="ml-auto rounded-md bg-ink/[0.06] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-ink-muted">
-            {carga.modo_publicacao === 'oferta' ? 'Oferta' : 'Leilão'}
-          </span>
-        )}
-        {mode === 'transportador' && (
-          <IconBtn title="Mensagens" tone="msg">
-            <MessagesSquare size={18} strokeWidth={2.25} />
-          </IconBtn>
-        )}
-        {(carga.status === 'alocadas' || onAllocate) && (
-          <IconBtn title="Alocar" tone="alloc" onClick={onAllocate}>
-            <Truck size={18} strokeWidth={2.25} />
-          </IconBtn>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Ícones à esquerda */}
+          <div className="flex items-center gap-1.5">
+            {onView && (
+              <IconBtn title="Ver detalhes" tone="view" onClick={onView}>
+                <Eye size={18} strokeWidth={2.2} />
+              </IconBtn>
+            )}
+
+            {/* Minerva / transportador: recusar */}
+            {onRefuse && (
+              <IconBtn title="Recusar" tone="ban" onClick={onRefuse}>
+                <Ban size={18} strokeWidth={2.4} />
+              </IconBtn>
+            )}
+
+            {/* Lance (transportador) — martelo; senão R$ para frete/negociação */}
+            {onBid && (
+              <IconBtn title="Fazer lance" tone="bid" onClick={onBid}>
+                <Gavel size={17} strokeWidth={2.2} />
+              </IconBtn>
+            )}
+            {!onBid && mode === 'minerva' && carga.status !== 'nova_carga' && (
+              <IconBtn title="Negociação / frete" tone="money" onClick={onView ?? onSelect}>
+                <IconReais size={16} />
+              </IconBtn>
+            )}
+            {!onBid && mode === 'transportador' && freteLinha != null && !onAllocate && (
+              <IconBtn title="Valor do frete" tone="money" onClick={onView}>
+                <IconReais size={16} />
+              </IconBtn>
+            )}
+          </div>
+
+          {/* Direita: mensagens ou caminhão (alocação) */}
+          <div className="ml-auto flex items-center gap-1.5">
+            {isAlocada ? (
+              <IconBtn title="Alocar composição" tone="truck" onClick={onAllocate}>
+                <Truck size={20} strokeWidth={2.2} fill="currentColor" />
+              </IconBtn>
+            ) : (
+              <IconBtn title="Mensagens" tone="msg">
+                <MessagesSquare size={18} strokeWidth={2.2} />
+              </IconBtn>
+            )}
+          </div>
+        </div>
       </div>
     </article>
   )
 }
 
-type IconTone = 'view' | 'bid' | 'danger' | 'money' | 'msg' | 'alloc'
+type IconTone = 'view' | 'bid' | 'ban' | 'money' | 'msg' | 'truck'
 
-/** Cores alinhadas à referência: olho azul, martelo laranja, polegar vermelho, mensagens preto */
 const TONE_CLASS: Record<IconTone, string> = {
-  view: 'text-[#2f80ed] hover:bg-[#2f80ed]/10',
-  bid: 'text-[#f2994a] hover:bg-[#f2994a]/10',
-  danger: 'text-[#eb5757] hover:bg-[#eb5757]/10',
-  money: 'text-amber-600 hover:bg-amber-50',
-  msg: 'text-[#1a1a1a] hover:bg-ink/5',
-  alloc: 'text-emerald-600 hover:bg-emerald-50',
+  view: 'text-[#2f80ed] hover:bg-[#2f80ed]/12',
+  bid: 'text-[#f2994a] hover:bg-[#f2994a]/12',
+  ban: 'text-[#e85d04] hover:bg-[#e85d04]/12',
+  money: 'text-[#b87333] hover:bg-[#b87333]/12',
+  msg: 'text-[#1a1a1a] hover:bg-ink/8',
+  truck: 'text-[#111] hover:bg-ink/8',
 }
 
 function IconBtn({
@@ -228,7 +242,7 @@ function IconBtn({
         e.stopPropagation()
         onClick?.()
       }}
-      className={`inline-flex h-8 w-8 items-center justify-center rounded-md transition duration-150 ease-out hover:scale-105 active:scale-95 ${TONE_CLASS[tone]}`}
+      className={`inline-flex h-7 w-7 items-center justify-center rounded transition hover:scale-105 active:scale-95 ${TONE_CLASS[tone]}`}
     >
       {children}
     </button>
