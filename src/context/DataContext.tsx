@@ -251,8 +251,9 @@ function normalizeCargasNegociacao(
   grupos: GrupoTransportador[],
 ): Carga[] {
   const gruposAtivos = grupos.filter((g) => g.situacao === 'ativo').map((g) => g.id)
+  const now = Date.now()
   return cargas.map((c) => {
-    if (!['negociando', 'propostas'].includes(c.status)) return c
+    if (!['negociando', 'propostas', 'suspensas'].includes(c.status)) return c
     let grupo_ids = c.grupo_ids ?? []
     let grupos_notificados = c.grupos_notificados ?? []
     // Cargas publicadas sem grupo (dados antigos) — abre para todos os grupos ativos
@@ -262,14 +263,105 @@ function normalizeCargasNegociacao(
     if (grupos_notificados.length === 0 && grupo_ids.length > 0) {
       grupos_notificados = [...grupo_ids]
     }
+
+    // Janela expirada sem vencedor: renova o prazo (evita Kanban transportador vazio no demo)
+    let expira_em = c.expira_em
+    let status = c.status
+    if (
+      !c.transportador_vencedor_id &&
+      ['negociando', 'propostas'].includes(c.status) &&
+      c.expira_em &&
+      new Date(c.expira_em).getTime() <= now
+    ) {
+      const prazoMs = Math.max(10, c.prazo_leilao_minutos ?? 60) * 60_000
+      expira_em = new Date(now + prazoMs).toISOString()
+    }
+
     if (
       grupo_ids === c.grupo_ids &&
-      grupos_notificados === c.grupos_notificados
+      grupos_notificados === c.grupos_notificados &&
+      expira_em === c.expira_em &&
+      status === c.status
     ) {
       return c
     }
-    return { ...c, grupo_ids, grupos_notificados }
+    return { ...c, grupo_ids, grupos_notificados, expira_em, status }
   })
+}
+
+/** Garante grupos com t1 (Santos) e ao menos uma oferta aberta para o demo. */
+function ensureDemoOfertasVisiveis(state: DataState): DataState {
+  const DEMO_TID = 't1'
+  let grupos = state.grupos.map((g) => {
+    if (g.situacao === 'inativo') return g
+    const ids = g.transportador_ids ?? []
+    if (ids.includes(DEMO_TID)) return g
+    return { ...g, transportador_ids: [...ids, DEMO_TID] }
+  })
+  if (grupos.length === 0) {
+    grupos = structuredClone(SEED_GRUPOS)
+  }
+
+  const gruposAtivos = grupos.filter((g) => g.situacao === 'ativo').map((g) => g.id)
+  const now = Date.now()
+  let cargas = normalizeCargasNegociacao(state.cargas, grupos)
+
+  const abertas = cargas.filter(
+    (c) =>
+      ['negociando', 'propostas', 'suspensas'].includes(c.status) &&
+      !c.transportador_vencedor_id &&
+      Boolean(c.publicado_em),
+  )
+
+  if (abertas.length === 0 && gruposAtivos.length > 0) {
+    // Reabre a carga publicada mais recente (ou seed) para o transportador voltar a ver ofertas
+    const candidata =
+      [...cargas]
+        .filter((c) => c.publicado_em || c.grupo_ids?.length)
+        .sort((a, b) => {
+          const ta = new Date(a.updated_at ?? a.publicado_em ?? a.created_at).getTime()
+          const tb = new Date(b.updated_at ?? b.publicado_em ?? b.created_at).getTime()
+          return tb - ta
+        })[0] ?? cargas.find((c) => c.id === 'c2')
+
+    if (candidata) {
+      const prazo = candidata.prazo_leilao_minutos ?? 60
+      cargas = cargas.map((c) =>
+        c.id === candidata.id
+          ? {
+              ...c,
+              status: 'negociando' as const,
+              transportador_vencedor_id: null,
+              frete_fechado: null,
+              placa: null,
+              motorista: null,
+              veiculo_id: null,
+              motorista_id: null,
+              alocacao_expira_em: null,
+              pausado_em: null,
+              tempo_restante_ms: null,
+              grupo_ids: c.grupo_ids?.length ? c.grupo_ids : [...gruposAtivos],
+              grupos_notificados: c.grupo_ids?.length ? [...c.grupo_ids] : [...gruposAtivos],
+              publicado_em: c.publicado_em ?? new Date(now).toISOString(),
+              expira_em: new Date(now + prazo * 60_000).toISOString(),
+              modo_publicacao: c.modo_publicacao ?? 'leilao',
+              frete_oferta: c.frete_oferta ?? c.frete_tabela,
+              updated_at: new Date(now).toISOString(),
+            }
+          : c,
+      )
+    }
+  }
+
+  let transportadores = state.transportadores
+  const t1 = transportadores.find((t) => t.id === DEMO_TID)
+  if (t1 && t1.situacao === 'inativo') {
+    transportadores = transportadores.map((t) =>
+      t.id === DEMO_TID ? { ...t, situacao: 'ativo' as const } : t,
+    )
+  }
+
+  return { ...state, cargas, grupos, transportadores }
 }
 
 function loadState(): DataState {
@@ -279,13 +371,13 @@ function loadState(): DataState {
       localStorage.getItem(STORAGE_KEY) ??
       localStorage.getItem(STORAGE_KEY_LEGACY) ??
       localStorage.getItem(STORAGE_KEY_LEGACY2)
-    if (!raw) return defaults
+    if (!raw) return ensureDemoOfertasVisiveis(defaults)
     const parsed = JSON.parse(raw) as Partial<DataState>
     const grupos = Array.isArray(parsed.grupos) ? parsed.grupos : defaults.grupos
     const cargasRaw = Array.isArray(parsed.cargas)
       ? parsed.cargas.map(normalizeCarga)
       : defaults.cargas
-    return {
+    const loaded: DataState = {
       cargas: normalizeCargasNegociacao(cargasRaw, grupos),
       lances: Array.isArray(parsed.lances) ? parsed.lances : defaults.lances,
       transportadores: Array.isArray(parsed.transportadores)
@@ -309,8 +401,9 @@ function loadState(): DataState {
       notificacoes: Array.isArray(parsed.notificacoes) ? parsed.notificacoes : [],
       mensagens: Array.isArray(parsed.mensagens) ? parsed.mensagens : [],
     }
+    return ensureDemoOfertasVisiveis(loaded)
   } catch {
-    return defaults
+    return ensureDemoOfertasVisiveis(defaults)
   }
 }
 
@@ -2205,19 +2298,34 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return state.cargas.filter((c) => {
         // Frete fechado / alocada / recusada do próprio vencedor
         if (c.transportador_vencedor_id === transportadorId) {
-          return ['propostas', 'alocadas', 'recusadas', 'negociando'].includes(c.status)
+          return ['propostas', 'alocadas', 'recusadas', 'negociando', 'suspensas'].includes(
+            c.status,
+          )
         }
 
-        if (!['negociando', 'propostas'].includes(c.status)) return false
+        // Já participou com lance — continua vendo enquanto a negociação existir
+        const temLanceProprio = state.lances.some(
+          (l) =>
+            l.carga_id === c.id &&
+            l.transportador_id === transportadorId &&
+            l.status !== 'cancelado',
+        )
+        if (
+          temLanceProprio &&
+          ['negociando', 'propostas', 'suspensas'].includes(c.status) &&
+          !c.transportador_vencedor_id
+        ) {
+          return true
+        }
+
+        if (!['negociando', 'propostas', 'suspensas'].includes(c.status)) return false
         if (c.transportador_vencedor_id) return false
         if (!c.publicado_em) return false
 
-        const notificados =
-          (c.grupos_notificados?.length ?? 0) > 0
-            ? c.grupos_notificados
-            : (c.grupo_ids ?? [])
-        const candidatos =
-          notificados.length > 0 ? notificados : (c.grupo_ids ?? [])
+        // União: grupos da publicação + já notificados (escalonamento não esconde)
+        const candidatos = Array.from(
+          new Set([...(c.grupo_ids ?? []), ...(c.grupos_notificados ?? [])]),
+        )
 
         // Sem grupo definido: todos os transportadores ativos veem
         if (candidatos.length === 0) return true
@@ -2231,11 +2339,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
         // Fallback: IDs de grupo órfãos (migração) — libera para ativos
         const grupoIdsConhecidos = new Set(state.grupos.map((g) => g.id))
-        const gruposOrfaos = candidatos.every((id) => !grupoIdsConhecidos.has(id))
+        const gruposOrfaos =
+          candidatos.length > 0 && candidatos.every((id) => !grupoIdsConhecidos.has(id))
         return gruposOrfaos
       })
     },
-    [state.cargas, state.grupos, state.transportadores],
+    [state.cargas, state.grupos, state.transportadores, state.lances],
   )
 
   const historicoDoTransportador = useCallback(

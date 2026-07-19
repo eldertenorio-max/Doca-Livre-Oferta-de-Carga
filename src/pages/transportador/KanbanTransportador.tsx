@@ -52,10 +52,9 @@ function columnForCarga(
   ) {
     return 'confirmadas'
   }
-  if (temLance && ['negociando', 'propostas'].includes(c.status)) return 'propostas'
-  if (['negociando', 'propostas'].includes(c.status) && !c.transportador_vencedor_id) {
-    return 'nova_carga'
-  }
+  const aberta = ['negociando', 'propostas', 'suspensas'].includes(c.status)
+  if (temLance && aberta && !c.transportador_vencedor_id) return 'propostas'
+  if (aberta && !c.transportador_vencedor_id) return 'nova_carga'
   return null
 }
 
@@ -160,9 +159,10 @@ export function KanbanTransportador() {
 
       {tid && cargas.length === 0 && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          Nenhuma oferta visível para <strong>{nomeVista}</strong>. A carga precisa estar{' '}
-          <strong>publicada</strong> (status Negociando) em um grupo que inclua essa transportadora.
-          Use o mesmo navegador em que a carga foi publicada (dados locais).
+          Nenhuma oferta visível para <strong>{nomeVista}</strong>. Publique uma carga no Kanban
+          Minerva (com grupos que incluam esta transportadora) e{' '}
+          <strong>recarregue esta página</strong> (F5). Os dados ficam neste navegador
+          (localStorage).
         </p>
       )}
 
