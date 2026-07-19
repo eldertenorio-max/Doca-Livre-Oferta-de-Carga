@@ -44,7 +44,7 @@ export function ChatModal({ carga, open, onClose }: ChatModalProps) {
   }
 
   return (
-    <Modal open={open} title={`Chat — ${carga.codigo}`} onClose={onClose}>
+    <Modal open={open} title={`Chat — ${carga.numero}`} onClose={onClose}>
       <div className="flex flex-col gap-3">
         <p className="text-xs text-ink-muted">
           {carga.origem} → {carga.destino}
