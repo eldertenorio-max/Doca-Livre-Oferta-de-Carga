@@ -1096,27 +1096,37 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const enviarContraProposta = useCallback(
     (lanceId: string, valor: number) => {
-      const lance = state.lances.find((l) => l.id === lanceId)
-      if (!lance || lance.status !== 'ativo') {
-        return { ok: false, error: 'Proposta não encontrada ou já encerrada' }
-      }
-      const carga = state.cargas.find((c) => c.id === lance.carga_id)
-      if (!carga) return { ok: false, error: 'Carga não encontrada' }
-      if (carga.transportador_vencedor_id) {
-        return { ok: false, error: 'Frete já fechado' }
-      }
-      if (!['negociando', 'propostas'].includes(carga.status)) {
-        return { ok: false, error: 'Carga não está em negociação' }
-      }
       if (!Number.isFinite(valor) || valor <= 0) {
         return { ok: false, error: 'Informe um valor válido para a contra-proposta' }
       }
       const valorRound = Math.round(valor * 100) / 100
-      const tNome =
-        state.transportadores.find((t) => t.id === lance.transportador_id)?.nome_fantasia ??
-        'Transportador'
-      const now = new Date().toISOString()
+      let result: { ok: boolean; error?: string } = {
+        ok: false,
+        error: 'Não foi possível enviar a contra-proposta',
+      }
       setState((prev) => {
+        const lance = prev.lances.find((l) => l.id === lanceId)
+        if (!lance || lance.status !== 'ativo') {
+          result = { ok: false, error: 'Proposta não encontrada ou já encerrada' }
+          return prev
+        }
+        const carga = prev.cargas.find((c) => c.id === lance.carga_id)
+        if (!carga) {
+          result = { ok: false, error: 'Carga não encontrada' }
+          return prev
+        }
+        if (carga.transportador_vencedor_id) {
+          result = { ok: false, error: 'Frete já fechado' }
+          return prev
+        }
+        if (!['negociando', 'propostas'].includes(carga.status)) {
+          result = { ok: false, error: 'Carga não está em negociação' }
+          return prev
+        }
+        const tNome =
+          prev.transportadores.find((t) => t.id === lance.transportador_id)?.nome_fantasia ??
+          'Transportador'
+        const now = new Date().toISOString()
         const msg = {
           id: uid('msg'),
           carga_id: carga.id,
@@ -1126,6 +1136,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
           texto: `Contra-proposta para ${tNome}: R$ ${valorRound.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (sua oferta era R$ ${lance.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}).`,
           created_at: now,
         }
+        const histProp = {
+          id: uid('hp'),
+          carga_id: carga.id,
+          lance_id: lance.id,
+          transportador_id: lance.transportador_id,
+          valor_anterior: lance.valor,
+          valor_novo: valorRound,
+          created_at: now,
+        }
+        result = { ok: true }
         return {
           ...prev,
           cargas: prev.cargas.map((c) =>
@@ -1133,12 +1153,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
               ? {
                   ...c,
                   frete_oferta: valorRound,
-                  status: 'propostas' as const,
+                  status: c.status === 'negociando' ? ('propostas' as const) : c.status,
                   updated_at: now,
                 }
               : c,
           ),
           mensagens: [...(prev.mensagens ?? []), msg],
+          historicoPropostas: [histProp, ...(prev.historicoPropostas ?? [])].slice(0, 3000),
           historico: [
             makeHistorico(
               'contra_proposta',
@@ -1156,14 +1177,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
             role: 'transportador',
             transportador_id: lance.transportador_id,
             titulo: 'Contra-proposta recebida',
-            mensagem: `Carga ${carga.numero}: embarcador sugere R$ ${valorRound.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`,
+            mensagem: `Carga ${carga.numero}: embarcador sugere R$ ${valorRound.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}. Responda com um novo lance.`,
             carga_id: carga.id,
           }),
         }
       })
-      return { ok: true }
+      return result
     },
-    [state.lances, state.cargas, state.transportadores, user],
+    [user],
   )
 
   const aguardarMelhoresOfertas = useCallback(

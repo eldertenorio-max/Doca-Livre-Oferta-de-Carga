@@ -332,19 +332,22 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
       setError('Selecione uma proposta para contra-propor.')
       return
     }
-    setError('')
-    setInfo('')
     const num = parseMoneyInput(contraValor)
     if (!Number.isFinite(num) || num <= 0) {
       setError('Informe um valor válido para a contra-proposta.')
       return
     }
+    setError('')
     const res = enviarContraProposta(contraLanceId, num)
-    if (!res.ok) setError(res.error ?? 'Falha na contra-proposta')
-    else {
-      setInfo('Contra-proposta enviada ao transportador (chat + notificação).')
-      setContraLanceId(null)
+    if (!res.ok) {
+      setError(res.error ?? 'Falha na contra-proposta')
+      return
     }
+    setInfo(
+      `Contra-proposta de ${formatCurrency(num)} enviada. O transportador vê no chat e nas notificações.`,
+    )
+    setContraLanceId(null)
+    setContraValor('')
   }
 
   function handleAguardarMelhores() {
@@ -1095,17 +1098,44 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
               onChange={(e) => setContraValor(e.target.value)}
               onBlur={() => {
                 const n = parseMoneyInput(contraValor)
-                if (!Number.isNaN(n)) setContraValor(formatMoneyInput(n))
+                if (Number.isNaN(n)) return
+                const formatted = formatMoneyInput(n)
+                if (formatted !== contraValor) setContraValor(formatted)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  handleContraProposta()
+                }
               }}
               placeholder="0,00"
             />
           </Field>
-          {error && <p className="text-xs text-red-600">{error}</p>}
+          {error && (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800">
+              {error}
+            </p>
+          )}
           <div className="flex gap-2">
-            <Button variant="ghost" className="flex-1" onClick={() => setContraLanceId(null)}>
+            <Button
+              variant="ghost"
+              className="flex-1"
+              onMouseDown={(e) => {
+                e.preventDefault()
+                setContraLanceId(null)
+                setError('')
+              }}
+            >
               Cancelar
             </Button>
-            <Button className="flex-1" onClick={handleContraProposta}>
+            <Button
+              className="flex-1"
+              onMouseDown={(e) => {
+                // evita perder o clique quando o input perde o foco (blur)
+                e.preventDefault()
+                handleContraProposta()
+              }}
+            >
               Enviar contra-proposta
             </Button>
           </div>
