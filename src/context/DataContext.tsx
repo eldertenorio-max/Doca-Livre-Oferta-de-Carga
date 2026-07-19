@@ -36,6 +36,7 @@ import { enviarControleFretes } from '../lib/integracaoFretes'
 import type {
   AppUser,
   Carga,
+  ChatMensagem,
   GrupoTransportador,
   HistoricoEvento,
   HistoricoProposta,
@@ -102,6 +103,7 @@ interface DataState {
   integracoes: IntegracaoFrete[]
   interacoes: InteracaoPontuacao[]
   notificacoes: NotificacaoInApp[]
+  mensagens: ChatMensagem[]
 }
 
 interface AuthState {
@@ -172,6 +174,8 @@ interface DataContextValue extends DataState, AuthState {
   motoristasDoTransportador: (transportadorId: string) => Motorista[]
   marcarNotificacaoLida: (id: string) => void
   marcarTodasNotificacoesLidas: () => void
+  mensagensDaCarga: (cargaId: string) => ChatMensagem[]
+  enviarMensagemCarga: (cargaId: string, texto: string) => { ok: boolean; error?: string }
   registrarCadastroTransportador: (
     input: CadastroTransportadorInput,
   ) => Promise<{ ok: boolean; error?: string; mensagem?: string }>
@@ -196,6 +200,7 @@ function defaultState(): DataState {
     integracoes: [],
     interacoes: [],
     notificacoes: [],
+    mensagens: [],
   }
 }
 
@@ -288,6 +293,7 @@ function loadState(): DataState {
       integracoes: Array.isArray(parsed.integracoes) ? parsed.integracoes : [],
       interacoes: Array.isArray(parsed.interacoes) ? parsed.interacoes : [],
       notificacoes: Array.isArray(parsed.notificacoes) ? parsed.notificacoes : [],
+      mensagens: Array.isArray(parsed.mensagens) ? parsed.mensagens : [],
     }
   } catch {
     return defaults
@@ -1815,6 +1821,43 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }))
   }, [])
 
+  const mensagensDaCarga = useCallback(
+    (cargaId: string) =>
+      (state.mensagens ?? [])
+        .filter((m) => m.carga_id === cargaId)
+        .slice()
+        .sort((a, b) => a.created_at.localeCompare(b.created_at)),
+    [state.mensagens],
+  )
+
+  const enviarMensagemCarga = useCallback(
+    (cargaId: string, texto: string) => {
+      if (!user) return { ok: false, error: 'Faça login para enviar mensagens.' }
+      const limpo = texto.trim()
+      if (!limpo) return { ok: false, error: 'Digite uma mensagem.' }
+      if (limpo.length > 2000) return { ok: false, error: 'Mensagem muito longa (máx. 2000).' }
+      const carga = state.cargas.find((c) => c.id === cargaId)
+      if (!carga) return { ok: false, error: 'Carga não encontrada.' }
+
+      const msg: ChatMensagem = {
+        id: uid('msg'),
+        carga_id: cargaId,
+        autor_id: user.id,
+        autor_nome: user.nome,
+        autor_role: user.role,
+        texto: limpo,
+        created_at: new Date().toISOString(),
+      }
+
+      setState((prev) => ({
+        ...prev,
+        mensagens: [...(prev.mensagens ?? []), msg],
+      }))
+      return { ok: true }
+    },
+    [user, state.cargas],
+  )
+
   const transportadorById = useCallback(
     (id: string) => state.transportadores.find((t) => t.id === id),
     [state.transportadores],
@@ -1929,6 +1972,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       motoristasDoTransportador,
       marcarNotificacaoLida,
       marcarTodasNotificacoesLidas,
+      mensagensDaCarga,
+      enviarMensagemCarga,
       documentosDoTransportador,
       registrarCadastroTransportador,
       aprovarTransportador,
@@ -1981,6 +2026,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       motoristasDoTransportador,
       marcarNotificacaoLida,
       marcarTodasNotificacoesLidas,
+      mensagensDaCarga,
+      enviarMensagemCarga,
       documentosDoTransportador,
       registrarCadastroTransportador,
       aprovarTransportador,

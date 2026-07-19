@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Ban, Eye, Gavel, MessagesSquare, Truck } from 'lucide-react'
 import { formatCurrency, formatDate, formatNumber, tempoRestante } from '../../lib/businessRules'
 import type { Carga, Prioridade } from '../../types'
 import { useData } from '../../context/DataContext'
+import { ChatModal } from '../carga/ChatModal'
 
 function TrafficLight({ prioridade }: { prioridade: Prioridade | null }) {
   const active = prioridade ?? 'baixa'
@@ -66,6 +68,7 @@ export function CargoCard({
   ofertasCount,
 }: CargoCardProps) {
   const { tick } = useData()
+  const [chatOpen, setChatOpen] = useState(false)
   void tick
 
   const frete =
@@ -200,13 +203,19 @@ export function CargoCard({
                 <Truck size={20} strokeWidth={2.2} fill="currentColor" />
               </IconBtn>
             ) : (
-              <IconBtn title="Mensagens" tone="msg">
+              <IconBtn title="Mensagens" tone="msg" onClick={() => setChatOpen(true)}>
                 <MessagesSquare size={18} strokeWidth={2.2} />
               </IconBtn>
             )}
           </div>
         </div>
       </div>
+
+      <ChatModal
+        carga={carga}
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+      />
     </article>
   )
 }

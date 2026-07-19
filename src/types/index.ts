@@ -304,6 +304,17 @@ export interface NotificacaoInApp {
   created_at: string
 }
 
+/** Chat da carga (embarcador ↔ transportador) */
+export interface ChatMensagem {
+  id: string
+  carga_id: string
+  autor_id: string
+  autor_nome: string
+  autor_role: UserRole | 'super'
+  texto: string
+  created_at: string
+}
+
 export type StatusIntegracaoFrete = 'pendente' | 'enviado' | 'erro' | 'simulado'
 
 export interface IntegracaoFrete {
