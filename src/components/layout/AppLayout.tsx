@@ -83,6 +83,21 @@ function IconShield() {
   )
 }
 
+function IconWallet() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M3 7.5A2.5 2.5 0 0 1 5.5 5H18a1 1 0 0 1 1 1v1.5M3 7.5V17a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5.5a1.5 1.5 0 0 0-1.5-1.5H15a2 2 0 1 0 0 4h4.5"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M3 7.5h15" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 const minervaLinks: NavItem[] = [
   { to: '/minerva', label: 'Kanban Cargas', icon: <IconGrid />, end: true },
   { to: '/minerva/rotas', label: 'Rotas', icon: <IconMap /> },
@@ -91,6 +106,7 @@ const minervaLinks: NavItem[] = [
   { to: '/minerva/motoristas', label: 'Motoristas', icon: <IconUsers /> },
   { to: '/minerva/grupos', label: 'Grupos', icon: <IconGroups /> },
   { to: '/minerva/indicadores', label: 'Indicadores', icon: <IconChart /> },
+  { to: '/minerva/financeiro', label: 'Financeiro', icon: <IconWallet /> },
   { to: '/minerva/configuracoes', label: 'Configurações', icon: <IconShield /> },
   { to: '/minerva/historico', label: 'Histórico', icon: <IconChart /> },
   { to: '/minerva/config', label: 'Portal / Permissões', icon: <IconShield /> },
@@ -161,7 +177,8 @@ export function AppLayout() {
     }
     const base = user?.role === 'transportador' ? transportadorLinks : minervaLinks
     return base.filter((item) => {
-      if (item.to === '/minerva/config') return false
+      // Super-only
+      if (item.to === '/minerva/config' || item.to === '/minerva/financeiro') return false
       const mod = moduloFromPath(item.to)
       if (!mod) return true
       return canOpenModulo(user?.permissoes_modulos, mod)

@@ -73,3 +73,12 @@ export function resetNegociacaoFields(_c?: Carga): Partial<Carga> {
     recusas: 0,
   }
 }
+
+/** Lance ainda vale na rodada atual (publicado_em). */
+export function lanceNaRodadaAtual(
+  lance: { created_at: string },
+  carga: { publicado_em?: string | null },
+): boolean {
+  if (!carga.publicado_em) return true
+  return new Date(lance.created_at).getTime() >= new Date(carga.publicado_em).getTime() - 2000
+}

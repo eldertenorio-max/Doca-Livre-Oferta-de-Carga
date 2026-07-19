@@ -79,16 +79,16 @@ function matchesColumn(
     )
   }
   if (key === 'propostas') {
-    // Status propostas OU já recebeu lance (evita card ficar em Negociando sem refletir oferta)
+    // Só Propostas se houver lance ativo na rodada atual
     return (
       !c.transportador_vencedor_id &&
-      (c.status === 'propostas' ||
-        (['negociando', 'propostas'].includes(c.status) && temLanceAtivo))
+      ['negociando', 'propostas'].includes(c.status) &&
+      temLanceAtivo
     )
   }
   if (key === 'negociando') {
     return (
-      c.status === 'negociando' &&
+      ['negociando', 'propostas'].includes(c.status) &&
       !c.transportador_vencedor_id &&
       !temLanceAtivo
     )

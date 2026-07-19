@@ -300,16 +300,26 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
 
   function handleRepublicar() {
     if (!canEdit) return
+    setError('')
+    setInfo('')
     const res = republicarCarga(carga!.id)
     if (!res.ok) setError(res.error ?? 'Falha ao republicar')
-    else setInfo('Carga pronta para nova publicação. Ajuste os dados e publique.')
+    else
+      setInfo(
+        'Propostas anteriores canceladas. Carga em Nova Carga — ajuste e publique de novo.',
+      )
   }
 
   function handleReabrir() {
     if (!canEdit) return
+    setError('')
+    setInfo('')
     const res = reabrirNegociacao(carga!.id)
     if (!res.ok) setError(res.error ?? 'Falha ao reabrir')
-    else setInfo('Negociação reaberta com novo prazo.')
+    else
+      setInfo(
+        'Nova rodada aberta: propostas anteriores canceladas. Transportadores veem em Nova Carga.',
+      )
   }
 
   function openContraProposta(lanceId: string, valorAtual: number) {
@@ -1031,15 +1041,17 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
                       </Button>
                     </>
                   )}
-                  {['canceladas', 'recusadas', 'alocadas'].includes(carga.status) && (
+                  {(['canceladas', 'recusadas', 'alocadas'].includes(carga.status) ||
+                    (['negociando', 'propostas', 'suspensas'].includes(carga.status) &&
+                      !carga.transportador_vencedor_id)) && (
                     <Button variant="success" className="w-full" onClick={handleRepublicar}>
-                      Preparar republicação
+                      Preparar republicação (zera propostas)
                     </Button>
                   )}
                   {(Boolean(carga.transportador_vencedor_id) ||
                     carga.status === 'alocadas') && (
                     <Button variant="ghost" className="w-full" onClick={handleReabrir}>
-                      Reabrir negociação
+                      Reabrir em nova rodada
                     </Button>
                   )}
                 </div>

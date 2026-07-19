@@ -12,16 +12,24 @@ import { GruposPage } from './pages/minerva/Grupos'
 import { IndicadoresPage } from './pages/minerva/Indicadores'
 import { ConfiguracoesPage } from './pages/minerva/Configuracoes'
 import { HistoricoPage } from './pages/minerva/Historico'
+import { FinanceiroPage } from './pages/minerva/Financeiro'
 import { VeiculosPage } from './pages/minerva/Veiculos'
 import { MotoristasPage } from './pages/minerva/Motoristas'
 import { PortalConfigPage } from './pages/minerva/PortalConfig'
 import { KanbanTransportador } from './pages/transportador/KanbanTransportador'
+import { isLocalSuperUser } from './lib/superUsers'
 import type { UserRole } from './types'
 
 function Protected({ role, children }: { role?: UserRole | UserRole[]; children: React.ReactNode }) {
   const { user } = useData()
   if (!user) return <Navigate to="/login" replace />
-  if (user.is_superuser || user.role === 'super') return children
+  // Diego / Elder (e role super) passam em qualquer rota autenticada
+  const isSuper =
+    Boolean(user.is_superuser) ||
+    user.role === 'super' ||
+    isLocalSuperUser(user.usuario ?? '') ||
+    isLocalSuperUser(user.email ?? '')
+  if (isSuper) return children
   if (role) {
     const roles = Array.isArray(role) ? role : [role]
     if (!roles.includes(user.role)) {
@@ -122,6 +130,14 @@ export default function App() {
           element={
             <Protected role={['minerva', 'super']}>
               <HistoricoPage />
+            </Protected>
+          }
+        />
+        <Route
+          path="/minerva/financeiro"
+          element={
+            <Protected role={['super']}>
+              <FinanceiroPage />
             </Protected>
           }
         />

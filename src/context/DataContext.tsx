@@ -30,7 +30,12 @@ import {
   saveConfigNegocio,
   type ConfigNegocio,
 } from '../lib/configNegocio'
-import { makeHist, normalizeCarga, resetNegociacaoFields } from '../lib/cargaDefaults'
+import {
+  lanceNaRodadaAtual,
+  makeHist,
+  normalizeCarga,
+  resetNegociacaoFields,
+} from '../lib/cargaDefaults'
 import { normalizeMotorista, normalizeVeiculo } from '../lib/motoristaDefaults'
 import { haEmpateDeValor, ordenarLancesParaVitoria } from '../lib/desempate'
 import { enviarControleFretes } from '../lib/integracaoFretes'
@@ -289,6 +294,25 @@ function normalizeCargasNegociacao(
   })
 }
 
+/** Cancela lances de rodadas anteriores (created_at < publicado_em). */
+function cancelarLancesForaDaRodada(cargas: Carga[], lances: Lance[]): Lance[] {
+  return lances.map((l) => {
+    const carga = cargas.find((c) => c.id === l.carga_id)
+    if (!carga?.publicado_em) return l
+    if (!['ativo', 'vencedor', 'perdido'].includes(l.status)) return l
+    if (lanceNaRodadaAtual(l, carga)) return l
+    return { ...l, status: 'cancelado' as const, updated_at: new Date().toISOString() }
+  })
+}
+
+function cancelarLancesDaCarga(lances: Lance[], cargaId: string, nowIso: string): Lance[] {
+  return lances.map((l) =>
+    l.carga_id === cargaId && l.status !== 'cancelado'
+      ? { ...l, status: 'cancelado' as const, updated_at: nowIso }
+      : l,
+  )
+}
+
 /** Garante grupos com t1 (Santos) e ao menos uma oferta aberta para o demo. */
 function ensureDemoOfertasVisiveis(state: DataState): DataState {
   const DEMO_TID = 't1'
@@ -305,6 +329,8 @@ function ensureDemoOfertasVisiveis(state: DataState): DataState {
   const gruposAtivos = grupos.filter((g) => g.situacao === 'ativo').map((g) => g.id)
   const now = Date.now()
   let cargas = normalizeCargasNegociacao(state.cargas, grupos)
+  let lances = cancelarLancesForaDaRodada(cargas, state.lances)
+  let reabriuDemo = false
 
   const abertas = cargas.filter(
     (c) =>
@@ -326,6 +352,8 @@ function ensureDemoOfertasVisiveis(state: DataState): DataState {
 
     if (candidata) {
       const prazo = candidata.prazo_leilao_minutos ?? 60
+      const publicadoEm = new Date(now).toISOString()
+      reabriuDemo = true
       cargas = cargas.map((c) =>
         c.id === candidata.id
           ? {
@@ -342,16 +370,34 @@ function ensureDemoOfertasVisiveis(state: DataState): DataState {
               tempo_restante_ms: null,
               grupo_ids: c.grupo_ids?.length ? c.grupo_ids : [...gruposAtivos],
               grupos_notificados: c.grupo_ids?.length ? [...c.grupo_ids] : [...gruposAtivos],
-              publicado_em: c.publicado_em ?? new Date(now).toISOString(),
+              publicado_em: publicadoEm,
               expira_em: new Date(now + prazo * 60_000).toISOString(),
               modo_publicacao: c.modo_publicacao ?? 'leilao',
               frete_oferta: c.frete_oferta ?? c.frete_tabela,
-              updated_at: new Date(now).toISOString(),
+              updated_at: publicadoEm,
             }
           : c,
       )
+      // Nova rodada demo: zera lances antigos para cair em Nova Carga
+      lances = cancelarLancesDaCarga(lances, candidata.id, publicadoEm)
     }
   }
+
+  if (!reabriuDemo) {
+    lances = cancelarLancesForaDaRodada(cargas, lances)
+  }
+
+  // Alinha status do Kanban com lances da rodada atual
+  cargas = cargas.map((c) => {
+    if (c.transportador_vencedor_id) return c
+    if (!['negociando', 'propostas'].includes(c.status)) return c
+    const temAtivo = lances.some(
+      (l) => l.carga_id === c.id && l.status === 'ativo' && lanceNaRodadaAtual(l, c),
+    )
+    if (temAtivo && c.status !== 'propostas') return { ...c, status: 'propostas' as const }
+    if (!temAtivo && c.status === 'propostas') return { ...c, status: 'negociando' as const }
+    return c
+  })
 
   let transportadores = state.transportadores
   const t1 = transportadores.find((t) => t.id === DEMO_TID)
@@ -361,7 +407,7 @@ function ensureDemoOfertasVisiveis(state: DataState): DataState {
     )
   }
 
-  return { ...state, cargas, grupos, transportadores }
+  return { ...state, cargas, lances, grupos, transportadores }
 }
 
 function loadState(): DataState {
@@ -785,76 +831,98 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
 
       const escalonar = Boolean(payload.escalonarGrupos) && payload.grupoIds.length > 1
-      setState((prev) => {
-        const cargas = prev.cargas.map((c) => {
-          if (c.id !== payload.cargaId) return c
-          const { freteOferta } = calcularFreteOferta(c.frete_tabela, payload.margemPercentual)
-          const lim = limitesLance(freteOferta, config)
-          const now = Date.now()
-          return {
-            ...c,
-            margem_percentual: payload.margemPercentual,
-            frete_oferta: freteOferta,
-            frete_minimo: lim.min,
-            frete_maximo: lim.max,
-            grupo_ids: payload.grupoIds,
-            grupos_notificados: escalonar ? [payload.grupoIds[0]] : [...payload.grupoIds],
-            prazo_leilao_minutos: payload.prazoLeilaoMinutos,
-            prazo_alocacao_minutos: payload.prazoAlocacaoMinutos,
-            prioridade,
-            modo_publicacao: modo as ModoPublicacao,
-            justificativa_motivo: payload.justificativaMotivo ?? null,
-            justificativa_obs: payload.justificativaObs ?? null,
-            observacao: payload.observacao?.trim() || c.observacao,
-            status: 'negociando' as const,
-            publicado_em: new Date(now).toISOString(),
-            expira_em: new Date(now + payload.prazoLeilaoMinutos * 60_000).toISOString(),
-            pausado_em: null,
-            tempo_restante_ms: null,
-            motivo_cancelamento: null,
-            publicado_por: user?.id ?? null,
-          }
-        })
-        const carga = cargas.find((c) => c.id === payload.cargaId)
-        const hist = makeHistorico(
-          'carga_publicada',
-          `Carga ${carga?.numero ?? ''} publicada`,
-          {
-            carga_id: payload.cargaId,
-            detalhe: `${modo} · ${prioridade} · ${payload.prazoLeilaoMinutos} min · ${payload.grupoIds.length} grupo(s)`,
-          },
-          user,
-        )
-        const gruposNotif = escalonar ? [payload.grupoIds[0]] : [...payload.grupoIds]
-        const transportadoresNotificados = new Set<string>()
-        for (const g of prev.grupos) {
-          if (!gruposNotif.includes(g.id)) continue
-          for (const tid of g.transportador_ids ?? []) transportadoresNotificados.add(tid)
-        }
-        let notificacoes = pushNotif(prev.notificacoes, {
-          role: 'todos',
-          titulo: 'Nova carga publicada',
-          mensagem: `Carga ${carga?.numero ?? ''} disponível para negociação.`,
-          carga_id: payload.cargaId,
-        })
-        for (const tid of transportadoresNotificados) {
-          notificacoes = pushNotif(notificacoes, {
-            transportador_id: tid,
-            titulo: 'Nova oferta de carga',
-            mensagem: `Carga ${carga?.numero ?? ''} disponível no seu Kanban.`,
-            carga_id: payload.cargaId,
-          })
-        }
+      const prev = stateRef.current
+      const cargaAtual = prev.cargas.find((c) => c.id === payload.cargaId)
+      if (!cargaAtual) return { ok: false, error: 'Carga não encontrada' }
+
+      const now = Date.now()
+      const nowIso = new Date(now).toISOString()
+      const { freteOferta } = calcularFreteOferta(
+        cargaAtual.frete_tabela,
+        payload.margemPercentual,
+      )
+      const lim = limitesLance(freteOferta, config)
+      const actor = userRef.current
+
+      const cargas = prev.cargas.map((c) => {
+        if (c.id !== payload.cargaId) return c
         return {
-          ...prev,
-          cargas,
-          historico: [hist, ...prev.historico].slice(0, 2000),
-          notificacoes,
+          ...c,
+          margem_percentual: payload.margemPercentual,
+          frete_oferta: freteOferta,
+          frete_minimo: lim.min,
+          frete_maximo: lim.max,
+          grupo_ids: payload.grupoIds,
+          grupos_notificados: escalonar ? [payload.grupoIds[0]] : [...payload.grupoIds],
+          prazo_leilao_minutos: payload.prazoLeilaoMinutos,
+          prazo_alocacao_minutos: payload.prazoAlocacaoMinutos,
+          prioridade,
+          modo_publicacao: modo as ModoPublicacao,
+          justificativa_motivo: payload.justificativaMotivo ?? null,
+          justificativa_obs: payload.justificativaObs ?? null,
+          observacao: payload.observacao?.trim() || c.observacao,
+          status: 'negociando' as const,
+          publicado_em: nowIso,
+          expira_em: new Date(now + payload.prazoLeilaoMinutos * 60_000).toISOString(),
+          pausado_em: null,
+          tempo_restante_ms: null,
+          motivo_cancelamento: null,
+          publicado_por: actor?.id ?? null,
+          // Nova rodada: limpa frete fechado da rodada anterior
+          transportador_vencedor_id: null,
+          frete_fechado: null,
+          placa: null,
+          motorista: null,
+          veiculo_id: null,
+          motorista_id: null,
+          alocacao_expira_em: null,
+          updated_at: nowIso,
         }
       })
+      // Republicar/publicar de novo = zera propostas; Kanban volta a Nova Carga
+      const lances = cancelarLancesDaCarga(prev.lances, payload.cargaId, nowIso)
+      const carga = cargas.find((c) => c.id === payload.cargaId)
+      const hist = makeHistorico(
+        'carga_publicada',
+        `Carga ${carga?.numero ?? ''} publicada`,
+        {
+          carga_id: payload.cargaId,
+          detalhe: `${modo} · ${prioridade} · ${payload.prazoLeilaoMinutos} min · ${payload.grupoIds.length} grupo(s)`,
+        },
+        actor,
+      )
+      const gruposNotif = escalonar ? [payload.grupoIds[0]] : [...payload.grupoIds]
+      const transportadoresNotificados = new Set<string>()
+      for (const g of prev.grupos) {
+        if (!gruposNotif.includes(g.id)) continue
+        for (const tid of g.transportador_ids ?? []) transportadoresNotificados.add(tid)
+      }
+      let notificacoes = pushNotif(prev.notificacoes, {
+        role: 'todos',
+        titulo: 'Nova carga publicada',
+        mensagem: `Carga ${carga?.numero ?? ''} disponível para negociação.`,
+        carga_id: payload.cargaId,
+      })
+      for (const tid of transportadoresNotificados) {
+        notificacoes = pushNotif(notificacoes, {
+          transportador_id: tid,
+          titulo: 'Nova oferta de carga',
+          mensagem: `Carga ${carga?.numero ?? ''} disponível no seu Kanban.`,
+          carga_id: payload.cargaId,
+        })
+      }
+      const next = {
+        ...prev,
+        cargas,
+        lances,
+        historico: [hist, ...prev.historico].slice(0, 2000),
+        notificacoes,
+      }
+      stateRef.current = next
+      setState(next)
       return { ok: true }
     },
-    [config, user],
+    [config],
   )
 
   const notificarTodosGrupos = useCallback((cargaId: string) => {
@@ -1506,116 +1574,117 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [state.cargas, user],
   )
 
-  const republicarCarga = useCallback(
-    (cargaId: string) => {
-      const carga = state.cargas.find((c) => c.id === cargaId)
-      if (!carga) return { ok: false, error: 'Carga não encontrada' }
-      const okStatus = [
-        'canceladas',
-        'recusadas',
-        'alocadas',
-        'negociando',
-        'propostas',
-        'suspensas',
-      ].includes(carga.status)
-      if (!okStatus) return { ok: false, error: 'Estado não permite republicação' }
-      setState((prev) => ({
-        ...prev,
-        cargas: prev.cargas.map((c) =>
-          c.id === cargaId
-            ? { ...c, ...resetNegociacaoFields(c), updated_at: new Date().toISOString() }
-            : c,
+  const republicarCarga = useCallback((cargaId: string) => {
+    const prev = stateRef.current
+    const carga = prev.cargas.find((c) => c.id === cargaId)
+    if (!carga) return { ok: false, error: 'Carga não encontrada' }
+    if (carga.status === 'nova_carga' && !carga.publicado_em) {
+      return { ok: false, error: 'Carga já está pronta para publicar' }
+    }
+    const okStatus = [
+      'canceladas',
+      'recusadas',
+      'alocadas',
+      'negociando',
+      'propostas',
+      'suspensas',
+    ].includes(carga.status)
+    if (!okStatus && !carga.transportador_vencedor_id) {
+      return { ok: false, error: 'Estado não permite republicação' }
+    }
+    const nowIso = new Date().toISOString()
+    const actor = userRef.current
+    const next = {
+      ...prev,
+      cargas: prev.cargas.map((c) =>
+        c.id === cargaId
+          ? { ...c, ...resetNegociacaoFields(c), updated_at: nowIso }
+          : c,
+      ),
+      lances: cancelarLancesDaCarga(prev.lances, cargaId, nowIso),
+      historico: [
+        makeHistorico(
+          'carga_republicada',
+          `Carga preparada para republicar — ${carga.numero}`,
+          { carga_id: cargaId, detalhe: 'Propostas anteriores canceladas' },
+          actor,
         ),
-        lances: prev.lances.map((l) =>
-          l.carga_id === cargaId && ['ativo', 'vencedor', 'perdido'].includes(l.status)
-            ? { ...l, status: 'cancelado' as const }
-            : l,
-        ),
-        historico: [
-          makeHistorico(
-            'carga_republicada',
-            `Carga preparada para republicar — ${carga.numero}`,
-            { carga_id: cargaId },
-            user,
-          ),
-          ...prev.historico,
-        ].slice(0, 2000),
-      }))
-      return { ok: true }
-    },
-    [state.cargas, user],
-  )
+        ...prev.historico,
+      ].slice(0, 2000),
+    }
+    stateRef.current = next
+    setState(next)
+    return { ok: true }
+  }, [])
 
   const reabrirNegociacao = useCallback(
     (cargaId: string, prazoMinutos?: number) => {
-      const carga = state.cargas.find((c) => c.id === cargaId)
+      const prev = stateRef.current
+      const carga = prev.cargas.find((c) => c.id === cargaId)
       if (!carga) return { ok: false, error: 'Carga não encontrada' }
-      if (!carga.publicado_em || !carga.grupo_ids.length) {
-        return { ok: false, error: 'Carga precisa ter sido publicada antes' }
+      if (!carga.grupo_ids.length && !(carga.grupos_notificados?.length)) {
+        return { ok: false, error: 'Carga precisa ter grupos de publicação' }
       }
       const prazo = prazoMinutos ?? carga.prazo_leilao_minutos ?? config.prazo_oferta_padrao_minutos
       const now = Date.now()
-      setState((prev) => {
-        // Reativa lances da rodada (vencedor/perdido/ativo) para voltarem a Propostas
-        const lances = prev.lances.map((l) => {
-          if (l.carga_id !== cargaId) return l
-          if (['ativo', 'vencedor', 'perdido'].includes(l.status)) {
-            return { ...l, status: 'ativo' as const }
-          }
-          return l
-        })
-        const temLance = lances.some((l) => l.carga_id === cargaId && l.status === 'ativo')
-        return {
-          ...prev,
-          cargas: prev.cargas.map((c) =>
-            c.id === cargaId
-              ? {
-                  ...c,
-                  status: temLance ? ('propostas' as const) : ('negociando' as const),
-                  transportador_vencedor_id: null,
-                  frete_fechado: null,
-                  placa: null,
-                  motorista: null,
-                  veiculo_id: null,
-                  motorista_id: null,
-                  alocacao_expira_em: null,
-                  pausado_em: null,
-                  tempo_restante_ms: null,
-                  prazo_leilao_minutos: prazo,
-                  publicado_em: new Date(now).toISOString(),
-                  expira_em: new Date(now + prazo * 60_000).toISOString(),
-                  grupos_notificados: [...c.grupo_ids],
-                }
-              : c,
+      const nowIso = new Date(now).toISOString()
+      const actor = userRef.current
+      const grupoIds = carga.grupo_ids.length
+        ? carga.grupo_ids
+        : [...(carga.grupos_notificados ?? [])]
+
+      // Nova rodada: cancela lances antigos → transportador vê Nova Carga
+      const lances = cancelarLancesDaCarga(prev.lances, cargaId, nowIso)
+      const next = {
+        ...prev,
+        cargas: prev.cargas.map((c) =>
+          c.id === cargaId
+            ? {
+                ...c,
+                status: 'negociando' as const,
+                transportador_vencedor_id: null,
+                frete_fechado: null,
+                placa: null,
+                motorista: null,
+                veiculo_id: null,
+                motorista_id: null,
+                alocacao_expira_em: null,
+                pausado_em: null,
+                tempo_restante_ms: null,
+                prazo_leilao_minutos: prazo,
+                grupo_ids: grupoIds,
+                publicado_em: nowIso,
+                expira_em: new Date(now + prazo * 60_000).toISOString(),
+                grupos_notificados: [...grupoIds],
+                updated_at: nowIso,
+              }
+            : c,
+        ),
+        lances,
+        historico: [
+          makeHistorico(
+            'negociacao_reaberta',
+            `Negociação reaberta — ${carga.numero}`,
+            {
+              carga_id: cargaId,
+              detalhe: `${prazo} min · nova rodada (propostas anteriores canceladas)`,
+            },
+            actor,
           ),
-          lances,
-          historico: [
-            makeHistorico(
-              'negociacao_reaberta',
-              `Negociação reaberta — ${carga.numero}`,
-              {
-                carga_id: cargaId,
-                detalhe: temLance
-                  ? `${prazo} min · propostas mantidas`
-                  : `${prazo} min`,
-              },
-              user,
-            ),
-            ...prev.historico,
-          ].slice(0, 2000),
-          notificacoes: pushNotif(prev.notificacoes, {
-            role: 'todos',
-            titulo: 'Negociação reaberta',
-            mensagem: temLance
-              ? `Carga ${carga.numero} voltou para Propostas com as ofertas anteriores.`
-              : `Carga ${carga.numero} reaberta para novas ofertas.`,
-            carga_id: cargaId,
-          }),
-        }
-      })
+          ...prev.historico,
+        ].slice(0, 2000),
+        notificacoes: pushNotif(prev.notificacoes, {
+          role: 'todos',
+          titulo: 'Negociação reaberta',
+          mensagem: `Carga ${carga.numero} reaberta para novas ofertas (Nova Carga).`,
+          carga_id: cargaId,
+        }),
+      }
+      stateRef.current = next
+      setState(next)
       return { ok: true }
     },
-    [state.cargas, config.prazo_oferta_padrao_minutos, user],
+    [config.prazo_oferta_padrao_minutos],
   )
 
   const recusarCargaMinerva = useCallback((cargaId: string) => {
@@ -2188,12 +2257,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
   )
 
   const lancesDaCarga = useCallback(
-    (cargaId: string) =>
-      ordenarLancesParaVitoria(
-        state.lances.filter((l) => l.carga_id === cargaId && l.status !== 'cancelado'),
+    (cargaId: string) => {
+      const carga = state.cargas.find((c) => c.id === cargaId)
+      return ordenarLancesParaVitoria(
+        state.lances.filter(
+          (l) =>
+            l.carga_id === cargaId &&
+            l.status !== 'cancelado' &&
+            (!carga || lanceNaRodadaAtual(l, carga)),
+        ),
         (id) => state.transportadores.find((t) => t.id === id),
-      ),
-    [state.lances, state.transportadores],
+      )
+    },
+    [state.cargas, state.lances, state.transportadores],
   )
 
   const historicoPropostasDaCarga = useCallback(
@@ -2318,12 +2394,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
           )
         }
 
-        // Já participou com lance — continua vendo enquanto a negociação existir
+        // Já participou na rodada atual — continua vendo enquanto a negociação existir
         const temLanceProprio = state.lances.some(
           (l) =>
             l.carga_id === c.id &&
             l.transportador_id === transportadorId &&
-            l.status !== 'cancelado',
+            l.status !== 'cancelado' &&
+            lanceNaRodadaAtual(l, c),
         )
         if (
           temLanceProprio &&
