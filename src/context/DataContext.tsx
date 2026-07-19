@@ -1288,44 +1288,64 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
       const prazo = prazoMinutos ?? carga.prazo_leilao_minutos ?? config.prazo_oferta_padrao_minutos
       const now = Date.now()
-      setState((prev) => ({
-        ...prev,
-        cargas: prev.cargas.map((c) =>
-          c.id === cargaId
-            ? {
-                ...c,
-                status: 'negociando' as const,
-                transportador_vencedor_id: null,
-                frete_fechado: null,
-                placa: null,
-                motorista: null,
-                veiculo_id: null,
-                motorista_id: null,
-                alocacao_expira_em: null,
-                pausado_em: null,
-                tempo_restante_ms: null,
-                prazo_leilao_minutos: prazo,
-                publicado_em: new Date(now).toISOString(),
-                expira_em: new Date(now + prazo * 60_000).toISOString(),
-                grupos_notificados: [...c.grupo_ids],
-              }
-            : c,
-        ),
-        lances: prev.lances.map((l) =>
-          l.carga_id === cargaId
-            ? { ...l, status: l.status === 'ativo' ? ('ativo' as const) : ('cancelado' as const) }
-            : l,
-        ),
-        historico: [
-          makeHistorico(
-            'negociacao_reaberta',
-            `Negociação reaberta — ${carga.numero}`,
-            { carga_id: cargaId, detalhe: `${prazo} min` },
-            user,
+      setState((prev) => {
+        // Reativa lances da rodada (vencedor/perdido/ativo) para voltarem a Propostas
+        const lances = prev.lances.map((l) => {
+          if (l.carga_id !== cargaId) return l
+          if (['ativo', 'vencedor', 'perdido'].includes(l.status)) {
+            return { ...l, status: 'ativo' as const }
+          }
+          return l
+        })
+        const temLance = lances.some((l) => l.carga_id === cargaId && l.status === 'ativo')
+        return {
+          ...prev,
+          cargas: prev.cargas.map((c) =>
+            c.id === cargaId
+              ? {
+                  ...c,
+                  status: temLance ? ('propostas' as const) : ('negociando' as const),
+                  transportador_vencedor_id: null,
+                  frete_fechado: null,
+                  placa: null,
+                  motorista: null,
+                  veiculo_id: null,
+                  motorista_id: null,
+                  alocacao_expira_em: null,
+                  pausado_em: null,
+                  tempo_restante_ms: null,
+                  prazo_leilao_minutos: prazo,
+                  publicado_em: new Date(now).toISOString(),
+                  expira_em: new Date(now + prazo * 60_000).toISOString(),
+                  grupos_notificados: [...c.grupo_ids],
+                }
+              : c,
           ),
-          ...prev.historico,
-        ].slice(0, 2000),
-      }))
+          lances,
+          historico: [
+            makeHistorico(
+              'negociacao_reaberta',
+              `Negociação reaberta — ${carga.numero}`,
+              {
+                carga_id: cargaId,
+                detalhe: temLance
+                  ? `${prazo} min · propostas mantidas`
+                  : `${prazo} min`,
+              },
+              user,
+            ),
+            ...prev.historico,
+          ].slice(0, 2000),
+          notificacoes: pushNotif(prev.notificacoes, {
+            role: 'todos',
+            titulo: 'Negociação reaberta',
+            mensagem: temLance
+              ? `Carga ${carga.numero} voltou para Propostas com as ofertas anteriores.`
+              : `Carga ${carga.numero} reaberta para novas ofertas.`,
+            carga_id: cargaId,
+          }),
+        }
+      })
       return { ok: true }
     },
     [state.cargas, config.prazo_oferta_padrao_minutos, user],

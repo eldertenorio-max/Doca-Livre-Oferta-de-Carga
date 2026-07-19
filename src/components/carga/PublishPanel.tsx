@@ -820,7 +820,8 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
                       Preparar republicação
                     </Button>
                   )}
-                  {carga.transportador_vencedor_id && carga.status === 'propostas' && (
+                  {(Boolean(carga.transportador_vencedor_id) ||
+                    carga.status === 'alocadas') && (
                     <Button variant="ghost" className="w-full" onClick={handleReabrir}>
                       Reabrir negociação
                     </Button>
