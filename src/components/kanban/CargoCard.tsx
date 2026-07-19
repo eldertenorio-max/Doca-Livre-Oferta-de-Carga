@@ -1,8 +1,8 @@
 import {
-  Ban,
   Eye,
   Gavel,
-  MessageSquare,
+  ThumbsDown,
+  MessagesSquare,
   Truck,
   DollarSign,
 } from 'lucide-react'
@@ -155,25 +155,25 @@ export function CargoCard({
           )}
       </dl>
 
-      <div className="mt-3 flex items-center gap-1.5 border-t border-ink/5 pt-2.5">
+      <div className="mt-3 flex items-center gap-2 border-t border-ink/15 pt-2.5">
         {onView && (
           <IconBtn title="Ver detalhes" tone="view" onClick={onView}>
-            <Eye size={15} strokeWidth={2.1} />
+            <Eye size={18} strokeWidth={2.25} />
           </IconBtn>
         )}
         {onBid && (
           <IconBtn title="Fazer lance" tone="bid" onClick={onBid}>
-            <Gavel size={15} strokeWidth={2.1} />
+            <Gavel size={18} strokeWidth={2.25} />
           </IconBtn>
         )}
         {onRefuse && (
           <IconBtn title="Recusar" tone="danger" onClick={onRefuse}>
-            <Ban size={15} strokeWidth={2.1} />
+            <ThumbsDown size={18} strokeWidth={2.25} fill="currentColor" />
           </IconBtn>
         )}
         {mode === 'minerva' && carga.status !== 'nova_carga' && (
           <IconBtn title="Negociação / frete" tone="money" onClick={onView ?? onSelect}>
-            <DollarSign size={15} strokeWidth={2.1} />
+            <DollarSign size={18} strokeWidth={2.25} />
           </IconBtn>
         )}
         {mode === 'minerva' && carga.modo_publicacao && (
@@ -183,12 +183,12 @@ export function CargoCard({
         )}
         {mode === 'transportador' && (
           <IconBtn title="Mensagens" tone="msg">
-            <MessageSquare size={15} strokeWidth={2.1} />
+            <MessagesSquare size={18} strokeWidth={2.25} />
           </IconBtn>
         )}
         {(carga.status === 'alocadas' || onAllocate) && (
           <IconBtn title="Alocar" tone="alloc" onClick={onAllocate}>
-            <Truck size={15} strokeWidth={2.1} />
+            <Truck size={18} strokeWidth={2.25} />
           </IconBtn>
         )}
       </div>
@@ -198,13 +198,14 @@ export function CargoCard({
 
 type IconTone = 'view' | 'bid' | 'danger' | 'money' | 'msg' | 'alloc'
 
+/** Cores alinhadas à referência: olho azul, martelo laranja, polegar vermelho, mensagens preto */
 const TONE_CLASS: Record<IconTone, string> = {
-  view: 'bg-sky-50 text-sky-700 ring-sky-100 hover:bg-sky-100 hover:text-sky-800 hover:ring-sky-200',
-  bid: 'bg-teal-50 text-teal-700 ring-teal-100 hover:bg-teal-100 hover:text-teal-800 hover:ring-teal-200',
-  danger: 'bg-rose-50 text-rose-600 ring-rose-100 hover:bg-rose-100 hover:text-rose-700 hover:ring-rose-200',
-  money: 'bg-amber-50 text-amber-700 ring-amber-100 hover:bg-amber-100 hover:text-amber-800 hover:ring-amber-200',
-  msg: 'bg-slate-50 text-slate-600 ring-slate-100 hover:bg-slate-100 hover:text-slate-800 hover:ring-slate-200',
-  alloc: 'bg-emerald-50 text-emerald-700 ring-emerald-100 hover:bg-emerald-100 hover:text-emerald-800 hover:ring-emerald-200',
+  view: 'text-[#2f80ed] hover:bg-[#2f80ed]/10',
+  bid: 'text-[#f2994a] hover:bg-[#f2994a]/10',
+  danger: 'text-[#eb5757] hover:bg-[#eb5757]/10',
+  money: 'text-amber-600 hover:bg-amber-50',
+  msg: 'text-[#1a1a1a] hover:bg-ink/5',
+  alloc: 'text-emerald-600 hover:bg-emerald-50',
 }
 
 function IconBtn({
@@ -227,7 +228,7 @@ function IconBtn({
         e.stopPropagation()
         onClick?.()
       }}
-      className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ring-1 transition duration-150 ease-out hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0 active:scale-95 ${TONE_CLASS[tone]}`}
+      className={`inline-flex h-8 w-8 items-center justify-center rounded-md transition duration-150 ease-out hover:scale-105 active:scale-95 ${TONE_CLASS[tone]}`}
     >
       {children}
     </button>
