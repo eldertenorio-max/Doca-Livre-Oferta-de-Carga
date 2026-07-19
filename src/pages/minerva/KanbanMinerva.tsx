@@ -65,7 +65,11 @@ const COLUMNS: {
   },
 ]
 
-function matchesColumn(c: Carga, key: ColKey): boolean {
+function matchesColumn(
+  c: Carga,
+  key: ColKey,
+  temLanceAtivo: boolean,
+): boolean {
   if (key === 'confirmadas') {
     return (
       Boolean(c.transportador_vencedor_id) &&
@@ -75,10 +79,19 @@ function matchesColumn(c: Carga, key: ColKey): boolean {
     )
   }
   if (key === 'propostas') {
-    return c.status === 'propostas' && !c.transportador_vencedor_id
+    // Status propostas OU já recebeu lance (evita card ficar em Negociando sem refletir oferta)
+    return (
+      !c.transportador_vencedor_id &&
+      (c.status === 'propostas' ||
+        (['negociando', 'propostas'].includes(c.status) && temLanceAtivo))
+    )
   }
   if (key === 'negociando') {
-    return c.status === 'negociando' && !c.transportador_vencedor_id
+    return (
+      c.status === 'negociando' &&
+      !c.transportador_vencedor_id &&
+      !temLanceAtivo
+    )
   }
   return c.status === key
 }
@@ -167,7 +180,10 @@ export function KanbanMinerva() {
           columns={COLUMNS.map((col) => ({
             ...col,
             items: filtered
-              .filter((c) => matchesColumn(c, col.key))
+              .filter((c) => {
+                const temLanceAtivo = lancesDaCarga(c.id).some((l) => l.status === 'ativo')
+                return matchesColumn(c, col.key, temLanceAtivo)
+              })
               .map((c) => ({
                 id: c.id,
                 node: (

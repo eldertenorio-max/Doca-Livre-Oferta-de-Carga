@@ -66,6 +66,7 @@ export function KanbanTransportador() {
     lancesDaCarga,
     recusarCargaTransportador,
     setActingTransportadorId,
+    effectiveTransportadorId,
   } = useData()
 
   const isSuper =
@@ -94,13 +95,14 @@ export function KanbanTransportador() {
     if (!viewAsId && defaultViewAs) setViewAsId(defaultViewAs)
   }, [defaultViewAs, viewAsId])
 
-  const tid = user?.transportador_id || (isSuper ? viewAsId : '') || ''
-
   useEffect(() => {
     if (isSuper) setActingTransportadorId(viewAsId || null)
     else setActingTransportadorId(user?.transportador_id ?? null)
     return () => setActingTransportadorId(null)
   }, [isSuper, viewAsId, user?.transportador_id, setActingTransportadorId])
+
+  // Mesmo ID usado no BidModal (evita lance salvo com tid diferente do Kanban)
+  const tid = effectiveTransportadorId() || user?.transportador_id || (isSuper ? viewAsId : '') || ''
 
   const cargas = useMemo(() => {
     const list = cargasVisiveisTransportador(tid)
@@ -171,12 +173,14 @@ export function KanbanTransportador() {
           ...col,
           items: cargas
             .filter((c) => {
-              const meus = lancesDaCarga(c.id).filter((l) => l.transportador_id === tid)
+              const meus = lancesDaCarga(c.id).filter(
+                (l) => l.transportador_id === tid && l.status === 'ativo',
+              )
               return columnForCarga(c, tid, meus.length > 0) === col.key
             })
             .map((c) => {
               const meus = lancesDaCarga(c.id)
-                .filter((l) => l.transportador_id === tid)
+                .filter((l) => l.transportador_id === tid && ['ativo', 'vencedor'].includes(l.status))
                 .sort((a, b) => a.valor - b.valor)
               const todos = lancesDaCarga(c.id)
               const meuLance = meus[0]

@@ -877,9 +877,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const enviarLance = useCallback(
     (cargaId: string, valor: number) => {
-      const tid = user?.transportador_id || actingTransportadorId
+      const tid = userRef.current?.transportador_id || actingTransportadorId
       if (!tid) return { ok: false, error: 'Usuário sem transportador' }
-      const carga = state.cargas.find((c) => c.id === cargaId)
+
+      const prev = stateRef.current
+      const carga = prev.cargas.find((c) => c.id === cargaId)
       if (!carga) return { ok: false, error: 'Carga não encontrada' }
       if (!['negociando', 'propostas'].includes(carga.status)) {
         return { ok: false, error: 'Carga não está aberta para lances' }
@@ -911,34 +913,44 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const gruposOk =
-        carga.grupos_notificados.length > 0 ? carga.grupos_notificados : carga.grupo_ids
-      const autorizado = state.grupos.some(
-        (g) => gruposOk.includes(g.id) && (g.transportador_ids ?? []).includes(tid),
+      const gruposOk = Array.from(
+        new Set([...(carga.grupo_ids ?? []), ...(carga.grupos_notificados ?? [])]),
       )
+      const autorizado =
+        gruposOk.length === 0 ||
+        prev.grupos.some(
+          (g) =>
+            g.situacao !== 'inativo' &&
+            gruposOk.includes(g.id) &&
+            (g.transportador_ids ?? []).includes(tid),
+        )
       if (!autorizado) {
         return { ok: false, error: 'Você ainda não foi chamado para negociar esta carga' }
       }
 
-      const jaTemLance = state.lances.some(
+      const jaTemLance = prev.lances.some(
         (l) => l.carga_id === cargaId && l.transportador_id === tid && l.status === 'ativo',
       )
       if (jaTemLance && carga.modo_publicacao === 'oferta') {
         return { ok: false, error: 'No modo Oferta não é permitido alterar a proposta.' }
       }
 
+      const userNow = userRef.current
+      const agora = new Date().toISOString()
+
       // Modo Oferta: lance ≤ frete oferta fecha (inclui “Aceitar oferta”)
       if (carga.modo_publicacao === 'oferta' && valor <= freteRef + 0.009) {
-        setState((prev) => {
-          const lance: Lance = {
-            id: uid('lance'),
-            carga_id: cargaId,
-            transportador_id: tid,
-            valor,
-            status: 'vencedor',
-            created_at: new Date().toISOString(),
-          }
-          const cargas = prev.cargas.map((c) =>
+        const lance: Lance = {
+          id: uid('lance'),
+          carga_id: cargaId,
+          transportador_id: tid,
+          valor,
+          status: 'vencedor',
+          created_at: agora,
+        }
+        const next: DataState = {
+          ...prev,
+          cargas: prev.cargas.map((c) =>
             c.id === cargaId
               ? {
                   ...c,
@@ -946,134 +958,137 @@ export function DataProvider({ children }: { children: ReactNode }) {
                   transportador_vencedor_id: tid,
                   frete_fechado: valor,
                   alocacao_expira_em: new Date(
-                    Date.now() + (c.prazo_alocacao_minutos ?? 10) * 60_000,
+                    Date.now() + Math.max(c.prazo_alocacao_minutos ?? 10, 10) * 60_000,
                   ).toISOString(),
                 }
               : c,
-          )
-          const transportadores = prev.transportadores.map((t) => {
+          ),
+          lances: [
+            ...prev.lances.filter(
+              (l) =>
+                !(l.carga_id === cargaId && l.transportador_id === tid && l.status === 'ativo'),
+            ),
+            lance,
+          ],
+          transportadores: prev.transportadores.map((t) => {
             if (t.id !== tid) return t
             const pontuacao =
               t.pontuacao + PONTOS_ADERENCIA.com_proposta + PONTOS_ADERENCIA.frete_fechado
             return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
+          }),
+          historico: [
+            makeHistorico(
+              'lance_enviado',
+              `Lance vencedor (modo Oferta) — ${carga.numero}`,
+              {
+                carga_id: cargaId,
+                transportador_id: tid,
+                detalhe: `R$ ${valor.toFixed(2)}`,
+              },
+              userNow,
+            ),
+            ...prev.historico,
+          ].slice(0, 2000),
+        }
+        stateRef.current = next
+        setState(next)
+        return { ok: true }
+      }
+
+      const existing = prev.lances.find(
+        (l) => l.carga_id === cargaId && l.transportador_id === tid && l.status === 'ativo',
+      )
+      let lances: Lance[]
+      let historicoPropostas = prev.historicoPropostas ?? []
+      if (existing) {
+        historicoPropostas = [
+          {
+            id: uid('hp'),
+            lance_id: existing.id,
+            carga_id: cargaId,
+            transportador_id: tid,
+            valor_anterior: existing.valor,
+            valor_novo: valor,
+            created_at: agora,
+          },
+          ...historicoPropostas,
+        ]
+        lances = prev.lances.map((l) =>
+          l.id === existing.id ? { ...l, valor, updated_at: agora } : l,
+        )
+      } else {
+        const lanceId = uid('lance')
+        historicoPropostas = [
+          {
+            id: uid('hp'),
+            lance_id: lanceId,
+            carga_id: cargaId,
+            transportador_id: tid,
+            valor_anterior: null,
+            valor_novo: valor,
+            created_at: agora,
+          },
+          ...historicoPropostas,
+        ]
+        lances = [
+          ...prev.lances,
+          {
+            id: lanceId,
+            carga_id: cargaId,
+            transportador_id: tid,
+            valor,
+            status: 'ativo',
+            created_at: agora,
+          },
+        ]
+      }
+
+      const isNew = !existing
+      // Sempre move para Propostas quando há lance ativo (Kanban Minerva + Transportador)
+      const cargas = prev.cargas.map((c) =>
+        c.id === cargaId && !c.transportador_vencedor_id
+          ? { ...c, status: 'propostas' as const, updated_at: agora }
+          : c,
+      )
+      const transportadores = isNew
+        ? prev.transportadores.map((t) => {
+            if (t.id !== tid) return t
+            const pontuacao = t.pontuacao + PONTOS_ADERENCIA.com_proposta
+            return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
           })
-          const hist = makeHistorico(
+        : prev.transportadores
+
+      const next: DataState = {
+        ...prev,
+        cargas,
+        lances,
+        transportadores,
+        historico: [
+          makeHistorico(
             'lance_enviado',
-            `Lance vencedor (modo Oferta) — ${carga.numero}`,
+            `${isNew ? 'Nova proposta' : 'Proposta atualizada'} — ${carga.numero}`,
             {
               carga_id: cargaId,
               transportador_id: tid,
               detalhe: `R$ ${valor.toFixed(2)}`,
             },
-            user,
-          )
-          return {
-            ...prev,
-            cargas,
-            lances: [
-              ...prev.lances.filter(
-                (l) => !(l.carga_id === cargaId && l.transportador_id === tid && l.status === 'ativo'),
-              ),
-              lance,
-            ],
-            transportadores,
-            historico: [hist, ...prev.historico].slice(0, 2000),
-          }
-        })
-        return { ok: true }
-      }
-
-      setState((prev) => {
-        const existing = prev.lances.find(
-          (l) => l.carga_id === cargaId && l.transportador_id === tid && l.status === 'ativo',
-        )
-        const agora = new Date().toISOString()
-        let lances: Lance[]
-        let historicoPropostas = prev.historicoPropostas
-        if (existing) {
-          historicoPropostas = [
-            {
-              id: uid('hp'),
-              lance_id: existing.id,
-              carga_id: cargaId,
-              transportador_id: tid,
-              valor_anterior: existing.valor,
-              valor_novo: valor,
-              created_at: agora,
-            },
-            ...historicoPropostas,
-          ]
-          lances = prev.lances.map((l) =>
-            l.id === existing.id ? { ...l, valor, updated_at: agora } : l,
-          )
-        } else {
-          const lanceId = uid('lance')
-          historicoPropostas = [
-            {
-              id: uid('hp'),
-              lance_id: lanceId,
-              carga_id: cargaId,
-              transportador_id: tid,
-              valor_anterior: null,
-              valor_novo: valor,
-              created_at: agora,
-            },
-            ...historicoPropostas,
-          ]
-          lances = [
-            ...prev.lances,
-            {
-              id: lanceId,
-              carga_id: cargaId,
-              transportador_id: tid,
-              valor,
-              status: 'ativo',
-              created_at: agora,
-            },
-          ]
-        }
-        const cargas = prev.cargas.map((c) =>
-          c.id === cargaId && c.status === 'negociando'
-            ? { ...c, status: 'propostas' as const }
-            : c,
-        )
-        const isNew = !existing
-        const transportadores = isNew
-          ? prev.transportadores.map((t) => {
-              if (t.id !== tid) return t
-              const pontuacao = t.pontuacao + PONTOS_ADERENCIA.com_proposta
-              return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
-            })
-          : prev.transportadores
-        const hist = makeHistorico(
-          'lance_enviado',
-          `${isNew ? 'Nova proposta' : 'Proposta atualizada'} — ${carga.numero}`,
-          {
-            carga_id: cargaId,
-            transportador_id: tid,
-            detalhe: `R$ ${valor.toFixed(2)}`,
-          },
-          user,
-        )
-        const notificacoes = pushNotif(prev.notificacoes, {
+            userNow,
+          ),
+          ...prev.historico,
+        ].slice(0, 2000),
+        historicoPropostas: historicoPropostas.slice(0, 3000),
+        notificacoes: pushNotif(prev.notificacoes, {
           role: 'minerva',
           titulo: isNew ? 'Nova proposta recebida' : 'Proposta atualizada',
           mensagem: `Carga ${carga.numero}: R$ ${valor.toFixed(2)}`,
           carga_id: cargaId,
-        })
-        return {
-          ...prev,
-          cargas,
-          lances,
-          transportadores,
-          historico: [hist, ...prev.historico].slice(0, 2000),
-          historicoPropostas: historicoPropostas.slice(0, 3000),
-          notificacoes,
-        }
-      })
+        }),
+      }
+      stateRef.current = next
+      setState(next)
       return { ok: true }
     },
-    [state.cargas, state.grupos, state.lances, user, actingTransportadorId],
+    [actingTransportadorId],
   )
 
   const aceitarLance = useCallback((lanceId: string) => {
