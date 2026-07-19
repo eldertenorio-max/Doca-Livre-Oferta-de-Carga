@@ -76,7 +76,11 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
   } = useData()
   void tick
 
-  const canEdit = canEditModulo(user?.permissoes_modulos, 'kanban') || Boolean(user?.is_superuser)
+  const canEdit =
+    canEditModulo(user?.permissoes_modulos, 'kanban') ||
+    Boolean(user?.is_superuser) ||
+    user?.role === 'super' ||
+    user?.role === 'minerva'
   const classificacao = carga?.classificacao_rota ?? 'B'
   const margens = config.margens[classificacao]
   const prazosOferta = prazosOfertaPermitidos(config)
@@ -225,7 +229,10 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
   }
 
   function handleAceitar(lanceId: string) {
-    if (!canEdit) return
+    if (!canEdit) {
+      setError('Seu perfil não permite aceitar propostas.')
+      return
+    }
     setError('')
     setInfo('')
     const res = aceitarLance(lanceId)
@@ -234,7 +241,10 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
   }
 
   function handleRejeitar(lanceId: string) {
-    if (!canEdit) return
+    if (!canEdit) {
+      setError('Seu perfil não permite rejeitar propostas.')
+      return
+    }
     setError('')
     setInfo('')
     const res = rejeitarLance(lanceId)
@@ -243,7 +253,10 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
   }
 
   function handleEncerrar() {
-    if (!canEdit) return
+    if (!canEdit) {
+      setError('Seu perfil não permite encerrar a negociação.')
+      return
+    }
     setError('')
     setInfo('')
     const res = encerrarComMelhorLance(carga!.id)
@@ -252,7 +265,10 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
   }
 
   function handleFinalizar() {
-    if (!canEdit) return
+    if (!canEdit) {
+      setError('Seu perfil não permite finalizar a negociação.')
+      return
+    }
     setError('')
     setInfo('')
     const res = finalizarNegociacao(carga!.id)
@@ -297,16 +313,32 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
   }
 
   function openContraProposta(lanceId: string, valorAtual: number) {
+    if (!canEdit) {
+      setError('Seu perfil não permite enviar contra-proposta.')
+      return
+    }
     setContraLanceId(lanceId)
     setContraValor(formatMoneyInput(valorAtual))
     setError('')
+    setInfo('')
   }
 
   function handleContraProposta() {
-    if (!canEdit || !contraLanceId) return
+    if (!canEdit) {
+      setError('Seu perfil não permite enviar contra-proposta.')
+      return
+    }
+    if (!contraLanceId) {
+      setError('Selecione uma proposta para contra-propor.')
+      return
+    }
     setError('')
     setInfo('')
     const num = parseMoneyInput(contraValor)
+    if (!Number.isFinite(num) || num <= 0) {
+      setError('Informe um valor válido para a contra-proposta.')
+      return
+    }
     const res = enviarContraProposta(contraLanceId, num)
     if (!res.ok) setError(res.error ?? 'Falha na contra-proposta')
     else {
@@ -316,7 +348,10 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
   }
 
   function handleAguardarMelhores() {
-    if (!canEdit) return
+    if (!canEdit) {
+      setError('Seu perfil não permite estender a janela.')
+      return
+    }
     setError('')
     setInfo('')
     const res = aguardarMelhoresOfertas(carga!.id, 10)
@@ -334,7 +369,7 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
 
   return (
     <>
-      <aside className="animate-slide-in flex h-full w-[400px] shrink-0 flex-col overflow-hidden rounded-xl border border-ink/10 bg-white shadow-lg">
+      <aside className="animate-slide-in relative z-20 flex h-full w-[400px] shrink-0 flex-col overflow-hidden rounded-xl border border-ink/10 bg-white shadow-lg">
         <div className="border-b border-ink/10 bg-ink px-4 py-3 text-white">
           <p className="font-display text-lg font-bold tracking-wide text-[#e8c547]">
             Carga {carga.numero}
@@ -746,6 +781,18 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
                 </div>
               </div>
 
+              {(error || info) && (
+                <div
+                  className={`sticky top-0 z-10 rounded-lg border px-3 py-2 text-xs font-semibold ${
+                    error
+                      ? 'border-red-300 bg-red-50 text-red-800'
+                      : 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                  }`}
+                >
+                  {error || info}
+                </div>
+              )}
+
               {/* Ações globais de negociação */}
               {canEdit && emNegociacao && (
                 <div className="space-y-2 rounded-xl border border-ink/10 bg-ink p-3 text-white">
@@ -756,11 +803,15 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
                     {melhorLance && (
                       <button
                         type="button"
-                        onClick={handleEncerrar}
-                        className="flex items-center gap-2 rounded-lg bg-emerald-500 px-3 py-2.5 text-left text-sm font-bold text-white transition hover:bg-emerald-600"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          handleEncerrar()
+                        }}
+                        className="flex w-full cursor-pointer items-center gap-2 rounded-lg bg-emerald-500 px-3 py-2.5 text-left text-sm font-bold text-white transition hover:bg-emerald-600"
                       >
-                        <Check size={18} strokeWidth={2.5} />
-                        <span className="flex-1">
+                        <Check size={18} strokeWidth={2.5} className="pointer-events-none shrink-0" />
+                        <span className="pointer-events-none flex-1">
                           Aceitar melhor oferta
                           <span className="mt-0.5 block text-[11px] font-medium text-white/90">
                             {transportadorById(melhorLance.transportador_id)?.nome_fantasia} ·{' '}
@@ -771,11 +822,15 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
                     )}
                     <button
                       type="button"
-                      onClick={handleAguardarMelhores}
-                      className="flex items-center gap-2 rounded-lg bg-[#e8c547] px-3 py-2.5 text-left text-sm font-bold text-ink transition hover:bg-[#f0d44a]"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        handleAguardarMelhores()
+                      }}
+                      className="flex w-full cursor-pointer items-center gap-2 rounded-lg bg-[#e8c547] px-3 py-2.5 text-left text-sm font-bold text-ink transition hover:bg-[#f0d44a]"
                     >
-                      <Hourglass size={18} strokeWidth={2.4} />
-                      <span className="flex-1">
+                      <Hourglass size={18} strokeWidth={2.4} className="pointer-events-none shrink-0" />
+                      <span className="pointer-events-none flex-1">
                         Esperar ofertas melhores
                         <span className="mt-0.5 block text-[11px] font-medium text-ink/70">
                           Estende a janela em 10 minutos
@@ -784,12 +839,18 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
                     </button>
                     <button
                       type="button"
-                      onClick={handleFinalizar}
-                      className="flex items-center gap-2 rounded-lg border border-white/25 bg-white/10 px-3 py-2 text-left text-xs font-semibold text-white transition hover:bg-white/15"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        handleFinalizar()
+                      }}
+                      className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-white/25 bg-white/10 px-3 py-2 text-left text-xs font-semibold text-white transition hover:bg-white/15"
                     >
-                      <Clock size={16} />
-                      Finalizar negociação
-                      {lancesAtivos.length === 0 ? ' (sem vencedor)' : ' (aceita a melhor)'}
+                      <Clock size={16} className="pointer-events-none shrink-0" />
+                      <span className="pointer-events-none">
+                        Finalizar negociação
+                        {lancesAtivos.length === 0 ? ' (sem vencedor)' : ' (aceita a melhor)'}
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -881,29 +942,41 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
                           </div>
 
                           {canEdit && l.status === 'ativo' && !carga.transportador_vencedor_id && (
-                            <div className="grid grid-cols-3 gap-1.5">
+                            <div className="relative z-10 grid grid-cols-3 gap-1.5">
                               <button
                                 type="button"
-                                onClick={() => handleAceitar(l.id)}
-                                className="inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 py-2 text-[11px] font-bold text-white hover:bg-emerald-700"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  handleAceitar(l.id)
+                                }}
+                                className="inline-flex cursor-pointer items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 py-2 text-[11px] font-bold text-white hover:bg-emerald-700"
                               >
-                                <Check size={14} strokeWidth={2.5} />
+                                <Check size={14} strokeWidth={2.5} className="pointer-events-none" />
                                 Aceitar
                               </button>
                               <button
                                 type="button"
-                                onClick={() => openContraProposta(l.id, l.valor)}
-                                className="inline-flex items-center justify-center gap-1 rounded-lg bg-[#e8c547] px-2 py-2 text-[11px] font-bold text-ink hover:bg-[#f0d44a]"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  openContraProposta(l.id, l.valor)
+                                }}
+                                className="inline-flex cursor-pointer items-center justify-center gap-1 rounded-lg bg-[#e8c547] px-2 py-2 text-[11px] font-bold text-ink hover:bg-[#f0d44a]"
                               >
-                                <Handshake size={14} strokeWidth={2.4} />
+                                <Handshake size={14} strokeWidth={2.4} className="pointer-events-none" />
                                 Contra
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleRejeitar(l.id)}
-                                className="inline-flex items-center justify-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-2 text-[11px] font-bold text-red-700 hover:bg-red-100"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  handleRejeitar(l.id)
+                                }}
+                                className="inline-flex cursor-pointer items-center justify-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-2 text-[11px] font-bold text-red-700 hover:bg-red-100"
                               >
-                                <X size={14} strokeWidth={2.5} />
+                                <X size={14} strokeWidth={2.5} className="pointer-events-none" />
                                 Rejeitar
                               </button>
                             </div>
@@ -914,9 +987,6 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
                   </ul>
                 )}
               </div>
-
-              {error && <p className="text-xs text-brand">{error}</p>}
-              {info && <p className="text-xs text-emerald-700">{info}</p>}
 
               {histPropostas.length > 0 && (
                 <div className="rounded-lg border border-ink/10 p-3 text-xs">

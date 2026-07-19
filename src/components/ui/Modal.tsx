@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 interface ModalProps {
   open: boolean
@@ -10,9 +11,9 @@ interface ModalProps {
 }
 
 export function Modal({ open, title, onClose, children, wide }: ModalProps) {
-  if (!open) return null
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+  if (!open || typeof document === 'undefined') return null
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <button
         type="button"
         aria-label="Fechar overlay"
@@ -21,6 +22,8 @@ export function Modal({ open, title, onClose, children, wide }: ModalProps) {
       />
       <div
         className={`relative z-10 w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} animate-fade-up rounded-xl border border-ink/10 bg-panel shadow-2xl`}
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-ink/10 px-5 py-3">
           <h3 className="font-display text-lg font-semibold text-ink">{title}</h3>
@@ -34,7 +37,8 @@ export function Modal({ open, title, onClose, children, wide }: ModalProps) {
         </div>
         <div className="p-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

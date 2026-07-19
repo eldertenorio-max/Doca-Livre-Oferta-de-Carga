@@ -977,102 +977,122 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [state.cargas, state.grupos, state.lances, user, actingTransportadorId],
   )
 
-  const aceitarLance = useCallback(
-    (lanceId: string) => {
-      const lance = state.lances.find((l) => l.id === lanceId)
-      if (!lance || lance.status !== 'ativo') {
-        return { ok: false, error: 'Proposta não encontrada ou já encerrada' }
+  const aceitarLance = useCallback((lanceId: string) => {
+    let result: { ok: boolean; error?: string } = {
+      ok: false,
+      error: 'Não foi possível aceitar a proposta',
+    }
+    setState((prev) => {
+      const current = prev.lances.find((l) => l.id === lanceId)
+      if (!current || current.status !== 'ativo') {
+        result = { ok: false, error: 'Proposta não encontrada ou já encerrada' }
+        return prev
       }
-      const carga = state.cargas.find((c) => c.id === lance.carga_id)
-      if (!carga) return { ok: false, error: 'Carga não encontrada' }
-      if (carga.transportador_vencedor_id) {
-        return { ok: false, error: 'Esta carga já tem frete fechado' }
+      const cargaAtual = prev.cargas.find((c) => c.id === current.carga_id)
+      if (!cargaAtual) {
+        result = { ok: false, error: 'Carga não encontrada' }
+        return prev
       }
-      if (!['negociando', 'propostas'].includes(carga.status)) {
-        return { ok: false, error: 'Carga não está em negociação' }
+      if (cargaAtual.transportador_vencedor_id) {
+        result = { ok: false, error: 'Esta carga já tem frete fechado' }
+        return prev
+      }
+      if (!['negociando', 'propostas'].includes(cargaAtual.status)) {
+        result = { ok: false, error: 'Carga não está em negociação' }
+        return prev
       }
 
-      setState((prev) => {
-        const current = prev.lances.find((l) => l.id === lanceId)
-        if (!current || current.status !== 'ativo') return prev
-        const cargaAtual = prev.cargas.find((c) => c.id === current.carga_id)
-        if (!cargaAtual || cargaAtual.transportador_vencedor_id) return prev
-
-        const lances = prev.lances.map((l) => {
-          if (l.carga_id !== current.carga_id) return l
-          if (l.id === lanceId) return { ...l, status: 'vencedor' as const }
-          if (l.status === 'ativo') return { ...l, status: 'perdido' as const }
-          return l
-        })
-        const cargas = prev.cargas.map((c) =>
-          c.id === current.carga_id
-            ? {
-                ...c,
-                status: 'propostas' as const,
-                transportador_vencedor_id: current.transportador_id,
-                frete_fechado: current.valor,
-                expira_em: c.expira_em,
-                alocacao_expira_em: new Date(
-                  Date.now() + (c.prazo_alocacao_minutos ?? 10) * 60_000,
-                ).toISOString(),
-              }
-            : c,
-        )
-        const transportadores = prev.transportadores.map((t) => {
-          if (t.id !== current.transportador_id) return t
-          const pontuacao = t.pontuacao + PONTOS_ADERENCIA.frete_fechado
-          return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
-        })
-        const hist = makeHistorico(
-          'lance_aceito',
-          `Lance aceito — carga ${cargaAtual.numero}`,
-          {
-            carga_id: current.carga_id,
-            transportador_id: current.transportador_id,
-            detalhe: `R$ ${current.valor.toFixed(2)}`,
-          },
-        )
-        return {
-          ...prev,
-          cargas,
-          lances,
-          transportadores,
-          historico: [hist, ...prev.historico].slice(0, 2000),
-        }
+      const prazoAloc = cargaAtual.prazo_alocacao_minutos ?? 10
+      const lances = prev.lances.map((l) => {
+        if (l.carga_id !== current.carga_id) return l
+        if (l.id === lanceId) return { ...l, status: 'vencedor' as const }
+        if (l.status === 'ativo') return { ...l, status: 'perdido' as const }
+        return l
       })
-      return { ok: true }
-    },
-    [state.lances, state.cargas],
-  )
+      const cargas = prev.cargas.map((c) =>
+        c.id === current.carga_id
+          ? {
+              ...c,
+              status: 'propostas' as const,
+              transportador_vencedor_id: current.transportador_id,
+              frete_fechado: current.valor,
+              expira_em: c.expira_em,
+              alocacao_expira_em: new Date(Date.now() + Math.max(prazoAloc, 10) * 60_000).toISOString(),
+            }
+          : c,
+      )
+      const transportadores = prev.transportadores.map((t) => {
+        if (t.id !== current.transportador_id) return t
+        const pontuacao = t.pontuacao + PONTOS_ADERENCIA.frete_fechado
+        return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
+      })
+      const hist = makeHistorico(
+        'lance_aceito',
+        `Lance aceito — carga ${cargaAtual.numero}`,
+        {
+          carga_id: current.carga_id,
+          transportador_id: current.transportador_id,
+          detalhe: `R$ ${current.valor.toFixed(2)}`,
+        },
+      )
+      result = { ok: true }
+      return {
+        ...prev,
+        cargas,
+        lances,
+        transportadores,
+        historico: [hist, ...prev.historico].slice(0, 2000),
+        notificacoes: pushNotif(prev.notificacoes, {
+          role: 'transportador',
+          transportador_id: current.transportador_id,
+          titulo: 'Frete fechado',
+          mensagem: `Sua proposta na carga ${cargaAtual.numero} foi aceita.`,
+          carga_id: current.carga_id,
+        }),
+      }
+    })
+    return result
+  }, [])
 
-  const rejeitarLance = useCallback(
-    (lanceId: string) => {
-      const lance = state.lances.find((l) => l.id === lanceId)
+  const rejeitarLance = useCallback((lanceId: string) => {
+    let result: { ok: boolean; error?: string } = {
+      ok: false,
+      error: 'Não foi possível rejeitar a proposta',
+    }
+    setState((prev) => {
+      const lance = prev.lances.find((l) => l.id === lanceId)
       if (!lance || lance.status !== 'ativo') {
-        return { ok: false, error: 'Proposta não encontrada ou já encerrada' }
+        result = { ok: false, error: 'Proposta não encontrada ou já encerrada' }
+        return prev
       }
-      if (state.cargas.find((c) => c.id === lance.carga_id)?.transportador_vencedor_id) {
-        return { ok: false, error: 'Frete já fechado' }
+      const carga = prev.cargas.find((c) => c.id === lance.carga_id)
+      if (carga?.transportador_vencedor_id) {
+        result = { ok: false, error: 'Frete já fechado' }
+        return prev
       }
-      setState((prev) => {
-        const carga = prev.cargas.find((c) => c.id === lance.carga_id)
-        const hist = makeHistorico('lance_rejeitado', `Lance rejeitado — ${carga?.numero ?? ''}`, {
-          carga_id: lance.carga_id,
+      const hist = makeHistorico('lance_rejeitado', `Lance rejeitado — ${carga?.numero ?? ''}`, {
+        carga_id: lance.carga_id,
+        transportador_id: lance.transportador_id,
+        detalhe: `R$ ${lance.valor.toFixed(2)}`,
+      })
+      result = { ok: true }
+      return {
+        ...prev,
+        lances: prev.lances.map((l) =>
+          l.id === lanceId ? { ...l, status: 'recusado' as const } : l,
+        ),
+        historico: [hist, ...prev.historico].slice(0, 2000),
+        notificacoes: pushNotif(prev.notificacoes, {
+          role: 'transportador',
           transportador_id: lance.transportador_id,
-          detalhe: `R$ ${lance.valor.toFixed(2)}`,
-        })
-        return {
-          ...prev,
-          lances: prev.lances.map((l) =>
-            l.id === lanceId ? { ...l, status: 'recusado' as const } : l,
-          ),
-          historico: [hist, ...prev.historico].slice(0, 2000),
-        }
-      })
-      return { ok: true }
-    },
-    [state.lances, state.cargas],
-  )
+          titulo: 'Proposta rejeitada',
+          mensagem: `Sua proposta na carga ${carga?.numero ?? ''} foi rejeitada.`,
+          carga_id: lance.carga_id,
+        }),
+      }
+    })
+    return result
+  }, [])
 
   const enviarContraProposta = useCallback(
     (lanceId: string, valor: number) => {
@@ -1203,11 +1223,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (ativos.length === 0) {
         return { ok: false, error: 'Não há propostas ativas para encerrar.' }
       }
-      if (config.empate_exige_aceite_manual && haEmpateDeValor(ativos)) {
+      if (
+        config.empate_exige_aceite_manual &&
+        haEmpateDeValor(ativos) &&
+        ativos.length >= 2
+      ) {
         return {
           ok: false,
           error:
-            'Há lances empatados no mesmo valor. Aceite manualmente um dos transportadores (desempate por ordem/classificação sugerido na lista).',
+            'Há lances empatados no mesmo valor. Aceite manualmente um dos transportadores.',
         }
       }
       return aceitarLance(ativos[0].id)
