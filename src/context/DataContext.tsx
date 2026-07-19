@@ -124,6 +124,14 @@ interface DataContextValue extends DataState, AuthState {
   rejeitarLance: (lanceId: string) => { ok: boolean; error?: string }
   encerrarComMelhorLance: (cargaId: string) => { ok: boolean; error?: string }
   finalizarNegociacao: (cargaId: string) => { ok: boolean; error?: string }
+  enviarContraProposta: (
+    lanceId: string,
+    valor: number,
+  ) => { ok: boolean; error?: string }
+  aguardarMelhoresOfertas: (
+    cargaId: string,
+    minutosExtra?: number,
+  ) => { ok: boolean; error?: string }
   cancelarPublicacao: (cargaId: string, motivo?: string) => { ok: boolean; error?: string }
   suspenderCarga: (cargaId: string) => { ok: boolean; error?: string }
   retomarCarga: (cargaId: string) => { ok: boolean; error?: string }
@@ -1064,6 +1072,125 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return { ok: true }
     },
     [state.lances, state.cargas],
+  )
+
+  const enviarContraProposta = useCallback(
+    (lanceId: string, valor: number) => {
+      const lance = state.lances.find((l) => l.id === lanceId)
+      if (!lance || lance.status !== 'ativo') {
+        return { ok: false, error: 'Proposta não encontrada ou já encerrada' }
+      }
+      const carga = state.cargas.find((c) => c.id === lance.carga_id)
+      if (!carga) return { ok: false, error: 'Carga não encontrada' }
+      if (carga.transportador_vencedor_id) {
+        return { ok: false, error: 'Frete já fechado' }
+      }
+      if (!['negociando', 'propostas'].includes(carga.status)) {
+        return { ok: false, error: 'Carga não está em negociação' }
+      }
+      if (!Number.isFinite(valor) || valor <= 0) {
+        return { ok: false, error: 'Informe um valor válido para a contra-proposta' }
+      }
+      const valorRound = Math.round(valor * 100) / 100
+      const tNome =
+        state.transportadores.find((t) => t.id === lance.transportador_id)?.nome_fantasia ??
+        'Transportador'
+      const now = new Date().toISOString()
+      setState((prev) => {
+        const msg = {
+          id: uid('msg'),
+          carga_id: carga.id,
+          autor_id: user?.id ?? 'embarcador',
+          autor_nome: user?.nome ?? 'Embarcador',
+          autor_role: (user?.role ?? 'minerva') as 'minerva' | 'transportador' | 'super',
+          texto: `Contra-proposta para ${tNome}: R$ ${valorRound.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (sua oferta era R$ ${lance.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}).`,
+          created_at: now,
+        }
+        return {
+          ...prev,
+          cargas: prev.cargas.map((c) =>
+            c.id === carga.id
+              ? {
+                  ...c,
+                  frete_oferta: valorRound,
+                  status: 'propostas' as const,
+                  updated_at: now,
+                }
+              : c,
+          ),
+          mensagens: [...(prev.mensagens ?? []), msg],
+          historico: [
+            makeHistorico(
+              'contra_proposta',
+              `Contra-proposta — ${carga.numero}`,
+              {
+                carga_id: carga.id,
+                transportador_id: lance.transportador_id,
+                detalhe: `R$ ${lance.valor.toFixed(2)} → R$ ${valorRound.toFixed(2)}`,
+              },
+              user,
+            ),
+            ...prev.historico,
+          ].slice(0, 2000),
+          notificacoes: pushNotif(prev.notificacoes, {
+            role: 'transportador',
+            transportador_id: lance.transportador_id,
+            titulo: 'Contra-proposta recebida',
+            mensagem: `Carga ${carga.numero}: embarcador sugere R$ ${valorRound.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`,
+            carga_id: carga.id,
+          }),
+        }
+      })
+      return { ok: true }
+    },
+    [state.lances, state.cargas, state.transportadores, user],
+  )
+
+  const aguardarMelhoresOfertas = useCallback(
+    (cargaId: string, minutosExtra = 10) => {
+      const carga = state.cargas.find((c) => c.id === cargaId)
+      if (!carga) return { ok: false, error: 'Carga não encontrada' }
+      if (carga.transportador_vencedor_id) {
+        return { ok: false, error: 'Frete já fechado' }
+      }
+      if (!['negociando', 'propostas'].includes(carga.status)) {
+        return { ok: false, error: 'Carga não está em negociação aberta' }
+      }
+      const base = carga.expira_em ? new Date(carga.expira_em).getTime() : Date.now()
+      const novoExpira = new Date(Math.max(base, Date.now()) + minutosExtra * 60_000).toISOString()
+      setState((prev) => ({
+        ...prev,
+        cargas: prev.cargas.map((c) =>
+          c.id === cargaId
+            ? {
+                ...c,
+                expira_em: novoExpira,
+                updated_at: new Date().toISOString(),
+              }
+            : c,
+        ),
+        historico: [
+          makeHistorico(
+            'aguardar_ofertas',
+            `Aguardando melhores ofertas — ${carga.numero}`,
+            {
+              carga_id: cargaId,
+              detalhe: `Janela estendida em ${minutosExtra} min`,
+            },
+            user,
+          ),
+          ...prev.historico,
+        ].slice(0, 2000),
+        notificacoes: pushNotif(prev.notificacoes, {
+          role: 'todos',
+          titulo: 'Embarcador aguarda melhores ofertas',
+          mensagem: `Carga ${carga.numero}: prazo estendido em ${minutosExtra} min.`,
+          carga_id: cargaId,
+        }),
+      }))
+      return { ok: true }
+    },
+    [state.cargas, user],
   )
 
   const encerrarComMelhorLance = useCallback(
@@ -2108,6 +2235,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       enviarLance,
       aceitarLance,
       rejeitarLance,
+      enviarContraProposta,
+      aguardarMelhoresOfertas,
       encerrarComMelhorLance,
       finalizarNegociacao,
       cancelarPublicacao,
@@ -2164,6 +2293,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       enviarLance,
       aceitarLance,
       rejeitarLance,
+      enviarContraProposta,
+      aguardarMelhoresOfertas,
       encerrarComMelhorLance,
       finalizarNegociacao,
       cancelarPublicacao,

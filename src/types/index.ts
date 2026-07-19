@@ -266,6 +266,8 @@ export type TipoHistorico =
   | 'lance_enviado'
   | 'lance_aceito'
   | 'lance_rejeitado'
+  | 'contra_proposta'
+  | 'aguardar_ofertas'
   | 'negociacao_finalizada'
   | 'frete_recusado'
   | 'carga_alocada'

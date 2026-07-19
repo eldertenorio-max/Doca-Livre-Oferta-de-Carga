@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Check, Clock, Handshake, Hourglass, X } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import {
   MOTIVOS_PRIORIDADE_ALTA,
@@ -6,15 +7,24 @@ import {
   calcularPrioridadeEModo,
   formatCurrency,
   formatDateTime,
+  formatMoneyInput,
   formatNumber,
   formatPrazoLabel,
+  parseMoneyInput,
   tempoRestante,
 } from '../../lib/businessRules'
 import { prazosAlocacaoPermitidos, prazosOfertaPermitidos } from '../../lib/configNegocio'
 import { canEditModulo } from '../../lib/portalModules'
-import type { Carga, Transportador } from '../../types'
+import type { Carga, ClassificacaoTransportador, Transportador } from '../../types'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
 import { CargaDadosForm } from './CargaDadosForm'
+
+function classBadge(c?: ClassificacaoTransportador | null) {
+  if (c === 'ouro') return 'bg-[#e8c547]/30 text-[#7a6200] border-[#e8c547]'
+  if (c === 'prata') return 'bg-slate-200 text-slate-700 border-slate-300'
+  if (c === 'bronze') return 'bg-[#e8b48a]/35 text-[#7a4010] border-[#d4925a]'
+  return 'bg-sand-light text-ink-muted border-ink/10'
+}
 
 type PanelTab = 'dados' | 'publicar'
 
@@ -48,6 +58,8 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
     transportadorById,
     aceitarLance,
     rejeitarLance,
+    enviarContraProposta,
+    aguardarMelhoresOfertas,
     encerrarComMelhorLance,
     finalizarNegociacao,
     cancelarPublicacao,
@@ -82,6 +94,8 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
   const [observacao, setObservacao] = useState('')
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
+  const [contraLanceId, setContraLanceId] = useState<string | null>(null)
+  const [contraValor, setContraValor] = useState('')
 
   useEffect(() => {
     if (!carga) return
@@ -282,7 +296,38 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
     else setInfo('Negociação reaberta com novo prazo.')
   }
 
+  function openContraProposta(lanceId: string, valorAtual: number) {
+    setContraLanceId(lanceId)
+    setContraValor(formatMoneyInput(valorAtual))
+    setError('')
+  }
+
+  function handleContraProposta() {
+    if (!canEdit || !contraLanceId) return
+    setError('')
+    setInfo('')
+    const num = parseMoneyInput(contraValor)
+    const res = enviarContraProposta(contraLanceId, num)
+    if (!res.ok) setError(res.error ?? 'Falha na contra-proposta')
+    else {
+      setInfo('Contra-proposta enviada ao transportador (chat + notificação).')
+      setContraLanceId(null)
+    }
+  }
+
+  function handleAguardarMelhores() {
+    if (!canEdit) return
+    setError('')
+    setInfo('')
+    const res = aguardarMelhoresOfertas(carga!.id, 10)
+    if (!res.ok) setError(res.error ?? 'Não foi possível estender a janela')
+    else setInfo('Janela estendida em 10 min. Aguardando ofertas melhores.')
+  }
+
   const histPropostas = carga ? historicoPropostasDaCarga(carga.id) : []
+  const lancesAtivos = lances.filter((l) => l.status === 'ativo')
+  const melhorLance = lancesAtivos[0]
+  const idsComProposta = new Set(lancesAtivos.map((l) => l.transportador_id))
 
   const classColor =
     classificacao === 'A' ? 'bg-emerald-500' : classificacao === 'B' ? 'bg-amber-500' : 'bg-brand'
@@ -614,7 +659,7 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
                         .map((id) => grupos.find((g) => g.id === id)?.descricao ?? id)
                         .join(', ')}
                 </p>
-                <p className="mb-1 font-semibold text-ink">
+                <p className="mb-2 font-semibold text-ink">
                   Negociando agora ({negociadoresAtivos.length})
                 </p>
                 {negociadoresAtivos.length === 0 ? (
@@ -622,13 +667,42 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
                     Nenhum transportador notificado. Publique com grupos ou use “Notificar todos”.
                   </p>
                 ) : (
-                  <ul className="mb-2 list-inside list-disc text-ink-muted">
-                    {negociadoresAtivos.map((t) => (
-                      <li key={t.id}>
-                        {t.nome_fantasia}{' '}
-                        <span className="uppercase">({t.classificacao})</span>
-                      </li>
-                    ))}
+                  <ul className="mb-2 space-y-1.5">
+                    {negociadoresAtivos.map((t) => {
+                      const propôs = idsComProposta.has(t.id)
+                      const lanceT = lancesAtivos.find((l) => l.transportador_id === t.id)
+                      return (
+                        <li
+                          key={t.id}
+                          className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2 ${
+                            propôs
+                              ? 'border-emerald-400 bg-emerald-50 shadow-sm'
+                              : 'border-ink/8 bg-sand-light/40'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-ink">{t.nome_fantasia}</p>
+                            <span
+                              className={`mt-0.5 inline-block rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase ${classBadge(t.classificacao)}`}
+                            >
+                              {t.classificacao}
+                            </span>
+                          </div>
+                          {propôs && lanceT ? (
+                            <div className="shrink-0 text-right">
+                              <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                                Propôs
+                              </p>
+                              <p className="font-display text-sm font-bold text-ink">
+                                {formatCurrency(lanceT.valor)}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="shrink-0 text-[10px] text-ink-muted">Sem lance</span>
+                          )}
+                        </li>
+                      )
+                    })}
                   </ul>
                 )}
                 {negociadoresPendentes.length > 0 && (
@@ -666,109 +740,178 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
                 </div>
                 <div>
                   <p className="text-ink-muted">Propostas</p>
-                  <p className="font-display text-xl font-bold">{lances.length}</p>
+                  <p className="font-display text-xl font-bold text-emerald-700">
+                    {lancesAtivos.length}
+                  </p>
                 </div>
               </div>
 
-              <div>
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs font-semibold text-ink-muted">Propostas recebidas</p>
-                  <div className="flex flex-wrap gap-2">
-                    {canEdit &&
-                      emNegociacao &&
-                      !carga.transportador_vencedor_id &&
-                      lances.some((l) => l.status === 'ativo') && (
-                        <button
-                          type="button"
-                          className="text-[10px] font-bold text-emerald-700 hover:underline"
-                          onClick={handleEncerrar}
-                        >
-                          Aceitar melhor
-                        </button>
-                      )}
-                    {canEdit && emNegociacao && !carga.transportador_vencedor_id && (
+              {/* Ações globais de negociação */}
+              {canEdit && emNegociacao && (
+                <div className="space-y-2 rounded-xl border border-ink/10 bg-ink p-3 text-white">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#e8c547]">
+                    Decisões da negociação
+                  </p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {melhorLance && (
                       <button
                         type="button"
-                        className="text-[10px] font-bold text-brand hover:underline"
-                        onClick={handleFinalizar}
+                        onClick={handleEncerrar}
+                        className="flex items-center gap-2 rounded-lg bg-emerald-500 px-3 py-2.5 text-left text-sm font-bold text-white transition hover:bg-emerald-600"
                       >
-                        Finalizar
+                        <Check size={18} strokeWidth={2.5} />
+                        <span className="flex-1">
+                          Aceitar melhor oferta
+                          <span className="mt-0.5 block text-[11px] font-medium text-white/90">
+                            {transportadorById(melhorLance.transportador_id)?.nome_fantasia} ·{' '}
+                            {formatCurrency(melhorLance.valor)}
+                          </span>
+                        </span>
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={handleAguardarMelhores}
+                      className="flex items-center gap-2 rounded-lg bg-[#e8c547] px-3 py-2.5 text-left text-sm font-bold text-ink transition hover:bg-[#f0d44a]"
+                    >
+                      <Hourglass size={18} strokeWidth={2.4} />
+                      <span className="flex-1">
+                        Esperar ofertas melhores
+                        <span className="mt-0.5 block text-[11px] font-medium text-ink/70">
+                          Estende a janela em 10 minutos
+                        </span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleFinalizar}
+                      className="flex items-center gap-2 rounded-lg border border-white/25 bg-white/10 px-3 py-2 text-left text-xs font-semibold text-white transition hover:bg-white/15"
+                    >
+                      <Clock size={16} />
+                      Finalizar negociação
+                      {lancesAtivos.length === 0 ? ' (sem vencedor)' : ' (aceita a melhor)'}
+                    </button>
                   </div>
                 </div>
+              )}
+
+              <div>
+                <p className="mb-2 text-xs font-semibold text-ink">
+                  Propostas recebidas ({lances.length})
+                </p>
                 {carga.observacao && (
                   <p className="mb-2 rounded bg-sand-light/60 p-2 text-[11px] text-ink-muted">
                     <strong>Obs:</strong> {carga.observacao}
                   </p>
                 )}
                 {lances.length === 0 ? (
-                  <p className="text-xs text-ink-muted">
+                  <p className="rounded-lg border border-dashed border-ink/15 bg-sand-light/40 px-3 py-4 text-center text-xs text-ink-muted">
                     Nenhum lance ainda. Os transportadores listados acima veem esta carga no Kanban
                     deles.
                   </p>
                 ) : (
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-ink/10 text-left text-ink-muted">
-                        <th className="py-1">#</th>
-                        <th>Transportadora</th>
-                        <th>Classe</th>
-                        <th>Lance</th>
-                        <th>Data/Hora</th>
-                        <th />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {lances.map((l, idx) => {
-                        const t = transportadorById(l.transportador_id)
-                        return (
-                          <tr key={l.id} className="border-b border-ink/5">
-                            <td className="py-2 pr-1">{idx + 1}º</td>
-                            <td className="py-2 pr-1">{t?.nome_fantasia ?? '—'}</td>
-                            <td className="uppercase">{t?.classificacao ?? '—'}</td>
-                            <td className="font-semibold">{formatCurrency(l.valor)}</td>
-                            <td className="whitespace-nowrap text-[10px] text-ink-muted">
-                              {formatDateTime(l.updated_at ?? l.created_at)}
-                            </td>
-                            <td className="space-x-1 whitespace-nowrap">
-                              {canEdit &&
-                                l.status === 'ativo' &&
-                                !carga.transportador_vencedor_id && (
-                                  <>
-                                    <button
-                                      type="button"
-                                      className="text-[10px] font-bold text-emerald-700 hover:underline"
-                                      onClick={() => handleAceitar(l.id)}
-                                    >
-                                      Aceitar
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="text-[10px] font-bold text-brand hover:underline"
-                                      onClick={() => handleRejeitar(l.id)}
-                                    >
-                                      Rejeitar
-                                    </button>
-                                  </>
-                                )}
-                              {l.status === 'vencedor' && (
-                                <span className="text-[10px] font-bold text-emerald-700">
-                                  Vencedor
+                  <ul className="space-y-2.5">
+                    {lances.map((l, idx) => {
+                      const t = transportadorById(l.transportador_id)
+                      const isMelhor = l.status === 'ativo' && idx === 0
+                      const isVencedor = l.status === 'vencedor'
+                      return (
+                        <li
+                          key={l.id}
+                          className={`rounded-xl border p-3 shadow-sm transition ${
+                            isVencedor
+                              ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-400/40'
+                              : isMelhor
+                                ? 'border-[#e8c547] bg-[#fffbeb] ring-2 ring-[#e8c547]/50'
+                                : l.status === 'ativo'
+                                  ? 'border-ink/12 bg-white'
+                                  : 'border-ink/8 bg-sand-light/50 opacity-80'
+                          }`}
+                        >
+                          <div className="mb-2 flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span
+                                  className={`inline-flex h-6 min-w-6 items-center justify-center rounded-md text-[11px] font-bold ${
+                                    isMelhor || isVencedor
+                                      ? 'bg-ink text-[#e8c547]'
+                                      : 'bg-ink/10 text-ink'
+                                  }`}
+                                >
+                                  {idx + 1}º
                                 </span>
-                              )}
-                              {l.status === 'perdido' && (
-                                <span className="text-[10px] text-ink-muted">Perdeu</span>
-                              )}
-                              {l.status === 'recusado' && (
-                                <span className="text-[10px] text-brand">Rejeitado</span>
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
+                                {(isMelhor || isVencedor) && (
+                                  <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+                                    {isVencedor ? 'Vencedor' : 'Melhor oferta'}
+                                  </span>
+                                )}
+                                {l.status === 'perdido' && (
+                                  <span className="text-[10px] font-semibold text-ink-muted">
+                                    Perdeu
+                                  </span>
+                                )}
+                                {l.status === 'recusado' && (
+                                  <span className="text-[10px] font-semibold text-red-600">
+                                    Rejeitado
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-1.5 truncate font-display text-[15px] font-bold text-ink">
+                                {t?.nome_fantasia ?? 'Transportadora'}
+                              </p>
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                <span
+                                  className={`rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase ${classBadge(t?.classificacao)}`}
+                                >
+                                  {t?.classificacao ?? '—'}
+                                </span>
+                                <span className="text-[10px] text-ink-muted">
+                                  {formatDateTime(l.updated_at ?? l.created_at)}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p className="text-[10px] font-semibold uppercase text-ink-muted">
+                                Lance
+                              </p>
+                              <p className="font-display text-lg font-bold tabular-nums text-ink">
+                                {formatCurrency(l.valor)}
+                              </p>
+                            </div>
+                          </div>
+
+                          {canEdit && l.status === 'ativo' && !carga.transportador_vencedor_id && (
+                            <div className="grid grid-cols-3 gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleAceitar(l.id)}
+                                className="inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 py-2 text-[11px] font-bold text-white hover:bg-emerald-700"
+                              >
+                                <Check size={14} strokeWidth={2.5} />
+                                Aceitar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openContraProposta(l.id, l.valor)}
+                                className="inline-flex items-center justify-center gap-1 rounded-lg bg-[#e8c547] px-2 py-2 text-[11px] font-bold text-ink hover:bg-[#f0d44a]"
+                              >
+                                <Handshake size={14} strokeWidth={2.4} />
+                                Contra
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRejeitar(l.id)}
+                                className="inline-flex items-center justify-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-2 text-[11px] font-bold text-red-700 hover:bg-red-100"
+                              >
+                                <X size={14} strokeWidth={2.5} />
+                                Rejeitar
+                              </button>
+                            </div>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
                 )}
               </div>
 
@@ -849,6 +992,49 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
           )}
         </div>
       </aside>
+
+      <Modal
+        open={Boolean(contraLanceId)}
+        title="Contra-proposta"
+        onClose={() => setContraLanceId(null)}
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-ink-muted">
+            Informe o valor sugerido ao transportador. Ele recebe no chat e nas notificações.
+          </p>
+          {contraLanceId && (
+            <p className="rounded-lg bg-sand-light/70 px-3 py-2 text-xs text-ink">
+              Oferta atual:{' '}
+              <strong>
+                {formatCurrency(
+                  lances.find((l) => l.id === contraLanceId)?.valor ?? 0,
+                )}
+              </strong>
+              {' · '}
+              {transportadorById(
+                lances.find((l) => l.id === contraLanceId)?.transportador_id ?? '',
+              )?.nome_fantasia ?? '—'}
+            </p>
+          )}
+          <Field label="Valor da contra-proposta (R$)">
+            <input
+              className={inputClass}
+              value={contraValor}
+              onChange={(e) => setContraValor(formatMoneyInput(parseMoneyInput(e.target.value)))}
+              placeholder="0,00"
+            />
+          </Field>
+          {error && <p className="text-xs text-red-600">{error}</p>}
+          <div className="flex gap-2">
+            <Button variant="ghost" className="flex-1" onClick={() => setContraLanceId(null)}>
+              Cancelar
+            </Button>
+            <Button className="flex-1" onClick={handleContraProposta}>
+              Enviar contra-proposta
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={showJustificativa}
