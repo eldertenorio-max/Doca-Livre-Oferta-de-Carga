@@ -49,8 +49,11 @@ export function CompanySplash({ onComplete }: Props) {
         <div className="company-splash__brand">
           <img
             src={LOGO_DOCA_LIVRE_SRC}
-            alt=""
+            alt="DOCA LIVRE"
             className="intro-logo company-splash__logo"
+            width={320}
+            height={120}
+            decoding="async"
           />
           <ProductMark size="lg" className="company-splash__mark" />
         </div>

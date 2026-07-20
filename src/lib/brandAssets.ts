@@ -1,4 +1,7 @@
-export const LOGO_DOCA_LIVRE_SRC = '/logo-doca-livre.png'
+import logoDocaLivre from '../assets/logo-doca-livre.png'
+
+/** Logo embutida no bundle (Vite) — não depende de /public no deploy. */
+export const LOGO_DOCA_LIVRE_SRC = logoDocaLivre
 export const BRAND_COMPANY_NAME = 'DOCA LIVRE'
 export const BRAND_PRODUCT_NAME = 'Oferta'
 export const BRAND_PRODUCT_VARIANT = 'carga'
