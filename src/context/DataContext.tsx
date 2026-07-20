@@ -10,9 +10,7 @@ import {
 } from 'react'
 import {
   DEMO_USERS,
-  SEED_CARGAS,
   SEED_GRUPOS,
-  SEED_LANCES,
   SEED_MOTORISTAS,
   SEED_ROTAS,
   SEED_TRANSPORTADORES,
@@ -86,10 +84,12 @@ import {
 } from '../lib/kanbanSync'
 import { alinharStatusComLances } from '../lib/kanbanColumns'
 
-const STORAGE_KEY = 'doca-livre-data-v7'
-const STORAGE_KEY_LEGACY = 'doca-livre-data-v6'
-const STORAGE_KEY_LEGACY2 = 'doca-livre-data-v5'
+const STORAGE_KEY = 'doca-livre-data-v8'
+const STORAGE_KEY_LEGACY = 'doca-livre-data-v7'
+const STORAGE_KEY_LEGACY2 = 'doca-livre-data-v6'
 const AUTH_KEY = 'doca-livre-auth-v1'
+/** Uma vez: zera Kanban (cargas/lances) ao migrar para v8 */
+const KANBAN_WIPE_KEY = 'doca-livre-kanban-wipe-v8'
 
 interface PublishPayload {
   cargaId: string
@@ -220,8 +220,9 @@ const DataContext = createContext<DataContextValue | null>(null)
 
 function defaultState(): DataState {
   return {
-    cargas: structuredClone(SEED_CARGAS).map(normalizeCarga),
-    lances: structuredClone(SEED_LANCES),
+    // Kanban começa vazio — cadastros (grupos, rotas, transportadores) permanecem
+    cargas: [],
+    lances: [],
     transportadores: structuredClone(SEED_TRANSPORTADORES),
     veiculos: structuredClone(SEED_VEICULOS),
     motoristas: structuredClone(SEED_MOTORISTAS).map(normalizeMotorista),
@@ -328,7 +329,7 @@ function cancelarLancesDaCarga(lances: Lance[], cargaId: string, nowIso: string)
   )
 }
 
-/** Garante grupos com t1 (Santos) e ao menos uma oferta aberta para o demo. */
+/** Garante grupos com t1 (Santos); não reabre cargas automaticamente. */
 function ensureDemoOfertasVisiveis(state: DataState): DataState {
   const DEMO_TID = 't1'
   let grupos = state.grupos.map((g) => {
@@ -341,68 +342,8 @@ function ensureDemoOfertasVisiveis(state: DataState): DataState {
     grupos = structuredClone(SEED_GRUPOS)
   }
 
-  const gruposAtivos = grupos.filter((g) => g.situacao === 'ativo').map((g) => g.id)
-  const now = Date.now()
   let cargas = normalizeCargasNegociacao(state.cargas, grupos)
   let lances = cancelarLancesForaDaRodada(cargas, state.lances)
-  let reabriuDemo = false
-
-  const abertas = cargas.filter(
-    (c) =>
-      ['negociando', 'propostas', 'suspensas'].includes(c.status) &&
-      !c.transportador_vencedor_id &&
-      Boolean(c.publicado_em),
-  )
-
-  if (abertas.length === 0 && gruposAtivos.length > 0) {
-    // Reabre a carga publicada mais recente (ou seed) para o transportador voltar a ver ofertas
-    const candidata =
-      [...cargas]
-        .filter((c) => c.publicado_em || c.grupo_ids?.length)
-        .sort((a, b) => {
-          const ta = new Date(a.updated_at ?? a.publicado_em ?? a.created_at).getTime()
-          const tb = new Date(b.updated_at ?? b.publicado_em ?? b.created_at).getTime()
-          return tb - ta
-        })[0] ?? cargas.find((c) => c.id === 'c2')
-
-    if (candidata) {
-      const prazo = candidata.prazo_leilao_minutos ?? 60
-      const publicadoEm = new Date(now).toISOString()
-      reabriuDemo = true
-      cargas = cargas.map((c) =>
-        c.id === candidata.id
-          ? {
-              ...c,
-              status: 'negociando' as const,
-              transportador_vencedor_id: null,
-              frete_fechado: null,
-              placa: null,
-              motorista: null,
-              veiculo_id: null,
-              motorista_id: null,
-              alocacao_expira_em: null,
-              pausado_em: null,
-              tempo_restante_ms: null,
-              grupo_ids: c.grupo_ids?.length ? c.grupo_ids : [...gruposAtivos],
-              grupos_notificados: c.grupo_ids?.length ? [...c.grupo_ids] : [...gruposAtivos],
-              publicado_em: publicadoEm,
-              expira_em: new Date(now + prazo * 60_000).toISOString(),
-              modo_publicacao: c.modo_publicacao ?? 'leilao',
-              frete_oferta: c.frete_oferta ?? c.frete_tabela,
-              updated_at: publicadoEm,
-            }
-          : c,
-      )
-      // Nova rodada demo: zera lances antigos para cair em Nova Carga
-      lances = cancelarLancesDaCarga(lances, candidata.id, publicadoEm)
-    }
-  }
-
-  if (!reabriuDemo) {
-    lances = cancelarLancesForaDaRodada(cargas, lances)
-  }
-
-  // Alinha status do Kanban com lances da rodada atual
   cargas = alinharStatusComLances(cargas, lances)
 
   let transportadores = state.transportadores
@@ -416,9 +357,25 @@ function ensureDemoOfertasVisiveis(state: DataState): DataState {
   return { ...state, cargas, lances, grupos, transportadores }
 }
 
+function wipeKanbanFields<T extends DataState>(state: T): T {
+  return {
+    ...state,
+    cargas: [],
+    lances: [],
+    historicoPropostas: [],
+    mensagens: [],
+    notificacoes: [],
+    historico: [],
+    integracoes: [],
+    interacoes: [],
+    chatLeituras: {},
+  }
+}
+
 function loadState(): DataState {
   const defaults = defaultState()
   try {
+    const hasV8 = Boolean(localStorage.getItem(STORAGE_KEY))
     const raw =
       localStorage.getItem(STORAGE_KEY) ??
       localStorage.getItem(STORAGE_KEY_LEGACY) ??
@@ -429,7 +386,7 @@ function loadState(): DataState {
     const cargasRaw = Array.isArray(parsed.cargas)
       ? parsed.cargas.map(normalizeCarga)
       : defaults.cargas
-    const loaded: DataState = {
+    let loaded: DataState = {
       cargas: normalizeCargasNegociacao(cargasRaw, grupos),
       lances: Array.isArray(parsed.lances) ? parsed.lances : defaults.lances,
       transportadores: Array.isArray(parsed.transportadores)
@@ -456,6 +413,10 @@ function loadState(): DataState {
         parsed.chatLeituras && typeof parsed.chatLeituras === 'object'
           ? (parsed.chatLeituras as Record<string, string>)
           : {},
+    }
+    // Migração v8: zera cargas publicadas, propostas e chat do Kanban
+    if (!hasV8) {
+      loaded = wipeKanbanFields(loaded)
     }
     return ensureDemoOfertasVisiveis(loaded)
   } catch {
@@ -525,23 +486,41 @@ export function DataProvider({ children }: { children: ReactNode }) {
     scheduleKanbanPush(state)
   }, [state, scheduleKanbanPush])
 
-  // Sync multi-usuário: puxa do Supabase + escuta Realtime (+ abas no mesmo PC)
+  // Sync multi-usuário: zera Kanban remoto uma vez (v8), depois puxa/escuta
   useEffect(() => {
     let cancelled = false
 
     void (async () => {
-      const remote = await pullKanbanSync()
-      if (cancelled || !remote?.slice?.cargas) return
-      applyingRemoteRef.current = true
-      lastSyncFpRef.current = sliceFingerprint(remote.slice)
-      setState((prev) => {
-        const next = applySyncSlice(prev, remote.slice)
-        stateRef.current = next
-        return next
-      })
-      window.setTimeout(() => {
+      const alreadyWiped = localStorage.getItem(KANBAN_WIPE_KEY) === '1'
+      if (!alreadyWiped) {
+        applyingRemoteRef.current = true
+        setState((prev) => {
+          const next = wipeKanbanFields(prev)
+          stateRef.current = next
+          return next
+        })
+        localStorage.setItem(KANBAN_WIPE_KEY, '1')
+        const slice = pickSyncSlice(stateRef.current)
+        lastSyncFpRef.current = sliceFingerprint(slice)
+        await pushKanbanSync(slice)
         applyingRemoteRef.current = false
-      }, 0)
+      } else {
+        const remote = await pullKanbanSync()
+        if (cancelled || !remote?.slice?.cargas) {
+          /* keep local */
+        } else {
+          applyingRemoteRef.current = true
+          lastSyncFpRef.current = sliceFingerprint(remote.slice)
+          setState((prev) => {
+            const next = applySyncSlice(prev, remote.slice)
+            stateRef.current = next
+            return next
+          })
+          window.setTimeout(() => {
+            applyingRemoteRef.current = false
+          }, 0)
+        }
+      }
     })()
 
     const unsub = subscribeKanbanSync((payload) => {
