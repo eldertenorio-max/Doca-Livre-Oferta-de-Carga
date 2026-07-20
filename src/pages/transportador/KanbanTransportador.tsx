@@ -162,9 +162,8 @@ export function KanbanTransportador() {
       {tid && cargas.length === 0 && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
           Nenhuma oferta visível para <strong>{nomeVista}</strong>. Publique uma carga no Kanban
-          Minerva (com grupos que incluam esta transportadora) e{' '}
-          <strong>recarregue esta página</strong> (F5). Os dados ficam neste navegador
-          (localStorage).
+          Minerva (com grupos que incluam esta transportadora). O Kanban atualiza sozinho quando
+          alguém publica ou dá lance (sync em tempo real).
         </p>
       )}
 

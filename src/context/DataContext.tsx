@@ -76,6 +76,14 @@ import {
   syncTransportadoraNaHierarquia,
 } from '../lib/orgHierarchy'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
+import {
+  applySyncSlice,
+  pickSyncSlice,
+  pullKanbanSync,
+  pushKanbanSync,
+  sliceFingerprint,
+  subscribeKanbanSync,
+} from '../lib/kanbanSync'
 
 const STORAGE_KEY = 'doca-livre-data-v7'
 const STORAGE_KEY_LEGACY = 'doca-livre-data-v6'
@@ -484,6 +492,37 @@ export function DataProvider({ children }: { children: ReactNode }) {
   stateRef.current = state
   const userRef = useRef(user)
   userRef.current = user
+  const applyingRemoteRef = useRef(false)
+  const lastSyncFpRef = useRef('')
+  const pushTimerRef = useRef<number | null>(null)
+
+  const flushKanbanPush = useCallback((next: typeof state) => {
+    if (!isSupabaseConfigured || applyingRemoteRef.current) return
+    const slice = pickSyncSlice(next)
+    const fp = sliceFingerprint(slice)
+    if (fp === lastSyncFpRef.current) return
+    lastSyncFpRef.current = fp
+    if (pushTimerRef.current != null) {
+      window.clearTimeout(pushTimerRef.current)
+      pushTimerRef.current = null
+    }
+    void pushKanbanSync(slice)
+  }, [])
+
+  const scheduleKanbanPush = useCallback(
+    (next: typeof state) => {
+      if (!isSupabaseConfigured || applyingRemoteRef.current) return
+      const slice = pickSyncSlice(next)
+      const fp = sliceFingerprint(slice)
+      if (fp === lastSyncFpRef.current) return
+      if (pushTimerRef.current != null) window.clearTimeout(pushTimerRef.current)
+      pushTimerRef.current = window.setTimeout(() => {
+        pushTimerRef.current = null
+        flushKanbanPush(next)
+      }, 200)
+    },
+    [flushKanbanPush],
+  )
 
   const effectiveTransportadorId = useCallback(() => {
     return user?.transportador_id || actingTransportadorId || null
@@ -491,7 +530,82 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  }, [state])
+    scheduleKanbanPush(state)
+  }, [state, scheduleKanbanPush])
+
+  // Sync multi-usuário: puxa do Supabase + escuta Realtime (+ abas no mesmo PC)
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      const remote = await pullKanbanSync()
+      if (cancelled || !remote?.slice?.cargas) return
+      applyingRemoteRef.current = true
+      lastSyncFpRef.current = sliceFingerprint(remote.slice)
+      setState((prev) => {
+        const next = applySyncSlice(prev, remote.slice)
+        stateRef.current = next
+        return next
+      })
+      window.setTimeout(() => {
+        applyingRemoteRef.current = false
+      }, 0)
+    })()
+
+    const unsub = subscribeKanbanSync((payload) => {
+      applyingRemoteRef.current = true
+      lastSyncFpRef.current = sliceFingerprint(payload.slice)
+      setState((prev) => {
+        const next = applySyncSlice(prev, payload.slice)
+        stateRef.current = next
+        return next
+      })
+      window.setTimeout(() => {
+        applyingRemoteRef.current = false
+      }, 0)
+    })
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== STORAGE_KEY || !e.newValue) return
+      try {
+        const parsed = JSON.parse(e.newValue) as Partial<DataState>
+        if (!Array.isArray(parsed.cargas)) return
+        const slice = pickSyncSlice({
+          cargas: parsed.cargas,
+          lances: parsed.lances ?? [],
+          grupos: parsed.grupos ?? [],
+          transportadores: parsed.transportadores ?? [],
+          notificacoes: parsed.notificacoes ?? [],
+          mensagens: parsed.mensagens ?? [],
+          historico: parsed.historico ?? [],
+          historicoPropostas: parsed.historicoPropostas ?? [],
+          chatLeituras: parsed.chatLeituras ?? {},
+        })
+        const fp = sliceFingerprint(slice)
+        if (fp === lastSyncFpRef.current) return
+        applyingRemoteRef.current = true
+        lastSyncFpRef.current = fp
+        setState((prev) => {
+          const next = applySyncSlice(prev, slice)
+          stateRef.current = next
+          return next
+        })
+        window.setTimeout(() => {
+          applyingRemoteRef.current = false
+        }, 0)
+      } catch {
+        /* ignore */
+      }
+    }
+    window.addEventListener('storage', onStorage)
+
+    return () => {
+      cancelled = true
+      unsub()
+      window.removeEventListener('storage', onStorage)
+      if (pushTimerRef.current != null) window.clearTimeout(pushTimerRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     saveConfigNegocio(config)
@@ -930,9 +1044,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
       stateRef.current = next
       setState(next)
+      flushKanbanPush(next)
       return { ok: true }
     },
-    [config],
+    [config, flushKanbanPush],
   )
 
   const notificarTodosGrupos = useCallback((cargaId: string) => {
@@ -1080,6 +1195,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }
         stateRef.current = next
         setState(next)
+        flushKanbanPush(next)
         return { ok: true }
       }
 
@@ -1174,9 +1290,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
       stateRef.current = next
       setState(next)
+      flushKanbanPush(next)
       return { ok: true }
     },
-    [actingTransportadorId],
+    [actingTransportadorId, flushKanbanPush],
   )
 
   const aceitarLance = useCallback((lanceId: string) => {
