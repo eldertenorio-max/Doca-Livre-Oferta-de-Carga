@@ -35,6 +35,32 @@ function descricaoRota(origem: string, destino: string) {
   return `${o} - ${d}`
 }
 
+const SUGESTOES_TIPO_CARGA = [
+  'COMERCIAL - SECO',
+  'COMERCIAL - CONG',
+  'COMERCIAL - CONG - CTRN',
+  'COMERCIAL - REFRIGERADO',
+  'COMERCIAL - FRIGORIFICADO',
+  'INDUSTRIAL - SECO',
+  'GRANEL',
+  'PERIGOSA',
+  'PALLETIZADA',
+]
+
+const SUGESTOES_VEICULO = [
+  'CARRETA BAU',
+  'CARRETA (CONTAINER 40)',
+  'CARRETA (CONTAINER 20)',
+  'CARRETA SIDER',
+  'CARRETA GRADE BAIXA',
+  'BITREM',
+  'RODOTREM',
+  'TRUCK',
+  'TOCO',
+  'VUC',
+  '3/4',
+]
+
 export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) {
   const { rotas, atualizarCarga, salvarRota } = useData()
   const rotasAtivas = rotas.filter((r) => r.situacao === 'ativo')
@@ -401,14 +427,30 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
             className={inputClass}
             value={tipoCarga}
             onChange={(e) => setTipoCarga(e.target.value)}
+            list="sugestoes-tipo-carga"
+            placeholder="Escolha ou digite…"
+            autoComplete="off"
           />
+          <datalist id="sugestoes-tipo-carga">
+            {SUGESTOES_TIPO_CARGA.map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
         </Field>
         <Field label="Veículo">
           <input
             className={inputClass}
             value={veiculo}
             onChange={(e) => setVeiculo(e.target.value)}
+            list="sugestoes-veiculo"
+            placeholder="Escolha ou digite…"
+            autoComplete="off"
           />
+          <datalist id="sugestoes-veiculo">
+            {SUGESTOES_VEICULO.map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
         </Field>
       </div>
 
