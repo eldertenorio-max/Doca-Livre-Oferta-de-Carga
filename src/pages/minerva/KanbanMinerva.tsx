@@ -19,19 +19,13 @@ const COLUMNS: {
     key: 'nova_carga',
     title: 'Nova Carga',
     color: '#385463',
-    description: 'Criada, ainda não publicada',
+    description: 'Publicada — aguardando o primeiro lance',
   },
   {
     key: 'negociando',
     title: 'Negociando',
     color: '#3b82f6',
-    description: 'Publicada — quem negocia aguarda lances',
-  },
-  {
-    key: 'propostas',
-    title: 'Propostas',
-    color: '#f59e0b',
-    description: 'Recebeu lances — frete ainda aberto',
+    description: 'Já recebeu lance(s) — frete ainda aberto',
   },
   {
     key: 'confirmadas',
@@ -78,19 +72,20 @@ function matchesColumn(
       c.status !== 'canceladas'
     )
   }
-  if (key === 'propostas') {
-    // Só Propostas se houver lance ativo na rodada atual
+  // Negociando = só depois do 1º lance
+  if (key === 'negociando') {
     return (
       !c.transportador_vencedor_id &&
       ['negociando', 'propostas'].includes(c.status) &&
       temLanceAtivo
     )
   }
-  if (key === 'negociando') {
+  // Nova Carga = rascunho ou publicada ainda sem lance
+  if (key === 'nova_carga') {
+    if (c.transportador_vencedor_id) return false
+    if (c.status === 'nova_carga') return true
     return (
-      ['negociando', 'propostas'].includes(c.status) &&
-      !c.transportador_vencedor_id &&
-      !temLanceAtivo
+      ['negociando', 'propostas'].includes(c.status) && !temLanceAtivo
     )
   }
   return c.status === key
@@ -192,7 +187,7 @@ export function KanbanMinerva() {
                     mode="minerva"
                     selected={liveSelected?.id === c.id}
                     ofertasCount={
-                      col.key === 'negociando' || col.key === 'propostas'
+                      col.key === 'negociando'
                         ? lancesDaCarga(c.id).filter(
                             (l) => l.status === 'ativo' || l.status === 'vencedor',
                           ).length

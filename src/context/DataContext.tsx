@@ -1862,10 +1862,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
         !['alocadas', 'recusadas', 'canceladas'].includes(carga.status)
       ) {
         fromCol = 'confirmadas'
-      } else if (carga.status === 'propostas' && !carga.transportador_vencedor_id) {
-        fromCol = 'propostas'
-      } else if (carga.status === 'negociando' && !carga.transportador_vencedor_id) {
+      } else if (
+        !carga.transportador_vencedor_id &&
+        ['negociando', 'propostas'].includes(carga.status) &&
+        temLanceAtivo
+      ) {
         fromCol = 'negociando'
+      } else if (
+        !carga.transportador_vencedor_id &&
+        (carga.status === 'nova_carga' ||
+          (['negociando', 'propostas'].includes(carga.status) && !temLanceAtivo))
+      ) {
+        fromCol = 'nova_carga'
       }
 
       if (fromCol === targetColumn) return { ok: true }
@@ -1926,25 +1934,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
           return {
             ok: false,
             needsPublish: true,
-            error: 'Publique a carga para iniciar a negociação',
+            error: 'Publique a carga — ela fica em Nova Carga até o primeiro lance',
           }
         }
-        if (carga.status === 'propostas' && !carga.transportador_vencedor_id) {
-          setState((prev) => ({
-            ...prev,
-            cargas: prev.cargas.map((c) =>
-              c.id === cargaId ? { ...c, status: 'negociando' as const } : c,
-            ),
-            historico: [
-              makeHistorico(
-                'negociacao_reaberta',
-                `Movida para Negociando — ${carga.numero}`,
-                { carga_id: cargaId },
-                user,
-              ),
-              ...prev.historico,
-            ].slice(0, 2000),
-          }))
+        if (['negociando', 'propostas'].includes(carga.status) && !carga.transportador_vencedor_id) {
+          if (!temLanceAtivo) {
+            return {
+              ok: false,
+              error: 'Negociando só depois que alguém der um lance',
+            }
+          }
           return { ok: true }
         }
         if (
@@ -1957,25 +1956,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
 
       if (targetColumn === 'propostas') {
-        if (carga.status === 'negociando' && !carga.transportador_vencedor_id) {
+        // Coluna unificada com Negociando no board
+        if (carga.status === 'nova_carga') {
+          return {
+            ok: false,
+            needsPublish: true,
+            error: 'Publique a carga — ela fica em Nova Carga até o primeiro lance',
+          }
+        }
+        if (['negociando', 'propostas'].includes(carga.status) && !carga.transportador_vencedor_id) {
           if (!temLanceAtivo) {
             return {
               ok: false,
-              error: 'Ainda não há lances — a carga fica em Negociando',
+              error: 'Negociando só depois que alguém der um lance',
             }
           }
-          setState((prev) => ({
-            ...prev,
-            cargas: prev.cargas.map((c) =>
-              c.id === cargaId ? { ...c, status: 'propostas' as const } : c,
-            ),
-          }))
           return { ok: true }
         }
-        return {
-          ok: false,
-          error: 'Propostas só recebe cargas em negociação com lances',
-        }
+        return { ok: false, error: 'Movimento não permitido' }
       }
 
       return { ok: false, error: 'Movimento não permitido nesta coluna' }
