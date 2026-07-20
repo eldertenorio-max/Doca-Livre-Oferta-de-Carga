@@ -137,83 +137,18 @@ textarea {
   flex-direction: column;
   align-items: center;
   flex-shrink: 0;
-  width: 28px;
-  filter: drop-shadow(0 3px 4px rgb(0 0 0 / 0.28));
+  width: 40px;
+  filter: drop-shadow(0 4px 6px rgb(0 0 0 / 0.32));
 }
-.cargo-semaforo__cap {
-  width: 22px;
-  height: 5px;
-  border-radius: 3px 3px 1px 1px;
-  background: linear-gradient(180deg, #555 0%, #222 100%);
-  border: 1px solid #111;
+.cargo-semaforo__svg {
+  width: 40px;
+  height: auto;
+  display: block;
 }
-.cargo-semaforo__body {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  width: 24px;
-  padding: 6px 3px;
-  border-radius: 7px;
-  background: linear-gradient(145deg, #3a3a3a 0%, #1a1a1a 55%, #0d0d0d 100%);
-  border: 1.5px solid #0a0a0a;
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.12),
-    inset 0 -2px 4px rgb(0 0 0 / 0.45);
-}
-.cargo-semaforo__lens {
-  position: relative;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 1px solid rgb(0 0 0 / 0.55);
-  box-shadow: inset 0 2px 3px rgb(0 0 0 / 0.55);
-  overflow: hidden;
-}
-.cargo-semaforo__lens--alta {
-  background: radial-gradient(circle at 35% 30%, #7a2020 0%, #2a0a0a 70%);
-}
-.cargo-semaforo__lens--media {
-  background: radial-gradient(circle at 35% 30%, #6b5a10 0%, #2a2208 70%);
-}
-.cargo-semaforo__lens--baixa {
-  background: radial-gradient(circle at 35% 30%, #1a4a30 0%, #0a1f14 70%);
-}
-.cargo-semaforo__lens--alta.cargo-semaforo__lens--on {
-  background: radial-gradient(circle at 35% 30%, #ff8a8a 0%, #e84752 40%, #9b1220 100%);
-  box-shadow:
-    0 0 8px 2px rgb(232 71 82 / 0.85),
-    inset 0 1px 2px rgb(255 255 255 / 0.35);
+.cargo-semaforo__svg-on {
   animation: cargo-semaforo-pulse 1.6s ease-in-out infinite;
-}
-.cargo-semaforo__lens--media.cargo-semaforo__lens--on {
-  background: radial-gradient(circle at 35% 30%, #fff3a0 0%, #f5c518 42%, #a67c00 100%);
-  box-shadow:
-    0 0 8px 2px rgb(245 197 24 / 0.9),
-    inset 0 1px 2px rgb(255 255 255 / 0.4);
-  animation: cargo-semaforo-pulse 1.6s ease-in-out infinite;
-}
-.cargo-semaforo__lens--baixa.cargo-semaforo__lens--on {
-  background: radial-gradient(circle at 35% 30%, #8dffb8 0%, #2f9e6a 42%, #0f5c38 100%);
-  box-shadow:
-    0 0 8px 2px rgb(47 158 106 / 0.85),
-    inset 0 1px 2px rgb(255 255 255 / 0.35);
-  animation: cargo-semaforo-pulse 1.6s ease-in-out infinite;
-}
-.cargo-semaforo__glare {
-  position: absolute;
-  top: 2px;
-  left: 3px;
-  width: 5px;
-  height: 4px;
-  border-radius: 50%;
-  background: rgb(255 255 255 / 0.45);
-}
-.cargo-semaforo__pole {
-  width: 5px;
-  height: 10px;
-  background: linear-gradient(90deg, #666, #333 45%, #111);
-  border-radius: 0 0 2px 2px;
+  transform-origin: center;
+  transform-box: fill-box;
 }
 
 .cargo-badge-pop {
@@ -225,6 +160,10 @@ textarea {
   height: 28px;
   display: block;
   filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.22));
+}
+.cargo-icon-svg--lg {
+  width: 34px;
+  height: 34px;
 }
 
 .cargo-icon-btn {

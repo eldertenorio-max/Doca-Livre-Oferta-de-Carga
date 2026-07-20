@@ -15,23 +15,86 @@ function TrafficLight({ prioridade }: { prioridade: Prioridade | null }) {
 
   return (
     <div className="cargo-semaforo" title={label} aria-label={label}>
-      <div className="cargo-semaforo__cap" />
-      <div className="cargo-semaforo__body">
-        {(['alta', 'media', 'baixa'] as const).map((p) => {
+      <svg viewBox="0 0 56 120" className="cargo-semaforo__svg" aria-hidden>
+        <defs>
+          <linearGradient id="sfHousing" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#4b5563" />
+            <stop offset="45%" stopColor="#1f2937" />
+            <stop offset="100%" stopColor="#030712" />
+          </linearGradient>
+          <radialGradient id="sfOff" cx="35%" cy="30%" r="70%">
+            <stop offset="0%" stopColor="#374151" />
+            <stop offset="100%" stopColor="#111827" />
+          </radialGradient>
+          <radialGradient id="sfRed" cx="32%" cy="28%" r="72%">
+            <stop offset="0%" stopColor="#fecaca" />
+            <stop offset="40%" stopColor="#ef4444" />
+            <stop offset="100%" stopColor="#7f1d1d" />
+          </radialGradient>
+          <radialGradient id="sfYellow" cx="32%" cy="28%" r="72%">
+            <stop offset="0%" stopColor="#fef9c3" />
+            <stop offset="40%" stopColor="#eab308" />
+            <stop offset="100%" stopColor="#713f12" />
+          </radialGradient>
+          <radialGradient id="sfGreen" cx="32%" cy="28%" r="72%">
+            <stop offset="0%" stopColor="#bbf7d0" />
+            <stop offset="40%" stopColor="#22c55e" />
+            <stop offset="100%" stopColor="#14532d" />
+          </radialGradient>
+        </defs>
+        {/* Visor / teto */}
+        <path
+          d="M10 10h36l4 8H6l4-8z"
+          fill="#111827"
+          stroke="#030712"
+          strokeWidth="1"
+        />
+        {/* Corpo */}
+        <rect x="8" y="16" width="40" height="88" rx="10" fill="url(#sfHousing)" />
+        <rect
+          x="12"
+          y="20"
+          width="32"
+          height="80"
+          rx="8"
+          fill="#0b0f14"
+          opacity="0.55"
+        />
+        {/* Lentes */}
+        {(
+          [
+            ['alta', 34, 'sfRed'],
+            ['media', 58, 'sfYellow'],
+            ['baixa', 82, 'sfGreen'],
+          ] as const
+        ).map(([p, cy, grad]) => {
           const on = active === p
           return (
-            <span
-              key={p}
-              className={`cargo-semaforo__lens cargo-semaforo__lens--${p} ${
-                on ? 'cargo-semaforo__lens--on' : ''
-              }`}
-            >
-              <span className="cargo-semaforo__glare" />
-            </span>
+            <g key={p}>
+              <circle
+                cx="28"
+                cy={cy}
+                r="11.5"
+                fill="#030712"
+                opacity="0.9"
+              />
+              <circle
+                cx="28"
+                cy={cy}
+                r="9.5"
+                fill={on ? `url(#${grad})` : 'url(#sfOff)'}
+                className={on ? 'cargo-semaforo__svg-on' : undefined}
+              />
+              {on && (
+                <circle cx="24.5" cy={cy - 3} r="2.4" fill="#fff" opacity="0.55" />
+              )}
+            </g>
           )
         })}
-      </div>
-      <div className="cargo-semaforo__pole" />
+        {/* Haste */}
+        <rect x="24" y="104" width="8" height="14" rx="1.5" fill="#374151" />
+        <rect x="20" y="116" width="16" height="3" rx="1" fill="#1f2937" />
+      </svg>
     </div>
   )
 }
@@ -87,38 +150,39 @@ function IconBan() {
 
 function IconGavel() {
   return (
-    <svg viewBox="0 0 48 48" className="cargo-icon-svg" aria-hidden>
+    <svg viewBox="0 0 64 64" className="cargo-icon-svg cargo-icon-svg--lg" aria-hidden>
       <defs>
         <linearGradient id="gavelWood" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#fbbf24" />
-          <stop offset="45%" stopColor="#d97706" />
-          <stop offset="100%" stopColor="#92400e" />
+          <stop offset="0%" stopColor="#f0c27a" />
+          <stop offset="40%" stopColor="#c68642" />
+          <stop offset="100%" stopColor="#5d3412" />
         </linearGradient>
-        <linearGradient id="gavelMetal" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#fde68a" />
-          <stop offset="100%" stopColor="#b45309" />
+        <linearGradient id="gavelHead" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#e8c89a" />
+          <stop offset="50%" stopColor="#b45309" />
+          <stop offset="100%" stopColor="#78350f" />
+        </linearGradient>
+        <linearGradient id="gavelBase" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#d6d3d1" />
+          <stop offset="100%" stopColor="#57534e" />
         </linearGradient>
       </defs>
-      <rect x="8" y="36" width="28" height="6" rx="2" fill="url(#gavelMetal)" />
-      <rect
-        x="28"
-        y="10"
-        width="7"
-        height="26"
-        rx="2"
-        transform="rotate(38 31.5 23)"
-        fill="url(#gavelWood)"
-      />
-      <rect
-        x="14"
-        y="8"
-        width="18"
-        height="11"
-        rx="2.5"
-        transform="rotate(38 23 13.5)"
-        fill="url(#gavelMetal)"
-      />
-      <circle cx="36" cy="12" r="3" fill="#fde68a" opacity="0.85" />
+      {/* Base do martelo */}
+      <ellipse cx="28" cy="54" rx="18" ry="4.5" fill="#44403c" opacity="0.35" />
+      <rect x="12" y="46" width="32" height="8" rx="2.5" fill="url(#gavelBase)" />
+      <rect x="14" y="47.5" width="28" height="2" rx="1" fill="#f5f5f4" opacity="0.35" />
+      {/* Cabo */}
+      <g transform="rotate(-42 36 30)">
+        <rect x="32" y="14" width="8" height="34" rx="3" fill="url(#gavelWood)" />
+        <rect x="33.5" y="16" width="2" height="30" rx="1" fill="#fde68a" opacity="0.35" />
+      </g>
+      {/* Cabeça */}
+      <g transform="rotate(-42 26 18)">
+        <rect x="10" y="10" width="28" height="14" rx="3.5" fill="url(#gavelHead)" />
+        <rect x="12" y="12" width="24" height="3" rx="1.2" fill="#fde68a" opacity="0.45" />
+        <rect x="8" y="13" width="5" height="8" rx="1.5" fill="#92400e" />
+        <rect x="35" y="13" width="5" height="8" rx="1.5" fill="#92400e" />
+      </g>
     </svg>
   )
 }
@@ -152,32 +216,53 @@ function IconReais() {
 
 function IconChat() {
   return (
-    <svg viewBox="0 0 48 48" className="cargo-icon-svg" aria-hidden>
+    <svg viewBox="0 0 64 64" className="cargo-icon-svg cargo-icon-svg--lg" aria-hidden>
       <defs>
         <linearGradient id="chatA" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#e5e7eb" />
-          <stop offset="100%" stopColor="#9ca3af" />
+          <stop offset="0%" stopColor="#f3f4f6" />
+          <stop offset="55%" stopColor="#9ca3af" />
+          <stop offset="100%" stopColor="#4b5563" />
         </linearGradient>
-        <linearGradient id="chatB" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#fef08a" />
-          <stop offset="100%" stopColor="#eab308" />
+        <linearGradient id="chatB" x1="0" y1="0" x2="0.3" y2="1">
+          <stop offset="0%" stopColor="#fef9c3" />
+          <stop offset="45%" stopColor="#facc15" />
+          <stop offset="100%" stopColor="#a16207" />
         </linearGradient>
+        <filter id="chatShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="1.4" floodOpacity="0.28" />
+        </filter>
       </defs>
-      <path
-        d="M8 12c0-3 2.5-5.5 5.5-5.5H28c3 0 5.5 2.5 5.5 5.5v10c0 3-2.5 5.5-5.5 5.5h-6l-6 5v-5h-2.5C10.5 27.5 8 25 8 22V12z"
-        fill="url(#chatA)"
-        stroke="#4b5563"
-        strokeWidth="1"
-      />
-      <path
-        d="M18 20c0-2.8 2.2-5 5-5h12c2.8 0 5 2.2 5 5v8c0 2.8-2.2 5-5 5h-2l-5 4v-4h-5c-2.8 0-5-2.2-5-5v-8z"
-        fill="url(#chatB)"
-        stroke="#a16207"
-        strokeWidth="1"
-      />
-      <circle cx="28" cy="24" r="1.4" fill="#713f12" />
-      <circle cx="33" cy="24" r="1.4" fill="#713f12" />
-      <circle cx="38" cy="24" r="1.4" fill="#713f12" />
+      {/* Balão de fundo */}
+      <g filter="url(#chatShadow)">
+        <path
+          d="M8 14c0-4.4 3.6-8 8-8h20c4.4 0 8 3.6 8 8v14c0 4.4-3.6 8-8 8H24l-8 7v-7h-8c-4.4 0-8-3.6-8-8V14z"
+          fill="url(#chatA)"
+        />
+        <path
+          d="M16 12h16"
+          stroke="#fff"
+          strokeWidth="2"
+          strokeLinecap="round"
+          opacity="0.35"
+        />
+      </g>
+      {/* Balão da frente (amarelo) */}
+      <g filter="url(#chatShadow)">
+        <path
+          d="M22 24c0-4 3.2-7.2 7.2-7.2h18.6c4 0 7.2 3.2 7.2 7.2v12.5c0 4-3.2 7.2-7.2 7.2H42l-7.5 6.5v-6.5h-5.3c-4 0-7.2-3.2-7.2-7.2V24z"
+          fill="url(#chatB)"
+        />
+        <path
+          d="M30 22h14"
+          stroke="#fffbeb"
+          strokeWidth="2"
+          strokeLinecap="round"
+          opacity="0.5"
+        />
+        <circle cx="34" cy="30.5" r="2.1" fill="#422006" />
+        <circle cx="41" cy="30.5" r="2.1" fill="#422006" />
+        <circle cx="48" cy="30.5" r="2.1" fill="#422006" />
+      </g>
     </svg>
   )
 }
