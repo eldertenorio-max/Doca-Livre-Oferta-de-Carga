@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Check, Clock, Handshake, Hourglass, X } from 'lucide-react'
+import {
+  Check,
+  Clock,
+  Handshake,
+  Hourglass,
+  Maximize2,
+  Minimize2,
+  PanelLeft,
+  Trash2,
+  X,
+} from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import {
   MOTIVOS_PRIORIDADE_ALTA,
@@ -13,6 +23,17 @@ import {
   parseMoneyInput,
   tempoRestante,
 } from '../../lib/businessRules'
+import {
+  excluirCargaMontada,
+  guardarCargaMontada,
+  loadCargasMontadas,
+  loadPanelSize,
+  panelSizeClass,
+  patchFromCargaMontada,
+  savePanelSize,
+  type CargaMontada,
+  type PanelSize,
+} from '../../lib/cargasMontadas'
 import { prazosAlocacaoPermitidos, prazosOfertaPermitidos } from '../../lib/configNegocio'
 import { canEditModulo } from '../../lib/portalModules'
 import type { Carga, ClassificacaoTransportador, Transportador } from '../../types'
@@ -73,6 +94,7 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
     config,
     user,
     tick,
+    atualizarCarga,
   } = useData()
   void tick
 
@@ -87,6 +109,9 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
   const prazosAlocacao = prazosAlocacaoPermitidos()
 
   const [tab, setTab] = useState<PanelTab>(initialTab ?? 'dados')
+  const [panelSize, setPanelSize] = useState<PanelSize>(() => loadPanelSize())
+  const [montadas, setMontadas] = useState<CargaMontada[]>(() => loadCargasMontadas())
+  const [nomeMontada, setNomeMontada] = useState('')
   const [margem, setMargem] = useState(margens[1])
   const [grupoIds, setGrupoIds] = useState<string[]>([])
   const [escalonar, setEscalonar] = useState(false)
@@ -152,6 +177,45 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
     Boolean(carga) &&
     ['negociando', 'propostas'].includes(carga!.status) &&
     !carga!.transportador_vencedor_id
+
+  function cyclePanelSize(dir: 1 | -1) {
+    const order: PanelSize[] = ['normal', 'medio', 'largo']
+    const idx = order.indexOf(panelSize)
+    const next = order[Math.max(0, Math.min(order.length - 1, idx + dir))]
+    setPanelSize(next)
+    savePanelSize(next)
+  }
+
+  function handleGuardarMontada() {
+    if (!carga) return
+    if (!carga.origem?.trim() || !carga.destino?.trim()) {
+      setError('Preencha origem e destino antes de guardar a carga montada.')
+      return
+    }
+    const item = guardarCargaMontada(carga, nomeMontada || undefined)
+    setMontadas(loadCargasMontadas())
+    setNomeMontada('')
+    setError('')
+    setInfo(`Carga montada salva: “${item.nome}”.`)
+  }
+
+  function handleUsarMontada(m: CargaMontada) {
+    if (!carga || !isNova) return
+    const res = atualizarCarga(carga.id, patchFromCargaMontada(m))
+    if (!res.ok) {
+      setError(res.error ?? 'Não foi possível aplicar a carga montada')
+      return
+    }
+    if (m.dados.observacao) setObservacao(m.dados.observacao)
+    setError('')
+    setInfo(`Dados de “${m.nome}” aplicados. Revise e publique.`)
+    setTab('dados')
+  }
+
+  function handleExcluirMontada(id: string) {
+    excluirCargaMontada(id)
+    setMontadas(loadCargasMontadas())
+  }
 
   const negociadoresAtivos = useMemo(() => {
     if (!carga || isNova) return []
@@ -382,12 +446,59 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
 
   return (
     <>
-      <aside className="animate-slide-in relative z-20 flex h-full w-[400px] shrink-0 flex-col overflow-hidden rounded-xl border border-ink/10 bg-white shadow-lg">
+      <aside
+        className={`animate-slide-in relative z-20 flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-ink/10 bg-white shadow-lg transition-[width] duration-200 ${panelSizeClass(panelSize)}`}
+      >
         <div className="border-b border-ink/10 bg-ink px-4 py-3 text-white">
-          <p className="font-display text-lg font-bold tracking-wide text-[#e8c547]">
-            Carga {carga.numero}
-          </p>
-          <p className="text-sm text-sand/90">{formatDateTime(carga.data_carregamento)}</p>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-display text-lg font-bold tracking-wide text-[#e8c547]">
+                Carga {carga.numero}
+              </p>
+              <p className="text-sm text-sand/90">{formatDateTime(carga.data_carregamento)}</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                title="Diminuir painel"
+                disabled={panelSize === 'normal'}
+                onClick={() => cyclePanelSize(-1)}
+                className="rounded-md p-1.5 text-sand/80 transition hover:bg-white/10 hover:text-white disabled:opacity-30"
+              >
+                <Minimize2 size={16} />
+              </button>
+              <button
+                type="button"
+                title="Tamanho médio (meio da tela)"
+                onClick={() => {
+                  setPanelSize('medio')
+                  savePanelSize('medio')
+                }}
+                className={`rounded-md p-1.5 transition hover:bg-white/10 hover:text-white ${
+                  panelSize === 'medio' ? 'bg-white/15 text-white' : 'text-sand/80'
+                }`}
+              >
+                <PanelLeft size={16} />
+              </button>
+              <button
+                type="button"
+                title="Aumentar painel"
+                disabled={panelSize === 'largo'}
+                onClick={() => cyclePanelSize(1)}
+                className="rounded-md p-1.5 text-sand/80 transition hover:bg-white/10 hover:text-white disabled:opacity-30"
+              >
+                <Maximize2 size={16} />
+              </button>
+              <button
+                type="button"
+                title="Fechar"
+                onClick={onClose}
+                className="rounded-md p-1.5 text-sand/80 transition hover:bg-white/10 hover:text-white"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
           {!isNova && (
             <p className="mt-1 text-xs text-sand/80">
               Status:{' '}
@@ -445,6 +556,68 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
             Esta carga ainda é <strong>rascunho</strong>. Só aparece para o transportador depois que
             você clicar em <strong>Publicar</strong> (com ao menos um grupo selecionado).
           </p>
+
+          <div className="rounded-lg border border-ink/10 bg-sand-light/50 p-3">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-ink">
+              Cargas montadas
+            </p>
+            <p className="mb-2 text-[11px] text-ink-muted">
+              Guarde cargas já preenchidas para reutilizar na próxima publicação.
+            </p>
+            <div className="mb-2 flex gap-2">
+              <input
+                className={`${inputClass} flex-1`}
+                placeholder="Nome (opcional)"
+                value={nomeMontada}
+                onChange={(e) => setNomeMontada(e.target.value)}
+                disabled={!canEdit}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                className="shrink-0 border border-ink/15"
+                onClick={handleGuardarMontada}
+                disabled={!canEdit}
+              >
+                Guardar atual
+              </Button>
+            </div>
+            {montadas.length === 0 ? (
+              <p className="text-[11px] text-ink-muted">Nenhuma carga montada salva ainda.</p>
+            ) : (
+              <ul className="max-h-40 space-y-1.5 overflow-y-auto">
+                {montadas.map((m) => (
+                  <li
+                    key={m.id}
+                    className="flex items-center gap-2 rounded-md border border-ink/10 bg-white px-2 py-1.5"
+                  >
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 text-left text-xs hover:text-brand"
+                      onClick={() => handleUsarMontada(m)}
+                      disabled={!canEdit}
+                      title="Aplicar nesta carga"
+                    >
+                      <span className="block truncate font-semibold">{m.nome}</span>
+                      <span className="block truncate text-[10px] text-ink-muted">
+                        {m.dados.origem} → {m.dados.destino} · {formatCurrency(m.dados.frete_tabela)}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded p-1 text-ink-muted hover:bg-red-50 hover:text-red-700"
+                      title="Excluir"
+                      onClick={() => handleExcluirMontada(m.id)}
+                      disabled={!canEdit}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           <Detail label="Pedido" value={carga.pedido || '—'} />
           <Detail label="Tipo de Carga" value={carga.tipo_carga} />
           <Detail label="Veículo" value={carga.veiculo} />
