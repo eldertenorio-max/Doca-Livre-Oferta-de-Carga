@@ -11,7 +11,7 @@ interface ChatModalProps {
 }
 
 export function ChatModal({ carga, open, onClose }: ChatModalProps) {
-  const { user, mensagensDaCarga, enviarMensagemCarga } = useData()
+  const { user, mensagensDaCarga, enviarMensagemCarga, marcarChatLido } = useData()
   const [texto, setTexto] = useState('')
   const [error, setError] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -19,11 +19,18 @@ export function ChatModal({ carga, open, onClose }: ChatModalProps) {
   const mensagens = carga ? mensagensDaCarga(carga.id) : []
 
   useEffect(() => {
-    if (open) {
+    if (open && carga) {
       setTexto('')
       setError('')
     }
   }, [open, carga?.id])
+
+  // Abre o chat ou chega mensagem nova → marca como lido (tira badge e sininho)
+  useEffect(() => {
+    if (open && carga) {
+      marcarChatLido(carga.id)
+    }
+  }, [open, carga?.id, mensagens.length, marcarChatLido, carga])
 
   useEffect(() => {
     if (open) {

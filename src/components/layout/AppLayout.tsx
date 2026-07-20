@@ -139,34 +139,44 @@ export function AppLayout() {
     notificacoes,
     marcarNotificacaoLida,
     marcarTodasNotificacoesLidas,
+    actingTransportadorId,
   } = useData()
   const navigate = useNavigate()
   const [sidebarWide, setSidebarWide] = useState(true)
   const [clock, setClock] = useState(() => formatClock(new Date()))
   const [notifOpen, setNotifOpen] = useState(false)
 
-  const minhasNotifs = useMemo(() => {
-    if (!user) return []
-    return (notificacoes ?? [])
-      .filter((n) => {
-        if (n.user_id && n.user_id === user.id) return true
-        if (n.transportador_id && n.transportador_id === user.transportador_id) return true
-        if (n.role === 'todos') return true
-        if (n.role && n.role === user.role) return true
-        if (!n.user_id && !n.transportador_id && !n.role) return user.role === 'minerva' || user.is_superuser
-        return false
-      })
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 40)
-  }, [notificacoes, user])
-
-  const unread = minhasNotifs.filter((n) => !n.lida).length
-
   const isSuper =
     Boolean(user?.is_superuser) ||
     user?.role === 'super' ||
     isLocalSuperUser(user?.usuario ?? '') ||
     isLocalSuperUser(user?.email ?? '')
+
+  const minhasNotifs = useMemo(() => {
+    if (!user) return []
+    const tid = user.transportador_id || actingTransportadorId
+    return (notificacoes ?? [])
+      .filter((n) => {
+        // Super vê tudo (inclui chat do embarcador e do transportador)
+        if (isSuper) return true
+        if (n.user_id && n.user_id === user.id) return true
+        if (n.transportador_id && tid && n.transportador_id === tid) return true
+        if (n.role === 'todos') return true
+        if (n.role === 'minerva' && (user.role === 'minerva' || user.role === 'super')) return true
+        if (n.role === 'transportador' && user.role === 'transportador' && !n.transportador_id) {
+          return true
+        }
+        if (n.role && n.role === user.role) return true
+        if (!n.user_id && !n.transportador_id && !n.role) {
+          return user.role === 'minerva' || user.is_superuser
+        }
+        return false
+      })
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 40)
+  }, [notificacoes, user, actingTransportadorId, isSuper])
+
+  const unread = minhasNotifs.filter((n) => !n.lida).length
 
   const links = useMemo(() => {
     if (isSuper) {

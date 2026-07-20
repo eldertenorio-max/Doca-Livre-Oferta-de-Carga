@@ -233,9 +233,10 @@ export function CargoCard({
   bidPosition,
   ofertasCount,
 }: CargoCardProps) {
-  const { tick } = useData()
+  const { tick, mensagensNaoLidasDaCarga } = useData()
   const [chatOpen, setChatOpen] = useState(false)
   void tick
+  const chatNaoLidas = mensagensNaoLidasDaCarga(carga.id)
 
   const frete =
     carga.frete_fechado ??
@@ -364,7 +365,16 @@ export function CargoCard({
                 <IconTruck />
               </IconBtn>
             ) : (
-              <IconBtn title="Mensagens" tone="msg" onClick={() => setChatOpen(true)}>
+              <IconBtn
+                title={
+                  chatNaoLidas > 0
+                    ? `Mensagens (${chatNaoLidas} não lida${chatNaoLidas > 1 ? 's' : ''})`
+                    : 'Mensagens'
+                }
+                tone="msg"
+                badge={chatNaoLidas}
+                onClick={() => setChatOpen(true)}
+              >
                 <IconChat />
               </IconBtn>
             )}
@@ -393,11 +403,13 @@ function IconBtn({
   title,
   onClick,
   tone = 'view',
+  badge = 0,
 }: {
   children: React.ReactNode
   title: string
   onClick?: () => void
   tone?: IconTone
+  badge?: number
 }) {
   return (
     <button
@@ -408,9 +420,14 @@ function IconBtn({
         e.stopPropagation()
         onClick?.()
       }}
-      className={`cargo-icon-btn ${TONE_CLASS[tone]}`}
+      className={`cargo-icon-btn ${TONE_CLASS[tone]}${badge > 0 ? ' cargo-icon-btn--alert' : ''}`}
     >
       <span className="cargo-icon-inner">{children}</span>
+      {badge > 0 && (
+        <span className="cargo-icon-badge" aria-hidden>
+          {badge > 9 ? '9+' : badge}
+        </span>
+      )}
     </button>
   )
 }

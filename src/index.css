@@ -228,6 +228,7 @@ textarea {
 }
 
 .cargo-icon-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -240,6 +241,30 @@ textarea {
     0 1px 2px rgb(0 0 0 / 0.08),
     inset 0 1px 0 rgb(255 255 255 / 0.9);
   transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.cargo-icon-btn--alert {
+  background: linear-gradient(180deg, #fef9c3 0%, #fde047 100%);
+  border-color: rgb(202 138 4 / 0.45);
+  box-shadow:
+    0 0 0 2px rgb(250 204 21 / 0.35),
+    0 2px 6px rgb(0 0 0 / 0.12);
+}
+.cargo-icon-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+  animation: cargo-badge-pop 1.4s ease-in-out infinite;
 }
 .cargo-icon-btn:hover {
   transform: translateY(-2px) scale(1.06);

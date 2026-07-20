@@ -110,6 +110,8 @@ interface DataState {
   interacoes: InteracaoPontuacao[]
   notificacoes: NotificacaoInApp[]
   mensagens: ChatMensagem[]
+  /** Chave `userId:cargaId` → ISO da última leitura do chat */
+  chatLeituras: Record<string, string>
 }
 
 interface AuthState {
@@ -195,6 +197,9 @@ interface DataContextValue extends DataState, AuthState {
   marcarTodasNotificacoesLidas: () => void
   mensagensDaCarga: (cargaId: string) => ChatMensagem[]
   enviarMensagemCarga: (cargaId: string, texto: string) => { ok: boolean; error?: string }
+  /** Mensagens de terceiros ainda não lidas nesta carga */
+  mensagensNaoLidasDaCarga: (cargaId: string) => number
+  marcarChatLido: (cargaId: string) => void
   registrarCadastroTransportador: (
     input: CadastroTransportadorInput,
   ) => Promise<{ ok: boolean; error?: string; mensagem?: string }>
@@ -220,6 +225,7 @@ function defaultState(): DataState {
     interacoes: [],
     notificacoes: [],
     mensagens: [],
+    chatLeituras: {},
   }
 }
 
@@ -446,6 +452,10 @@ function loadState(): DataState {
       interacoes: Array.isArray(parsed.interacoes) ? parsed.interacoes : [],
       notificacoes: Array.isArray(parsed.notificacoes) ? parsed.notificacoes : [],
       mensagens: Array.isArray(parsed.mensagens) ? parsed.mensagens : [],
+      chatLeituras:
+        parsed.chatLeituras && typeof parsed.chatLeituras === 'object'
+          ? (parsed.chatLeituras as Record<string, string>)
+          : {},
     }
     return ensureDemoOfertasVisiveis(loaded)
   } catch {
@@ -2346,31 +2356,134 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const enviarMensagemCarga = useCallback(
     (cargaId: string, texto: string) => {
-      if (!user) return { ok: false, error: 'Faça login para enviar mensagens.' }
+      const userNow = userRef.current
+      if (!userNow) return { ok: false, error: 'Faça login para enviar mensagens.' }
       const limpo = texto.trim()
       if (!limpo) return { ok: false, error: 'Digite uma mensagem.' }
       if (limpo.length > 2000) return { ok: false, error: 'Mensagem muito longa (máx. 2000).' }
-      const carga = state.cargas.find((c) => c.id === cargaId)
+
+      const prev = stateRef.current
+      const carga = prev.cargas.find((c) => c.id === cargaId)
       if (!carga) return { ok: false, error: 'Carga não encontrada.' }
 
+      const agora = new Date().toISOString()
       const msg: ChatMensagem = {
         id: uid('msg'),
         carga_id: cargaId,
-        autor_id: user.id,
-        autor_nome: user.nome,
-        autor_role: user.role,
+        autor_id: userNow.id,
+        autor_nome: userNow.nome,
+        autor_role: userNow.role,
         texto: limpo,
-        created_at: new Date().toISOString(),
+        created_at: agora,
       }
 
-      setState((prev) => ({
+      const preview = limpo.length > 80 ? `${limpo.slice(0, 77)}…` : limpo
+      // Transportador (ou Super “Ver como”) → avisa embarcador; senão → avisa transportadores
+      const enviandoComoTransportador =
+        userNow.role === 'transportador' || Boolean(actingTransportadorId)
+
+      let notificacoes = prev.notificacoes
+      if (enviandoComoTransportador) {
+        notificacoes = pushNotif(notificacoes, {
+          role: 'minerva',
+          titulo: `Nova mensagem · carga ${carga.numero}`,
+          mensagem: `${userNow.nome}: ${preview}`,
+          carga_id: cargaId,
+        })
+      } else {
+        // Embarcador / super → avisa transportadores envolvidos
+        const tids = new Set<string>()
+        if (carga.transportador_vencedor_id) tids.add(carga.transportador_vencedor_id)
+        for (const l of prev.lances) {
+          if (l.carga_id === cargaId && ['ativo', 'vencedor'].includes(l.status)) {
+            tids.add(l.transportador_id)
+          }
+        }
+        if (tids.size === 0) {
+          for (const g of prev.grupos) {
+            if (!(carga.grupos_notificados ?? []).includes(g.id) && !(carga.grupo_ids ?? []).includes(g.id)) {
+              continue
+            }
+            for (const tid of g.transportador_ids ?? []) tids.add(tid)
+          }
+        }
+        if (tids.size === 0) {
+          notificacoes = pushNotif(notificacoes, {
+            role: 'transportador',
+            titulo: `Nova mensagem · carga ${carga.numero}`,
+            mensagem: `${userNow.nome}: ${preview}`,
+            carga_id: cargaId,
+          })
+        } else {
+          for (const tid of tids) {
+            notificacoes = pushNotif(notificacoes, {
+              role: 'transportador',
+              transportador_id: tid,
+              titulo: `Nova mensagem · carga ${carga.numero}`,
+              mensagem: `${userNow.nome}: ${preview}`,
+              carga_id: cargaId,
+            })
+          }
+        }
+      }
+
+      // Quem envia já “leu” até esta mensagem
+      const leituraKey = `${userNow.id}:${cargaId}`
+      const chatLeituras = {
+        ...(prev.chatLeituras ?? {}),
+        [leituraKey]: agora,
+      }
+
+      const next = {
         ...prev,
         mensagens: [...(prev.mensagens ?? []), msg],
-      }))
+        notificacoes,
+        chatLeituras,
+      }
+      stateRef.current = next
+      setState(next)
       return { ok: true }
     },
-    [user, state.cargas],
+    [actingTransportadorId],
   )
+
+  const mensagensNaoLidasDaCarga = useCallback(
+    (cargaId: string) => {
+      const userNow = userRef.current
+      if (!userNow) return 0
+      const leituras = state.chatLeituras ?? {}
+      const last = leituras[`${userNow.id}:${cargaId}`]
+      const lastMs = last ? new Date(last).getTime() : 0
+      return (state.mensagens ?? []).filter(
+        (m) =>
+          m.carga_id === cargaId &&
+          m.autor_id !== userNow.id &&
+          new Date(m.created_at).getTime() > lastMs,
+      ).length
+    },
+    [state.mensagens, state.chatLeituras],
+  )
+
+  const marcarChatLido = useCallback((cargaId: string) => {
+    const userNow = userRef.current
+    if (!userNow) return
+    const agora = new Date().toISOString()
+    const prev = stateRef.current
+    const leituraKey = `${userNow.id}:${cargaId}`
+    const next = {
+      ...prev,
+      chatLeituras: { ...(prev.chatLeituras ?? {}), [leituraKey]: agora },
+      notificacoes: prev.notificacoes.map((n) =>
+        n.carga_id === cargaId &&
+        !n.lida &&
+        n.titulo.toLowerCase().includes('mensagem')
+          ? { ...n, lida: true }
+          : n,
+      ),
+    }
+    stateRef.current = next
+    setState(next)
+  }, [])
 
   const transportadorById = useCallback(
     (id: string) => state.transportadores.find((t) => t.id === id),
@@ -2508,6 +2621,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       marcarTodasNotificacoesLidas,
       mensagensDaCarga,
       enviarMensagemCarga,
+      mensagensNaoLidasDaCarga,
+      marcarChatLido,
       documentosDoTransportador,
       registrarCadastroTransportador,
       aprovarTransportador,
@@ -2565,6 +2680,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       marcarTodasNotificacoesLidas,
       mensagensDaCarga,
       enviarMensagemCarga,
+      mensagensNaoLidasDaCarga,
+      marcarChatLido,
       documentosDoTransportador,
       registrarCadastroTransportador,
       aprovarTransportador,
