@@ -59,30 +59,19 @@ export function colunaMinerva(
   if (c.status === 'alocadas') return 'alocadas'
 
   // Frete fechado (vencedor) → Confirmadas, até alocar
-  if (
-    c.transportador_vencedor_id &&
-    c.status !== 'alocadas' &&
-    c.status !== 'recusadas' &&
-    c.status !== 'canceladas'
-  ) {
+  if (c.transportador_vencedor_id) {
     return 'confirmadas'
   }
 
-  // Publicada (ou status de negociação) com lance → Negociando
-  if (
-    !c.transportador_vencedor_id &&
-    ['negociando', 'propostas'].includes(c.status) &&
-    temLanceAtivo
-  ) {
+  // Publicada com lance → Negociando
+  if (['negociando', 'propostas'].includes(c.status) && temLanceAtivo) {
     return 'negociando'
   }
 
   // Rascunho OU publicada ainda sem lance → Nova Carga
-  if (!c.transportador_vencedor_id) {
-    if (c.status === 'nova_carga') return 'nova_carga'
-    if (['negociando', 'propostas'].includes(c.status) && !temLanceAtivo) {
-      return 'nova_carga'
-    }
+  if (c.status === 'nova_carga') return 'nova_carga'
+  if (['negociando', 'propostas'].includes(c.status) && !temLanceAtivo) {
+    return 'nova_carga'
   }
 
   return null
