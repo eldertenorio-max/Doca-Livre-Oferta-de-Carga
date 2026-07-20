@@ -5,11 +5,14 @@ services:
     name: doca-livre-oferta-de-carga
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build
+    # --include=dev: Render usa NODE_ENV=production e pula vite/typescript sem isso
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_VERSION
         value: "22"
+      - key: NPM_CONFIG_PRODUCTION
+        value: "false"
       - key: VITE_SUPABASE_URL
         sync: false
       - key: VITE_SUPABASE_ANON_KEY
