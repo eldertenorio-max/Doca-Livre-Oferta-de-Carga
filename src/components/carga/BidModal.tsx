@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useData } from '../../context/DataContext'
 import {
   formatCurrency,
@@ -17,6 +17,16 @@ interface BidModalProps {
   onClose: () => void
 }
 
+/** Digitação livre em pt-BR; formata só no blur. */
+function sanitizeMoneyTyping(raw: string): string {
+  let s = raw.replace(/[^\d.,]/g, '')
+  const comma = s.indexOf(',')
+  if (comma >= 0) {
+    s = s.slice(0, comma + 1) + s.slice(comma + 1).replace(/,/g, '').replace(/\./g, '')
+  }
+  return s
+}
+
 export function BidModal({ carga, open, onClose }: BidModalProps) {
   const {
     enviarLance,
@@ -28,26 +38,34 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
   } = useData()
   const [valor, setValor] = useState('')
   const [error, setError] = useState('')
+  const initKeyRef = useRef<string | null>(null)
 
   const tid = effectiveTransportadorId()
 
+  // Só preenche ao abrir (ou trocar de carga) — evita o timer do Kanban apagar o que o usuário digita
   useEffect(() => {
-    if (open && carga) {
-      registrarVisualizacao(carga.id)
-      const meu = lancesDaCarga(carga.id).find(
-        (l) => l.transportador_id === tid && l.status === 'ativo',
-      )
-      const ref = roundMoney(carga.frete_oferta ?? carga.frete_tabela)
-      const sugestao =
-        meu?.valor != null
-          ? roundMoney(meu.valor)
-          : carga.frete_maximo != null
-            ? roundMoney(Math.min(ref, carga.frete_maximo))
-            : ref
-      setValor(formatMoneyInput(sugestao))
-      setError('')
+    if (!open || !carga) {
+      initKeyRef.current = null
+      return
     }
-  }, [open, carga, registrarVisualizacao, lancesDaCarga, tid])
+    const key = `${carga.id}:${tid ?? ''}`
+    if (initKeyRef.current === key) return
+    initKeyRef.current = key
+
+    registrarVisualizacao(carga.id)
+    const meu = lancesDaCarga(carga.id).find(
+      (l) => l.transportador_id === tid && l.status === 'ativo',
+    )
+    const ref = roundMoney(carga.frete_oferta ?? carga.frete_tabela)
+    const sugestao =
+      meu?.valor != null
+        ? roundMoney(meu.valor)
+        : carga.frete_maximo != null
+          ? roundMoney(Math.min(ref, carga.frete_maximo))
+          : ref
+    setValor(formatMoneyInput(sugestao))
+    setError('')
+  }, [open, carga, tid, lancesDaCarga, registrarVisualizacao])
 
   const ranking = useMemo(() => {
     if (!carga) return []
@@ -223,10 +241,15 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
             className={`${inputClass} text-lg font-bold tabular-nums`}
             value={valor}
             inputMode="decimal"
-            onChange={(e) => setValor(e.target.value)}
+            autoComplete="off"
+            onChange={(e) => {
+              setError('')
+              setValor(sanitizeMoneyTyping(e.target.value))
+            }}
+            onFocus={(e) => e.currentTarget.select()}
             onBlur={() => {
               const n = parseMoneyInput(valor)
-              if (!Number.isNaN(n)) setValor(formatMoneyInput(n))
+              if (!Number.isNaN(n) && n > 0) setValor(formatMoneyInput(n))
             }}
             disabled={bloqueado}
             placeholder="0,00"
