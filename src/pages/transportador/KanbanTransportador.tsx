@@ -12,6 +12,7 @@ import {
   ordenarCargasKanban,
   type ColunaTransportador,
 } from '../../lib/kanbanColumns'
+import { isKanbanSyncReady } from '../../lib/kanbanSync'
 import type { Carga } from '../../types'
 
 const COLUMNS: {
@@ -152,8 +153,16 @@ export function KanbanTransportador() {
       {tid && cargas.length === 0 && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
           Nenhuma oferta visível para <strong>{nomeVista}</strong>. Publique uma carga no Kanban
-          Minerva (com grupos que incluam esta transportadora). O Kanban atualiza sozinho quando
-          alguém publica ou dá lance.
+          Minerva (com grupos que incluam esta transportadora). Atualiza sozinho em tempo real
+          {isKanbanSyncReady() ? ' (sync ativo)' : ' — configure VITE_SUPABASE no Render'}.
+        </p>
+      )}
+
+      {!isKanbanSyncReady() && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900">
+          Sync em tempo real desligado: faltam <code>VITE_SUPABASE_URL</code> e{' '}
+          <code>VITE_SUPABASE_ANON_KEY</code> no Render, e o SQL{' '}
+          <code>supabase/kanban_sync.sql</code> no projeto Supabase.
         </p>
       )}
 

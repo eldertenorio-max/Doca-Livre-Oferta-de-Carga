@@ -1,3 +1,4 @@
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import type {
   Carga,
   ChatMensagem,
@@ -13,6 +14,8 @@ import { isSupabaseConfigured, supabase } from './supabase'
 
 const SYNC_ROW_ID = 'main'
 const CLIENT_KEY = 'doca-livre-sync-client-id'
+const CHANNEL_NAME = 'kanban-sync-live'
+const BROADCAST_EVENT = 'kanban-update'
 
 export type KanbanSyncSlice = {
   cargas: Carga[]
@@ -31,6 +34,8 @@ export type KanbanSyncPayload = {
   updated_at: string
   slice: KanbanSyncSlice
 }
+
+let liveChannel: RealtimeChannel | null = null
 
 export function getClientId(): string {
   try {
@@ -82,6 +87,16 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
   }
 }
 
+function parsePayload(raw: unknown, fallbackClient?: string, fallbackAt?: string): KanbanSyncPayload | null {
+  const payload = raw as Partial<KanbanSyncPayload> | null
+  if (!payload?.slice || !Array.isArray(payload.slice.cargas)) return null
+  return {
+    client_id: payload.client_id ?? fallbackClient ?? '',
+    updated_at: payload.updated_at ?? fallbackAt ?? new Date().toISOString(),
+    slice: payload.slice,
+  }
+}
+
 export async function pullKanbanSync(): Promise<KanbanSyncPayload | null> {
   if (!isSupabaseConfigured || !supabase) return null
   const { data, error } = await supabase
@@ -89,14 +104,12 @@ export async function pullKanbanSync(): Promise<KanbanSyncPayload | null> {
     .select('payload, updated_at, client_id')
     .eq('id', SYNC_ROW_ID)
     .maybeSingle()
-  if (error || !data) return null
-  const payload = data.payload as Partial<KanbanSyncPayload> | null
-  if (!payload?.slice) return null
-  return {
-    client_id: payload.client_id ?? data.client_id ?? '',
-    updated_at: payload.updated_at ?? data.updated_at ?? new Date().toISOString(),
-    slice: payload.slice,
+  if (error) {
+    console.warn('[kanbanSync] pull falhou:', error.message)
+    return null
   }
+  if (!data) return null
+  return parsePayload(data.payload, data.client_id ?? undefined, data.updated_at)
 }
 
 export async function pushKanbanSync(slice: KanbanSyncSlice): Promise<boolean> {
@@ -115,7 +128,23 @@ export async function pushKanbanSync(slice: KanbanSyncSlice): Promise<boolean> {
     },
     { onConflict: 'id' },
   )
-  return !error
+  if (error) {
+    console.warn('[kanbanSync] push falhou:', error.message)
+    return false
+  }
+
+  if (liveChannel) {
+    try {
+      await liveChannel.send({
+        type: 'broadcast',
+        event: BROADCAST_EVENT,
+        payload: body,
+      })
+    } catch {
+      /* broadcast opcional */
+    }
+  }
+  return true
 }
 
 export function subscribeKanbanSync(
@@ -124,30 +153,49 @@ export function subscribeKanbanSync(
   if (!isSupabaseConfigured || !supabase) return () => {}
 
   const myId = getClientId()
-  const channel = supabase
-    .channel('kanban-sync-live')
+  const client = supabase
+
+  const deliver = (payload: KanbanSyncPayload | null) => {
+    if (!payload) return
+    if (payload.client_id && payload.client_id === myId) return
+    onRemote(payload)
+  }
+
+  liveChannel = client
+    .channel(CHANNEL_NAME, {
+      config: { broadcast: { self: false } },
+    })
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'kanban_sync', filter: `id=eq.${SYNC_ROW_ID}` },
       (row) => {
         const rec = row.new as {
-          payload?: Partial<KanbanSyncPayload>
+          payload?: unknown
           client_id?: string
           updated_at?: string
         } | null
-        if (!rec?.payload?.slice) return
-        const payload: KanbanSyncPayload = {
-          client_id: rec.payload.client_id ?? rec.client_id ?? '',
-          updated_at: rec.payload.updated_at ?? rec.updated_at ?? new Date().toISOString(),
-          slice: rec.payload.slice,
-        }
-        if (payload.client_id && payload.client_id === myId) return
-        onRemote(payload)
+        deliver(parsePayload(rec?.payload, rec?.client_id, rec?.updated_at))
       },
     )
+    .on('broadcast', { event: BROADCAST_EVENT }, ({ payload }) => {
+      deliver(parsePayload(payload))
+    })
     .subscribe()
 
+  // Fallback: polling a cada 2s (cobre Realtime/SQL ainda não configurados)
+  const pollId = window.setInterval(() => {
+    void pullKanbanSync().then(deliver)
+  }, 2000)
+
   return () => {
-    if (supabase) void supabase.removeChannel(channel)
+    window.clearInterval(pollId)
+    if (liveChannel) {
+      void client.removeChannel(liveChannel)
+      liveChannel = null
+    }
   }
+}
+
+export function isKanbanSyncReady(): boolean {
+  return isSupabaseConfigured && Boolean(supabase)
 }

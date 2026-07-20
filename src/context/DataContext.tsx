@@ -462,20 +462,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     void pushKanbanSync(slice)
   }, [])
 
-  const scheduleKanbanPush = useCallback(
-    (next: typeof state) => {
-      if (!isSupabaseConfigured || applyingRemoteRef.current) return
-      const slice = pickSyncSlice(next)
-      const fp = sliceFingerprint(slice)
-      if (fp === lastSyncFpRef.current) return
-      if (pushTimerRef.current != null) window.clearTimeout(pushTimerRef.current)
-      pushTimerRef.current = window.setTimeout(() => {
-        pushTimerRef.current = null
-        flushKanbanPush(next)
-      }, 200)
-    },
-    [flushKanbanPush],
-  )
+  const scheduleKanbanPush = useCallback(() => {
+    if (!isSupabaseConfigured || applyingRemoteRef.current) return
+    if (pushTimerRef.current != null) window.clearTimeout(pushTimerRef.current)
+    pushTimerRef.current = window.setTimeout(() => {
+      pushTimerRef.current = null
+      flushKanbanPush(stateRef.current)
+    }, 150)
+  }, [flushKanbanPush])
 
   const effectiveTransportadorId = useCallback(() => {
     return user?.transportador_id || actingTransportadorId || null
@@ -483,49 +477,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-    scheduleKanbanPush(state)
+    scheduleKanbanPush()
   }, [state, scheduleKanbanPush])
 
-  // Sync multi-usuário: zera Kanban remoto uma vez (v8), depois puxa/escuta
+  // Sync multi-usuário: remoto é a fonte da verdade; nunca zera o remoto de novo
   useEffect(() => {
     let cancelled = false
 
-    void (async () => {
-      const alreadyWiped = localStorage.getItem(KANBAN_WIPE_KEY) === '1'
-      if (!alreadyWiped) {
-        applyingRemoteRef.current = true
-        setState((prev) => {
-          const next = wipeKanbanFields(prev)
-          stateRef.current = next
-          return next
-        })
-        localStorage.setItem(KANBAN_WIPE_KEY, '1')
-        const slice = pickSyncSlice(stateRef.current)
-        lastSyncFpRef.current = sliceFingerprint(slice)
-        await pushKanbanSync(slice)
-        applyingRemoteRef.current = false
-      } else {
-        const remote = await pullKanbanSync()
-        if (cancelled || !remote?.slice?.cargas) {
-          /* keep local */
-        } else {
-          applyingRemoteRef.current = true
-          lastSyncFpRef.current = sliceFingerprint(remote.slice)
-          setState((prev) => {
-            const next = applySyncSlice(prev, remote.slice)
-            stateRef.current = next
-            return next
-          })
-          window.setTimeout(() => {
-            applyingRemoteRef.current = false
-          }, 0)
-        }
-      }
-    })()
-
-    const unsub = subscribeKanbanSync((payload) => {
+    const applyRemote = (payload: { slice: ReturnType<typeof pickSyncSlice>; client_id: string; updated_at: string }) => {
+      const fp = sliceFingerprint(payload.slice)
+      if (fp === lastSyncFpRef.current) return
       applyingRemoteRef.current = true
-      lastSyncFpRef.current = sliceFingerprint(payload.slice)
+      lastSyncFpRef.current = fp
       setState((prev) => {
         const next = applySyncSlice(prev, payload.slice)
         stateRef.current = next
@@ -534,6 +497,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
       window.setTimeout(() => {
         applyingRemoteRef.current = false
       }, 0)
+    }
+
+    void (async () => {
+      // Marca wipe local (migração) sem apagar o que já está no Supabase
+      if (localStorage.getItem(KANBAN_WIPE_KEY) !== '1') {
+        localStorage.setItem(KANBAN_WIPE_KEY, '1')
+      }
+
+      const remote = await pullKanbanSync()
+      if (cancelled) return
+
+      if (remote?.slice && Array.isArray(remote.slice.cargas)) {
+        // Remoto manda — todos veem o mesmo Kanban
+        applyRemote(remote)
+      } else {
+        // Ainda não há sync remoto: publica o estado local atual
+        const slice = pickSyncSlice(stateRef.current)
+        lastSyncFpRef.current = sliceFingerprint(slice)
+        await pushKanbanSync(slice)
+      }
+    })()
+
+    const unsub = subscribeKanbanSync((payload) => {
+      applyRemote(payload)
     })
 
     const onStorage = (e: StorageEvent) => {
@@ -552,18 +539,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
           historicoPropostas: parsed.historicoPropostas ?? [],
           chatLeituras: parsed.chatLeituras ?? {},
         })
-        const fp = sliceFingerprint(slice)
-        if (fp === lastSyncFpRef.current) return
-        applyingRemoteRef.current = true
-        lastSyncFpRef.current = fp
-        setState((prev) => {
-          const next = applySyncSlice(prev, slice)
-          stateRef.current = next
-          return next
+        applyRemote({
+          slice,
+          client_id: 'tab',
+          updated_at: new Date().toISOString(),
         })
-        window.setTimeout(() => {
-          applyingRemoteRef.current = false
-        }, 0)
       } catch {
         /* ignore */
       }

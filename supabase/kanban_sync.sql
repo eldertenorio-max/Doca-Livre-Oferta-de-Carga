@@ -1,5 +1,5 @@
 -- ============================================================
--- Sync do Kanban entre todos os usuários (Realtime)
+-- Sync do Kanban entre todos os usuários (Realtime + polling)
 -- Execute no SQL Editor do projeto Supabase da Oferta de Carga
 -- ============================================================
 
@@ -14,6 +14,9 @@ insert into kanban_sync (id, payload)
 values ('main', '{}'::jsonb)
 on conflict (id) do nothing;
 
+-- Necessário para postgres_changes enviar a linha completa no UPDATE
+alter table kanban_sync replica identity full;
+
 alter table kanban_sync enable row level security;
 
 drop policy if exists "anon read kanban_sync" on kanban_sync;
@@ -27,7 +30,7 @@ create policy "anon upsert kanban_sync"
   using (true)
   with check (true);
 
--- Realtime: mudanças no payload chegam nos outros browsers na hora
+-- Realtime
 do $$
 begin
   alter publication supabase_realtime add table kanban_sync;
