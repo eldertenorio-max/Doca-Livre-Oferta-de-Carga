@@ -143,6 +143,6 @@ export function subscribeKanbanSync(
     .subscribe()
 
   return () => {
-    void supabase.removeChannel(channel)
+    if (supabase) void supabase.removeChannel(channel)
   }
 }
