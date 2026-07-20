@@ -126,6 +126,7 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
   const [contraLanceId, setContraLanceId] = useState<string | null>(null)
   const [contraValor, setContraValor] = useState('')
 
+  // Reset do formulário só ao trocar de carga (sync de grupos não pode resetar a aba)
   useEffect(() => {
     if (!carga) return
     const m = config.margens[carga.classificacao_rota ?? 'B']
@@ -142,7 +143,14 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
     const defaultTab =
       initialTab ?? (carga.status === 'nova_carga' ? 'dados' : 'publicar')
     setTab(defaultTab)
-  }, [carga?.id, grupos, config, initialTab])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao abrir outra carga
+  }, [carga?.id, initialTab])
+
+  // Observações salvas na aba Dados entram na aba Publicar sem resetar o resto
+  useEffect(() => {
+    if (!carga) return
+    setObservacao(carga.observacao ?? '')
+  }, [carga?.id, carga?.observacao])
 
   useEffect(() => {
     if (!carga) setInfo('')

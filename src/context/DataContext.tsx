@@ -448,9 +448,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const applyingRemoteRef = useRef(false)
   const lastSyncFpRef = useRef('')
   const pushTimerRef = useRef<number | null>(null)
+  const pendingPushRef = useRef(false)
 
   const flushKanbanPush = useCallback((next: typeof state) => {
-    if (!isSupabaseConfigured || applyingRemoteRef.current) return
+    if (!isSupabaseConfigured) return
+    if (applyingRemoteRef.current) {
+      pendingPushRef.current = true
+      return
+    }
     const slice = pickSyncSlice(next)
     const fp = sliceFingerprint(slice)
     if (fp === lastSyncFpRef.current) return
@@ -463,7 +468,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const scheduleKanbanPush = useCallback(() => {
-    if (!isSupabaseConfigured || applyingRemoteRef.current) return
+    if (!isSupabaseConfigured) return
+    if (applyingRemoteRef.current) {
+      pendingPushRef.current = true
+      return
+    }
     if (pushTimerRef.current != null) window.clearTimeout(pushTimerRef.current)
     pushTimerRef.current = window.setTimeout(() => {
       pushTimerRef.current = null
@@ -480,27 +489,44 @@ export function DataProvider({ children }: { children: ReactNode }) {
     scheduleKanbanPush()
   }, [state, scheduleKanbanPush])
 
-  // Sync multi-usuário: remoto é a fonte da verdade; nunca zera o remoto de novo
+  // Sync multi-usuário — nunca sobrescreve com vazio / erro de pull
   useEffect(() => {
     let cancelled = false
 
-    const applyRemote = (payload: { slice: ReturnType<typeof pickSyncSlice>; client_id: string; updated_at: string }) => {
+    const finishRemoteApply = () => {
+      applyingRemoteRef.current = false
+      if (pendingPushRef.current) {
+        pendingPushRef.current = false
+        flushKanbanPush(stateRef.current)
+      }
+    }
+
+    const applyRemote = (payload: {
+      slice: ReturnType<typeof pickSyncSlice>
+      client_id: string
+      updated_at: string
+    }) => {
+      // Remoto vazio não apaga o que já temos
+      if (
+        Array.isArray(payload.slice.cargas) &&
+        payload.slice.cargas.length === 0 &&
+        stateRef.current.cargas.length > 0
+      ) {
+        return
+      }
       const fp = sliceFingerprint(payload.slice)
       if (fp === lastSyncFpRef.current) return
       applyingRemoteRef.current = true
-      lastSyncFpRef.current = fp
       setState((prev) => {
         const next = applySyncSlice(prev, payload.slice)
         stateRef.current = next
+        lastSyncFpRef.current = sliceFingerprint(pickSyncSlice(next))
         return next
       })
-      window.setTimeout(() => {
-        applyingRemoteRef.current = false
-      }, 0)
+      window.setTimeout(finishRemoteApply, 0)
     }
 
     void (async () => {
-      // Marca wipe local (migração) sem apagar o que já está no Supabase
       if (localStorage.getItem(KANBAN_WIPE_KEY) !== '1') {
         localStorage.setItem(KANBAN_WIPE_KEY, '1')
       }
@@ -508,14 +534,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const remote = await pullKanbanSync()
       if (cancelled) return
 
-      if (remote?.slice && Array.isArray(remote.slice.cargas)) {
-        // Remoto manda — todos veem o mesmo Kanban
-        applyRemote(remote)
-      } else {
-        // Ainda não há sync remoto: publica o estado local atual
-        const slice = pickSyncSlice(stateRef.current)
-        lastSyncFpRef.current = sliceFingerprint(slice)
-        await pushKanbanSync(slice)
+      if (!remote.ok) {
+        // Erro de rede/SQL: NÃO sobrescreve o remoto com estado local vazio
+        console.warn('[kanbanSync] bootstrap pull falhou — mantendo estado local')
+        return
+      }
+      if ('empty' in remote && remote.empty) {
+        // Primeira vez: só faz seed remoto se houver algo local
+        if (stateRef.current.cargas.length > 0 || stateRef.current.lances.length > 0) {
+          const slice = pickSyncSlice(stateRef.current)
+          lastSyncFpRef.current = sliceFingerprint(slice)
+          await pushKanbanSync(slice)
+        }
+        return
+      }
+      if ('payload' in remote && remote.payload) {
+        applyRemote(remote.payload)
       }
     })()
 
@@ -556,7 +590,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('storage', onStorage)
       if (pushTimerRef.current != null) window.clearTimeout(pushTimerRef.current)
     }
-  }, [])
+  }, [flushKanbanPush])
 
   useEffect(() => {
     saveConfigNegocio(config)
@@ -1066,9 +1100,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const gruposOk = Array.from(
-        new Set([...(cargaOk.grupo_ids ?? []), ...(cargaOk.grupos_notificados ?? [])]),
-      )
+      // Escalonar: só grupos já notificados; senão todos os da publicação
+      const gruposOk =
+        (cargaOk.grupos_notificados?.length ?? 0) > 0
+          ? cargaOk.grupos_notificados!
+          : (cargaOk.grupo_ids ?? [])
       const autorizado =
         gruposOk.length === 0 ||
         prev.grupos.some(
@@ -1247,112 +1283,128 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [actingTransportadorId, flushKanbanPush],
   )
 
-  const aceitarLance = useCallback((lanceId: string) => {
-    const prev = stateRef.current
-    const current = prev.lances.find((l) => l.id === lanceId)
-    if (!current || current.status !== 'ativo') {
-      return { ok: false, error: 'Proposta não encontrada ou já encerrada' }
-    }
-    const cargaAtual = prev.cargas.find((c) => c.id === current.carga_id)
-    if (!cargaAtual) return { ok: false, error: 'Carga não encontrada' }
-    if (cargaAtual.transportador_vencedor_id) {
-      return { ok: false, error: 'Esta carga já tem frete fechado' }
-    }
-    if (!['negociando', 'propostas'].includes(cargaAtual.status)) {
-      return { ok: false, error: 'Carga não está em negociação' }
-    }
+  const aceitarLance = useCallback(
+    (lanceId: string) => {
+      const prev = stateRef.current
+      const current = prev.lances.find((l) => l.id === lanceId)
+      if (!current || current.status !== 'ativo') {
+        return { ok: false, error: 'Proposta não encontrada ou já encerrada' }
+      }
+      const cargaAtual = prev.cargas.find((c) => c.id === current.carga_id)
+      if (!cargaAtual) return { ok: false, error: 'Carga não encontrada' }
+      if (cargaAtual.transportador_vencedor_id) {
+        return { ok: false, error: 'Esta carga já tem frete fechado' }
+      }
+      if (!['negociando', 'propostas'].includes(cargaAtual.status)) {
+        return { ok: false, error: 'Carga não está em negociação' }
+      }
 
-    const prazoAloc = Math.max(cargaAtual.prazo_alocacao_minutos ?? 10, 10)
-    const lances = prev.lances.map((l) => {
-      if (l.carga_id !== current.carga_id) return l
-      if (l.id === lanceId) return { ...l, status: 'vencedor' as const }
-      if (l.status === 'ativo') return { ...l, status: 'perdido' as const }
-      return l
-    })
-    const cargas = prev.cargas.map((c) =>
-      c.id === current.carga_id
-        ? {
-            ...c,
-            status: 'propostas' as const,
-            transportador_vencedor_id: current.transportador_id,
-            frete_fechado: current.valor,
-            expira_em: c.expira_em,
-            alocacao_expira_em: new Date(Date.now() + prazoAloc * 60_000).toISOString(),
-          }
-        : c,
-    )
-    const transportadores = prev.transportadores.map((t) => {
-      if (t.id !== current.transportador_id) return t
-      const pontuacao = t.pontuacao + PONTOS_ADERENCIA.frete_fechado
-      return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
-    })
-    const hist = makeHistorico(
-      'lance_aceito',
-      `Lance aceito — carga ${cargaAtual.numero}`,
-      {
-        carga_id: current.carga_id,
-        transportador_id: current.transportador_id,
-        detalhe: `R$ ${current.valor.toFixed(2)}`,
-      },
-      userRef.current,
-    )
-    const next: DataState = {
-      ...prev,
-      cargas,
-      lances,
-      transportadores,
-      historico: [hist, ...prev.historico].slice(0, 2000),
-      notificacoes: pushNotif(prev.notificacoes, {
-        role: 'transportador',
-        transportador_id: current.transportador_id,
-        titulo: 'Frete fechado',
-        mensagem: `Sua proposta na carga ${cargaAtual.numero} foi aceita.`,
-        carga_id: current.carga_id,
-      }),
-    }
-    stateRef.current = next
-    setState(next)
-    return { ok: true }
-  }, [])
+      const agora = new Date().toISOString()
+      const prazoAloc = Math.max(cargaAtual.prazo_alocacao_minutos ?? 10, 10)
+      const lances = prev.lances.map((l) => {
+        if (l.carga_id !== current.carga_id) return l
+        if (l.id === lanceId) return { ...l, status: 'vencedor' as const, updated_at: agora }
+        if (l.status === 'ativo') return { ...l, status: 'perdido' as const, updated_at: agora }
+        return l
+      })
+      const cargas = prev.cargas.map((c) =>
+        c.id === current.carga_id
+          ? {
+              ...c,
+              status: 'propostas' as const,
+              transportador_vencedor_id: current.transportador_id,
+              frete_fechado: current.valor,
+              expira_em: c.expira_em,
+              alocacao_expira_em: new Date(Date.now() + prazoAloc * 60_000).toISOString(),
+              updated_at: agora,
+            }
+          : c,
+      )
+      const transportadores = prev.transportadores.map((t) => {
+        if (t.id !== current.transportador_id) return t
+        const pontuacao = t.pontuacao + PONTOS_ADERENCIA.frete_fechado
+        return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
+      })
+      const hist = makeHistorico(
+        'lance_aceito',
+        `Lance aceito — carga ${cargaAtual.numero}`,
+        {
+          carga_id: current.carga_id,
+          transportador_id: current.transportador_id,
+          detalhe: `R$ ${current.valor.toFixed(2)}`,
+        },
+        userRef.current,
+      )
+      const next: DataState = {
+        ...prev,
+        cargas,
+        lances,
+        transportadores,
+        historico: [hist, ...prev.historico].slice(0, 2000),
+        notificacoes: pushNotif(prev.notificacoes, {
+          role: 'transportador',
+          transportador_id: current.transportador_id,
+          titulo: 'Frete fechado',
+          mensagem: `Sua proposta na carga ${cargaAtual.numero} foi aceita.`,
+          carga_id: current.carga_id,
+        }),
+      }
+      stateRef.current = next
+      setState(next)
+      flushKanbanPush(next)
+      return { ok: true }
+    },
+    [flushKanbanPush],
+  )
 
-  const rejeitarLance = useCallback((lanceId: string) => {
-    const prev = stateRef.current
-    const lance = prev.lances.find((l) => l.id === lanceId)
-    if (!lance || lance.status !== 'ativo') {
-      return { ok: false, error: 'Proposta não encontrada ou já encerrada' }
-    }
-    const carga = prev.cargas.find((c) => c.id === lance.carga_id)
-    if (carga?.transportador_vencedor_id) {
-      return { ok: false, error: 'Frete já fechado' }
-    }
-    const hist = makeHistorico(
-      'lance_rejeitado',
-      `Lance rejeitado — ${carga?.numero ?? ''}`,
-      {
-        carga_id: lance.carga_id,
-        transportador_id: lance.transportador_id,
-        detalhe: `R$ ${lance.valor.toFixed(2)}`,
-      },
-      userRef.current,
-    )
-    const next: DataState = {
-      ...prev,
-      lances: prev.lances.map((l) =>
-        l.id === lanceId ? { ...l, status: 'recusado' as const } : l,
-      ),
-      historico: [hist, ...prev.historico].slice(0, 2000),
-      notificacoes: pushNotif(prev.notificacoes, {
-        role: 'transportador',
-        transportador_id: lance.transportador_id,
-        titulo: 'Proposta rejeitada',
-        mensagem: `Sua proposta na carga ${carga?.numero ?? ''} foi rejeitada.`,
-        carga_id: lance.carga_id,
-      }),
-    }
-    stateRef.current = next
-    setState(next)
-    return { ok: true }
-  }, [])
+  const rejeitarLance = useCallback(
+    (lanceId: string) => {
+      const prev = stateRef.current
+      const lance = prev.lances.find((l) => l.id === lanceId)
+      if (!lance || lance.status !== 'ativo') {
+        return { ok: false, error: 'Proposta não encontrada ou já encerrada' }
+      }
+      const carga = prev.cargas.find((c) => c.id === lance.carga_id)
+      if (carga?.transportador_vencedor_id) {
+        return { ok: false, error: 'Frete já fechado' }
+      }
+      const agora = new Date().toISOString()
+      const hist = makeHistorico(
+        'lance_rejeitado',
+        `Lance rejeitado — ${carga?.numero ?? ''}`,
+        {
+          carga_id: lance.carga_id,
+          transportador_id: lance.transportador_id,
+          detalhe: `R$ ${lance.valor.toFixed(2)}`,
+        },
+        userRef.current,
+      )
+      const next: DataState = {
+        ...prev,
+        lances: prev.lances.map((l) =>
+          l.id === lanceId ? { ...l, status: 'recusado' as const, updated_at: agora } : l,
+        ),
+        cargas: carga
+          ? prev.cargas.map((c) =>
+              c.id === carga.id ? { ...c, updated_at: agora } : c,
+            )
+          : prev.cargas,
+        historico: [hist, ...prev.historico].slice(0, 2000),
+        notificacoes: pushNotif(prev.notificacoes, {
+          role: 'transportador',
+          transportador_id: lance.transportador_id,
+          titulo: 'Proposta rejeitada',
+          mensagem: `Sua proposta na carga ${carga?.numero ?? ''} foi rejeitada.`,
+          carga_id: lance.carga_id,
+        }),
+      }
+      stateRef.current = next
+      setState(next)
+      flushKanbanPush(next)
+      return { ok: true }
+    },
+    [flushKanbanPush],
+  )
 
   const enviarContraProposta = useCallback((lanceId: string, valor: number) => {
     if (!Number.isFinite(valor) || valor <= 0) {
@@ -1435,8 +1487,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     stateRef.current = next
     setState(next)
+    flushKanbanPush(next)
     return { ok: true }
-  }, [])
+  }, [flushKanbanPush])
 
   const aguardarMelhoresOfertas = useCallback(
     (cargaId: string, minutosExtra = 10) => {
@@ -2476,10 +2529,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
           }
         }
         if (tids.size === 0) {
+          const gruposChat =
+            (carga.grupos_notificados?.length ?? 0) > 0
+              ? carga.grupos_notificados!
+              : (carga.grupo_ids ?? [])
           for (const g of prev.grupos) {
-            if (!(carga.grupos_notificados ?? []).includes(g.id) && !(carga.grupo_ids ?? []).includes(g.id)) {
-              continue
-            }
+            if (!gruposChat.includes(g.id)) continue
             for (const tid of g.transportador_ids ?? []) tids.add(tid)
           }
         }
@@ -2603,10 +2658,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         if (c.transportador_vencedor_id) return false
         if (!c.publicado_em) return false
 
-        // União: grupos da publicação + já notificados (escalonamento não esconde)
-        const candidatos = Array.from(
-          new Set([...(c.grupo_ids ?? []), ...(c.grupos_notificados ?? [])]),
-        )
+        // Escalonar: só quem já foi notificado; sem escalonar, grupos_notificados = todos
+        const candidatos =
+          (c.grupos_notificados?.length ?? 0) > 0
+            ? c.grupos_notificados!
+            : (c.grupo_ids ?? [])
 
         // Sem grupo definido: todos os transportadores ativos veem
         if (candidatos.length === 0) return true

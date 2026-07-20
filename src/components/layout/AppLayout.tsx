@@ -287,7 +287,7 @@ export function AppLayout() {
                           setNotifOpen(false)
                           if (n.carga_id) {
                             const c = (cargas ?? []).find((x) => x.id === n.carga_id)
-                            if (c) setChatCarga(c)
+                            if (c) setChatCargaId(c.id)
                           }
                         }}
                       >
@@ -398,7 +398,7 @@ export function AppLayout() {
       <ChatModal
         carga={chatCarga}
         open={!!chatCarga}
-        onClose={() => setChatCarga(null)}
+        onClose={() => setChatCargaId(null)}
       />
     </div>
   )

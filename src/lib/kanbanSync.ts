@@ -35,6 +35,11 @@ export type KanbanSyncPayload = {
   slice: KanbanSyncSlice
 }
 
+export type PullResult =
+  | { ok: true; payload: KanbanSyncPayload }
+  | { ok: true; empty: true }
+  | { ok: false; error: string }
+
 let liveChannel: RealtimeChannel | null = null
 
 export function getClientId(): string {
@@ -68,21 +73,76 @@ export function sliceFingerprint(slice: KanbanSyncSlice): string {
   return JSON.stringify(slice)
 }
 
+function ts(iso?: string | null): number {
+  if (!iso) return 0
+  const n = new Date(iso).getTime()
+  return Number.isFinite(n) ? n : 0
+}
+
+function mergeById<T extends { id: string; updated_at?: string; created_at?: string }>(
+  local: T[],
+  remote: T[],
+): T[] {
+  const map = new Map<string, T>()
+  for (const item of local) map.set(item.id, item)
+  for (const item of remote) {
+    const prev = map.get(item.id)
+    if (!prev) {
+      map.set(item.id, item)
+      continue
+    }
+    const remoteT = ts(item.updated_at) || ts(item.created_at)
+    const localT = ts(prev.updated_at) || ts(prev.created_at)
+    if (remoteT >= localT) map.set(item.id, item)
+  }
+  return Array.from(map.values())
+}
+
+/** Mescla remoto sem apagar publicações locais mais novas. */
 export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: KanbanSyncSlice): T {
+  const remoteCargas = Array.isArray(slice.cargas) ? slice.cargas : []
+  const remoteLances = Array.isArray(slice.lances) ? slice.lances : []
+
+  // Remoto vazio NÃO apaga cargas locais publicadas/rascunhos
+  const cargas =
+    remoteCargas.length === 0 && prev.cargas.length > 0
+      ? prev.cargas
+      : mergeById(prev.cargas, remoteCargas)
+
+  const lances =
+    remoteLances.length === 0 && prev.lances.length > 0 && remoteCargas.length === 0
+      ? prev.lances
+      : mergeById(prev.lances, remoteLances)
+
   const merged = {
     ...prev,
-    cargas: slice.cargas ?? prev.cargas,
-    lances: slice.lances ?? prev.lances,
-    grupos: slice.grupos ?? prev.grupos,
-    transportadores: slice.transportadores ?? prev.transportadores,
-    notificacoes: slice.notificacoes ?? prev.notificacoes,
-    mensagens: slice.mensagens ?? prev.mensagens,
-    historico: slice.historico ?? prev.historico,
-    historicoPropostas: slice.historicoPropostas ?? prev.historicoPropostas,
-    chatLeituras: slice.chatLeituras ?? prev.chatLeituras,
+    cargas,
+    lances,
+    grupos: slice.grupos?.length ? slice.grupos : prev.grupos,
+    transportadores: slice.transportadores?.length
+      ? slice.transportadores
+      : prev.transportadores,
+    notificacoes: mergeById(prev.notificacoes ?? [], slice.notificacoes ?? []),
+    mensagens: mergeById(prev.mensagens ?? [], slice.mensagens ?? []),
+    historico: mergeById(prev.historico ?? [], slice.historico ?? []).slice(0, 2000),
+    historicoPropostas: mergeById(
+      prev.historicoPropostas ?? [],
+      slice.historicoPropostas ?? [],
+    ).slice(0, 3000),
+    chatLeituras: { ...(prev.chatLeituras ?? {}), ...(slice.chatLeituras ?? {}) },
   }
+
+  // Garante Santos (t1) nos grupos ativos após sync
+  const grupos = merged.grupos.map((g) => {
+    if (g.situacao === 'inativo') return g
+    const ids = g.transportador_ids ?? []
+    if (ids.includes('t1')) return g
+    return { ...g, transportador_ids: [...ids, 't1'] }
+  })
+
   return {
     ...merged,
+    grupos,
     cargas: alinharStatusComLances(merged.cargas, merged.lances),
   }
 }
@@ -97,8 +157,10 @@ function parsePayload(raw: unknown, fallbackClient?: string, fallbackAt?: string
   }
 }
 
-export async function pullKanbanSync(): Promise<KanbanSyncPayload | null> {
-  if (!isSupabaseConfigured || !supabase) return null
+export async function pullKanbanSync(): Promise<PullResult> {
+  if (!isSupabaseConfigured || !supabase) {
+    return { ok: false, error: 'Supabase não configurado' }
+  }
   const { data, error } = await supabase
     .from('kanban_sync')
     .select('payload, updated_at, client_id')
@@ -106,10 +168,12 @@ export async function pullKanbanSync(): Promise<KanbanSyncPayload | null> {
     .maybeSingle()
   if (error) {
     console.warn('[kanbanSync] pull falhou:', error.message)
-    return null
+    return { ok: false, error: error.message }
   }
-  if (!data) return null
-  return parsePayload(data.payload, data.client_id ?? undefined, data.updated_at)
+  if (!data) return { ok: true, empty: true }
+  const payload = parsePayload(data.payload, data.client_id ?? undefined, data.updated_at)
+  if (!payload) return { ok: true, empty: true }
+  return { ok: true, payload }
 }
 
 export async function pushKanbanSync(slice: KanbanSyncSlice): Promise<boolean> {
@@ -182,10 +246,11 @@ export function subscribeKanbanSync(
     })
     .subscribe()
 
-  // Fallback: polling a cada 2s (cobre Realtime/SQL ainda não configurados)
   const pollId = window.setInterval(() => {
-    void pullKanbanSync().then(deliver)
-  }, 2000)
+    void pullKanbanSync().then((res) => {
+      if (res.ok && 'payload' in res && res.payload) deliver(res.payload)
+    })
+  }, 2500)
 
   return () => {
     window.clearInterval(pollId)
