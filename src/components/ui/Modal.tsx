@@ -18,16 +18,13 @@ export function Modal({ open, title, onClose, children, wide }: ModalProps) {
         role="presentation"
         aria-hidden
         className="absolute inset-0 bg-ink-deep/50 backdrop-blur-[2px]"
-        onMouseDown={(e) => {
-          e.preventDefault()
-          onClose()
-        }}
+        onClick={onClose}
       />
       <div
         role="dialog"
         aria-modal="true"
         className={`relative z-10 w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} animate-fade-up rounded-xl border border-ink/10 bg-panel shadow-2xl`}
-        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-ink/10 px-5 py-3">
           <h3 className="font-display text-lg font-semibold text-ink">{title}</h3>

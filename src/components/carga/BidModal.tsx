@@ -29,6 +29,7 @@ function sanitizeMoneyTyping(raw: string): string {
 
 export function BidModal({ carga, open, onClose }: BidModalProps) {
   const {
+    cargas,
     enviarLance,
     registrarVisualizacao,
     lancesDaCarga,
@@ -39,21 +40,32 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
   const [valor, setValor] = useState('')
   const [error, setError] = useState('')
   const initKeyRef = useRef<string | null>(null)
+  const editingRef = useRef(false)
+  const lancesRef = useRef(lancesDaCarga)
+  lancesRef.current = lancesDaCarga
 
   const tid = effectiveTransportadorId()
 
-  // Só preenche ao abrir (ou trocar de carga) — evita o timer do Kanban apagar o que o usuário digita
+  // Sempre a carga ao vivo do estado (evita snapshot stale do Kanban / timer)
+  const live = useMemo(() => {
+    if (!carga) return null
+    return cargas.find((c) => c.id === carga.id) ?? carga
+  }, [cargas, carga])
+
+  // Só preenche ao abrir (ou trocar de carga/transportadora) — nunca enquanto digita
   useEffect(() => {
     if (!open || !carga) {
       initKeyRef.current = null
+      editingRef.current = false
       return
     }
     const key = `${carga.id}:${tid ?? ''}`
     if (initKeyRef.current === key) return
+    if (editingRef.current) return
     initKeyRef.current = key
 
     registrarVisualizacao(carga.id)
-    const meu = lancesDaCarga(carga.id).find(
+    const meu = lancesRef.current(carga.id).find(
       (l) => l.transportador_id === tid && l.status === 'ativo',
     )
     const ref = roundMoney(carga.frete_oferta ?? carga.frete_tabela)
@@ -65,14 +77,15 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
           : ref
     setValor(formatMoneyInput(sugestao))
     setError('')
-  }, [open, carga, tid, lancesDaCarga, registrarVisualizacao])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só reinit ao abrir / trocar id
+  }, [open, carga?.id, tid, registrarVisualizacao])
 
   const ranking = useMemo(() => {
-    if (!carga) return []
-    return lancesDaCarga(carga.id).filter((l) =>
+    if (!live) return []
+    return lancesDaCarga(live.id).filter((l) =>
       ['ativo', 'vencedor'].includes(l.status),
     )
-  }, [carga, lancesDaCarga])
+  }, [live, lancesDaCarga])
 
   const minhaPosicao = useMemo(() => {
     if (!tid) return null
@@ -81,19 +94,17 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
   }, [ranking, tid])
 
   const histMeu = useMemo(() => {
-    if (!carga || !tid) return []
-    return historicoPropostasDaCarga(carga.id).filter((h) => h.transportador_id === tid)
-  }, [carga, tid, historicoPropostasDaCarga])
+    if (!live || !tid) return []
+    return historicoPropostasDaCarga(live.id).filter((h) => h.transportador_id === tid)
+  }, [live, tid, historicoPropostasDaCarga])
 
-  if (!carga) return null
+  if (!live) return null
 
-  const freteRef = roundMoney(carga.frete_oferta ?? carga.frete_tabela)
-  const jaFechada = Boolean(carga.transportador_vencedor_id)
-  const suspensa = carga.status === 'suspensas'
-  const encerrada =
-    Boolean(carga.expira_em && new Date(carga.expira_em).getTime() < Date.now()) &&
-    !carga.transportador_vencedor_id
-  const bloqueado = jaFechada || encerrada || suspensa
+  const freteRef = roundMoney(live.frete_oferta ?? live.frete_tabela)
+  const jaFechada = Boolean(live.transportador_vencedor_id)
+  const suspensa = live.status === 'suspensas' || Boolean(live.pausado_em)
+  // Só bloqueia digitação se frete já fechado ou suspensa — prazo é validado no envio
+  const bloqueado = jaFechada || suspensa
 
   function submitValor(num: number) {
     if (Number.isNaN(num)) {
@@ -112,19 +123,15 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
       setError('Negociação suspensa pelo embarcador.')
       return
     }
-    if (encerrada) {
-      setError('Prazo de negociação encerrado.')
+    if (live!.frete_minimo != null && num < live!.frete_minimo) {
+      setError(`Lance mínimo: ${formatCurrency(live!.frete_minimo)}`)
       return
     }
-    if (carga!.frete_minimo != null && num < carga!.frete_minimo) {
-      setError(`Lance mínimo: ${formatCurrency(carga!.frete_minimo)}`)
+    if (live!.frete_maximo != null && num > live!.frete_maximo) {
+      setError(`Lance máximo: ${formatCurrency(live!.frete_maximo)}`)
       return
     }
-    if (carga!.frete_maximo != null && num > carga!.frete_maximo) {
-      setError(`Lance máximo: ${formatCurrency(carga!.frete_maximo)}`)
-      return
-    }
-    const res = enviarLance(carga!.id, num)
+    const res = enviarLance(live!.id, num)
     if (!res.ok) {
       setError(res.error ?? 'Erro ao enviar lance')
       return
@@ -147,27 +154,27 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
       <div className="space-y-4">
         <div className="rounded-lg bg-emerald-50/80 p-4 text-sm">
           <div className="grid gap-2 sm:grid-cols-2">
-            <Detail label="Carga" value={carga.numero} />
-            <Detail label="Carregamento" value={formatDateTime(carga.data_carregamento)} />
-            <Detail label="Pedido" value={carga.pedido} />
-            <Detail label="Tipo" value={carga.tipo_carga} />
-            <Detail label="Veículo" value={carga.veiculo} />
-            <Detail label="Origem" value={carga.origem} />
-            <Detail label="Destino" value={carga.destino} />
-            <Detail label="Peso" value={formatNumber(carga.peso)} />
-            <Detail label="Frete Tabela" value={formatCurrency(carga.frete_tabela)} />
+            <Detail label="Carga" value={live.numero} />
+            <Detail label="Carregamento" value={formatDateTime(live.data_carregamento)} />
+            <Detail label="Pedido" value={live.pedido} />
+            <Detail label="Tipo" value={live.tipo_carga} />
+            <Detail label="Veículo" value={live.veiculo} />
+            <Detail label="Origem" value={live.origem} />
+            <Detail label="Destino" value={live.destino} />
+            <Detail label="Peso" value={formatNumber(live.peso)} />
+            <Detail label="Frete Tabela" value={formatCurrency(live.frete_tabela)} />
             <Detail label="Frete Oferta" value={formatCurrency(freteRef)} />
-            {carga.frete_minimo != null && (
-              <Detail label="Lance mínimo" value={formatCurrency(roundMoney(carga.frete_minimo))} />
+            {live.frete_minimo != null && (
+              <Detail label="Lance mínimo" value={formatCurrency(roundMoney(live.frete_minimo))} />
             )}
-            {carga.frete_maximo != null && (
-              <Detail label="Lance máximo" value={formatCurrency(roundMoney(carga.frete_maximo))} />
+            {live.frete_maximo != null && (
+              <Detail label="Lance máximo" value={formatCurrency(roundMoney(live.frete_maximo))} />
             )}
             <Detail
               label="Modo"
-              value={carga.modo_publicacao === 'oferta' ? 'Oferta (1ª menor fecha)' : 'Leilão'}
+              value={live.modo_publicacao === 'oferta' ? 'Oferta (1ª menor fecha)' : 'Leilão'}
             />
-            <Detail label="Prioridade" value={carga.prioridade ?? '—'} />
+            <Detail label="Prioridade" value={live.prioridade ?? '—'} />
             {minhaPosicao != null && (
               <Detail label="Sua posição" value={`${minhaPosicao}º`} />
             )}
@@ -243,11 +250,15 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
             inputMode="decimal"
             autoComplete="off"
             onChange={(e) => {
+              editingRef.current = true
               setError('')
               setValor(sanitizeMoneyTyping(e.target.value))
             }}
-            onFocus={(e) => e.currentTarget.select()}
+            onFocus={() => {
+              editingRef.current = true
+            }}
             onBlur={() => {
+              editingRef.current = false
               const n = parseMoneyInput(valor)
               if (!Number.isNaN(n) && n > 0) setValor(formatMoneyInput(n))
             }}
@@ -256,13 +267,13 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
           />
         </Field>
 
-        {carga.modo_publicacao === 'oferta' && (
+        {live.modo_publicacao === 'oferta' && (
           <p className="text-xs text-ink-muted">
             Modo Oferta: aceitar o frete oferta ou enviar lance até esse valor fecha o frete.
             Após enviar, o valor não pode ser alterado.
           </p>
         )}
-        {carga.modo_publicacao === 'leilao' && (
+        {live.modo_publicacao === 'leilao' && (
           <p className="text-xs text-ink-muted">
             Modo Leilão: você pode atualizar o lance até o fim do prazo. Em empate de valor, vence
             o mais antigo (ou o embarcador decide manualmente). Use “Aceitar oferta” para propor

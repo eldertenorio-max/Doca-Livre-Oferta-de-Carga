@@ -970,14 +970,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (carga.transportador_vencedor_id) {
         return { ok: false, error: 'Frete já fechado nesta carga' }
       }
+      // Prazo vencido sem vencedor: renova a janela (mesmo critério do normalize) e segue o lance
+      let cargaOk = carga
       if (carga.expira_em && new Date(carga.expira_em).getTime() < Date.now()) {
-        return { ok: false, error: 'Prazo de oferta encerrado' }
+        const prazoMs = Math.max(10, carga.prazo_leilao_minutos ?? 60) * 60_000
+        const expira_em = new Date(Date.now() + prazoMs).toISOString()
+        cargaOk = { ...carga, expira_em }
+        stateRef.current = {
+          ...prev,
+          cargas: prev.cargas.map((c) => (c.id === cargaId ? { ...c, expira_em } : c)),
+        }
       }
+
       if (valor <= 0) return { ok: false, error: 'Valor inválido' }
 
-      const freteRef = carga.frete_oferta ?? carga.frete_tabela
-      const min = carga.frete_minimo
-      const max = carga.frete_maximo
+      const freteRef = cargaOk.frete_oferta ?? cargaOk.frete_tabela
+      const min = cargaOk.frete_minimo
+      const max = cargaOk.frete_maximo
       if (min != null && valor < min - 0.009) {
         return {
           ok: false,
@@ -992,7 +1001,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
 
       const gruposOk = Array.from(
-        new Set([...(carga.grupo_ids ?? []), ...(carga.grupos_notificados ?? [])]),
+        new Set([...(cargaOk.grupo_ids ?? []), ...(cargaOk.grupos_notificados ?? [])]),
       )
       const autorizado =
         gruposOk.length === 0 ||
@@ -1006,18 +1015,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: 'Você ainda não foi chamado para negociar esta carga' }
       }
 
-      const jaTemLance = prev.lances.some(
+      const jaTemLance = stateRef.current.lances.some(
         (l) => l.carga_id === cargaId && l.transportador_id === tid && l.status === 'ativo',
       )
-      if (jaTemLance && carga.modo_publicacao === 'oferta') {
+      if (jaTemLance && cargaOk.modo_publicacao === 'oferta') {
         return { ok: false, error: 'No modo Oferta não é permitido alterar a proposta.' }
       }
 
       const userNow = userRef.current
       const agora = new Date().toISOString()
+      const base = stateRef.current
 
       // Modo Oferta: lance ≤ frete oferta fecha (inclui “Aceitar oferta”)
-      if (carga.modo_publicacao === 'oferta' && valor <= freteRef + 0.009) {
+      if (cargaOk.modo_publicacao === 'oferta' && valor <= freteRef + 0.009) {
         const lance: Lance = {
           id: uid('lance'),
           carga_id: cargaId,
@@ -1027,8 +1037,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
           created_at: agora,
         }
         const next: DataState = {
-          ...prev,
-          cargas: prev.cargas.map((c) =>
+          ...base,
+          cargas: base.cargas.map((c) =>
             c.id === cargaId
               ? {
                   ...c,
@@ -1042,13 +1052,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
               : c,
           ),
           lances: [
-            ...prev.lances.filter(
+            ...base.lances.filter(
               (l) =>
                 !(l.carga_id === cargaId && l.transportador_id === tid && l.status === 'ativo'),
             ),
             lance,
           ],
-          transportadores: prev.transportadores.map((t) => {
+          transportadores: base.transportadores.map((t) => {
             if (t.id !== tid) return t
             const pontuacao =
               t.pontuacao + PONTOS_ADERENCIA.com_proposta + PONTOS_ADERENCIA.frete_fechado
@@ -1057,7 +1067,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           historico: [
             makeHistorico(
               'lance_enviado',
-              `Lance vencedor (modo Oferta) — ${carga.numero}`,
+              `Lance vencedor (modo Oferta) — ${cargaOk.numero}`,
               {
                 carga_id: cargaId,
                 transportador_id: tid,
@@ -1065,7 +1075,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
               },
               userNow,
             ),
-            ...prev.historico,
+            ...base.historico,
           ].slice(0, 2000),
         }
         stateRef.current = next
@@ -1073,11 +1083,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return { ok: true }
       }
 
-      const existing = prev.lances.find(
+      const existing = base.lances.find(
         (l) => l.carga_id === cargaId && l.transportador_id === tid && l.status === 'ativo',
       )
       let lances: Lance[]
-      let historicoPropostas = prev.historicoPropostas ?? []
+      let historicoPropostas = base.historicoPropostas ?? []
       if (existing) {
         historicoPropostas = [
           {
@@ -1091,7 +1101,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           },
           ...historicoPropostas,
         ]
-        lances = prev.lances.map((l) =>
+        lances = base.lances.map((l) =>
           l.id === existing.id ? { ...l, valor, updated_at: agora } : l,
         )
       } else {
@@ -1109,7 +1119,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           ...historicoPropostas,
         ]
         lances = [
-          ...prev.lances,
+          ...base.lances,
           {
             id: lanceId,
             carga_id: cargaId,
@@ -1123,28 +1133,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       const isNew = !existing
       // Sempre move para Propostas quando há lance ativo (Kanban Minerva + Transportador)
-      const cargas = prev.cargas.map((c) =>
+      const cargas = base.cargas.map((c) =>
         c.id === cargaId && !c.transportador_vencedor_id
           ? { ...c, status: 'propostas' as const, updated_at: agora }
           : c,
       )
       const transportadores = isNew
-        ? prev.transportadores.map((t) => {
+        ? base.transportadores.map((t) => {
             if (t.id !== tid) return t
             const pontuacao = t.pontuacao + PONTOS_ADERENCIA.com_proposta
             return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
           })
-        : prev.transportadores
+        : base.transportadores
 
       const next: DataState = {
-        ...prev,
+        ...base,
         cargas,
         lances,
         transportadores,
         historico: [
           makeHistorico(
             'lance_enviado',
-            `${isNew ? 'Nova proposta' : 'Proposta atualizada'} — ${carga.numero}`,
+            `${isNew ? 'Nova proposta' : 'Proposta atualizada'} — ${cargaOk.numero}`,
             {
               carga_id: cargaId,
               transportador_id: tid,
@@ -1152,13 +1162,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
             },
             userNow,
           ),
-          ...prev.historico,
+          ...base.historico,
         ].slice(0, 2000),
         historicoPropostas: historicoPropostas.slice(0, 3000),
-        notificacoes: pushNotif(prev.notificacoes, {
+        notificacoes: pushNotif(base.notificacoes, {
           role: 'minerva',
           titulo: isNew ? 'Nova proposta recebida' : 'Proposta atualizada',
-          mensagem: `Carga ${carga.numero}: R$ ${valor.toFixed(2)}`,
+          mensagem: `Carga ${cargaOk.numero}: R$ ${valor.toFixed(2)}`,
           carga_id: cargaId,
         }),
       }
