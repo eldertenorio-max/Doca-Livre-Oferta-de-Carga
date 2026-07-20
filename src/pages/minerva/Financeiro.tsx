@@ -331,7 +331,7 @@ export function FinanceiroPage() {
   if (!user) return <Navigate to="/login" replace />
   if (!isSuper) {
     return (
-      <div className="cadastro-page">
+      <div className="financeiro-page">
         <h1 className="cadastro-page-title">Financeiro</h1>
         <p className="cadastro-empty">
           Apenas Super Usuários podem acessar o financeiro e o controle de pagamentos.
@@ -341,16 +341,16 @@ export function FinanceiroPage() {
   }
 
   return (
-    <div className="cadastro-page animate-fade-up">
-      <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
+    <div className="financeiro-page animate-fade-up">
+      <header className="financeiro-header">
         <div>
-          <h1 className="cadastro-page-title">Financeiro</h1>
-          <p className="text-sm text-ink-muted">
+          <h1 className="financeiro-title">Financeiro</h1>
+          <p className="financeiro-subtitle">
             Fretes fechados por transportadora — base para pagamento (viagens, veículos, motoristas e
             valores).
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="financeiro-header-actions">
           <button
             type="button"
             className="cadastro-btn cadastro-btn--ghost"
@@ -368,123 +368,157 @@ export function FinanceiroPage() {
         </div>
       </header>
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <Kpi label="Viagens" value={String(totais.viagens)} />
-        <Kpi label="Transportadoras" value={String(totais.transportadoras)} />
-        <Kpi label="Valor total" value={formatCurrency(totais.valorTotal)} />
-        <Kpi label="A pagar" value={formatCurrency(totais.aPagar)} accent="amber" />
-        <Kpi label="Já pago" value={formatCurrency(totais.pago)} accent="green" />
-      </div>
-
-      <div className="mb-4 flex flex-wrap items-end gap-2">
-        <div className="flex flex-wrap gap-1">
-          {(
-            [
-              ['tudo', 'Tudo'],
-              ['hoje', 'Hoje'],
-              ['7d', '7 dias'],
-              ['30d', '30 dias'],
-            ] as const
-          ).map(([k, label]) => (
-            <button
-              key={k}
-              type="button"
-              className={
-                periodo === k
-                  ? 'cadastro-btn cadastro-btn--primary text-xs'
-                  : 'cadastro-btn cadastro-btn--ghost text-xs'
-              }
-              onClick={() => aplicarPeriodo(k)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <label className="flex flex-col gap-1 text-xs text-ink-muted">
-          De
-          <input
-            type="date"
-            className="cadastro-input w-auto"
-            value={de}
-            onChange={(e) => {
-              setPeriodo('tudo')
-              setDe(e.target.value)
-            }}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-ink-muted">
-          Até
-          <input
-            type="date"
-            className="cadastro-input w-auto"
-            value={ate}
-            onChange={(e) => {
-              setPeriodo('tudo')
-              setAte(e.target.value)
-            }}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-ink-muted">
-          Transportadora
-          <select
-            className="cadastro-input min-w-[200px]"
-            value={tid}
-            onChange={(e) => {
-              setTid(e.target.value)
-              setSelectedTid(e.target.value === 'todos' ? null : e.target.value)
-            }}
-          >
-            <option value="todos">Todas</option>
-            {transportadores
-              .filter((t) => t.situacao !== 'inativo')
-              .map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nome_fantasia}
-                </option>
-              ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-ink-muted">
-          Pagamento
-          <select
-            className="cadastro-input w-auto"
-            value={filtroPag}
-            onChange={(e) => setFiltroPag(e.target.value as FiltroPagamento)}
-          >
-            <option value="todos">Todos</option>
-            <option value="a_pagar">A pagar</option>
-            <option value="pago">Pago</option>
-          </select>
-        </label>
-        <input
-          className="cadastro-input min-w-[200px] flex-1"
-          placeholder="Buscar carga, placa, motorista, CNPJ..."
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
+      <div className="financeiro-kpis">
+        <Kpi label="Viagens" value={String(totais.viagens)} hint="Fretes fechados" />
+        <Kpi
+          label="Transportadoras"
+          value={String(totais.transportadoras)}
+          hint="Com frete no filtro"
+        />
+        <Kpi
+          label="Valor total"
+          value={formatCurrency(totais.valorTotal)}
+          hint="Soma dos fretes"
+          accent="ink"
+        />
+        <Kpi
+          label="A pagar"
+          value={formatCurrency(totais.aPagar)}
+          hint="Pendente de pagamento"
+          accent="amber"
+        />
+        <Kpi
+          label="Já pago"
+          value={formatCurrency(totais.pago)}
+          hint="Marcado como pago"
+          accent="green"
         />
       </div>
 
-      <section className="mb-6">
-        <h2 className="mb-2 text-sm font-semibold text-ink">Por transportadora</h2>
-        <div className="overflow-hidden rounded-xl border border-ink/10 bg-white">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-sand-light/60 text-xs uppercase text-ink-muted">
+      <section className="financeiro-filters" aria-label="Filtros">
+        <div className="financeiro-filters__head">
+          <h2 className="financeiro-filters__title">Filtros</h2>
+          <p className="financeiro-filters__hint">Período, transportadora, status e busca</p>
+        </div>
+        <div className="financeiro-filters__body">
+          <div className="financeiro-filters__period">
+            <span className="financeiro-filters__label">Período rápido</span>
+            <div className="financeiro-period-group">
+              {(
+                [
+                  ['tudo', 'Tudo'],
+                  ['hoje', 'Hoje'],
+                  ['7d', '7 dias'],
+                  ['30d', '30 dias'],
+                ] as const
+              ).map(([k, label]) => (
+                <button
+                  key={k}
+                  type="button"
+                  className={
+                    periodo === k
+                      ? 'financeiro-chip financeiro-chip--active'
+                      : 'financeiro-chip'
+                  }
+                  onClick={() => aplicarPeriodo(k)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="financeiro-filters__grid">
+            <label className="financeiro-field">
+              <span className="financeiro-filters__label">De</span>
+              <input
+                type="date"
+                className="cadastro-input financeiro-input"
+                value={de}
+                onChange={(e) => {
+                  setPeriodo('tudo')
+                  setDe(e.target.value)
+                }}
+              />
+            </label>
+            <label className="financeiro-field">
+              <span className="financeiro-filters__label">Até</span>
+              <input
+                type="date"
+                className="cadastro-input financeiro-input"
+                value={ate}
+                onChange={(e) => {
+                  setPeriodo('tudo')
+                  setAte(e.target.value)
+                }}
+              />
+            </label>
+            <label className="financeiro-field financeiro-field--grow">
+              <span className="financeiro-filters__label">Transportadora</span>
+              <select
+                className="cadastro-input financeiro-input"
+                value={tid}
+                onChange={(e) => {
+                  setTid(e.target.value)
+                  setSelectedTid(e.target.value === 'todos' ? null : e.target.value)
+                }}
+              >
+                <option value="todos">Todas</option>
+                {transportadores
+                  .filter((t) => t.situacao !== 'inativo')
+                  .map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.nome_fantasia}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label className="financeiro-field">
+              <span className="financeiro-filters__label">Pagamento</span>
+              <select
+                className="cadastro-input financeiro-input"
+                value={filtroPag}
+                onChange={(e) => setFiltroPag(e.target.value as FiltroPagamento)}
+              >
+                <option value="todos">Todos</option>
+                <option value="a_pagar">A pagar</option>
+                <option value="pago">Pago</option>
+              </select>
+            </label>
+            <label className="financeiro-field financeiro-field--search">
+              <span className="financeiro-filters__label">Busca</span>
+              <input
+                className="cadastro-input financeiro-input"
+                placeholder="Carga, placa, motorista, CNPJ..."
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section className="financeiro-section">
+        <h2 className="financeiro-section__title">Por transportadora</h2>
+        <div className="financeiro-table-wrap">
+          <table className="financeiro-table">
+            <thead>
               <tr>
-                <th className="px-3 py-2">Transportadora</th>
-                <th className="px-3 py-2">CNPJ</th>
-                <th className="px-3 py-2 text-right">Viagens</th>
-                <th className="px-3 py-2">Veículos</th>
-                <th className="px-3 py-2">Motoristas</th>
-                <th className="px-3 py-2 text-right">Total frete</th>
-                <th className="px-3 py-2 text-right">A pagar</th>
-                <th className="px-3 py-2 text-right">Pago</th>
-                <th className="px-3 py-2">Ações</th>
+                <th>Transportadora</th>
+                <th>CNPJ</th>
+                <th className="text-right">Viagens</th>
+                <th>Veículos</th>
+                <th>Motoristas</th>
+                <th className="text-right">Total frete</th>
+                <th className="text-right">A pagar</th>
+                <th className="text-right">Pago</th>
+                <th>Ações</th>
               </tr>
             </thead>
             <tbody>
               {porTransportadora.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-3 py-8 text-center text-ink-muted">
+                  <td colSpan={9} className="financeiro-empty">
                     Nenhum frete fechado no período. Feche e aloque cargas no Kanban para gerar a
                     base de pagamento.
                   </td>
@@ -493,56 +527,51 @@ export function FinanceiroPage() {
                 porTransportadora.map((r) => {
                   const ativo = selectedTid === r.tid
                   return (
-                    <tr
-                      key={r.tid}
-                      className={`border-t border-ink/5 ${ativo ? 'bg-brand/5' : ''}`}
-                    >
-                      <td className="px-3 py-2">
+                    <tr key={r.tid} className={ativo ? 'financeiro-row--active' : undefined}>
+                      <td>
                         <button
                           type="button"
-                          className="text-left font-medium text-ink hover:text-brand"
+                          className="financeiro-link"
                           onClick={() => setSelectedTid(ativo ? null : r.tid)}
                         >
                           {r.nome}
                         </button>
-                        <span className="mt-0.5 block text-[11px] text-ink-muted">
+                        <span className="financeiro-meta">
                           {r.cidade}
                           {r.uf ? `/${r.uf}` : ''} · {r.telefone}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-xs whitespace-nowrap">{r.cnpj}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">
+                      <td className="whitespace-nowrap">{r.cnpj}</td>
+                      <td className="text-right tabular-nums">
                         {r.viagens}
-                        <span className="mt-0.5 block text-[10px] text-ink-muted">
-                          {r.alocadas} aloc.
-                        </span>
+                        <span className="financeiro-meta">{r.alocadas} aloc.</span>
                       </td>
-                      <td className="max-w-[140px] px-3 py-2 text-xs">
+                      <td className="financeiro-cell-clip">
                         {r.placas.size === 0
                           ? '—'
                           : Array.from(r.placas).slice(0, 4).join(', ') +
                             (r.placas.size > 4 ? ` +${r.placas.size - 4}` : '')}
                       </td>
-                      <td className="max-w-[140px] px-3 py-2 text-xs">
+                      <td className="financeiro-cell-clip">
                         {r.motoristas.size === 0
                           ? '—'
                           : Array.from(r.motoristas).slice(0, 3).join(', ') +
                             (r.motoristas.size > 3 ? ` +${r.motoristas.size - 3}` : '')}
                       </td>
-                      <td className="px-3 py-2 text-right font-medium tabular-nums">
+                      <td className="text-right font-semibold tabular-nums">
                         {formatCurrency(r.valorTotal)}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-amber-800">
+                      <td className="text-right tabular-nums financeiro-money--amber">
                         {formatCurrency(r.aPagar)}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-emerald-800">
+                      <td className="text-right tabular-nums financeiro-money--green">
                         {formatCurrency(r.pago)}
                       </td>
-                      <td className="px-3 py-2">
-                        <div className="flex flex-col gap-1">
+                      <td>
+                        <div className="financeiro-actions-col">
                           <button
                             type="button"
-                            className="text-left text-xs font-medium text-brand hover:underline"
+                            className="financeiro-link"
                             onClick={() => setSelectedTid(r.tid)}
                           >
                             Ver fretes
@@ -550,7 +579,7 @@ export function FinanceiroPage() {
                           {r.aPagar > 0 && (
                             <button
                               type="button"
-                              className="text-left text-xs text-emerald-800 hover:underline"
+                              className="financeiro-link financeiro-link--green"
                               onClick={() => marcarTodosAPagarDaTransportadora(r.tid, 'pago')}
                             >
                               Marcar tudo pago
@@ -567,9 +596,9 @@ export function FinanceiroPage() {
         </div>
       </section>
 
-      <section>
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-ink">
+      <section className="financeiro-section">
+        <div className="financeiro-section__head">
+          <h2 className="financeiro-section__title">
             Detalhe dos fretes
             {selectedTid
               ? ` · ${porTransportadora.find((r) => r.tid === selectedTid)?.nome ?? ''}`
@@ -578,33 +607,33 @@ export function FinanceiroPage() {
           {selectedTid && (
             <button
               type="button"
-              className="text-xs text-ink-muted hover:text-ink"
+              className="financeiro-link-muted"
               onClick={() => setSelectedTid(null)}
             >
               Limpar filtro da transportadora
             </button>
           )}
         </div>
-        <div className="overflow-x-auto rounded-xl border border-ink/10 bg-white">
-          <table className="w-full min-w-[960px] text-left text-sm">
-            <thead className="bg-sand-light/60 text-xs uppercase text-ink-muted">
+        <div className="financeiro-table-wrap financeiro-table-wrap--scroll">
+          <table className="financeiro-table financeiro-table--wide">
+            <thead>
               <tr>
-                <th className="px-3 py-2">Carga</th>
-                <th className="px-3 py-2">Transportadora</th>
-                <th className="px-3 py-2">Rota</th>
-                <th className="px-3 py-2">Carregamento</th>
-                <th className="px-3 py-2">Peso</th>
-                <th className="px-3 py-2">Placa</th>
-                <th className="px-3 py-2">Motorista</th>
-                <th className="px-3 py-2 text-right">Frete</th>
-                <th className="px-3 py-2">Pagamento</th>
-                <th className="px-3 py-2">Ação</th>
+                <th>Carga</th>
+                <th>Transportadora</th>
+                <th>Rota</th>
+                <th>Carregamento</th>
+                <th>Peso</th>
+                <th>Placa</th>
+                <th>Motorista</th>
+                <th className="text-right">Frete</th>
+                <th>Pagamento</th>
+                <th>Ação</th>
               </tr>
             </thead>
             <tbody>
               {fretesDetalhe.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-3 py-8 text-center text-ink-muted">
+                  <td colSpan={10} className="financeiro-empty">
                     Nenhum frete neste filtro.
                   </td>
                 </tr>
@@ -614,59 +643,53 @@ export function FinanceiroPage() {
                   const st = getStatusPagamento(pagamentos, c.id)
                   const reg = pagamentos[c.id]
                   return (
-                    <tr key={c.id} className="border-t border-ink/5">
-                      <td className="px-3 py-2">
-                        <span className="font-medium">{c.numero}</span>
-                        <span className="mt-0.5 block text-[10px] uppercase text-ink-muted">
+                    <tr key={c.id}>
+                      <td>
+                        <span className="font-semibold">{c.numero}</span>
+                        <span className="financeiro-meta">
                           {c.status}
                           {c.pedido ? ` · ped. ${c.pedido}` : ''}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-xs">
+                      <td>
                         {t?.nome_fantasia ?? '—'}
-                        <span className="mt-0.5 block text-[10px] text-ink-muted">
-                          {t?.cnpj ?? ''}
-                        </span>
+                        <span className="financeiro-meta">{t?.cnpj ?? ''}</span>
                       </td>
-                      <td className="px-3 py-2 text-xs">
+                      <td>
                         {c.origem}
                         <span className="text-ink-muted"> → </span>
                         {c.destino}
                       </td>
-                      <td className="px-3 py-2 text-xs whitespace-nowrap">
+                      <td className="whitespace-nowrap">
                         {c.data_carregamento
                           ? new Date(c.data_carregamento).toLocaleDateString('pt-BR')
                           : '—'}
                       </td>
-                      <td className="px-3 py-2 text-xs tabular-nums">
+                      <td className="tabular-nums">
                         {c.peso != null ? formatNumber(c.peso) : '—'}
                       </td>
-                      <td className="px-3 py-2 text-xs font-medium">{resolverPlaca(c)}</td>
-                      <td className="px-3 py-2 text-xs">{resolverMotorista(c)}</td>
-                      <td className="px-3 py-2 text-right font-semibold tabular-nums">
+                      <td className="font-semibold">{resolverPlaca(c)}</td>
+                      <td>{resolverMotorista(c)}</td>
+                      <td className="text-right font-bold tabular-nums">
                         {formatCurrency(c.frete_fechado ?? 0)}
                       </td>
-                      <td className="px-3 py-2">
+                      <td>
                         <span
                           className={
-                            st === 'pago'
-                              ? 'rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800'
-                              : 'rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900'
+                            st === 'pago' ? 'financeiro-pill financeiro-pill--pago' : 'financeiro-pill'
                           }
                         >
                           {st === 'pago' ? 'Pago' : 'A pagar'}
                         </span>
                         {reg?.pago_em && (
-                          <span className="mt-0.5 block text-[10px] text-ink-muted">
-                            {formatDateTime(reg.pago_em)}
-                          </span>
+                          <span className="financeiro-meta">{formatDateTime(reg.pago_em)}</span>
                         )}
                       </td>
-                      <td className="px-3 py-2">
+                      <td>
                         {st === 'a_pagar' ? (
                           <button
                             type="button"
-                            className="text-xs font-medium text-emerald-800 hover:underline"
+                            className="financeiro-link financeiro-link--green"
                             onClick={() => marcar(c.id, 'pago')}
                           >
                             Marcar pago
@@ -674,7 +697,7 @@ export function FinanceiroPage() {
                         ) : (
                           <button
                             type="button"
-                            className="text-xs font-medium text-amber-800 hover:underline"
+                            className="financeiro-link financeiro-link--amber"
                             onClick={() => marcar(c.id, 'a_pagar')}
                           >
                             Desfazer
@@ -696,22 +719,19 @@ export function FinanceiroPage() {
 function Kpi({
   label,
   value,
+  hint,
   accent,
 }: {
   label: string
   value: string
-  accent?: 'amber' | 'green'
+  hint?: string
+  accent?: 'amber' | 'green' | 'ink'
 }) {
-  const tone =
-    accent === 'amber'
-      ? 'border-amber-200 bg-amber-50/80'
-      : accent === 'green'
-        ? 'border-emerald-200 bg-emerald-50/80'
-        : 'border-ink/10 bg-white'
   return (
-    <div className={`rounded-xl border px-3 py-3 ${tone}`}>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-ink-muted">{label}</p>
-      <p className="mt-1 text-lg font-semibold tabular-nums text-ink">{value}</p>
+    <div className={`financeiro-kpi financeiro-kpi--${accent ?? 'default'}`}>
+      <p className="financeiro-kpi__label">{label}</p>
+      <p className="financeiro-kpi__value">{value}</p>
+      {hint && <p className="financeiro-kpi__hint">{hint}</p>}
     </div>
   )
 }
