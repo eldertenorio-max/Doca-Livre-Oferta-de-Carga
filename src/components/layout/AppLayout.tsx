@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
 import { BRAND_EMBARCADOR_LABEL, LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { ProductMark } from '../ProductMark'
+import { ChatModal } from '../carga/ChatModal'
 import { canOpenModulo, moduloFromPath } from '../../lib/portalModules'
 import { PERFIL_OPERACIONAL_LABEL } from '../../lib/perfisOperacionais'
 import { isLocalSuperUser } from '../../lib/superUsers'
@@ -136,6 +137,7 @@ export function AppLayout() {
   const {
     user,
     logout,
+    cargas,
     notificacoes,
     marcarNotificacaoLida,
     marcarTodasNotificacoesLidas,
@@ -145,6 +147,12 @@ export function AppLayout() {
   const [sidebarWide, setSidebarWide] = useState(true)
   const [clock, setClock] = useState(() => formatClock(new Date()))
   const [notifOpen, setNotifOpen] = useState(false)
+  const [chatCargaId, setChatCargaId] = useState<string | null>(null)
+
+  const chatCarga = useMemo(
+    () => (chatCargaId ? (cargas ?? []).find((c) => c.id === chatCargaId) ?? null : null),
+    [chatCargaId, cargas],
+  )
 
   const isSuper =
     Boolean(user?.is_superuser) ||
@@ -277,10 +285,17 @@ export function AppLayout() {
                         onClick={() => {
                           marcarNotificacaoLida(n.id)
                           setNotifOpen(false)
+                          if (n.carga_id) {
+                            const c = (cargas ?? []).find((x) => x.id === n.carga_id)
+                            if (c) setChatCarga(c)
+                          }
                         }}
                       >
                         <strong>{n.titulo}</strong>
                         <span>{n.mensagem}</span>
+                        {n.carga_id ? (
+                          <span className="app-topbar-notif-action">Abrir chat</span>
+                        ) : null}
                       </button>
                     </li>
                   ))}
@@ -379,6 +394,12 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      <ChatModal
+        carga={chatCarga}
+        open={!!chatCarga}
+        onClose={() => setChatCarga(null)}
+      />
     </div>
   )
 }

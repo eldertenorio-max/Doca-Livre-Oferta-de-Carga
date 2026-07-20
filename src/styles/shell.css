@@ -324,6 +324,13 @@
   background: #f1f5f9;
 }
 
+.app-topbar-notif-action {
+  margin-top: 4px;
+  font-size: 10px !important;
+  font-weight: 600;
+  color: #0d9488 !important;
+}
+
 /* —— Sidebar preta —— */
 .sidebar {
   position: relative;
