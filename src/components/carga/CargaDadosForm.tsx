@@ -307,8 +307,15 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
                 className={inputClass}
                 value={destino}
                 onChange={(e) => setDestino(e.target.value)}
-                placeholder="Ex.: Guarujá - SP"
+                placeholder="Ex.: Guarujá - SP ou distribuição"
+                list="destinos-sugeridos"
               />
+              <datalist id="destinos-sugeridos">
+                <option value="distribuição" />
+              </datalist>
+              <p className="mt-1 text-[11px] text-ink-muted">
+                Se não for um destino único, use <strong>distribuição</strong>.
+              </p>
             </Field>
             <div className="grid grid-cols-2 gap-2">
               <Field label="Frete tabela (R$) *">
