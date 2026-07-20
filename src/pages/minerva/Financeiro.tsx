@@ -88,7 +88,8 @@ export function FinanceiroPage() {
     setAte(ateStr)
   }
 
-  const fretesBase = useMemo(() => {
+  /** Escopo dos cards/resumo: período + transportadora + busca (sem filtro de pagamento). */
+  const fretesEscopo = useMemo(() => {
     let list = cargas.filter(isFreteFechado)
     if (de || ate) {
       const from = de ? startOfDay(de) : null
@@ -101,9 +102,6 @@ export function FinanceiroPage() {
       })
     }
     if (tid !== 'todos') list = list.filter((c) => c.transportador_vencedor_id === tid)
-    if (filtroPag !== 'todos') {
-      list = list.filter((c) => getStatusPagamento(pagamentos, c.id) === filtroPag)
-    }
     const query = q.trim().toLowerCase()
     if (query) {
       list = list.filter((c) => {
@@ -127,7 +125,13 @@ export function FinanceiroPage() {
     return list.sort(
       (a, b) => new Date(refDataFrete(b)).getTime() - new Date(refDataFrete(a)).getTime(),
     )
-  }, [cargas, de, ate, tid, filtroPag, pagamentos, q, transportadores, veiculos, motoristas])
+  }, [cargas, de, ate, tid, q, transportadores, veiculos, motoristas])
+
+  /** Detalhe da tabela: aplica filtro A pagar / Pago. */
+  const fretesBase = useMemo(() => {
+    if (filtroPag === 'todos') return fretesEscopo
+    return fretesEscopo.filter((c) => getStatusPagamento(pagamentos, c.id) === filtroPag)
+  }, [fretesEscopo, filtroPag, pagamentos])
 
   const porTransportadora = useMemo(() => {
     const map = new Map<
@@ -150,7 +154,7 @@ export function FinanceiroPage() {
       }
     >()
 
-    for (const c of fretesBase) {
+    for (const c of fretesEscopo) {
       const id = c.transportador_vencedor_id!
       const t = transportadores.find((x) => x.id === id)
       let row = map.get(id)
@@ -195,26 +199,26 @@ export function FinanceiroPage() {
     }
 
     return Array.from(map.values()).sort((a, b) => b.aPagar - a.aPagar || b.valorTotal - a.valorTotal)
-  }, [fretesBase, transportadores, veiculos, motoristas, pagamentos])
+  }, [fretesEscopo, transportadores, veiculos, motoristas, pagamentos])
 
   const totais = useMemo(() => {
     let valorTotal = 0
     let aPagar = 0
     let pago = 0
-    for (const c of fretesBase) {
+    for (const c of fretesEscopo) {
       const v = c.frete_fechado ?? 0
       valorTotal += v
       if (getStatusPagamento(pagamentos, c.id) === 'pago') pago += v
       else aPagar += v
     }
     return {
-      viagens: fretesBase.length,
+      viagens: fretesEscopo.length,
       transportadoras: porTransportadora.length,
       valorTotal,
       aPagar,
       pago,
     }
-  }, [fretesBase, pagamentos, porTransportadora.length])
+  }, [fretesEscopo, pagamentos, porTransportadora.length])
 
   const fretesDetalhe = useMemo(() => {
     if (!selectedTid) return fretesBase
@@ -240,7 +244,7 @@ export function FinanceiroPage() {
   function marcarTodosAPagarDaTransportadora(transportadorId: string, status: StatusPagamentoFrete) {
     setPagamentos((prev) => {
       let next = prev
-      for (const c of fretesBase) {
+      for (const c of fretesEscopo) {
         if (c.transportador_vencedor_id !== transportadorId) continue
         if (getStatusPagamento(next, c.id) === status) continue
         next = setStatusPagamento(next, c.id, status)
