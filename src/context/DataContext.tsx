@@ -84,6 +84,7 @@ import {
   sliceFingerprint,
   subscribeKanbanSync,
 } from '../lib/kanbanSync'
+import { alinharStatusComLances } from '../lib/kanbanColumns'
 
 const STORAGE_KEY = 'doca-livre-data-v7'
 const STORAGE_KEY_LEGACY = 'doca-livre-data-v6'
@@ -402,16 +403,7 @@ function ensureDemoOfertasVisiveis(state: DataState): DataState {
   }
 
   // Alinha status do Kanban com lances da rodada atual
-  cargas = cargas.map((c) => {
-    if (c.transportador_vencedor_id) return c
-    if (!['negociando', 'propostas'].includes(c.status)) return c
-    const temAtivo = lances.some(
-      (l) => l.carga_id === c.id && l.status === 'ativo' && lanceNaRodadaAtual(l, c),
-    )
-    if (temAtivo && c.status !== 'propostas') return { ...c, status: 'propostas' as const }
-    if (!temAtivo && c.status === 'propostas') return { ...c, status: 'negociando' as const }
-    return c
-  })
+  cargas = alinharStatusComLances(cargas, lances)
 
   let transportadores = state.transportadores
   const t1 = transportadores.find((t) => t.id === DEMO_TID)

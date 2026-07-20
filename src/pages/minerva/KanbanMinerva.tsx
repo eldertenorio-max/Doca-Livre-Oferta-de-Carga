@@ -5,12 +5,16 @@ import { CargoCard } from '../../components/kanban/CargoCard'
 import { KanbanBoard } from '../../components/kanban/KanbanBoard'
 import { PublishPanel } from '../../components/carga/PublishPanel'
 import { Button } from '../../components/ui/Modal'
-import type { Carga, StatusCargaMinerva } from '../../types'
-
-type ColKey = StatusCargaMinerva | 'confirmadas'
+import {
+  colunaMinerva,
+  ordenarCargasKanban,
+  temLanceAtivoNaRodada,
+  type ColunaMinerva,
+} from '../../lib/kanbanColumns'
+import type { Carga } from '../../types'
 
 const COLUMNS: {
-  key: ColKey
+  key: ColunaMinerva
   title: string
   color: string
   description: string
@@ -19,7 +23,7 @@ const COLUMNS: {
     key: 'nova_carga',
     title: 'Nova Carga',
     color: '#385463',
-    description: 'Publicada — aguardando o primeiro lance',
+    description: 'Rascunho ou publicada — aguardando o 1º lance',
   },
   {
     key: 'negociando',
@@ -59,40 +63,8 @@ const COLUMNS: {
   },
 ]
 
-function matchesColumn(
-  c: Carga,
-  key: ColKey,
-  temLanceAtivo: boolean,
-): boolean {
-  if (key === 'confirmadas') {
-    return (
-      Boolean(c.transportador_vencedor_id) &&
-      c.status !== 'alocadas' &&
-      c.status !== 'recusadas' &&
-      c.status !== 'canceladas'
-    )
-  }
-  // Negociando = só depois do 1º lance
-  if (key === 'negociando') {
-    return (
-      !c.transportador_vencedor_id &&
-      ['negociando', 'propostas'].includes(c.status) &&
-      temLanceAtivo
-    )
-  }
-  // Nova Carga = rascunho ou publicada ainda sem lance
-  if (key === 'nova_carga') {
-    if (c.transportador_vencedor_id) return false
-    if (c.status === 'nova_carga') return true
-    return (
-      ['negociando', 'propostas'].includes(c.status) && !temLanceAtivo
-    )
-  }
-  return c.status === key
-}
-
 export function KanbanMinerva() {
-  const { cargas, lancesDaCarga, criarCarga, moverCargaKanban } = useData()
+  const { cargas, lances, lancesDaCarga, criarCarga, moverCargaKanban } = useData()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Carga | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
@@ -101,13 +73,15 @@ export function KanbanMinerva() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return cargas
-    return cargas.filter(
-      (c) =>
-        c.numero.includes(q) ||
-        c.origem.toLowerCase().includes(q) ||
-        c.destino.toLowerCase().includes(q),
-    )
+    const list = q
+      ? cargas.filter(
+          (c) =>
+            c.numero.includes(q) ||
+            c.origem.toLowerCase().includes(q) ||
+            c.destino.toLowerCase().includes(q),
+        )
+      : cargas
+    return [...list].sort(ordenarCargasKanban)
   }, [cargas, search])
 
   const liveSelected = selected ? (cargas.find((c) => c.id === selected.id) ?? null) : null
@@ -167,7 +141,7 @@ export function KanbanMinerva() {
         )}
 
         <p className="text-[11px] text-ink-muted">
-          Arraste o card entre as colunas para mudar o status (quando a regra do fluxo permitir).
+          Fluxo: Nova Carga (publicada) → Negociando (1º lance) → Confirmadas → Alocadas.
         </p>
 
         <KanbanBoard
@@ -175,10 +149,7 @@ export function KanbanMinerva() {
           columns={COLUMNS.map((col) => ({
             ...col,
             items: filtered
-              .filter((c) => {
-                const temLanceAtivo = lancesDaCarga(c.id).some((l) => l.status === 'ativo')
-                return matchesColumn(c, col.key, temLanceAtivo)
-              })
+              .filter((c) => colunaMinerva(c, temLanceAtivoNaRodada(c, lances)) === col.key)
               .map((c) => ({
                 id: c.id,
                 node: (

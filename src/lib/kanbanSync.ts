@@ -8,6 +8,7 @@ import type {
   NotificacaoInApp,
   Transportador,
 } from '../types'
+import { alinharStatusComLances } from './kanbanColumns'
 import { isSupabaseConfigured, supabase } from './supabase'
 
 const SYNC_ROW_ID = 'main'
@@ -63,7 +64,7 @@ export function sliceFingerprint(slice: KanbanSyncSlice): string {
 }
 
 export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: KanbanSyncSlice): T {
-  return {
+  const merged = {
     ...prev,
     cargas: slice.cargas ?? prev.cargas,
     lances: slice.lances ?? prev.lances,
@@ -74,6 +75,10 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
     historico: slice.historico ?? prev.historico,
     historicoPropostas: slice.historicoPropostas ?? prev.historicoPropostas,
     chatLeituras: slice.chatLeituras ?? prev.chatLeituras,
+  }
+  return {
+    ...merged,
+    cargas: alinharStatusComLances(merged.cargas, merged.lances),
   }
 }
 

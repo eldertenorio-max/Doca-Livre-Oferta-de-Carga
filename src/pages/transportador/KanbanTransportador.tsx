@@ -6,62 +6,51 @@ import { KanbanBoard } from '../../components/kanban/KanbanBoard'
 import { AllocateModal, BidModal } from '../../components/carga/BidModal'
 import { DEMO_TRANSPORTADOR } from '../../lib/portalAuth'
 import { isLocalSuperUser } from '../../lib/superUsers'
+import {
+  colunaTransportador,
+  meuLanceAtivoNaRodada,
+  ordenarCargasKanban,
+  type ColunaTransportador,
+} from '../../lib/kanbanColumns'
 import type { Carga } from '../../types'
 
-type ColKey = 'nova_carga' | 'propostas' | 'confirmadas' | 'alocadas'
-
-const COLUMNS: { key: ColKey; title: string; color: string; description: string }[] = [
+const COLUMNS: {
+  key: ColunaTransportador
+  title: string
+  color: string
+  description: string
+}[] = [
   {
     key: 'nova_carga',
     title: 'Nova Carga',
     color: '#0d9488',
-    description: 'Recebida para ofertar lance',
+    description: 'Recebida — ainda sem a sua proposta',
   },
   {
     key: 'propostas',
     title: 'Propostas',
     color: '#3b82f6',
-    description: 'Você já fez uma proposta',
+    description: 'Você já enviou lance nesta carga',
   },
   {
     key: 'confirmadas',
     title: 'Confirmadas',
     color: '#f59e0b',
-    description: 'Frete fechado com você',
+    description: 'Frete fechado com você — aloque o veículo',
   },
   {
     key: 'alocadas',
     title: 'Alocadas',
     color: '#2f9e6a',
-    description: 'Placa e motorista alocados',
+    description: 'Placa e motorista confirmados',
   },
 ]
-
-function columnForCarga(
-  c: Carga,
-  transportadorId: string,
-  temLance: boolean,
-): ColKey | null {
-  if (c.status === 'alocadas' && c.transportador_vencedor_id === transportadorId) {
-    return 'alocadas'
-  }
-  if (
-    c.transportador_vencedor_id === transportadorId &&
-    c.status !== 'alocadas' &&
-    c.status !== 'recusadas'
-  ) {
-    return 'confirmadas'
-  }
-  const aberta = ['negociando', 'propostas', 'suspensas'].includes(c.status)
-  if (temLance && aberta && !c.transportador_vencedor_id) return 'propostas'
-  if (aberta && !c.transportador_vencedor_id) return 'nova_carga'
-  return null
-}
 
 export function KanbanTransportador() {
   const {
     user,
     transportadores,
+    lances,
     cargasVisiveisTransportador,
     lancesDaCarga,
     recusarCargaTransportador,
@@ -101,19 +90,20 @@ export function KanbanTransportador() {
     return () => setActingTransportadorId(null)
   }, [isSuper, viewAsId, user?.transportador_id, setActingTransportadorId])
 
-  // Mesmo ID usado no BidModal (evita lance salvo com tid diferente do Kanban)
   const tid = effectiveTransportadorId() || user?.transportador_id || (isSuper ? viewAsId : '') || ''
 
   const cargas = useMemo(() => {
     const list = cargasVisiveisTransportador(tid)
     const q = search.trim().toLowerCase()
-    if (!q) return list
-    return list.filter(
-      (c) =>
-        c.numero.includes(q) ||
-        c.origem.toLowerCase().includes(q) ||
-        c.destino.toLowerCase().includes(q),
-    )
+    const filtered = q
+      ? list.filter(
+          (c) =>
+            c.numero.includes(q) ||
+            c.origem.toLowerCase().includes(q) ||
+            c.destino.toLowerCase().includes(q),
+        )
+      : list
+    return [...filtered].sort(ordenarCargasKanban)
   }, [cargasVisiveisTransportador, tid, search])
 
   const nomeVista =
@@ -163,25 +153,32 @@ export function KanbanTransportador() {
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
           Nenhuma oferta visível para <strong>{nomeVista}</strong>. Publique uma carga no Kanban
           Minerva (com grupos que incluam esta transportadora). O Kanban atualiza sozinho quando
-          alguém publica ou dá lance (sync em tempo real).
+          alguém publica ou dá lance.
         </p>
       )}
+
+      <p className="text-[11px] text-ink-muted">
+        Fluxo: Nova Carga → Propostas (seu lance) → Confirmadas → Alocadas.
+      </p>
 
       <KanbanBoard
         columns={COLUMNS.map((col) => ({
           ...col,
           items: cargas
             .filter((c) => {
-              const meus = lancesDaCarga(c.id).filter(
-                (l) => l.transportador_id === tid && l.status === 'ativo',
-              )
-              return columnForCarga(c, tid, meus.length > 0) === col.key
+              const temMeu = meuLanceAtivoNaRodada(c, lances, tid)
+              return colunaTransportador(c, tid, temMeu) === col.key
             })
             .map((c) => {
               const meus = lancesDaCarga(c.id)
-                .filter((l) => l.transportador_id === tid && ['ativo', 'vencedor'].includes(l.status))
+                .filter(
+                  (l) =>
+                    l.transportador_id === tid && ['ativo', 'vencedor'].includes(l.status),
+                )
                 .sort((a, b) => a.valor - b.valor)
-              const todos = lancesDaCarga(c.id)
+              const todos = lancesDaCarga(c.id).filter((l) =>
+                ['ativo', 'vencedor'].includes(l.status),
+              )
               const meuLance = meus[0]
               const pos =
                 meuLance && col.key === 'propostas'
