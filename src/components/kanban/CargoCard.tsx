@@ -150,7 +150,7 @@ function IconBan() {
 
 function IconGavel() {
   return (
-    <svg viewBox="0 0 64 64" className="cargo-icon-svg cargo-icon-svg--lg" aria-hidden>
+    <svg viewBox="0 0 64 64" className="cargo-icon-svg cargo-icon-svg--lg cargo-gavel" aria-hidden>
       <defs>
         <linearGradient id="gavelWood" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#f0c27a" />
@@ -167,21 +167,22 @@ function IconGavel() {
           <stop offset="100%" stopColor="#57534e" />
         </linearGradient>
       </defs>
-      {/* Base do martelo */}
+      {/* Base fixa */}
       <ellipse cx="28" cy="54" rx="18" ry="4.5" fill="#44403c" opacity="0.35" />
       <rect x="12" y="46" width="32" height="8" rx="2.5" fill="url(#gavelBase)" />
       <rect x="14" y="47.5" width="28" height="2" rx="1" fill="#f5f5f4" opacity="0.35" />
-      {/* Cabo */}
-      <g transform="rotate(-42 36 30)">
-        <rect x="32" y="14" width="8" height="34" rx="3" fill="url(#gavelWood)" />
-        <rect x="33.5" y="16" width="2" height="30" rx="1" fill="#fde68a" opacity="0.35" />
-      </g>
-      {/* Cabeça */}
-      <g transform="rotate(-42 26 18)">
-        <rect x="10" y="10" width="28" height="14" rx="3.5" fill="url(#gavelHead)" />
-        <rect x="12" y="12" width="24" height="3" rx="1.2" fill="#fde68a" opacity="0.45" />
-        <rect x="8" y="13" width="5" height="8" rx="1.5" fill="#92400e" />
-        <rect x="35" y="13" width="5" height="8" rx="1.5" fill="#92400e" />
+      {/* Martelo (cabo + cabeça) — anima batendo */}
+      <g className="cargo-gavel__swing">
+        <g transform="rotate(-42 36 30)">
+          <rect x="32" y="14" width="8" height="34" rx="3" fill="url(#gavelWood)" />
+          <rect x="33.5" y="16" width="2" height="30" rx="1" fill="#fde68a" opacity="0.35" />
+        </g>
+        <g transform="rotate(-42 26 18)">
+          <rect x="10" y="10" width="28" height="14" rx="3.5" fill="url(#gavelHead)" />
+          <rect x="12" y="12" width="24" height="3" rx="1.2" fill="#fde68a" opacity="0.45" />
+          <rect x="8" y="13" width="5" height="8" rx="1.5" fill="#92400e" />
+          <rect x="35" y="13" width="5" height="8" rx="1.5" fill="#92400e" />
+        </g>
       </g>
     </svg>
   )
