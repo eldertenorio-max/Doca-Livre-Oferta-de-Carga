@@ -86,9 +86,11 @@ export function KanbanMinerva() {
 
   const liveSelected = selected ? (cargas.find((c) => c.id === selected.id) ?? null) : null
 
-  function openPanel(c: Carga, tab: 'dados' | 'publicar') {
+  function openPanel(c: Carga, tab?: 'dados' | 'publicar') {
     setSelected(c)
-    setInitialTab(tab)
+    const rascunho = !c.publicado_em || c.status === 'nova_carga'
+    // Rascunho: abre em Publicar (só após Publicar o transportador vê)
+    setInitialTab(tab ?? (rascunho ? 'publicar' : 'publicar'))
     setPanelOpen(true)
   }
 
@@ -141,7 +143,8 @@ export function KanbanMinerva() {
         )}
 
         <p className="text-[11px] text-ink-muted">
-          Fluxo: Nova Carga (publicada) → Negociando (1º lance) → Confirmadas → Alocadas.
+          Fluxo: salve os dados → aba Publicar → botão Publicar → aí o transportador vê em Nova
+          Carga. Depois: Negociando (1º lance) → Confirmadas → Alocadas.
         </p>
 
         <KanbanBoard
@@ -164,12 +167,8 @@ export function KanbanMinerva() {
                           ).length
                         : undefined
                     }
-                    onSelect={() =>
-                      openPanel(c, c.status === 'nova_carga' ? 'dados' : 'publicar')
-                    }
-                    onView={() =>
-                      openPanel(c, c.status === 'nova_carga' ? 'dados' : 'publicar')
-                    }
+                    onSelect={() => openPanel(c)}
+                    onView={() => openPanel(c)}
                   />
                 ),
               })),

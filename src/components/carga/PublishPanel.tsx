@@ -441,6 +441,10 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
 
           {tab === 'publicar' && isNova && (
             <>
+          <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+            Esta carga ainda é <strong>rascunho</strong>. Só aparece para o transportador depois que
+            você clicar em <strong>Publicar</strong> (com ao menos um grupo selecionado).
+          </p>
           <Detail label="Pedido" value={carga.pedido || '—'} />
           <Detail label="Tipo de Carga" value={carga.tipo_carga} />
           <Detail label="Veículo" value={carga.veiculo} />

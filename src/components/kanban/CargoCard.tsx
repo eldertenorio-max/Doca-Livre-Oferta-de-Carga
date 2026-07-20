@@ -337,6 +337,7 @@ export function CargoCard({
     new Date(carga.expira_em!).getTime() - Date.now() < 5 * 60_000
 
   const isAlocada = carga.status === 'alocadas' || Boolean(onAllocate)
+  const isRascunho = !carga.publicado_em || carga.status === 'nova_carga'
 
   return (
     <article
@@ -350,6 +351,11 @@ export function CargoCard({
           : 'border-ink/70 hover:border-ink'
       }`}
     >
+      {mode === 'minerva' && isRascunho && (
+        <p className="mb-2 rounded bg-amber-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-950">
+          Rascunho — ainda não publicada (transportador não vê)
+        </p>
+      )}
       <div className="mb-1.5 flex items-start gap-2.5">
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
