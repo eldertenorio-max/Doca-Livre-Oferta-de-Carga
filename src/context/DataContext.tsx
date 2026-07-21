@@ -1613,7 +1613,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const cancelarPublicacao = useCallback(
     (cargaId: string, motivo?: string) => {
-      const carga = state.cargas.find((c) => c.id === cargaId)
+      const prev = stateRef.current
+      const carga = prev.cargas.find((c) => c.id === cargaId)
       if (!carga) return { ok: false, error: 'Carga não encontrada' }
       if (!['negociando', 'propostas', 'suspensas'].includes(carga.status)) {
         return { ok: false, error: 'Só é possível cancelar publicação em andamento' }
@@ -1621,43 +1622,48 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (carga.transportador_vencedor_id) {
         return { ok: false, error: 'Frete já fechado — use Recusar frete' }
       }
-      setState((prev) => {
-        const hist = makeHistorico(
-          'carga_cancelada',
-          `Publicação cancelada — ${carga.numero}`,
-          { carga_id: cargaId, detalhe: motivo || 'Cancelada pelo embarcador' },
-          user,
-        )
-        return {
-          ...prev,
-          cargas: prev.cargas.map((c) =>
-            c.id === cargaId
-              ? {
-                  ...c,
-                  status: 'canceladas' as const,
-                  motivo_cancelamento: motivo || 'Cancelada pelo embarcador',
-                  pausado_em: null,
-                  tempo_restante_ms: null,
-                }
-              : c,
-          ),
-          lances: prev.lances.map((l) =>
-            l.carga_id === cargaId && l.status === 'ativo'
-              ? { ...l, status: 'cancelado' as const }
-              : l,
-          ),
-          historico: [hist, ...prev.historico].slice(0, 2000),
-          notificacoes: pushNotif(prev.notificacoes, {
-            role: 'todos',
-            titulo: 'Publicação cancelada',
-            mensagem: `Carga ${carga.numero} foi cancelada.`,
-            carga_id: cargaId,
-          }),
-        }
-      })
+      const agora = new Date().toISOString()
+      const motivoFinal = (motivo ?? '').trim() || 'Cancelada pelo embarcador'
+      const hist = makeHistorico(
+        'carga_cancelada',
+        `Publicação cancelada — ${carga.numero}`,
+        { carga_id: cargaId, detalhe: motivoFinal },
+        userRef.current,
+      )
+      const next: DataState = {
+        ...prev,
+        cargas: prev.cargas.map((c) =>
+          c.id === cargaId
+            ? {
+                ...c,
+                status: 'canceladas' as const,
+                motivo_cancelamento: motivoFinal,
+                pausado_em: null,
+                tempo_restante_ms: null,
+                expira_em: null,
+                updated_at: agora,
+              }
+            : c,
+        ),
+        lances: prev.lances.map((l) =>
+          l.carga_id === cargaId && ['ativo', 'vencedor', 'perdido'].includes(l.status)
+            ? { ...l, status: 'cancelado' as const, updated_at: agora }
+            : l,
+        ),
+        historico: [hist, ...prev.historico].slice(0, 2000),
+        notificacoes: pushNotif(prev.notificacoes, {
+          role: 'todos',
+          titulo: 'Publicação cancelada',
+          mensagem: `Carga ${carga.numero} foi cancelada.`,
+          carga_id: cargaId,
+        }),
+      }
+      stateRef.current = next
+      setState(next)
+      flushKanbanPush(next)
       return { ok: true }
     },
-    [state.cargas, user],
+    [flushKanbanPush],
   )
 
   const suspenderCarga = useCallback(
