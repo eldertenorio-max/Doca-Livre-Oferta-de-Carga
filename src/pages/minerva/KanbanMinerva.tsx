@@ -68,7 +68,7 @@ export function KanbanMinerva() {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Carga | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
-  const [initialTab, setInitialTab] = useState<'dados' | 'publicar'>('dados')
+  const [initialTab, setInitialTab] = useState<'dados' | 'salvas' | 'publicar'>('dados')
   const [dragMsg, setDragMsg] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
@@ -86,7 +86,7 @@ export function KanbanMinerva() {
 
   const liveSelected = selected ? (cargas.find((c) => c.id === selected.id) ?? null) : null
 
-  function openPanel(c: Carga, tab?: 'dados' | 'publicar') {
+  function openPanel(c: Carga, tab?: 'dados' | 'salvas' | 'publicar') {
     setSelected(c)
     const rascunho = !c.publicado_em || c.status === 'nova_carga'
     // Rascunho: abre em Publicar (só após Publicar o transportador vê)
@@ -182,6 +182,10 @@ export function KanbanMinerva() {
           carga={liveSelected}
           open={panelOpen}
           initialTab={initialTab}
+          onSelectCarga={(c) => {
+            setSelected(c)
+            setInitialTab('dados')
+          }}
           onClose={() => {
             setPanelOpen(false)
             setSelected(null)

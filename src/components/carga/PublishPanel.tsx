@@ -47,7 +47,7 @@ function classBadge(c?: ClassificacaoTransportador | null) {
   return 'bg-sand-light text-ink-muted border-ink/10'
 }
 
-type PanelTab = 'dados' | 'publicar'
+type PanelTab = 'dados' | 'salvas' | 'publicar'
 
 interface Props {
   carga: Carga | null
@@ -55,6 +55,8 @@ interface Props {
   onClose: () => void
   /** Aba inicial: Nova carga → dados; demais → publicar/negociação */
   initialTab?: PanelTab
+  /** Troca a carga aberta no painel (rascunhos salvos) */
+  onSelectCarga?: (carga: Carga) => void
 }
 
 function membrosDosGrupos(
@@ -70,8 +72,9 @@ function membrosDosGrupos(
   return transportadores.filter((t) => ids.has(t.id) && t.situacao === 'ativo')
 }
 
-export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
+export function PublishPanel({ carga, open, onClose, initialTab, onSelectCarga }: Props) {
   const {
+    cargas,
     grupos,
     transportadores,
     publicarCarga,
@@ -155,6 +158,20 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
   useEffect(() => {
     if (!carga) setInfo('')
   }, [carga?.id])
+
+  useEffect(() => {
+    if (tab === 'salvas') setMontadas(loadCargasMontadas())
+  }, [tab])
+
+  const rascunhosNaoPublicados = useMemo(() => {
+    return [...cargas]
+      .filter((c) => c.status === 'nova_carga' && !c.publicado_em)
+      .sort((a, b) => {
+        const ta = new Date(a.updated_at || a.created_at || 0).getTime()
+        const tb = new Date(b.updated_at || b.created_at || 0).getTime()
+        return tb - ta
+      })
+  }, [cargas])
 
   const { ganho, freteOferta } = useMemo(
     () => calcularFreteOferta(carga?.frete_tabela ?? 0, margem),
@@ -528,7 +545,7 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
           <button
             type="button"
             onClick={() => setTab('dados')}
-            className={`flex-1 px-3 py-2.5 text-xs font-bold uppercase tracking-wide transition ${
+            className={`min-w-0 flex-1 px-2 py-2.5 text-[11px] font-bold uppercase tracking-wide transition sm:text-xs ${
               tab === 'dados'
                 ? 'border-b-2 border-brand bg-white text-ink'
                 : 'text-ink-muted hover:text-ink'
@@ -538,8 +555,24 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
           </button>
           <button
             type="button"
+            onClick={() => setTab('salvas')}
+            className={`min-w-0 flex-1 px-2 py-2.5 text-[11px] font-bold uppercase tracking-wide transition sm:text-xs ${
+              tab === 'salvas'
+                ? 'border-b-2 border-brand bg-white text-ink'
+                : 'text-ink-muted hover:text-ink'
+            }`}
+          >
+            Cargas salvas
+            {rascunhosNaoPublicados.length + montadas.length > 0 && (
+              <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-ink/10 px-1 text-[10px] font-bold normal-case text-ink">
+                {rascunhosNaoPublicados.length + montadas.length}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
             onClick={() => setTab('publicar')}
-            className={`flex-1 px-3 py-2.5 text-xs font-bold uppercase tracking-wide transition ${
+            className={`min-w-0 flex-1 px-2 py-2.5 text-[11px] font-bold uppercase tracking-wide transition sm:text-xs ${
               tab === 'publicar'
                 ? 'border-b-2 border-brand bg-white text-ink'
                 : 'text-ink-muted hover:text-ink'
@@ -558,73 +591,143 @@ export function PublishPanel({ carga, open, onClose, initialTab }: Props) {
             />
           )}
 
+          {tab === 'salvas' && (
+            <>
+              <p className="rounded-lg border border-ink/10 bg-sand-light/50 px-3 py-2 text-xs text-ink-muted">
+                Aqui ficam os <strong className="text-ink">rascunhos ainda não publicados</strong> e
+                os modelos guardados para reutilizar.
+              </p>
+
+              <div className="rounded-lg border border-ink/10 bg-white p-3">
+                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-ink">
+                  Não publicadas ({rascunhosNaoPublicados.length})
+                </p>
+                <p className="mb-2 text-[11px] text-ink-muted">
+                  Cargas salvas no Kanban que ainda não foram publicadas para negociação.
+                </p>
+                {rascunhosNaoPublicados.length === 0 ? (
+                  <p className="text-[11px] text-ink-muted">Nenhum rascunho pendente.</p>
+                ) : (
+                  <ul className="max-h-52 space-y-1.5 overflow-y-auto">
+                    {rascunhosNaoPublicados.map((c) => {
+                      const atual = c.id === carga.id
+                      return (
+                        <li key={c.id}>
+                          <button
+                            type="button"
+                            disabled={!onSelectCarga && !atual}
+                            onClick={() => {
+                              if (atual) {
+                                setTab('dados')
+                                return
+                              }
+                              onSelectCarga?.(c)
+                              setTab('dados')
+                            }}
+                            className={`flex w-full items-start gap-2 rounded-md border px-2.5 py-2 text-left text-xs transition ${
+                              atual
+                                ? 'border-brand bg-brand/5'
+                                : 'border-ink/10 bg-sand-light/40 hover:border-brand/40 hover:bg-white'
+                            }`}
+                          >
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-center gap-1.5">
+                                <span className="font-semibold text-ink">Carga {c.numero}</span>
+                                {atual && (
+                                  <span className="rounded bg-brand/15 px-1.5 py-0.5 text-[10px] font-bold text-brand">
+                                    Aberta
+                                  </span>
+                                )}
+                              </span>
+                              <span className="mt-0.5 block truncate text-[10px] text-ink-muted">
+                                {(c.origem || '—').trim()} → {(c.destino || '—').trim()}
+                                {c.pedido ? ` · Pedido ${c.pedido}` : ''}
+                              </span>
+                              <span className="block text-[10px] text-ink-muted">
+                                Frete tabela {formatCurrency(c.frete_tabela)}
+                                {c.updated_at || c.created_at
+                                  ? ` · ${formatDateTime(c.updated_at || c.created_at)}`
+                                  : ''}
+                              </span>
+                            </span>
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+
+              <div className="rounded-lg border border-ink/10 bg-sand-light/50 p-3">
+                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-ink">
+                  Modelos guardados ({montadas.length})
+                </p>
+                <p className="mb-2 text-[11px] text-ink-muted">
+                  Guarde a carga atual (preenchida) para reutilizar em outro rascunho.
+                </p>
+                <div className="mb-2 flex gap-2">
+                  <input
+                    className={`${inputClass} flex-1`}
+                    placeholder="Nome (opcional)"
+                    value={nomeMontada}
+                    onChange={(e) => setNomeMontada(e.target.value)}
+                    disabled={!canEdit || !isNova}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="shrink-0 border border-ink/15"
+                    onClick={handleGuardarMontada}
+                    disabled={!canEdit || !isNova}
+                  >
+                    Guardar atual
+                  </Button>
+                </div>
+                {montadas.length === 0 ? (
+                  <p className="text-[11px] text-ink-muted">Nenhum modelo guardado ainda.</p>
+                ) : (
+                  <ul className="max-h-40 space-y-1.5 overflow-y-auto">
+                    {montadas.map((m) => (
+                      <li
+                        key={m.id}
+                        className="flex items-center gap-2 rounded-md border border-ink/10 bg-white px-2 py-1.5"
+                      >
+                        <button
+                          type="button"
+                          className="min-w-0 flex-1 text-left text-xs hover:text-brand disabled:opacity-50"
+                          onClick={() => handleUsarMontada(m)}
+                          disabled={!canEdit || !isNova}
+                          title="Aplicar nesta carga"
+                        >
+                          <span className="block truncate font-semibold">{m.nome}</span>
+                          <span className="block truncate text-[10px] text-ink-muted">
+                            {m.dados.origem} → {m.dados.destino} ·{' '}
+                            {formatCurrency(m.dados.frete_tabela)}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded p-1 text-ink-muted hover:bg-red-50 hover:text-red-700"
+                          title="Excluir"
+                          onClick={() => handleExcluirMontada(m.id)}
+                          disabled={!canEdit}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </>
+          )}
+
           {tab === 'publicar' && isNova && (
             <>
           <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950">
             Esta carga ainda é <strong>rascunho</strong>. Só aparece para o transportador depois que
             você clicar em <strong>Publicar</strong> (com ao menos um grupo selecionado).
           </p>
-
-          <div className="rounded-lg border border-ink/10 bg-sand-light/50 p-3">
-            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-ink">
-              Cargas montadas
-            </p>
-            <p className="mb-2 text-[11px] text-ink-muted">
-              Guarde cargas já preenchidas para reutilizar na próxima publicação.
-            </p>
-            <div className="mb-2 flex gap-2">
-              <input
-                className={`${inputClass} flex-1`}
-                placeholder="Nome (opcional)"
-                value={nomeMontada}
-                onChange={(e) => setNomeMontada(e.target.value)}
-                disabled={!canEdit}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                className="shrink-0 border border-ink/15"
-                onClick={handleGuardarMontada}
-                disabled={!canEdit}
-              >
-                Guardar atual
-              </Button>
-            </div>
-            {montadas.length === 0 ? (
-              <p className="text-[11px] text-ink-muted">Nenhuma carga montada salva ainda.</p>
-            ) : (
-              <ul className="max-h-40 space-y-1.5 overflow-y-auto">
-                {montadas.map((m) => (
-                  <li
-                    key={m.id}
-                    className="flex items-center gap-2 rounded-md border border-ink/10 bg-white px-2 py-1.5"
-                  >
-                    <button
-                      type="button"
-                      className="min-w-0 flex-1 text-left text-xs hover:text-brand"
-                      onClick={() => handleUsarMontada(m)}
-                      disabled={!canEdit}
-                      title="Aplicar nesta carga"
-                    >
-                      <span className="block truncate font-semibold">{m.nome}</span>
-                      <span className="block truncate text-[10px] text-ink-muted">
-                        {m.dados.origem} → {m.dados.destino} · {formatCurrency(m.dados.frete_tabela)}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded p-1 text-ink-muted hover:bg-red-50 hover:text-red-700"
-                      title="Excluir"
-                      onClick={() => handleExcluirMontada(m.id)}
-                      disabled={!canEdit}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
 
           <Detail label="Pedido" value={carga.pedido || '—'} />
           <Detail label="Tipo de Carga" value={carga.tipo_carga} />
