@@ -148,6 +148,27 @@ function IconBan() {
   )
 }
 
+function IconTrash() {
+  return (
+    <svg viewBox="0 0 48 48" className="cargo-icon-svg" aria-hidden>
+      <defs>
+        <linearGradient id="trashBody" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#fca5a5" />
+          <stop offset="55%" stopColor="#ef4444" />
+          <stop offset="100%" stopColor="#991b1b" />
+        </linearGradient>
+      </defs>
+      <rect x="14" y="8" width="20" height="4" rx="1.5" fill="#7f1d1d" />
+      <rect x="20" y="5" width="8" height="4" rx="1.2" fill="#991b1b" />
+      <path
+        d="M12 14h24l-2 26a4 4 0 0 1-4 3.5H18a4 4 0 0 1-4-3.5L12 14z"
+        fill="url(#trashBody)"
+      />
+      <path d="M18 20v16M24 20v16M30 20v16" stroke="#fff7f7" strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function IconGavel() {
   return (
     <svg viewBox="0 0 64 64" className="cargo-icon-svg cargo-icon-svg--lg cargo-gavel" aria-hidden>
@@ -301,6 +322,8 @@ interface CargoCardProps {
   onBid?: () => void
   onRefuse?: () => void
   onAllocate?: () => void
+  /** Excluir rascunho não publicado (Minerva) */
+  onDelete?: () => void
   bidValue?: number | null
   bidPosition?: number | null
   ofertasCount?: number
@@ -315,6 +338,7 @@ export function CargoCard({
   onBid,
   onRefuse,
   onAllocate,
+  onDelete,
   bidValue,
   bidPosition,
   ofertasCount,
@@ -432,6 +456,11 @@ export function CargoCard({
             {onRefuse && (
               <IconBtn title="Recusar" tone="ban" onClick={onRefuse}>
                 <IconBan />
+              </IconBtn>
+            )}
+            {onDelete && (
+              <IconBtn title="Excluir rascunho" tone="ban" onClick={onDelete}>
+                <IconTrash />
               </IconBtn>
             )}
             {onBid && (

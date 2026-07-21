@@ -257,6 +257,7 @@ export interface InteracaoPontuacao {
 
 export type TipoHistorico =
   | 'carga_criada'
+  | 'carga_excluida'
   | 'carga_publicada'
   | 'carga_cancelada'
   | 'carga_suspensa'

@@ -121,6 +121,8 @@ interface DataState {
   mensagens: ChatMensagem[]
   /** Chave `userId:cargaId` → ISO da última leitura do chat */
   chatLeituras: Record<string, string>
+  /** Rascunhos excluídos (tombstones p/ sync) */
+  cargas_excluidas: string[]
 }
 
 interface AuthState {
@@ -190,6 +192,8 @@ interface DataContextValue extends DataState, AuthState {
     id: string,
     patch: Partial<Carga>,
   ) => { ok: boolean; error?: string }
+  /** Remove rascunho ainda não publicado */
+  excluirCargaRascunho: (cargaId: string) => { ok: boolean; error?: string }
   /** Super: transportadora usada para lances / Kanban (Ver como) */
   actingTransportadorId: string | null
   setActingTransportadorId: (id: string | null) => void
@@ -236,6 +240,7 @@ function defaultState(): DataState {
     notificacoes: [],
     mensagens: [],
     chatLeituras: {},
+    cargas_excluidas: [],
   }
 }
 
@@ -369,6 +374,7 @@ function wipeKanbanFields<T extends DataState>(state: T): T {
     integracoes: [],
     interacoes: [],
     chatLeituras: {},
+    cargas_excluidas: [],
   }
 }
 
@@ -413,6 +419,17 @@ function loadState(): DataState {
         parsed.chatLeituras && typeof parsed.chatLeituras === 'object'
           ? (parsed.chatLeituras as Record<string, string>)
           : {},
+      cargas_excluidas: Array.isArray(parsed.cargas_excluidas)
+        ? parsed.cargas_excluidas.filter((id): id is string => typeof id === 'string')
+        : [],
+    }
+    if (loaded.cargas_excluidas.length > 0) {
+      const ex = new Set(loaded.cargas_excluidas)
+      loaded = {
+        ...loaded,
+        cargas: loaded.cargas.filter((c) => !ex.has(c.id)),
+        lances: loaded.lances.filter((l) => !ex.has(l.carga_id)),
+      }
     }
     // Migração v8: zera cargas publicadas, propostas e chat do Kanban
     if (!hasV8) {
@@ -572,6 +589,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           historico: parsed.historico ?? [],
           historicoPropostas: parsed.historicoPropostas ?? [],
           chatLeituras: parsed.chatLeituras ?? {},
+          cargas_excluidas: parsed.cargas_excluidas ?? [],
         })
         applyRemote({
           slice,
@@ -2395,6 +2413,48 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [state.cargas],
   )
 
+  const excluirCargaRascunho = useCallback(
+    (cargaId: string) => {
+      const prev = stateRef.current
+      const carga = prev.cargas.find((c) => c.id === cargaId)
+      if (!carga) return { ok: false, error: 'Carga não encontrada' }
+      if (carga.status !== 'nova_carga' || carga.publicado_em) {
+        return {
+          ok: false,
+          error: 'Só é possível excluir rascunhos ainda não publicados',
+        }
+      }
+      const agora = new Date().toISOString()
+      const next: DataState = {
+        ...prev,
+        cargas: prev.cargas.filter((c) => c.id !== cargaId),
+        lances: prev.lances.filter((l) => l.carga_id !== cargaId),
+        historicoPropostas: (prev.historicoPropostas ?? []).filter(
+          (h) => h.carga_id !== cargaId,
+        ),
+        mensagens: (prev.mensagens ?? []).filter((m) => m.carga_id !== cargaId),
+        notificacoes: (prev.notificacoes ?? []).filter((n) => n.carga_id !== cargaId),
+        cargas_excluidas: [...(prev.cargas_excluidas ?? []).filter((id) => id !== cargaId), cargaId].slice(
+          -500,
+        ),
+        historico: [
+          makeHistorico(
+            'carga_excluida',
+            `Rascunho ${carga.numero} excluído`,
+            { carga_id: cargaId, detalhe: agora },
+            userRef.current,
+          ),
+          ...prev.historico,
+        ].slice(0, 2000),
+      }
+      stateRef.current = next
+      setState(next)
+      flushKanbanPush(next)
+      return { ok: true }
+    },
+    [flushKanbanPush],
+  )
+
   const lancesDaCarga = useCallback(
     (cargaId: string) => {
       const carga = state.cargas.find((c) => c.id === cargaId)
@@ -2739,6 +2799,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       salvarRota,
       criarCarga,
       atualizarCarga,
+      excluirCargaRascunho,
       actingTransportadorId,
       setActingTransportadorId,
       effectiveTransportadorId,
@@ -2799,6 +2860,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       salvarRota,
       criarCarga,
       atualizarCarga,
+      excluirCargaRascunho,
       actingTransportadorId,
       effectiveTransportadorId,
       lancesDaCarga,

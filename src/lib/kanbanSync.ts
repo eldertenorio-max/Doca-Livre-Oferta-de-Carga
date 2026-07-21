@@ -27,6 +27,8 @@ export type KanbanSyncSlice = {
   historico: HistoricoEvento[]
   historicoPropostas: HistoricoProposta[]
   chatLeituras: Record<string, string>
+  /** IDs removidos (rascunhos excluídos) — impede o merge de “ressuscitar” a carga */
+  cargas_excluidas?: string[]
 }
 
 export type KanbanSyncPayload = {
@@ -66,6 +68,7 @@ export function pickSyncSlice(state: KanbanSyncSlice): KanbanSyncSlice {
     historico: state.historico,
     historicoPropostas: state.historicoPropostas,
     chatLeituras: state.chatLeituras ?? {},
+    cargas_excluidas: state.cargas_excluidas ?? [],
   }
 }
 
@@ -102,33 +105,46 @@ function mergeById<T extends { id: string; updated_at?: string; created_at?: str
 export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: KanbanSyncSlice): T {
   const remoteCargas = Array.isArray(slice.cargas) ? slice.cargas : []
   const remoteLances = Array.isArray(slice.lances) ? slice.lances : []
+  const cargasExcluidas = Array.from(
+    new Set([...(prev.cargas_excluidas ?? []), ...(slice.cargas_excluidas ?? [])]),
+  ).slice(-500)
+  const excluidas = new Set(cargasExcluidas)
 
   // Remoto vazio NÃO apaga cargas locais publicadas/rascunhos
-  const cargas =
+  const cargasMerged =
     remoteCargas.length === 0 && prev.cargas.length > 0
       ? prev.cargas
       : mergeById(prev.cargas, remoteCargas)
+  const cargas = cargasMerged.filter((c) => !excluidas.has(c.id))
 
-  const lances =
+  const lancesMerged =
     remoteLances.length === 0 && prev.lances.length > 0 && remoteCargas.length === 0
       ? prev.lances
       : mergeById(prev.lances, remoteLances)
+  const lances = lancesMerged.filter((l) => !excluidas.has(l.carga_id))
 
   const merged = {
     ...prev,
     cargas,
     lances,
+    cargas_excluidas: cargasExcluidas,
     grupos: slice.grupos?.length ? slice.grupos : prev.grupos,
     transportadores: slice.transportadores?.length
       ? slice.transportadores
       : prev.transportadores,
-    notificacoes: mergeById(prev.notificacoes ?? [], slice.notificacoes ?? []),
-    mensagens: mergeById(prev.mensagens ?? [], slice.mensagens ?? []),
+    notificacoes: mergeById(prev.notificacoes ?? [], slice.notificacoes ?? []).filter(
+      (n) => !n.carga_id || !excluidas.has(n.carga_id),
+    ),
+    mensagens: mergeById(prev.mensagens ?? [], slice.mensagens ?? []).filter(
+      (m) => !excluidas.has(m.carga_id),
+    ),
     historico: mergeById(prev.historico ?? [], slice.historico ?? []).slice(0, 2000),
     historicoPropostas: mergeById(
       prev.historicoPropostas ?? [],
       slice.historicoPropostas ?? [],
-    ).slice(0, 3000),
+    )
+      .filter((h) => !excluidas.has(h.carga_id))
+      .slice(0, 3000),
     chatLeituras: { ...(prev.chatLeituras ?? {}), ...(slice.chatLeituras ?? {}) },
   }
 

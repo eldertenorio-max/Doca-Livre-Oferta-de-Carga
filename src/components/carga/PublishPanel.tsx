@@ -98,6 +98,7 @@ export function PublishPanel({ carga, open, onClose, initialTab, onSelectCarga }
     user,
     tick,
     atualizarCarga,
+    excluirCargaRascunho,
   } = useData()
   void tick
 
@@ -240,6 +241,21 @@ export function PublishPanel({ carga, open, onClose, initialTab, onSelectCarga }
   function handleExcluirMontada(id: string) {
     excluirCargaMontada(id)
     setMontadas(loadCargasMontadas())
+  }
+
+  function handleExcluirRascunho(cargaId: string, numero: string) {
+    if (!canEdit) return
+    const ok = window.confirm(
+      `Excluir o rascunho da carga ${numero}?\nEsta ação não pode ser desfeita.`,
+    )
+    if (!ok) return
+    const res = excluirCargaRascunho(cargaId)
+    if (!res.ok) {
+      setError(res.error ?? 'Não foi possível excluir')
+      return
+    }
+    setError('')
+    if (cargaId === carga?.id) onClose()
   }
 
   const negociadoresAtivos = useMemo(() => {
@@ -612,7 +628,14 @@ export function PublishPanel({ carga, open, onClose, initialTab, onSelectCarga }
                     {rascunhosNaoPublicados.map((c) => {
                       const atual = c.id === carga.id
                       return (
-                        <li key={c.id}>
+                        <li
+                          key={c.id}
+                          className={`flex items-stretch gap-1 rounded-md border ${
+                            atual
+                              ? 'border-brand bg-brand/5'
+                              : 'border-ink/10 bg-sand-light/40'
+                          }`}
+                        >
                           <button
                             type="button"
                             disabled={!onSelectCarga && !atual}
@@ -624,33 +647,37 @@ export function PublishPanel({ carga, open, onClose, initialTab, onSelectCarga }
                               onSelectCarga?.(c)
                               setTab('dados')
                             }}
-                            className={`flex w-full items-start gap-2 rounded-md border px-2.5 py-2 text-left text-xs transition ${
-                              atual
-                                ? 'border-brand bg-brand/5'
-                                : 'border-ink/10 bg-sand-light/40 hover:border-brand/40 hover:bg-white'
-                            }`}
+                            className="min-w-0 flex-1 px-2.5 py-2 text-left text-xs transition hover:bg-white/60"
                           >
-                            <span className="min-w-0 flex-1">
-                              <span className="flex items-center gap-1.5">
-                                <span className="font-semibold text-ink">Carga {c.numero}</span>
-                                {atual && (
-                                  <span className="rounded bg-brand/15 px-1.5 py-0.5 text-[10px] font-bold text-brand">
-                                    Aberta
-                                  </span>
-                                )}
-                              </span>
-                              <span className="mt-0.5 block truncate text-[10px] text-ink-muted">
-                                {(c.origem || '—').trim()} → {(c.destino || '—').trim()}
-                                {c.pedido ? ` · Pedido ${c.pedido}` : ''}
-                              </span>
-                              <span className="block text-[10px] text-ink-muted">
-                                Frete tabela {formatCurrency(c.frete_tabela)}
-                                {c.updated_at || c.created_at
-                                  ? ` · ${formatDateTime(c.updated_at || c.created_at)}`
-                                  : ''}
-                              </span>
+                            <span className="flex items-center gap-1.5">
+                              <span className="font-semibold text-ink">Carga {c.numero}</span>
+                              {atual && (
+                                <span className="rounded bg-brand/15 px-1.5 py-0.5 text-[10px] font-bold text-brand">
+                                  Aberta
+                                </span>
+                              )}
+                            </span>
+                            <span className="mt-0.5 block truncate text-[10px] text-ink-muted">
+                              {(c.origem || '—').trim()} → {(c.destino || '—').trim()}
+                              {c.pedido ? ` · Pedido ${c.pedido}` : ''}
+                            </span>
+                            <span className="block text-[10px] text-ink-muted">
+                              Frete tabela {formatCurrency(c.frete_tabela)}
+                              {c.updated_at || c.created_at
+                                ? ` · ${formatDateTime(c.updated_at || c.created_at)}`
+                                : ''}
                             </span>
                           </button>
+                          {canEdit && (
+                            <button
+                              type="button"
+                              className="shrink-0 self-center rounded p-2 text-ink-muted hover:bg-red-50 hover:text-red-700"
+                              title="Excluir rascunho"
+                              onClick={() => handleExcluirRascunho(c.id, c.numero)}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
                         </li>
                       )
                     })}
@@ -919,18 +946,27 @@ export function PublishPanel({ carga, open, onClose, initialTab, onSelectCarga }
               {error && <p className="text-xs text-brand">{error}</p>}
               {info && <p className="text-xs text-emerald-700">{info}</p>}
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {canEdit && (
                   <Button
                     variant="success"
-                    className="flex-1"
+                    className="min-w-[8rem] flex-1"
                     onClick={handlePublicar}
                     disabled={!carga.pedido || !carga.origem || carga.peso <= 0}
                   >
                     Publicar
                   </Button>
                 )}
-                <Button variant="danger" className="flex-1" onClick={onClose}>
+                {canEdit && (
+                  <Button
+                    variant="danger"
+                    className="shrink-0"
+                    onClick={() => handleExcluirRascunho(carga.id, carga.numero)}
+                  >
+                    <Trash2 size={14} /> Excluir
+                  </Button>
+                )}
+                <Button variant="ghost" className="min-w-[5rem] border border-ink/15" onClick={onClose}>
                   Fechar
                 </Button>
               </div>

@@ -64,7 +64,8 @@ const COLUMNS: {
 ]
 
 export function KanbanMinerva() {
-  const { cargas, lances, lancesDaCarga, criarCarga, moverCargaKanban } = useData()
+  const { cargas, lances, lancesDaCarga, criarCarga, moverCargaKanban, excluirCargaRascunho } =
+    useData()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Carga | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
@@ -169,6 +170,28 @@ export function KanbanMinerva() {
                     }
                     onSelect={() => openPanel(c)}
                     onView={() => openPanel(c)}
+                    onDelete={
+                      c.status === 'nova_carga' && !c.publicado_em
+                        ? () => {
+                            if (
+                              !window.confirm(
+                                `Excluir o rascunho da carga ${c.numero}?\nEsta ação não pode ser desfeita.`,
+                              )
+                            ) {
+                              return
+                            }
+                            const res = excluirCargaRascunho(c.id)
+                            if (!res.ok) {
+                              showDragMsg(res.error ?? 'Não foi possível excluir')
+                              return
+                            }
+                            if (selected?.id === c.id) {
+                              setPanelOpen(false)
+                              setSelected(null)
+                            }
+                          }
+                        : undefined
+                    }
                   />
                 ),
               })),
