@@ -144,7 +144,10 @@ export function AppLayout() {
     actingTransportadorId,
   } = useData()
   const navigate = useNavigate()
-  const [sidebarWide, setSidebarWide] = useState(true)
+  /** Fixado expandido pelos 3 riscos; senão só ícones e hover abre temporário */
+  const [sidebarPinned, setSidebarPinned] = useState(false)
+  const [sidebarHover, setSidebarHover] = useState(false)
+  const sidebarWide = sidebarPinned || sidebarHover
   const [clock, setClock] = useState(() => formatClock(new Date()))
   const [notifOpen, setNotifOpen] = useState(false)
   const [chatCargaId, setChatCargaId] = useState<string | null>(null)
@@ -243,10 +246,14 @@ export function AppLayout() {
           <button
             type="button"
             className="app-topbar-menu"
-            onClick={() => setSidebarWide((v) => !v)}
-            aria-label={sidebarWide ? 'Recolher menu lateral' : 'Abrir menu lateral'}
-            aria-pressed={sidebarWide}
-            title={sidebarWide ? 'Recolher menu' : 'Abrir menu'}
+            onClick={() => setSidebarPinned((v) => !v)}
+            aria-label={sidebarPinned ? 'Recolher menu lateral' : 'Fixar menu expandido'}
+            aria-pressed={sidebarPinned}
+            title={
+              sidebarPinned
+                ? 'Recolher menu (volta a só ícones)'
+                : 'Expandir e fixar menu'
+            }
           >
             <span className="app-topbar-menu-icon" aria-hidden />
           </button>
@@ -366,12 +373,26 @@ export function AppLayout() {
       </header>
 
       <div className="app-workspace">
+        {/* Reserva a coluna de ícones enquanto o menu flutua no hover */}
+        {sidebarHover && !sidebarPinned && <div className="sidebar-rail" aria-hidden />}
         <aside
-          className={['sidebar', sidebarWide ? 'sidebar--wide' : ''].filter(Boolean).join(' ')}
-          onMouseEnter={() => {
-            if (!sidebarWide) setSidebarWide(true)
-          }}
-          title={!sidebarWide ? 'Passe o mouse para abrir o menu' : undefined}
+          className={[
+            'sidebar',
+            sidebarWide ? 'sidebar--wide' : '',
+            sidebarPinned ? 'sidebar--pinned' : '',
+            sidebarHover && !sidebarPinned ? 'sidebar--flyout' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          onMouseEnter={() => setSidebarHover(true)}
+          onMouseLeave={() => setSidebarHover(false)}
+          title={
+            !sidebarWide
+              ? 'Passe o mouse para ver os nomes'
+              : sidebarPinned
+                ? 'Menu fixado expandido'
+                : undefined
+          }
         >
           <nav className="sidebar-body" aria-label="Menu principal">
             {links.map((item) => (
