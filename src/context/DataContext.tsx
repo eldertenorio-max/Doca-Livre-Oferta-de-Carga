@@ -2052,23 +2052,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
       opts?: { veiculoId?: string; motoristaId?: string },
     ) => {
       if (!placa.trim() || !motorista.trim()) {
-        return { ok: false, error: 'Informe placa e motorista' }
+        return { ok: false, error: 'Informe placa e o nome do motorista' }
       }
       const placaNorm = placa.toUpperCase().trim()
       const motoristaNorm = motorista.trim()
-      const base = state.cargas.find((c) => c.id === cargaId)
+      const base = stateRef.current.cargas.find((c) => c.id === cargaId)
       if (!base) return { ok: false, error: 'Carga não encontrada' }
       if (!base.transportador_vencedor_id) {
         return { ok: false, error: 'Frete ainda não fechado' }
       }
 
+      const agora = new Date().toISOString()
       const cargaAlocada: Carga = {
         ...base,
         status: 'alocadas',
         placa: placaNorm,
         motorista: motoristaNorm,
-        veiculo_id: opts?.veiculoId ?? base.veiculo_id,
-        motorista_id: opts?.motoristaId ?? base.motorista_id,
+        veiculo_id: opts?.veiculoId || base.veiculo_id || null,
+        motorista_id: opts?.motoristaId || base.motorista_id || null,
+        updated_at: agora,
       }
 
       setState((prev) => {
@@ -2077,30 +2079,36 @@ export function DataProvider({ children }: { children: ReactNode }) {
           transportador_id: base.transportador_vencedor_id,
           detalhe: `${placaNorm} · ${motoristaNorm}`,
         })
-        return {
+        const next = {
           ...prev,
           cargas: prev.cargas.map((c) => (c.id === cargaId ? cargaAlocada : c)),
           historico: [hist, ...prev.historico].slice(0, 2000),
         }
+        flushKanbanPush(next)
+        return next
       })
 
-      const resultado = await enviarControleFretes(cargaAlocada, config)
-      const integracao: IntegracaoFrete = { id: uid('intg'), ...resultado }
-      setState((prev) => ({
-        ...prev,
-        integracoes: [integracao, ...prev.integracoes].slice(0, 500),
-        historico: [
-          makeHistorico('integracao_fretes', `Controle de Fretes — ${resultado.status}`, {
-            carga_id: cargaId,
-            detalhe: resultado.resposta,
-          }),
-          ...prev.historico,
-        ].slice(0, 2000),
-      }))
+      try {
+        const resultado = await enviarControleFretes(cargaAlocada, config)
+        const integracao: IntegracaoFrete = { id: uid('intg'), ...resultado }
+        setState((prev) => ({
+          ...prev,
+          integracoes: [integracao, ...prev.integracoes].slice(0, 500),
+          historico: [
+            makeHistorico('integracao_fretes', `Controle de Fretes — ${resultado.status}`, {
+              carga_id: cargaId,
+              detalhe: resultado.resposta,
+            }),
+            ...prev.historico,
+          ].slice(0, 2000),
+        }))
+      } catch {
+        /* alocação local já persistiu — integração é secundária */
+      }
 
       return { ok: true }
     },
-    [config, state.cargas],
+    [config, flushKanbanPush],
   )
 
   const registrarVisualizacao = useCallback(

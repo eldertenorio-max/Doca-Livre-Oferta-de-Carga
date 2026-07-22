@@ -316,12 +316,21 @@ export function AllocateModal({ carga, open, onClose }: AllocateModalProps) {
   if (!carga) return null
 
   async function handleSave() {
+    setError('')
+    if (!placa.trim()) {
+      setError('Informe a placa do veículo.')
+      return
+    }
+    if (!motorista.trim()) {
+      setError('Informe o nome do motorista.')
+      return
+    }
     const res = await alocarComposicao(carga!.id, placa, motorista, {
       veiculoId: veiculoId || undefined,
       motoristaId: motoristaId || undefined,
     })
     if (!res.ok) {
-      setError(res.error ?? 'Erro')
+      setError(res.error ?? 'Erro ao alocar')
       return
     }
     onClose()
