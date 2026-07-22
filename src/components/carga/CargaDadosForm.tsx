@@ -310,24 +310,36 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
   if (!editavel) {
     return (
       <div className="space-y-2 text-sm">
-        <p className="rounded-lg bg-sand-light/50 px-3 py-2 text-xs text-ink-muted">
-          Dados da carga (somente leitura após publicação).
-        </p>
         <Row label="Número" value={carga.numero} />
-        <Row label="Pedido" value={carga.pedido} />
-        <Row
-          label="Rota"
-          value={rotaSelecionada?.descricao ?? `${carga.origem} → ${carga.destino}`}
-        />
-        <Row label="Origem" value={carga.origem} />
-        <Row label="Destino" value={carga.destino} />
-        <Row label="Tipo" value={carga.tipo_carga} />
-        <Row label="Veículo" value={carga.veiculo} />
-        <Row label="Destinatário" value={carga.destinatario} />
+        <Row label="Pedido" value={carga.pedido || '—'} />
+        <Row label="Origem" value={carga.origem || '—'} />
+        <Row label="Destino" value={carga.destino || '—'} />
+        <Row label="Tipo" value={carga.tipo_carga || '—'} />
+        <Row label="Veículo" value={carga.veiculo || '—'} />
+        <Row label="Remetente" value={carga.remetente || '—'} />
+        <Row label="CNPJ remetente" value={formatCnpj(carga.remetente_cnpj || '') || '—'} />
+        <Row label="Destinatário" value={carga.destinatario || '—'} />
+        <Row label="CNPJ destinatário" value={formatCnpj(carga.destinatario_cnpj || '') || '—'} />
         <Row label="Peso" value={formatMoneyInput(carga.peso)} />
         <Row label="Volumes" value={String(carga.volumes)} />
         <Row label="Frete tabela" value={formatCurrency(carga.frete_tabela)} />
         <Row label="Mercadorias" value={formatCurrency(carga.valor_mercadorias)} />
+        <Row
+          label="Carregamento"
+          value={
+            carga.data_carregamento
+              ? new Date(carga.data_carregamento).toLocaleString('pt-BR')
+              : '—'
+          }
+        />
+        <Row
+          label="Previsão entrega"
+          value={
+            carga.previsao_entrega
+              ? new Date(carga.previsao_entrega).toLocaleString('pt-BR')
+              : '—'
+          }
+        />
         {carga.observacao && <Row label="Obs." value={carga.observacao} />}
       </div>
     )
