@@ -34,6 +34,7 @@ import {
   type CargaMontada,
   type PanelSize,
 } from '../../lib/cargasMontadas'
+import { isRascunhoNaoPublicado } from '../../lib/kanbanColumns'
 import { prazosAlocacaoPermitidos, prazosOfertaPermitidos } from '../../lib/configNegocio'
 import { canEditModulo } from '../../lib/portalModules'
 import type { Carga, ClassificacaoTransportador, Rota, Transportador } from '../../types'
@@ -168,7 +169,7 @@ export function PublishPanel({ carga, open, onClose, initialTab, onSelectCarga }
 
   const rascunhosNaoPublicados = useMemo(() => {
     return [...cargas]
-      .filter((c) => c.status === 'nova_carga' && !c.publicado_em)
+      .filter(isRascunhoNaoPublicado)
       .sort((a, b) => {
         const ta = new Date(a.updated_at || a.created_at || 0).getTime()
         const tb = new Date(b.updated_at || b.created_at || 0).getTime()
@@ -654,7 +655,7 @@ export function PublishPanel({ carga, open, onClose, initialTab, onSelectCarga }
                   Não publicadas ({rascunhosNaoPublicados.length})
                 </p>
                 <p className="mb-2 text-[11px] text-ink-muted">
-                  Cargas salvas no Kanban que ainda não foram publicadas para negociação.
+                  Rascunhos salvos — só entram em Nova Carga depois de publicar.
                 </p>
                 {rascunhosNaoPublicados.length === 0 ? (
                   <p className="text-[11px] text-ink-muted">Nenhum rascunho pendente.</p>

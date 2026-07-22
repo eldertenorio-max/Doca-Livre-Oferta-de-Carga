@@ -361,7 +361,7 @@ export function CargoCard({
     new Date(carga.expira_em!).getTime() - Date.now() < 5 * 60_000
 
   const showAlocar = Boolean(onAllocate)
-  const isRascunho = !carga.publicado_em || carga.status === 'nova_carga'
+  const isRascunho = carga.status === 'nova_carga' && !carga.publicado_em
 
   return (
     <article

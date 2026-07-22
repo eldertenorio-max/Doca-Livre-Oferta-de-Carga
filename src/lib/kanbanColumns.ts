@@ -11,7 +11,8 @@ export type ColunaTransportador = 'nova_carga' | 'propostas' | 'confirmadas' | '
  * Fluxo canônico:
  *
  * Minerva:
- *   rascunho / publicada sem lance → Nova Carga
+ *   rascunho (não publicado)      → só aba Cargas salvas (fora do Kanban)
+ *   publicada sem lance           → Nova Carga
  *   1º lance recebido             → Negociando
  *   frete fechado                 → Confirmadas
  *   placa/motorista               → Alocadas
@@ -22,6 +23,11 @@ export type ColunaTransportador = 'nova_carga' | 'propostas' | 'confirmadas' | '
  *   eu venci                      → Confirmadas
  *   alocada                       → Alocadas
  */
+
+/** Rascunho salvo, ainda não publicado — não entra no Kanban. */
+export function isRascunhoNaoPublicado(c: Carga): boolean {
+  return c.status === 'nova_carga' && !c.publicado_em
+}
 
 export function temLanceAtivoNaRodada(
   carga: Carga,
@@ -63,13 +69,15 @@ export function colunaMinerva(
     return 'confirmadas'
   }
 
+  // Rascunho: fica só em Cargas salvas
+  if (isRascunhoNaoPublicado(c)) return null
+
   // Publicada com lance → Negociando
   if (['negociando', 'propostas'].includes(c.status) && temLanceAtivo) {
     return 'negociando'
   }
 
-  // Rascunho OU publicada ainda sem lance → Nova Carga
-  if (c.status === 'nova_carga') return 'nova_carga'
+  // Publicada ainda sem lance → Nova Carga
   if (['negociando', 'propostas'].includes(c.status) && !temLanceAtivo) {
     return 'nova_carga'
   }

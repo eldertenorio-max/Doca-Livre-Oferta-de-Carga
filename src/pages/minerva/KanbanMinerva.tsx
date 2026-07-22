@@ -7,6 +7,7 @@ import { PublishPanel } from '../../components/carga/PublishPanel'
 import { Button } from '../../components/ui/Modal'
 import {
   colunaMinerva,
+  isRascunhoNaoPublicado,
   ordenarCargasKanban,
   temLanceAtivoNaRodada,
   type ColunaMinerva,
@@ -23,7 +24,7 @@ const COLUMNS: {
     key: 'nova_carga',
     title: 'Nova Carga',
     color: '#385463',
-    description: 'Rascunho ou publicada — aguardando o 1º lance',
+    description: 'Publicada — aguardando o 1º lance',
   },
   {
     key: 'negociando',
@@ -64,8 +65,7 @@ const COLUMNS: {
 ]
 
 export function KanbanMinerva() {
-  const { cargas, lances, lancesDaCarga, criarCarga, moverCargaKanban, excluirCargaRascunho } =
-    useData()
+  const { cargas, lances, lancesDaCarga, criarCarga, moverCargaKanban } = useData()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Carga | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
@@ -89,9 +89,7 @@ export function KanbanMinerva() {
 
   function openPanel(c: Carga, tab?: 'dados' | 'salvas' | 'publicar') {
     setSelected(c)
-    const rascunho = !c.publicado_em || c.status === 'nova_carga'
-    // Rascunho: abre em Publicar (só após Publicar o transportador vê)
-    setInitialTab(tab ?? (rascunho ? 'publicar' : 'publicar'))
+    setInitialTab(tab ?? (isRascunhoNaoPublicado(c) ? 'dados' : 'publicar'))
     setPanelOpen(true)
   }
 
@@ -144,8 +142,8 @@ export function KanbanMinerva() {
         )}
 
         <p className="text-[11px] text-ink-muted">
-          Fluxo: salve os dados → aba Publicar → botão Publicar → aí o transportador vê em Nova
-          Carga. Depois: Negociando (1º lance) → Confirmadas → Alocadas.
+          Fluxo: Nova carga → salve (fica em Cargas salvas) → Publicar → aparece em Nova Carga.
+          Depois: Negociando (1º lance) → Confirmadas → Alocadas.
         </p>
 
         <KanbanBoard
@@ -170,28 +168,6 @@ export function KanbanMinerva() {
                     }
                     onSelect={() => openPanel(c)}
                     onView={() => openPanel(c)}
-                    onDelete={
-                      c.status === 'nova_carga' && !c.publicado_em
-                        ? () => {
-                            if (
-                              !window.confirm(
-                                `Excluir o rascunho da carga ${c.numero}?\nEsta ação não pode ser desfeita.`,
-                              )
-                            ) {
-                              return
-                            }
-                            const res = excluirCargaRascunho(c.id)
-                            if (!res.ok) {
-                              showDragMsg(res.error ?? 'Não foi possível excluir')
-                              return
-                            }
-                            if (selected?.id === c.id) {
-                              setPanelOpen(false)
-                              setSelected(null)
-                            }
-                          }
-                        : undefined
-                    }
                   />
                 ),
               })),
