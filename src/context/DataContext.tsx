@@ -2336,7 +2336,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         remetente: 'DOCA LIVRE OFERTA DE CARGA',
         remetente_cnpj: '67.620.377/0001-00',
         origem: '',
-        destino: 'distribuição',
+        destino: 'Distribuição',
         destinatario: '',
         destinatario_cnpj: '',
         peso: 0,

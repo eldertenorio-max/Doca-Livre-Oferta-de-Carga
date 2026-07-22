@@ -73,7 +73,7 @@ const SUGESTOES_OBS = [
   'carga paletizada',
 ]
 
-const DESTINOS_ESPECIAIS = ['distribuição']
+const DESTINOS_ESPECIAIS = ['Distribuição']
 
 export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) {
   const { rotas, cargas, atualizarCarga, salvarRota } = useData()
@@ -443,10 +443,10 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
                 onChange={setDestino}
                 suggestions={sugDestino}
                 minChars={2}
-                placeholder="Cidade - UF ou distribuição"
+                placeholder="Cidade - UF ou Distribuição"
               />
               <p className="mt-1 text-[11px] text-ink-muted">
-                Se não for um destino único, use <strong>distribuição</strong>.
+                Se não for um destino único, use <strong>Distribuição</strong>.
               </p>
             </Field>
             <div className="grid grid-cols-2 gap-2">
