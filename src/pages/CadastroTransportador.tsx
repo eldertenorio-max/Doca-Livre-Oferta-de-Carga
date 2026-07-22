@@ -489,15 +489,37 @@ export function CadastroTransportadorPage() {
                             <em className="doc-upload-row__file">{item.nome_arquivo}</em>
                           )}
                         </div>
-                        <label className="cadastro-btn cadastro-btn--ghost doc-upload-row__btn">
-                          {item ? 'Trocar' : 'Anexar'}
-                          <input
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*"
-                            hidden
-                            onChange={(e) => onPickDoc(d.tipo, e.target.files?.[0] ?? null)}
-                          />
-                        </label>
+                        <div className="doc-upload-row__actions">
+                          {item && (
+                            <>
+                              <button
+                                type="button"
+                                className="cadastro-btn cadastro-btn--ghost doc-upload-row__btn"
+                                onClick={() => {
+                                  window.open(item.data_url, '_blank', 'noopener,noreferrer')
+                                }}
+                              >
+                                Visualizar
+                              </button>
+                              <button
+                                type="button"
+                                className="cadastro-btn cadastro-btn--ghost doc-upload-row__btn doc-upload-row__btn--danger"
+                                onClick={() => void onPickDoc(d.tipo, null)}
+                              >
+                                Excluir
+                              </button>
+                            </>
+                          )}
+                          <label className="cadastro-btn cadastro-btn--ghost doc-upload-row__btn">
+                            {item ? 'Trocar' : 'Anexar'}
+                            <input
+                              type="file"
+                              accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*"
+                              hidden
+                              onChange={(e) => onPickDoc(d.tipo, e.target.files?.[0] ?? null)}
+                            />
+                          </label>
+                        </div>
                       </div>
                     )
                   })}
