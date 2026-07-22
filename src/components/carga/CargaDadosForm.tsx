@@ -334,45 +334,50 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
   }
 
   return (
-    <div className="space-y-3 text-sm">
-      <p className="text-xs text-ink-muted">
-        Preencha os dados da carga <strong>{carga.numero}</strong> e salve antes de publicar.
-        Digite para ver sugestões (cidades com UF, histórico e listas padrão).
-      </p>
-
-      <div className="rounded-lg border border-ink/10 bg-sand-light/30 p-3 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs font-semibold text-ink">Rota / trecho</p>
+    <div className="space-y-4 text-sm">
+      <div className="flex flex-wrap items-end justify-between gap-2 border-b border-ink/10 pb-3">
+        <div>
+          <p className="font-display text-base font-semibold text-ink">
+            Carga {carga.numero}
+          </p>
           <p className="text-[11px] text-ink-muted">
-            Favoritas ficam na aba <strong>Cargas salvas</strong>
+            Preencha, salve e vá para Publicar. Digite para ver sugestões.
           </p>
         </div>
+        {rotaSelecionada && (
+          <span className="rounded-full bg-brand/10 px-2.5 py-1 text-[10px] font-bold text-brand">
+            Favorita: {rotaSelecionada.descricao}
+          </span>
+        )}
+      </div>
 
-        <Field label="Origem *">
-          <SuggestInput
-            value={origem}
-            onChange={setOrigem}
-            suggestions={sugOrigem}
-            minChars={2}
-            placeholder="Digite a cidade… ex.: Sao"
-          />
-          <p className="mt-1 text-[11px] text-ink-muted">
-            Ex.: digite <strong>sao</strong> para ver São Paulo - SP e outras.
-          </p>
-        </Field>
-        <Field label="Destino *">
-          <SuggestInput
-            value={destino}
-            onChange={setDestino}
-            suggestions={sugDestino}
-            minChars={2}
-            placeholder="Cidade - UF ou Distribuição"
-          />
-          <p className="mt-1 text-[11px] text-ink-muted">
-            Se não for um destino único, use <strong>Distribuição</strong>.
-          </p>
-        </Field>
-        <div className="grid grid-cols-2 gap-2">
+      {/* Rota */}
+      <section className="space-y-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
+            Rota
+          </h3>
+          <span className="text-[10px] text-ink-muted">Favoritas → aba Cargas salvas</span>
+        </div>
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          <Field label="Origem *">
+            <SuggestInput
+              value={origem}
+              onChange={setOrigem}
+              suggestions={sugOrigem}
+              minChars={2}
+              placeholder="Cidade - UF (ex.: Sao)"
+            />
+          </Field>
+          <Field label="Destino *">
+            <SuggestInput
+              value={destino}
+              onChange={setDestino}
+              suggestions={sugDestino}
+              minChars={2}
+              placeholder="Cidade - UF ou Distribuição"
+            />
+          </Field>
           <Field label="Frete tabela (R$) *">
             <SuggestInput
               value={freteTabela}
@@ -385,7 +390,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
               }}
             />
           </Field>
-          <Field label="Classificação">
+          <Field label="Classificação da rota">
             <select
               className={inputClass}
               value={classificacao}
@@ -397,160 +402,157 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
             </select>
           </Field>
         </div>
-        <label className="flex items-start gap-2 rounded-lg border border-ink/10 bg-white p-2.5 text-xs text-ink">
+        <label className="inline-flex items-center gap-2 text-xs text-ink">
           <input
             type="checkbox"
-            className="mt-0.5"
             checked={salvarFavorita}
             onChange={(e) => setSalvarFavorita(e.target.checked)}
           />
           <span>
-            <strong>Salvar como rota favorita</strong>
-            <span className="mt-0.5 block text-ink-muted">
-              Aparece na aba Cargas salvas → Favoritas (e em Menu → Rotas).
-            </span>
+            Salvar esta rota como <strong>favorita</strong>
           </span>
         </label>
+      </section>
 
-        {(origem || destino) && (
-          <div className="grid grid-cols-2 gap-2 rounded-lg bg-white/80 p-2 text-xs ring-1 ring-ink/5">
-            <div>
-              <p className="text-ink-muted">Origem</p>
-              <p className="font-medium">{origem || '—'}</p>
-            </div>
-            <div>
-              <p className="text-ink-muted">Destino</p>
-              <p className="font-medium">{destino || '—'}</p>
-            </div>
-            <div>
-              <p className="text-ink-muted">Frete tabela</p>
-              <p className="font-semibold">
-                {formatCurrency(parseMoneyInput(freteTabela) || 0)}
-              </p>
-            </div>
-            <div>
-              <p className="text-ink-muted">Classificação</p>
-              <p className="font-semibold">Rota {classificacao}</p>
-            </div>
+      {/* Pedido e carga */}
+      <section className="space-y-2.5 border-t border-ink/10 pt-3">
+        <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
+          Pedido e carga
+        </h3>
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          <Field label="Pedido *">
+            <SuggestInput
+              value={pedido}
+              onChange={setPedido}
+              suggestions={sugPedido}
+              placeholder="Número do pedido"
+            />
+          </Field>
+          <Field label="Tipo de carga">
+            <SuggestInput
+              value={tipoCarga}
+              onChange={setTipoCarga}
+              suggestions={sugTipo}
+              placeholder="Escolha ou digite…"
+            />
+          </Field>
+          <Field label="Veículo">
+            <SuggestInput
+              value={veiculo}
+              onChange={setVeiculo}
+              suggestions={sugVeiculo}
+              placeholder="Escolha ou digite…"
+            />
+          </Field>
+          <Field label="Valor mercadorias (R$)">
+            <SuggestInput
+              value={valorMerc}
+              onChange={setValorMerc}
+              suggestions={sugValorMerc}
+              onBlur={() => {
+                const n = parseMoneyInput(valorMerc)
+                if (!Number.isNaN(n)) setValorMerc(formatMoneyInput(n))
+              }}
+            />
+          </Field>
+          <Field label="Peso (kg) *">
+            <SuggestInput
+              value={peso}
+              onChange={setPeso}
+              suggestions={sugPeso}
+              onBlur={() => {
+                const n = parseMoneyInput(peso)
+                if (!Number.isNaN(n)) setPeso(formatMoneyInput(n))
+              }}
+            />
+          </Field>
+          <Field label="Volumes">
+            <SuggestInput
+              value={volumes}
+              onChange={setVolumes}
+              suggestions={sugVolumes}
+              inputMode="numeric"
+            />
+          </Field>
+        </div>
+      </section>
+
+      {/* Destinatário */}
+      <section className="space-y-2.5 border-t border-ink/10 pt-3">
+        <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
+          Destinatário
+        </h3>
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          <Field label="Nome / empresa *">
+            <SuggestInput
+              value={destinatario}
+              onChange={setDestinatario}
+              suggestions={sugDestinatario}
+              placeholder="Destinatário"
+            />
+          </Field>
+          <Field label="CNPJ">
+            <CnpjInput
+              value={destinatarioCnpj}
+              onChange={setDestinatarioCnpj}
+              suggestions={historico.cnpj}
+            />
+          </Field>
+        </div>
+      </section>
+
+      {/* Datas e obs */}
+      <section className="space-y-2.5 border-t border-ink/10 pt-3">
+        <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
+          Prazos e observações
+        </h3>
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          <Field label="Carregamento">
+            <input
+              type="date"
+              className={inputClass}
+              value={dataCarreg}
+              onChange={(e) => setDataCarreg(e.target.value)}
+            />
+          </Field>
+          <Field label="Previsão entrega">
+            <input
+              type="date"
+              className={inputClass}
+              value={previsao}
+              onChange={(e) => setPrevisao(e.target.value)}
+            />
+          </Field>
+          <div className="sm:col-span-2">
+            <Field label="Observações">
+              <SuggestInput
+                value={observacao}
+                onChange={setObservacao}
+                suggestions={sugObs}
+                placeholder="Opcional — também pedidas na publicação"
+              />
+            </Field>
           </div>
-        )}
-      </div>
+        </div>
+      </section>
 
-      <Field label="Pedido *">
-        <SuggestInput
-          value={pedido}
-          onChange={setPedido}
-          suggestions={sugPedido}
-          placeholder="Número do pedido"
-        />
-      </Field>
+      {error && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+          {error}
+        </p>
+      )}
+      {info && (
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+          {info}
+        </p>
+      )}
 
-      <div className="grid grid-cols-2 gap-2">
-        <Field label="Tipo de carga">
-          <SuggestInput
-            value={tipoCarga}
-            onChange={setTipoCarga}
-            suggestions={sugTipo}
-            placeholder="Escolha ou digite…"
-          />
-        </Field>
-        <Field label="Veículo">
-          <SuggestInput
-            value={veiculo}
-            onChange={setVeiculo}
-            suggestions={sugVeiculo}
-            placeholder="Escolha ou digite…"
-          />
-        </Field>
-      </div>
-
-      <Field label="Destinatário *">
-        <SuggestInput
-          value={destinatario}
-          onChange={setDestinatario}
-          suggestions={sugDestinatario}
-          placeholder="Nome do destinatário"
-        />
-      </Field>
-      <Field label="CNPJ destinatário">
-        <CnpjInput
-          value={destinatarioCnpj}
-          onChange={setDestinatarioCnpj}
-          suggestions={historico.cnpj}
-        />
-      </Field>
-
-      <div className="grid grid-cols-2 gap-2">
-        <Field label="Peso (kg) *">
-          <SuggestInput
-            value={peso}
-            onChange={setPeso}
-            suggestions={sugPeso}
-            onBlur={() => {
-              const n = parseMoneyInput(peso)
-              if (!Number.isNaN(n)) setPeso(formatMoneyInput(n))
-            }}
-          />
-        </Field>
-        <Field label="Volumes">
-          <SuggestInput
-            value={volumes}
-            onChange={setVolumes}
-            suggestions={sugVolumes}
-            inputMode="numeric"
-          />
-        </Field>
-      </div>
-
-      <Field label="Valor mercadorias (R$)">
-        <SuggestInput
-          value={valorMerc}
-          onChange={setValorMerc}
-          suggestions={sugValorMerc}
-          onBlur={() => {
-            const n = parseMoneyInput(valorMerc)
-            if (!Number.isNaN(n)) setValorMerc(formatMoneyInput(n))
-          }}
-        />
-      </Field>
-
-      <div className="grid grid-cols-2 gap-2">
-        <Field label="Carregamento">
-          <input
-            type="date"
-            className={inputClass}
-            value={dataCarreg}
-            onChange={(e) => setDataCarreg(e.target.value)}
-          />
-        </Field>
-        <Field label="Previsão entrega">
-          <input
-            type="date"
-            className={inputClass}
-            value={previsao}
-            onChange={(e) => setPrevisao(e.target.value)}
-          />
-        </Field>
-      </div>
-
-      <Field label="Observações">
-        <SuggestInput
-          value={observacao}
-          onChange={setObservacao}
-          suggestions={sugObs}
-          placeholder="Opcional — também pedidas na publicação"
-        />
-      </Field>
-
-      {error && <p className="text-xs text-brand">{error}</p>}
-      {info && <p className="text-xs text-emerald-700">{info}</p>}
-
-      <div className="flex flex-col gap-2">
-        <Button variant="success" className="w-full" onClick={() => handleSalvar(false)}>
+      <div className="sticky bottom-0 -mx-1 flex flex-col gap-2 border-t border-ink/10 bg-white/95 px-1 pt-3 backdrop-blur sm:flex-row">
+        <Button variant="success" className="flex-1" onClick={() => handleSalvar(false)}>
           Salvar dados
         </Button>
-        <Button variant="primary" className="w-full" onClick={() => handleSalvar(true)}>
-          Salvar e ir para Publicar
+        <Button variant="primary" className="flex-1" onClick={() => handleSalvar(true)}>
+          Salvar e publicar
         </Button>
       </div>
     </div>

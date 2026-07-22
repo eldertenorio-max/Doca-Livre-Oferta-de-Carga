@@ -41,7 +41,7 @@ export function loadPanelSize(): PanelSize {
   } catch {
     /* ignore */
   }
-  return 'medio'
+  return 'largo'
 }
 
 export function savePanelSize(size: PanelSize) {
@@ -53,9 +53,9 @@ export function savePanelSize(size: PanelSize) {
 }
 
 export function panelSizeClass(size: PanelSize): string {
-  if (size === 'largo') return 'w-[min(920px,72vw)]'
-  if (size === 'medio') return 'w-[min(640px,55vw)]'
-  return 'w-[min(440px,92vw)]'
+  if (size === 'largo') return 'w-[min(980px,78vw)]'
+  if (size === 'medio') return 'w-[min(720px,62vw)]'
+  return 'w-[min(480px,94vw)]'
 }
 
 export function loadCargasMontadas(): CargaMontada[] {
