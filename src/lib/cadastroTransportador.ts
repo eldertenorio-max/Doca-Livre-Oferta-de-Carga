@@ -392,6 +392,27 @@ export async function cadastrarTransportadorRemoto(
   }
 }
 
+/** URL para abrir documento (assinada se houver path no Storage; senão usa url salva). */
+export async function urlDocumentoTransportador(
+  doc: Pick<TransportadorDocumento, 'url' | 'storage_path'>,
+): Promise<string> {
+  if (doc.url?.startsWith('data:')) return doc.url
+
+  if (isSupabaseConfigured && supabase && doc.storage_path) {
+    const { data, error } = await supabase.storage
+      .from('documentos-transportadores')
+      .createSignedUrl(doc.storage_path, 60 * 60)
+    if (!error && data?.signedUrl) return data.signedUrl
+
+    const { data: pub } = supabase.storage
+      .from('documentos-transportadores')
+      .getPublicUrl(doc.storage_path)
+    if (pub?.publicUrl) return pub.publicUrl
+  }
+
+  return doc.url
+}
+
 export async function submeterCadastroTransportador(
   input: CadastroTransportadorInput,
 ): Promise<CadastroTransportadorResult> {

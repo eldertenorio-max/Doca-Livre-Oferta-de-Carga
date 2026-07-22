@@ -4,6 +4,7 @@ import { CnpjInput } from '../../components/ui/CnpjInput'
 import { formatCnpj } from '../../lib/cnpj'
 import { formatPhoneBr } from '../../lib/phoneBr'
 import { labelDocumento } from '../../lib/transportadorDocs'
+import { urlDocumentoTransportador } from '../../lib/cadastroTransportador'
 import type { ClassificacaoTransportador, SituacaoTransportador, Transportador } from '../../types'
 import '../../styles/cadastro.css'
 
@@ -348,9 +349,28 @@ export function TransportadoresPage() {
                     <li key={d.id}>
                       <strong>{labelDocumento(d.tipo)}</strong>
                       <span>{d.nome_arquivo}</span>
-                      <a href={d.url} target="_blank" rel="noreferrer" className="cadastro-link">
+                      <button
+                        type="button"
+                        className="cadastro-link"
+                        onClick={async () => {
+                          try {
+                            const href = await urlDocumentoTransportador(d)
+                            if (!href) {
+                              setError('Documento sem arquivo disponível.')
+                              return
+                            }
+                            window.open(href, '_blank', 'noopener,noreferrer')
+                          } catch (err) {
+                            setError(
+                              err instanceof Error
+                                ? err.message
+                                : 'Não foi possível abrir o documento. Verifique o bucket no Supabase.',
+                            )
+                          }
+                        }}
+                      >
                         Abrir
-                      </a>
+                      </button>
                     </li>
                   ))}
                 </ul>

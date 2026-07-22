@@ -229,10 +229,10 @@ create table if not exists interacoes_pontuacao (
   created_at timestamptz not null default now()
 );
 
--- Storage: documentos do cadastro
+-- Storage: documentos do cadastro (público para o link Abrir na revisão)
 insert into storage.buckets (id, name, public)
-values ('documentos-transportadores', 'documentos-transportadores', false)
-on conflict (id) do nothing;
+values ('documentos-transportadores', 'documentos-transportadores', true)
+on conflict (id) do update set public = excluded.public;
 
 -- RLS
 alter table profiles enable row level security;
@@ -273,6 +273,7 @@ create policy "auth all interacoes" on interacoes_pontuacao for all to authentic
 -- Storage policies
 drop policy if exists "docs upload auth" on storage.objects;
 drop policy if exists "docs read auth" on storage.objects;
+drop policy if exists "docs read anon" on storage.objects;
 drop policy if exists "docs update auth" on storage.objects;
 
 create policy "docs upload auth"
@@ -281,6 +282,10 @@ create policy "docs upload auth"
 
 create policy "docs read auth"
   on storage.objects for select to authenticated
+  using (bucket_id = 'documentos-transportadores');
+
+create policy "docs read anon"
+  on storage.objects for select to anon
   using (bucket_id = 'documentos-transportadores');
 
 create policy "docs update auth"
