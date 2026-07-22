@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useData } from '../../context/DataContext'
 import { formatCurrency, formatMoneyInput, parseMoneyInput } from '../../lib/businessRules'
+import { buscarCidades, filtrarSugestoes } from '../../lib/cidadesBrasil'
 import type { Carga, ClassificacaoRota, Rota } from '../../types'
 import { Button, Field, inputClass } from '../ui/Modal'
+import { SuggestInput } from '../ui/SuggestInput'
 
 type Props = {
   carga: Carga
@@ -61,8 +63,20 @@ const SUGESTOES_VEICULO = [
   '3/4',
 ]
 
+const SUGESTOES_OBS = [
+  'seco',
+  'refrigerado',
+  'fragil',
+  'urgente',
+  'agendar entrega',
+  'requer acompanhamento',
+  'carga paletizada',
+]
+
+const DESTINOS_ESPECIAIS = ['distribuição']
+
 export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) {
-  const { rotas, atualizarCarga, salvarRota } = useData()
+  const { rotas, cargas, atualizarCarga, salvarRota } = useData()
   const rotasAtivas = rotas.filter((r) => r.situacao === 'ativo')
   const editavel = canEdit && carga.status === 'nova_carga'
 
@@ -90,6 +104,96 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
   const [observacao, setObservacao] = useState(carga.observacao ?? '')
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
+
+  const historico = useMemo(() => {
+    const outras = cargas.filter((c) => c.id !== carga.id)
+    return {
+      origem: outras.map((c) => c.origem),
+      destino: outras.map((c) => c.destino),
+      pedido: outras.map((c) => c.pedido),
+      tipo: outras.map((c) => c.tipo_carga),
+      veiculo: outras.map((c) => c.veiculo),
+      destinatario: outras.map((c) => c.destinatario),
+      cnpj: outras.map((c) => c.destinatario_cnpj),
+      peso: outras.map((c) => (c.peso > 0 ? formatMoneyInput(c.peso) : '')),
+      volumes: outras.map((c) => (c.volumes > 0 ? String(c.volumes) : '')),
+      valorMerc: outras.map((c) =>
+        c.valor_mercadorias > 0 ? formatMoneyInput(c.valor_mercadorias) : '',
+      ),
+      frete: outras.map((c) =>
+        c.frete_tabela > 0 ? formatMoneyInput(c.frete_tabela) : '',
+      ),
+      obs: outras.map((c) => c.observacao),
+      rotasOrigem: rotas.map((r) => r.origem),
+      rotasDestino: rotas.map((r) => r.destino),
+    }
+  }, [cargas, carga.id, rotas])
+
+  const sugOrigem = useMemo(
+    () => (q: string) =>
+      filtrarSugestoes(q, [buscarCidades(q, 14), historico.origem, historico.rotasOrigem], 14),
+    [historico.origem, historico.rotasOrigem],
+  )
+
+  const sugDestino = useMemo(
+    () => (q: string) =>
+      filtrarSugestoes(
+        q,
+        [DESTINOS_ESPECIAIS, buscarCidades(q, 14), historico.destino, historico.rotasDestino],
+        14,
+      ),
+    [historico.destino, historico.rotasDestino],
+  )
+
+  const sugTipo = useMemo(
+    () => (q: string) => filtrarSugestoes(q, [SUGESTOES_TIPO_CARGA, historico.tipo], 12),
+    [historico.tipo],
+  )
+
+  const sugVeiculo = useMemo(
+    () => (q: string) => filtrarSugestoes(q, [SUGESTOES_VEICULO, historico.veiculo], 12),
+    [historico.veiculo],
+  )
+
+  const sugDestinatario = useMemo(
+    () => (q: string) => filtrarSugestoes(q, [historico.destinatario], 12),
+    [historico.destinatario],
+  )
+
+  const sugCnpj = useMemo(
+    () => (q: string) => filtrarSugestoes(q, [historico.cnpj], 12),
+    [historico.cnpj],
+  )
+
+  const sugPedido = useMemo(
+    () => (q: string) => filtrarSugestoes(q, [historico.pedido], 12),
+    [historico.pedido],
+  )
+
+  const sugPeso = useMemo(
+    () => (q: string) => filtrarSugestoes(q, [historico.peso], 8),
+    [historico.peso],
+  )
+
+  const sugVolumes = useMemo(
+    () => (q: string) => filtrarSugestoes(q, [historico.volumes], 8),
+    [historico.volumes],
+  )
+
+  const sugValorMerc = useMemo(
+    () => (q: string) => filtrarSugestoes(q, [historico.valorMerc], 8),
+    [historico.valorMerc],
+  )
+
+  const sugFrete = useMemo(
+    () => (q: string) => filtrarSugestoes(q, [historico.frete], 8),
+    [historico.frete],
+  )
+
+  const sugObs = useMemo(
+    () => (q: string) => filtrarSugestoes(q, [SUGESTOES_OBS, historico.obs], 12),
+    [historico.obs],
+  )
 
   useEffect(() => {
     setModoRota(carga.rota_id ? 'favorita' : 'manual')
@@ -265,6 +369,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
     <div className="space-y-3 text-sm">
       <p className="text-xs text-ink-muted">
         Preencha os dados da carga <strong>{carga.numero}</strong> e salve antes de publicar.
+        Digite para ver sugestões (cidades com UF, histórico e listas padrão).
       </p>
 
       <div className="rounded-lg border border-ink/10 bg-sand-light/30 p-3 space-y-3">
@@ -321,39 +426,40 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
         ) : (
           <>
             <Field label="Origem *">
-              <input
-                className={inputClass}
+              <SuggestInput
                 value={origem}
-                onChange={(e) => setOrigem(e.target.value)}
-                placeholder="Ex.: José Bonifácio - SP"
+                onChange={setOrigem}
+                suggestions={sugOrigem}
+                minChars={2}
+                placeholder="Digite a cidade… ex.: Sao"
               />
+              <p className="mt-1 text-[11px] text-ink-muted">
+                Ex.: digite <strong>sao</strong> para ver São Paulo - SP e outras.
+              </p>
             </Field>
             <Field label="Destino *">
-              <input
-                className={inputClass}
+              <SuggestInput
                 value={destino}
-                onChange={(e) => setDestino(e.target.value)}
-                placeholder="Ex.: Guarujá - SP ou distribuição"
-                list="destinos-sugeridos"
+                onChange={setDestino}
+                suggestions={sugDestino}
+                minChars={2}
+                placeholder="Cidade - UF ou distribuição"
               />
-              <datalist id="destinos-sugeridos">
-                <option value="distribuição" />
-              </datalist>
               <p className="mt-1 text-[11px] text-ink-muted">
                 Se não for um destino único, use <strong>distribuição</strong>.
               </p>
             </Field>
             <div className="grid grid-cols-2 gap-2">
               <Field label="Frete tabela (R$) *">
-                <input
-                  className={inputClass}
+                <SuggestInput
                   value={freteTabela}
-                  onChange={(e) => setFreteTabela(e.target.value)}
+                  onChange={setFreteTabela}
+                  suggestions={sugFrete}
+                  placeholder="0,00"
                   onBlur={() => {
                     const n = parseMoneyInput(freteTabela)
                     if (!Number.isNaN(n)) setFreteTabela(formatMoneyInput(n))
                   }}
-                  placeholder="0,00"
                 />
               </Field>
               <Field label="Classificação">
@@ -418,63 +524,56 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       </div>
 
       <Field label="Pedido *">
-        <input className={inputClass} value={pedido} onChange={(e) => setPedido(e.target.value)} />
+        <SuggestInput
+          value={pedido}
+          onChange={setPedido}
+          suggestions={sugPedido}
+          placeholder="Número do pedido"
+        />
       </Field>
 
       <div className="grid grid-cols-2 gap-2">
         <Field label="Tipo de carga">
-          <input
-            className={inputClass}
+          <SuggestInput
             value={tipoCarga}
-            onChange={(e) => setTipoCarga(e.target.value)}
-            list="sugestoes-tipo-carga"
+            onChange={setTipoCarga}
+            suggestions={sugTipo}
             placeholder="Escolha ou digite…"
-            autoComplete="off"
           />
-          <datalist id="sugestoes-tipo-carga">
-            {SUGESTOES_TIPO_CARGA.map((s) => (
-              <option key={s} value={s} />
-            ))}
-          </datalist>
         </Field>
         <Field label="Veículo">
-          <input
-            className={inputClass}
+          <SuggestInput
             value={veiculo}
-            onChange={(e) => setVeiculo(e.target.value)}
-            list="sugestoes-veiculo"
+            onChange={setVeiculo}
+            suggestions={sugVeiculo}
             placeholder="Escolha ou digite…"
-            autoComplete="off"
           />
-          <datalist id="sugestoes-veiculo">
-            {SUGESTOES_VEICULO.map((s) => (
-              <option key={s} value={s} />
-            ))}
-          </datalist>
         </Field>
       </div>
 
       <Field label="Destinatário *">
-        <input
-          className={inputClass}
+        <SuggestInput
           value={destinatario}
-          onChange={(e) => setDestinatario(e.target.value)}
+          onChange={setDestinatario}
+          suggestions={sugDestinatario}
+          placeholder="Nome do destinatário"
         />
       </Field>
       <Field label="CNPJ destinatário">
-        <input
-          className={inputClass}
+        <SuggestInput
           value={destinatarioCnpj}
-          onChange={(e) => setDestinatarioCnpj(e.target.value)}
+          onChange={setDestinatarioCnpj}
+          suggestions={sugCnpj}
+          placeholder="00.000.000/0000-00"
         />
       </Field>
 
       <div className="grid grid-cols-2 gap-2">
         <Field label="Peso (kg) *">
-          <input
-            className={inputClass}
+          <SuggestInput
             value={peso}
-            onChange={(e) => setPeso(e.target.value)}
+            onChange={setPeso}
+            suggestions={sugPeso}
             onBlur={() => {
               const n = parseMoneyInput(peso)
               if (!Number.isNaN(n)) setPeso(formatMoneyInput(n))
@@ -482,20 +581,20 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
           />
         </Field>
         <Field label="Volumes">
-          <input
-            className={inputClass}
+          <SuggestInput
             value={volumes}
-            onChange={(e) => setVolumes(e.target.value)}
+            onChange={setVolumes}
+            suggestions={sugVolumes}
             inputMode="numeric"
           />
         </Field>
       </div>
 
       <Field label="Valor mercadorias (R$)">
-        <input
-          className={inputClass}
+        <SuggestInput
           value={valorMerc}
-          onChange={(e) => setValorMerc(e.target.value)}
+          onChange={setValorMerc}
+          suggestions={sugValorMerc}
           onBlur={() => {
             const n = parseMoneyInput(valorMerc)
             if (!Number.isNaN(n)) setValorMerc(formatMoneyInput(n))
@@ -523,10 +622,10 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       </div>
 
       <Field label="Observações">
-        <textarea
-          className={`${inputClass} min-h-16`}
+        <SuggestInput
           value={observacao}
-          onChange={(e) => setObservacao(e.target.value)}
+          onChange={setObservacao}
+          suggestions={sugObs}
           placeholder="Opcional — também pedidas na publicação"
         />
       </Field>
