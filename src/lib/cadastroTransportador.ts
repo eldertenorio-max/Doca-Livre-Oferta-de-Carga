@@ -3,6 +3,7 @@
  */
 
 import { isSupabaseConfigured, supabase } from './supabase'
+import { portalCriarUsuarioAuth } from './portalApi'
 import {
   loadPortalAccounts,
   savePortalAccounts,
@@ -41,6 +42,8 @@ export type CadastroTransportadorInput = {
     senha: string
     confirmarSenha: string
     nome: string
+    /** Token do OTP — evita signUp (rate limit de e-mail do Auth) */
+    verifyToken?: string
   }
   /** Arquivos por tipo (data URL já lido no front) */
   documentos: Array<{
@@ -168,6 +171,71 @@ export function cadastrarTransportadorLocal(
   }
 }
 
+function traduzirErroAuth(msg: string): string {
+  if (/security purposes|only request this after|rate limit|too many requests/i.test(msg)) {
+    return 'Aguarde alguns segundos e clique em Enviar cadastro de novo (proteção do servidor de login).'
+  }
+  if (/already|registered|exists/i.test(msg)) {
+    return 'Este e-mail já possui conta. Use outro e-mail ou faça login.'
+  }
+  return msg
+}
+
+async function sleep(ms: number) {
+  await new Promise((r) => setTimeout(r, ms))
+}
+
+async function criarUsuarioAuthCadastro(
+  input: CadastroTransportadorInput,
+  email: string,
+): Promise<{ ok: true; userId: string } | { ok: false; erro: string }> {
+  const nome = input.acesso.nome.trim() || input.empresa.nome_fantasia.trim()
+  const usuario = input.acesso.usuario.trim()
+
+  if (input.acesso.verifyToken) {
+    const viaEdge = await portalCriarUsuarioAuth({
+      verifyToken: input.acesso.verifyToken,
+      email,
+      senha: input.acesso.senha,
+      usuario,
+      nome,
+    })
+    if (viaEdge.ok) return { ok: true, userId: viaEdge.user_id }
+    if (!viaEdge.erro.startsWith('__FALLBACK__')) {
+      return { ok: false, erro: traduzirErroAuth(viaEdge.erro) }
+    }
+  }
+
+  if (!supabase) return { ok: false, erro: 'Supabase não configurado.' }
+
+  const meta = { nome, usuario, role: 'transportador' as const }
+  let authErr: { message: string } | null = null
+  let userId: string | undefined
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { data: authData, error } = await supabase.auth.signUp({
+      email,
+      password: input.acesso.senha,
+      options: { data: meta },
+    })
+    if (!error && authData.user?.id) {
+      userId = authData.user.id
+      authErr = null
+      break
+    }
+    authErr = error
+    if (error && /security purposes|after \d+ seconds/i.test(error.message) && attempt === 0) {
+      await sleep(8000)
+      continue
+    }
+    break
+  }
+
+  if (authErr) return { ok: false, erro: traduzirErroAuth(authErr.message) }
+  if (!userId) return { ok: false, erro: 'Falha ao criar usuário no Supabase.' }
+  return { ok: true, userId }
+}
+
 export async function cadastrarTransportadorRemoto(
   input: CadastroTransportadorInput,
 ): Promise<CadastroTransportadorResult> {
@@ -179,20 +247,18 @@ export async function cadastrarTransportadorRemoto(
   if (erro) return { ok: false, erro }
 
   const email = input.acesso.email.trim().toLowerCase()
-  const { data: authData, error: authErr } = await supabase.auth.signUp({
+  const auth = await criarUsuarioAuthCadastro(input, email)
+  if (!auth.ok) return { ok: false, erro: auth.erro }
+  const userId = auth.userId
+
+  // Sessão necessária para RLS nos inserts (admin createUser não loga o client)
+  const { error: signInErr } = await supabase.auth.signInWithPassword({
     email,
     password: input.acesso.senha,
-    options: {
-      data: {
-        nome: input.acesso.nome.trim() || input.empresa.nome_fantasia.trim(),
-        usuario: input.acesso.usuario.trim(),
-        role: 'transportador',
-      },
-    },
   })
-  if (authErr) return { ok: false, erro: authErr.message }
-  const userId = authData.user?.id
-  if (!userId) return { ok: false, erro: 'Falha ao criar usuário no Supabase.' }
+  if (signInErr) {
+    return { ok: false, erro: traduzirErroAuth(signInErr.message) }
+  }
 
   const { data: tRow, error: tErr } = await supabase
     .from('transportadores')
@@ -236,8 +302,28 @@ export async function cadastrarTransportadorRemoto(
     })
     .eq('id', userId)
 
-  const documentos: TransportadorDocumento[] = []
+  // Conta portal local (mesmo fluxo do cadastro local)
   const now = new Date().toISOString()
+  const users = loadPortalAccounts()
+  if (!users.some((u) => u.email.toLowerCase() === email || u.usuario.toLowerCase() === input.acesso.usuario.trim().toLowerCase())) {
+    savePortalAccounts([
+      ...users,
+      {
+        id: uid('u'),
+        usuario: input.acesso.usuario.trim(),
+        email,
+        password: input.acesso.senha,
+        nome: input.acesso.nome.trim() || input.empresa.nome_fantasia.trim(),
+        role: 'transportador',
+        transportador_id: tRow.id,
+        nivel: 'operador',
+        ativo: false,
+        created_at: now,
+      },
+    ])
+  }
+
+  const documentos: TransportadorDocumento[] = []
 
   for (const d of input.documentos) {
     const path = `${tRow.id}/${d.tipo}-${Date.now()}-${d.nome_arquivo.replace(/[^\w.\-]+/g, '_')}`

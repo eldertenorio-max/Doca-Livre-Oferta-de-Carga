@@ -79,6 +79,7 @@ export function CadastroTransportadorPage() {
   })
   const [emailCodigo, setEmailCodigo] = useState('')
   const [emailConfirmado, setEmailConfirmado] = useState(false)
+  const [verifyToken, setVerifyToken] = useState('')
   const [debugCodigo, setDebugCodigo] = useState('')
   const [otpInfo, setOtpInfo] = useState('')
   const [showSenha, setShowSenha] = useState(false)
@@ -180,6 +181,7 @@ export function CadastroTransportadorPage() {
       return
     }
     setEmailConfirmado(false)
+    setVerifyToken('')
     setOtpInfo(res.mensagem || 'Código enviado para o e-mail.')
     setDebugCodigo(res.debug_codigo || '')
   }
@@ -195,6 +197,7 @@ export function CadastroTransportadorPage() {
       return
     }
     setEmailConfirmado(true)
+    setVerifyToken(res.verify_token || '')
     setDebugCodigo('')
     setOtpInfo('E-mail confirmado. Defina a senha e envie o cadastro.')
   }
@@ -203,8 +206,13 @@ export function CadastroTransportadorPage() {
     e.preventDefault()
     setError('')
     setInfo('')
+    setOtpInfo('')
     if (!emailConfirmado) {
       setError('Confirme o e-mail com o código recebido antes de enviar o cadastro.')
+      return
+    }
+    if (acesso.senha.length < 4) {
+      setError('Senha deve ter ao menos 4 caracteres.')
       return
     }
     if (acesso.senha !== acesso.confirmarSenha) {
@@ -217,6 +225,7 @@ export function CadastroTransportadorPage() {
       acesso: {
         ...acesso,
         nome: acesso.nome.trim() || empresa.contato_nome.trim(),
+        verifyToken: verifyToken || undefined,
       },
       documentos: DOCUMENTOS_TRANSPORTADOR.flatMap((d) => {
         const item = docs[d.tipo]

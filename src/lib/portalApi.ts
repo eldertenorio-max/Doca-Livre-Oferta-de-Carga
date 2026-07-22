@@ -245,3 +245,29 @@ export async function portalEmailEnviarCodigo(email: string) {
 export async function portalEmailVerificarCodigo(email: string, codigo: string) {
   return portalCadastroVerificarCodigo(email, codigo)
 }
+
+/** Cria usuário Auth já confirmado (Edge) — sem reenviar e-mail do Supabase. */
+export async function portalCriarUsuarioAuth(input: {
+  verifyToken: string
+  email: string
+  senha: string
+  usuario: string
+  nome: string
+}): Promise<{ ok: true; user_id: string } | Fail> {
+  if (!useRemoteOtp()) {
+    return { ok: false, erro: '__FALLBACK__:otp local' }
+  }
+  // Token local (btoa) não é validado pelo Edge — cai no fallback signUp
+  if (!input.verifyToken.includes('.')) {
+    return { ok: false, erro: '__FALLBACK__:token local' }
+  }
+  const remote = await invokeOtp<{ ok: true; user_id: string }>('criar_usuario_auth', {
+    verify_token: input.verifyToken,
+    password: input.senha,
+    usuario: input.usuario,
+    nome: input.nome,
+    email: input.email.trim().toLowerCase(),
+  })
+  if (remote.ok && remote.user_id) return { ok: true, user_id: remote.user_id }
+  return remote as Fail
+}

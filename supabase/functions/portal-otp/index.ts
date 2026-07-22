@@ -363,6 +363,82 @@ Deno.serve(async (req) => {
       return json({ ok: true, email: payload.email })
     }
 
+    /**
+     * Cria usuário Auth já confirmado (sem e-mail do Supabase).
+     * Usado no “Enviar cadastro” após OTP — evita rate limit do signUp.
+     */
+    if (action === 'criar_usuario_auth') {
+      const token = String(body.verify_token || body.verifyToken || '')
+      const password = String(body.password || body.senha || '')
+      const usuario = String(body.usuario || '').trim()
+      const nome = String(body.nome || '').trim()
+      if (password.length < 4) {
+        return json({ ok: false, erro: 'Senha deve ter ao menos 4 caracteres.' }, 400)
+      }
+      if (usuario.length < 2) {
+        return json({ ok: false, erro: 'Usuário inválido.' }, 400)
+      }
+
+      let email: string
+      try {
+        const payload = await verifyTokenPayload(token, 'cadastro')
+        email = payload.email
+      } catch (e) {
+        return json(
+          {
+            ok: false,
+            erro: e instanceof Error ? e.message : 'Confirme o e-mail novamente.',
+          },
+          400,
+        )
+      }
+
+      const { data: created, error: createErr } = await sb.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          nome: nome || usuario,
+          usuario,
+          role: 'transportador',
+        },
+      })
+
+      if (!createErr && created.user?.id) {
+        return json({ ok: true, user_id: created.user.id, email })
+      }
+
+      const msg = createErr?.message || ''
+      if (/already|registered|exists/i.test(msg)) {
+        const { data: listed, error: listErr } = await sb.auth.admin.listUsers({
+          page: 1,
+          perPage: 200,
+        })
+        if (listErr) {
+          return json({ ok: false, erro: listErr.message }, 400)
+        }
+        const existing = listed.users.find((u) => (u.email || '').toLowerCase() === email)
+        if (!existing?.id) {
+          return json(
+            { ok: false, erro: 'Este e-mail já possui conta. Use outro e-mail ou faça login.' },
+            400,
+          )
+        }
+        await sb.auth.admin.updateUserById(existing.id, {
+          password,
+          email_confirm: true,
+          user_metadata: {
+            nome: nome || usuario,
+            usuario,
+            role: 'transportador',
+          },
+        })
+        return json({ ok: true, user_id: existing.id, email, reused: true })
+      }
+
+      return json({ ok: false, erro: msg || 'Falha ao criar usuário.' }, 400)
+    }
+
     return json({ ok: false, erro: `Ação desconhecida: ${action}` }, 400)
   } catch (e) {
     return json(
