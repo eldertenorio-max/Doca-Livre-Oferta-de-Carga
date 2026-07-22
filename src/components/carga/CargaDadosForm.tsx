@@ -15,8 +15,6 @@ type Props = {
   onGoPublish?: () => void
 }
 
-type ModoRota = 'manual' | 'favorita'
-
 function toDateInput(iso: string) {
   if (!iso) return ''
   const d = new Date(iso)
@@ -79,13 +77,8 @@ const DESTINOS_ESPECIAIS = ['Distribuição']
 
 export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) {
   const { rotas, cargas, atualizarCarga, salvarRota } = useData()
-  const rotasAtivas = rotas.filter((r) => r.situacao === 'ativo')
   const editavel = canEdit && carga.status === 'nova_carga'
 
-  const [modoRota, setModoRota] = useState<ModoRota>(
-    carga.rota_id ? 'favorita' : 'manual',
-  )
-  const [rotaId, setRotaId] = useState(carga.rota_id ?? '')
   const [origem, setOrigem] = useState(carga.origem)
   const [destino, setDestino] = useState(carga.destino)
   const [freteTabela, setFreteTabela] = useState(formatMoneyInput(carga.frete_tabela || 0))
@@ -195,8 +188,6 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
   )
 
   useEffect(() => {
-    setModoRota(carga.rota_id ? 'favorita' : 'manual')
-    setRotaId(carga.rota_id ?? '')
     setOrigem(carga.origem)
     setDestino(carga.destino)
     setFreteTabela(formatMoneyInput(carga.frete_tabela || 0))
@@ -217,18 +208,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
     setInfo('')
   }, [carga.id, carga.updated_at])
 
-  const rotaSelecionada =
-    rotasAtivas.find((r) => r.id === rotaId) ?? rotas.find((r) => r.id === rotaId)
-
-  function aplicarFavorita(id: string) {
-    setRotaId(id)
-    const r = rotas.find((x) => x.id === id)
-    if (!r) return
-    setOrigem(r.origem)
-    setDestino(r.destino)
-    setFreteTabela(formatMoneyInput(r.frete_tabela))
-    setClassificacao(r.classificacao)
-  }
+  const rotaSelecionada = rotas.find((r) => r.id === carga.rota_id)
 
   function handleSalvar(irParaPublicar = false) {
     setError('')
@@ -238,49 +218,42 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       return
     }
 
-    let origemFinal = origem.trim()
-    let destinoFinal = destino.trim()
-    let freteFinal = parseMoneyInput(freteTabela)
-    let classifFinal: ClassificacaoRota = classificacao
-    let rotaIdFinal: string | null = null
+    const origemFinal = origem.trim()
+    const destinoFinal = destino.trim()
+    const freteFinal = parseMoneyInput(freteTabela)
+    const classifFinal: ClassificacaoRota = classificacao
 
-    if (modoRota === 'favorita') {
-      const r = rotas.find((x) => x.id === rotaId)
-      if (!r) {
-        setError('Selecione uma rota favorita ou use “Criar do zero”.')
-        return
-      }
-      origemFinal = r.origem
-      destinoFinal = r.destino
-      freteFinal = r.frete_tabela
-      classifFinal = r.classificacao
-      rotaIdFinal = r.id
-    } else {
-      if (!origemFinal || !destinoFinal) {
-        setError('Informe origem e destino da rota.')
-        return
-      }
-      if (Number.isNaN(freteFinal) || freteFinal <= 0) {
-        setError('Informe o valor do frete tabela.')
-        return
-      }
+    if (!origemFinal || !destinoFinal) {
+      setError('Informe origem e destino da rota.')
+      return
+    }
+    if (Number.isNaN(freteFinal) || freteFinal <= 0) {
+      setError('Informe o valor do frete tabela.')
+      return
+    }
 
-      if (salvarFavorita) {
-        const novaRota: Rota = {
-          id: `r-${Math.random().toString(36).slice(2, 8)}`,
-          descricao: descricaoRota(origemFinal, destinoFinal),
-          origem: origemFinal,
-          destino: destinoFinal,
-          classificacao: classifFinal,
-          frete_tabela: freteFinal,
-          km: 0,
-          situacao: 'ativo',
-        }
-        salvarRota(novaRota)
-        rotaIdFinal = novaRota.id
-        setRotaId(novaRota.id)
-        setInfo('Rota salva como favorita.')
+    let rotaIdFinal: string | null = carga.rota_id
+    if (rotaIdFinal) {
+      const r = rotas.find((x) => x.id === rotaIdFinal)
+      if (!r || r.origem !== origemFinal || r.destino !== destinoFinal) {
+        rotaIdFinal = null
       }
+    }
+
+    if (salvarFavorita) {
+      const novaRota: Rota = {
+        id: `r-${Math.random().toString(36).slice(2, 8)}`,
+        descricao: descricaoRota(origemFinal, destinoFinal),
+        origem: origemFinal,
+        destino: destinoFinal,
+        classificacao: classifFinal,
+        frete_tabela: freteFinal,
+        km: 0,
+        situacao: 'ativo',
+      }
+      salvarRota(novaRota)
+      rotaIdFinal = novaRota.id
+      setInfo('Rota salva nas favoritas (aba Cargas salvas).')
     }
 
     if (!pedido.trim()) {
@@ -329,11 +302,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       setError(res.error ?? 'Erro ao salvar')
       return
     }
-    setInfo(
-      salvarFavorita && modoRota === 'manual'
-        ? 'Dados salvos e rota adicionada às favoritas.'
-        : 'Dados salvos.',
-    )
+    if (!salvarFavorita) setInfo('Dados salvos.')
     onSaved?.()
     if (irParaPublicar) onGoPublish?.()
   }
@@ -372,151 +341,96 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       </p>
 
       <div className="rounded-lg border border-ink/10 bg-sand-light/30 p-3 space-y-3">
-        <p className="text-xs font-semibold text-ink">Rota / trecho</p>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setModoRota('manual')
-              setRotaId('')
-              setSalvarFavorita(false)
-            }}
-            className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-              modoRota === 'manual'
-                ? 'bg-ink text-white'
-                : 'bg-white text-ink-muted ring-1 ring-ink/10 hover:text-ink'
-            }`}
-          >
-            Criar do zero
-          </button>
-          <button
-            type="button"
-            onClick={() => setModoRota('favorita')}
-            className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-              modoRota === 'favorita'
-                ? 'bg-ink text-white'
-                : 'bg-white text-ink-muted ring-1 ring-ink/10 hover:text-ink'
-            }`}
-          >
-            Usar favorita
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-semibold text-ink">Rota / trecho</p>
+          <p className="text-[11px] text-ink-muted">
+            Favoritas ficam na aba <strong>Cargas salvas</strong>
+          </p>
         </div>
 
-        {modoRota === 'favorita' ? (
-          <Field label="Rota favorita *">
+        <Field label="Origem *">
+          <SuggestInput
+            value={origem}
+            onChange={setOrigem}
+            suggestions={sugOrigem}
+            minChars={2}
+            placeholder="Digite a cidade… ex.: Sao"
+          />
+          <p className="mt-1 text-[11px] text-ink-muted">
+            Ex.: digite <strong>sao</strong> para ver São Paulo - SP e outras.
+          </p>
+        </Field>
+        <Field label="Destino *">
+          <SuggestInput
+            value={destino}
+            onChange={setDestino}
+            suggestions={sugDestino}
+            minChars={2}
+            placeholder="Cidade - UF ou Distribuição"
+          />
+          <p className="mt-1 text-[11px] text-ink-muted">
+            Se não for um destino único, use <strong>Distribuição</strong>.
+          </p>
+        </Field>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Frete tabela (R$) *">
+            <SuggestInput
+              value={freteTabela}
+              onChange={setFreteTabela}
+              suggestions={sugFrete}
+              placeholder="0,00"
+              onBlur={() => {
+                const n = parseMoneyInput(freteTabela)
+                if (!Number.isNaN(n)) setFreteTabela(formatMoneyInput(n))
+              }}
+            />
+          </Field>
+          <Field label="Classificação">
             <select
               className={inputClass}
-              value={rotaId}
-              onChange={(e) => aplicarFavorita(e.target.value)}
+              value={classificacao}
+              onChange={(e) => setClassificacao(e.target.value as ClassificacaoRota)}
             >
-              <option value="">Selecione…</option>
-              {rotasAtivas.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.descricao} · {formatCurrency(r.frete_tabela)} · Rota {r.classificacao}
-                </option>
-              ))}
+              <option value="A">Rota A</option>
+              <option value="B">Rota B</option>
+              <option value="C">Rota C</option>
             </select>
-            {rotasAtivas.length === 0 && (
-              <p className="mt-1 text-[11px] text-amber-800">
-                Nenhuma favorita ainda. Use “Criar do zero” e marque para salvar.
-              </p>
-            )}
           </Field>
-        ) : (
-          <>
-            <Field label="Origem *">
-              <SuggestInput
-                value={origem}
-                onChange={setOrigem}
-                suggestions={sugOrigem}
-                minChars={2}
-                placeholder="Digite a cidade… ex.: Sao"
-              />
-              <p className="mt-1 text-[11px] text-ink-muted">
-                Ex.: digite <strong>sao</strong> para ver São Paulo - SP e outras.
-              </p>
-            </Field>
-            <Field label="Destino *">
-              <SuggestInput
-                value={destino}
-                onChange={setDestino}
-                suggestions={sugDestino}
-                minChars={2}
-                placeholder="Cidade - UF ou Distribuição"
-              />
-              <p className="mt-1 text-[11px] text-ink-muted">
-                Se não for um destino único, use <strong>Distribuição</strong>.
-              </p>
-            </Field>
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="Frete tabela (R$) *">
-                <SuggestInput
-                  value={freteTabela}
-                  onChange={setFreteTabela}
-                  suggestions={sugFrete}
-                  placeholder="0,00"
-                  onBlur={() => {
-                    const n = parseMoneyInput(freteTabela)
-                    if (!Number.isNaN(n)) setFreteTabela(formatMoneyInput(n))
-                  }}
-                />
-              </Field>
-              <Field label="Classificação">
-                <select
-                  className={inputClass}
-                  value={classificacao}
-                  onChange={(e) => setClassificacao(e.target.value as ClassificacaoRota)}
-                >
-                  <option value="A">Rota A</option>
-                  <option value="B">Rota B</option>
-                  <option value="C">Rota C</option>
-                </select>
-              </Field>
-            </div>
-            <label className="flex items-start gap-2 rounded-lg border border-ink/10 bg-white p-2.5 text-xs text-ink">
-              <input
-                type="checkbox"
-                className="mt-0.5"
-                checked={salvarFavorita}
-                onChange={(e) => setSalvarFavorita(e.target.checked)}
-              />
-              <span>
-                <strong>Salvar como rota favorita</strong>
-                <span className="mt-0.5 block text-ink-muted">
-                  Aparece na lista “Usar favorita” nas próximas cargas (também em Menu → Rotas).
-                </span>
-              </span>
-            </label>
-          </>
-        )}
+        </div>
+        <label className="flex items-start gap-2 rounded-lg border border-ink/10 bg-white p-2.5 text-xs text-ink">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={salvarFavorita}
+            onChange={(e) => setSalvarFavorita(e.target.checked)}
+          />
+          <span>
+            <strong>Salvar como rota favorita</strong>
+            <span className="mt-0.5 block text-ink-muted">
+              Aparece na aba Cargas salvas → Favoritas (e em Menu → Rotas).
+            </span>
+          </span>
+        </label>
 
-        {(modoRota === 'favorita' ? rotaSelecionada : origem || destino) && (
+        {(origem || destino) && (
           <div className="grid grid-cols-2 gap-2 rounded-lg bg-white/80 p-2 text-xs ring-1 ring-ink/5">
             <div>
               <p className="text-ink-muted">Origem</p>
-              <p className="font-medium">
-                {modoRota === 'favorita' ? rotaSelecionada?.origem : origem || '—'}
-              </p>
+              <p className="font-medium">{origem || '—'}</p>
             </div>
             <div>
               <p className="text-ink-muted">Destino</p>
-              <p className="font-medium">
-                {modoRota === 'favorita' ? rotaSelecionada?.destino : destino || '—'}
-              </p>
+              <p className="font-medium">{destino || '—'}</p>
             </div>
             <div>
               <p className="text-ink-muted">Frete tabela</p>
               <p className="font-semibold">
-                {modoRota === 'favorita'
-                  ? formatCurrency(rotaSelecionada?.frete_tabela ?? 0)
-                  : formatCurrency(parseMoneyInput(freteTabela) || 0)}
+                {formatCurrency(parseMoneyInput(freteTabela) || 0)}
               </p>
             </div>
             <div>
               <p className="text-ink-muted">Classificação</p>
-              <p className="font-semibold">
-                Rota {modoRota === 'favorita' ? rotaSelecionada?.classificacao : classificacao}
-              </p>
+              <p className="font-semibold">Rota {classificacao}</p>
             </div>
           </div>
         )}

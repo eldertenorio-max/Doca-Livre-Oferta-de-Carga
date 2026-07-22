@@ -36,7 +36,7 @@ import {
 } from '../../lib/cargasMontadas'
 import { prazosAlocacaoPermitidos, prazosOfertaPermitidos } from '../../lib/configNegocio'
 import { canEditModulo } from '../../lib/portalModules'
-import type { Carga, ClassificacaoTransportador, Transportador } from '../../types'
+import type { Carga, ClassificacaoTransportador, Rota, Transportador } from '../../types'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
 import { CargaDadosForm } from './CargaDadosForm'
 
@@ -75,8 +75,10 @@ function membrosDosGrupos(
 export function PublishPanel({ carga, open, onClose, initialTab, onSelectCarga }: Props) {
   const {
     cargas,
+    rotas,
     grupos,
     transportadores,
+    salvarRota,
     publicarCarga,
     lancesDaCarga,
     transportadorById,
@@ -174,6 +176,11 @@ export function PublishPanel({ carga, open, onClose, initialTab, onSelectCarga }
       })
   }, [cargas])
 
+  const rotasFavoritas = useMemo(
+    () => rotas.filter((r) => r.situacao === 'ativo'),
+    [rotas],
+  )
+
   const { ganho, freteOferta } = useMemo(
     () => calcularFreteOferta(carga?.frete_tabela ?? 0, margem),
     [carga, margem],
@@ -241,6 +248,31 @@ export function PublishPanel({ carga, open, onClose, initialTab, onSelectCarga }
   function handleExcluirMontada(id: string) {
     excluirCargaMontada(id)
     setMontadas(loadCargasMontadas())
+  }
+
+  function handleUsarFavorita(r: Rota) {
+    if (!carga || !isNova) return
+    const res = atualizarCarga(carga.id, {
+      rota_id: r.id,
+      origem: r.origem,
+      destino: r.destino,
+      frete_tabela: r.frete_tabela,
+      classificacao_rota: r.classificacao,
+    })
+    if (!res.ok) {
+      setError(res.error ?? 'Não foi possível aplicar a rota favorita')
+      return
+    }
+    setError('')
+    setInfo(`Rota favorita “${r.descricao}” aplicada. Revise os dados e publique.`)
+    setTab('dados')
+  }
+
+  function handleRemoverFavorita(r: Rota) {
+    if (!canEdit) return
+    if (!window.confirm(`Remover a favorita “${r.descricao}” da lista?`)) return
+    salvarRota({ ...r, situacao: 'inativo' })
+    setInfo(`Favorita “${r.descricao}” removida.`)
   }
 
   function handleExcluirRascunho(cargaId: string, numero: string) {
@@ -582,9 +614,9 @@ export function PublishPanel({ carga, open, onClose, initialTab, onSelectCarga }
             }`}
           >
             Cargas salvas
-            {rascunhosNaoPublicados.length + montadas.length > 0 && (
+            {rascunhosNaoPublicados.length + rotasFavoritas.length + montadas.length > 0 && (
               <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-ink/10 px-1 text-[10px] font-bold normal-case text-ink">
-                {rascunhosNaoPublicados.length + montadas.length}
+                {rascunhosNaoPublicados.length + rotasFavoritas.length + montadas.length}
               </span>
             )}
           </button>
@@ -613,8 +645,8 @@ export function PublishPanel({ carga, open, onClose, initialTab, onSelectCarga }
           {tab === 'salvas' && (
             <>
               <p className="rounded-lg border border-ink/10 bg-sand-light/50 px-3 py-2 text-xs text-ink-muted">
-                Aqui ficam os <strong className="text-ink">rascunhos ainda não publicados</strong> e
-                os modelos guardados para reutilizar.
+                Rascunhos <strong className="text-ink">não publicados</strong>, rotas{' '}
+                <strong className="text-ink">favoritas</strong> e modelos guardados.
               </p>
 
               <div className="rounded-lg border border-ink/10 bg-white p-3">
@@ -677,6 +709,70 @@ export function PublishPanel({ carga, open, onClose, initialTab, onSelectCarga }
                               className="shrink-0 self-center rounded p-2 text-ink-muted hover:bg-red-50 hover:text-red-700"
                               title="Excluir rascunho"
                               onClick={() => handleExcluirRascunho(c.id, c.numero)}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+
+              <div className="rounded-lg border border-ink/10 bg-white p-3">
+                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-ink">
+                  Favoritas ({rotasFavoritas.length})
+                </p>
+                <p className="mb-2 text-[11px] text-ink-muted">
+                  Rotas salvas para reutilizar. Clique para aplicar na carga aberta.
+                </p>
+                {rotasFavoritas.length === 0 ? (
+                  <p className="text-[11px] text-ink-muted">
+                    Nenhuma favorita. Em Dados da carga, marque “Salvar como rota favorita” ao
+                    salvar.
+                  </p>
+                ) : (
+                  <ul className="max-h-48 space-y-1.5 overflow-y-auto">
+                    {rotasFavoritas.map((r) => {
+                      const aplicada = isNova && carga.rota_id === r.id
+                      return (
+                        <li
+                          key={r.id}
+                          className={`flex items-stretch gap-1 rounded-md border ${
+                            aplicada
+                              ? 'border-brand bg-brand/5'
+                              : 'border-ink/10 bg-sand-light/40'
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            className="min-w-0 flex-1 px-2.5 py-2 text-left text-xs transition hover:bg-white/60 disabled:opacity-50"
+                            onClick={() => handleUsarFavorita(r)}
+                            disabled={!canEdit || !isNova}
+                            title="Usar esta favorita na carga aberta"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <span className="font-semibold text-ink">{r.descricao}</span>
+                              {aplicada && (
+                                <span className="rounded bg-brand/15 px-1.5 py-0.5 text-[10px] font-bold text-brand">
+                                  Em uso
+                                </span>
+                              )}
+                            </span>
+                            <span className="mt-0.5 block truncate text-[10px] text-ink-muted">
+                              {r.origem} → {r.destino}
+                            </span>
+                            <span className="block text-[10px] text-ink-muted">
+                              Frete {formatCurrency(r.frete_tabela)} · Rota {r.classificacao}
+                            </span>
+                          </button>
+                          {canEdit && (
+                            <button
+                              type="button"
+                              className="shrink-0 self-center rounded p-2 text-ink-muted hover:bg-red-50 hover:text-red-700"
+                              title="Remover favorita"
+                              onClick={() => handleRemoverFavorita(r)}
                             >
                               <Trash2 size={14} />
                             </button>
