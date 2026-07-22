@@ -26,14 +26,9 @@ import {
   tempoRestante,
 } from '../../lib/businessRules'
 import {
-  excluirCargaMontada,
-  guardarCargaMontada,
-  loadCargasMontadas,
   loadPanelSize,
   panelSizeClass,
-  patchFromCargaMontada,
   savePanelSize,
-  type CargaMontada,
   type PanelSize,
 } from '../../lib/cargasMontadas'
 import { isRascunhoNaoPublicado } from '../../lib/kanbanColumns'
@@ -134,15 +129,12 @@ export function PublishPanel({
 
   const [tab, setTab] = useState<PanelTab>(initialTab ?? 'dados')
   const [panelSize, setPanelSize] = useState<PanelSize>(() => loadPanelSize())
-  const [montadas, setMontadas] = useState<CargaMontada[]>(() => loadCargasMontadas())
 
   useEffect(() => {
     onPanelSizeChange?.(panelSize)
   }, [panelSize, onPanelSizeChange])
-  const [nomeMontada, setNomeMontada] = useState('')
   const [buscaRascunhos, setBuscaRascunhos] = useState('')
   const [buscaFavoritas, setBuscaFavoritas] = useState('')
-  const [buscaMontadas, setBuscaMontadas] = useState('')
   const [margem, setMargem] = useState(margens[1])
   const [grupoIds, setGrupoIds] = useState<string[]>([])
   const [escalonar, setEscalonar] = useState(false)
@@ -200,11 +192,9 @@ export function PublishPanel({
   }, [carga?.id])
 
   useEffect(() => {
-    if (tab === 'salvas') setMontadas(loadCargasMontadas())
-    else {
+    if (tab !== 'salvas') {
       setBuscaRascunhos('')
       setBuscaFavoritas('')
-      setBuscaMontadas('')
     }
   }, [tab])
 
@@ -225,7 +215,6 @@ export function PublishPanel({
 
   const qRascunhos = normalizarTexto(buscaRascunhos)
   const qFavoritas = normalizarTexto(buscaFavoritas)
-  const qMontadas = normalizarTexto(buscaMontadas)
 
   const rascunhosFiltrados = useMemo(() => {
     if (!qRascunhos) return rascunhosNaoPublicados
@@ -265,26 +254,6 @@ export function PublishPanel({
     })
   }, [rotasFavoritas, qFavoritas])
 
-  const montadasFiltradas = useMemo(() => {
-    if (!qMontadas) return montadas
-    return montadas.filter((m) => {
-      const d = m.dados
-      const blob = normalizarTexto(
-        [
-          m.nome,
-          d.origem,
-          d.destino,
-          d.pedido,
-          d.destinatario,
-          d.tipo_carga,
-          d.veiculo,
-          String(d.frete_tabela ?? ''),
-        ].join(' '),
-      )
-      return blob.includes(qMontadas)
-    })
-  }, [montadas, qMontadas])
-
   const { ganho, freteOferta } = useMemo(
     () => calcularFreteOferta(carga?.frete_tabela ?? 0, margem),
     [carga, margem],
@@ -322,37 +291,6 @@ export function PublishPanel({
     const next = order[Math.max(0, Math.min(order.length - 1, idx + dir))]
     setPanelSize(next)
     savePanelSize(next)
-  }
-
-  function handleGuardarMontada() {
-    if (!carga) return
-    if (!carga.origem?.trim() || !carga.destino?.trim()) {
-      setError('Preencha origem e destino antes de guardar a carga montada.')
-      return
-    }
-    const item = guardarCargaMontada(carga, nomeMontada || undefined)
-    setMontadas(loadCargasMontadas())
-    setNomeMontada('')
-    setError('')
-    setInfo(`Carga montada salva: “${item.nome}”.`)
-  }
-
-  function handleUsarMontada(m: CargaMontada) {
-    if (!carga || !isNova) return
-    const res = atualizarCarga(carga.id, patchFromCargaMontada(m))
-    if (!res.ok) {
-      setError(res.error ?? 'Não foi possível aplicar a carga montada')
-      return
-    }
-    if (m.dados.observacao) setObservacao(m.dados.observacao)
-    setError('')
-    setInfo(`Dados de “${m.nome}” aplicados. Revise e publique.`)
-    setTab('dados')
-  }
-
-  function handleExcluirMontada(id: string) {
-    excluirCargaMontada(id)
-    setMontadas(loadCargasMontadas())
   }
 
   function handleUsarFavorita(r: Rota) {
@@ -725,9 +663,9 @@ export function PublishPanel({
               }`}
             >
               Cargas salvas
-              {rascunhosNaoPublicados.length + rotasFavoritas.length + montadas.length > 0 && (
+              {rascunhosNaoPublicados.length + rotasFavoritas.length > 0 && (
                 <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-ink/10 px-1 text-[10px] font-bold normal-case text-ink">
-                  {rascunhosNaoPublicados.length + rotasFavoritas.length + montadas.length}
+                  {rascunhosNaoPublicados.length + rotasFavoritas.length}
                 </span>
               )}
             </button>
@@ -930,85 +868,6 @@ export function PublishPanel({
                         </li>
                       )
                     })}
-                  </ul>
-                )}
-              </div>
-
-              <div className="rounded-lg border border-ink/10 bg-sand-light/50 p-3">
-                <div className="mb-1 flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold uppercase tracking-wide text-ink">
-                      Modelos guardados ({montadasFiltradas.length}
-                      {qMontadas && montadasFiltradas.length !== montadas.length
-                        ? ` de ${montadas.length}`
-                        : ''}
-                      )
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-ink-muted">
-                      Guarde a carga atual (preenchida) para reutilizar em outro rascunho.
-                    </p>
-                  </div>
-                  <SectionSearch
-                    value={buscaMontadas}
-                    onChange={setBuscaMontadas}
-                    placeholder="Pesquisar modelo…"
-                  />
-                </div>
-                <div className="mb-2 flex gap-2">
-                  <input
-                    className={`${inputClass} flex-1`}
-                    placeholder="Nome (opcional)"
-                    value={nomeMontada}
-                    onChange={(e) => setNomeMontada(e.target.value)}
-                    disabled={!canEdit || !isNova}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="shrink-0 border border-ink/15"
-                    onClick={handleGuardarMontada}
-                    disabled={!canEdit || !isNova}
-                  >
-                    Guardar atual
-                  </Button>
-                </div>
-                {montadasFiltradas.length === 0 ? (
-                  <p className="text-[11px] text-ink-muted">
-                    {qMontadas
-                      ? 'Nenhum modelo corresponde à pesquisa.'
-                      : 'Nenhum modelo guardado ainda.'}
-                  </p>
-                ) : (
-                  <ul className="max-h-40 space-y-1.5 overflow-y-auto">
-                    {montadasFiltradas.map((m) => (
-                      <li
-                        key={m.id}
-                        className="flex items-center gap-2 rounded-md border border-ink/10 bg-white px-2 py-1.5"
-                      >
-                        <button
-                          type="button"
-                          className="min-w-0 flex-1 text-left text-xs hover:text-brand disabled:opacity-50"
-                          onClick={() => handleUsarMontada(m)}
-                          disabled={!canEdit || !isNova}
-                          title="Aplicar nesta carga"
-                        >
-                          <span className="block truncate font-semibold">{m.nome}</span>
-                          <span className="block truncate text-[10px] text-ink-muted">
-                            {m.dados.origem} → {m.dados.destino} ·{' '}
-                            {formatCurrency(m.dados.frete_tabela)}
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded p-1 text-ink-muted hover:bg-red-50 hover:text-red-700"
-                          title="Excluir"
-                          onClick={() => handleExcluirMontada(m.id)}
-                          disabled={!canEdit}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </li>
-                    ))}
                   </ul>
                 )}
               </div>
