@@ -60,6 +60,8 @@ interface Props {
   initialTab?: PanelTab
   /** Troca a carga aberta no painel (rascunhos salvos) */
   onSelectCarga?: (carga: Carga) => void
+  /** Notifica o layout (Kanban) para expandir até o menu lateral */
+  onPanelSizeChange?: (size: PanelSize) => void
 }
 
 function membrosDosGrupos(
@@ -75,7 +77,14 @@ function membrosDosGrupos(
   return transportadores.filter((t) => ids.has(t.id) && t.situacao === 'ativo')
 }
 
-export function PublishPanel({ carga, open, onClose, initialTab, onSelectCarga }: Props) {
+export function PublishPanel({
+  carga,
+  open,
+  onClose,
+  initialTab,
+  onSelectCarga,
+  onPanelSizeChange,
+}: Props) {
   const {
     cargas,
     rotas,
@@ -120,6 +129,10 @@ export function PublishPanel({ carga, open, onClose, initialTab, onSelectCarga }
   const [tab, setTab] = useState<PanelTab>(initialTab ?? 'dados')
   const [panelSize, setPanelSize] = useState<PanelSize>(() => loadPanelSize())
   const [montadas, setMontadas] = useState<CargaMontada[]>(() => loadCargasMontadas())
+
+  useEffect(() => {
+    onPanelSizeChange?.(panelSize)
+  }, [panelSize, onPanelSizeChange])
   const [nomeMontada, setNomeMontada] = useState('')
   const [buscaSalvas, setBuscaSalvas] = useState('')
   const [margem, setMargem] = useState(margens[1])
@@ -588,7 +601,11 @@ export function PublishPanel({ carga, open, onClose, initialTab, onSelectCarga }
   return (
     <>
       <aside
-        className={`animate-slide-in relative z-20 flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-ink/10 bg-white shadow-lg transition-[width] duration-200 ${panelSizeClass(panelSize)}`}
+        className={`animate-slide-in relative z-20 flex h-full flex-col overflow-hidden border border-ink/10 bg-white transition-[width] duration-200 ${
+          panelSize === 'largo'
+            ? 'min-w-0 shrink rounded-none border-y-0 border-r-0 shadow-none'
+            : 'shrink-0 rounded-xl shadow-lg'
+        } ${panelSizeClass(panelSize)}`}
       >
         <div className="border-b border-ink/10 bg-ink px-4 py-3 text-white">
           <div className="flex items-start justify-between gap-2">

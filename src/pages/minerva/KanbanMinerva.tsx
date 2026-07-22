@@ -12,6 +12,7 @@ import {
   temLanceAtivoNaRodada,
   type ColunaMinerva,
 } from '../../lib/kanbanColumns'
+import { loadPanelSize, type PanelSize } from '../../lib/cargasMontadas'
 import type { Carga } from '../../types'
 
 const COLUMNS: {
@@ -69,8 +70,10 @@ export function KanbanMinerva() {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Carga | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
+  const [panelSize, setPanelSize] = useState<PanelSize>(() => loadPanelSize())
   const [initialTab, setInitialTab] = useState<'dados' | 'salvas' | 'publicar'>('dados')
   const [dragMsg, setDragMsg] = useState<string | null>(null)
+  const panelFullscreen = panelOpen && panelSize === 'largo'
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -112,68 +115,76 @@ export function KanbanMinerva() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] gap-3">
-      <div className="flex min-w-0 flex-1 flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[220px] flex-1">
-            <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-muted" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Pesquisar cargas..."
-              className="w-full rounded-lg border border-ink/15 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-            />
+    <div
+      className={
+        panelFullscreen
+          ? 'flex h-[calc(100dvh-var(--app-topbar-h,54px))] gap-0 -mx-[14px] -mt-[10px] -mb-[24px]'
+          : 'flex h-[calc(100vh-7rem)] gap-3'
+      }
+    >
+      {!panelFullscreen && (
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[220px] flex-1">
+              <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-muted" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Pesquisar cargas..."
+                className="w-full rounded-lg border border-ink/15 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+              />
+            </div>
+            <Button
+              variant="success"
+              onClick={() => {
+                const c = criarCarga()
+                openPanel(c, 'dados')
+              }}
+            >
+              <Plus size={16} /> Nova carga
+            </Button>
           </div>
-          <Button
-            variant="success"
-            onClick={() => {
-              const c = criarCarga()
-              openPanel(c, 'dados')
-            }}
-          >
-            <Plus size={16} /> Nova carga
-          </Button>
-        </div>
 
-        {dragMsg && (
-          <p className="animate-fade-up rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-            {dragMsg}
+          {dragMsg && (
+            <p className="animate-fade-up rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+              {dragMsg}
+            </p>
+          )}
+
+          <p className="text-[11px] text-ink-muted">
+            Fluxo: Nova carga → salve (fica em Cargas salvas) → Publicar → aparece em Nova Carga.
+            Depois: Negociando (1º lance) → Confirmadas → Alocadas.
           </p>
-        )}
 
-        <p className="text-[11px] text-ink-muted">
-          Fluxo: Nova carga → salve (fica em Cargas salvas) → Publicar → aparece em Nova Carga.
-          Depois: Negociando (1º lance) → Confirmadas → Alocadas.
-        </p>
-
-        <KanbanBoard
-          onCardDrop={handleCardDrop}
-          columns={COLUMNS.map((col) => ({
-            ...col,
-            items: filtered
-              .filter((c) => colunaMinerva(c, temLanceAtivoNaRodada(c, lances)) === col.key)
-              .map((c) => ({
-                id: c.id,
-                node: (
-                  <CargoCard
-                    carga={c}
-                    mode="minerva"
-                    selected={liveSelected?.id === c.id}
-                    ofertasCount={
-                      col.key === 'negociando'
-                        ? lancesDaCarga(c.id).filter(
-                            (l) => l.status === 'ativo' || l.status === 'vencedor',
-                          ).length
-                        : undefined
-                    }
-                    onSelect={() => openPanel(c)}
-                    onView={() => openPanel(c)}
-                  />
-                ),
-              })),
-          }))}
-        />
-      </div>
+          <KanbanBoard
+            onCardDrop={handleCardDrop}
+            columns={COLUMNS.map((col) => ({
+              ...col,
+              items: filtered
+                .filter((c) => colunaMinerva(c, temLanceAtivoNaRodada(c, lances)) === col.key)
+                .map((c) => ({
+                  id: c.id,
+                  node: (
+                    <CargoCard
+                      carga={c}
+                      mode="minerva"
+                      selected={liveSelected?.id === c.id}
+                      ofertasCount={
+                        col.key === 'negociando'
+                          ? lancesDaCarga(c.id).filter(
+                              (l) => l.status === 'ativo' || l.status === 'vencedor',
+                            ).length
+                          : undefined
+                      }
+                      onSelect={() => openPanel(c)}
+                      onView={() => openPanel(c)}
+                    />
+                  ),
+                })),
+            }))}
+          />
+        </div>
+      )}
 
       {panelOpen && liveSelected && (
         <PublishPanel
@@ -181,6 +192,7 @@ export function KanbanMinerva() {
           carga={liveSelected}
           open={panelOpen}
           initialTab={initialTab}
+          onPanelSizeChange={setPanelSize}
           onSelectCarga={(c) => {
             setSelected(c)
             setInitialTab('dados')
