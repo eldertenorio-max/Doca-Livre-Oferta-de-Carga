@@ -114,7 +114,7 @@ const minervaLinks: NavItem[] = [
 ]
 
 const transportadorLinks: NavItem[] = [
-  { to: '/transportador', label: 'Kanban Ofertas', icon: <IconTruck />, end: true },
+  { to: '/transportador', label: 'Kanban Ofertas', icon: <IconGrid />, end: true },
   { to: '/transportador/veiculos', label: 'Meus Veículos', icon: <IconTruck /> },
   { to: '/transportador/motoristas', label: 'Meus Motoristas', icon: <IconUsers /> },
 ]
@@ -147,11 +147,51 @@ export function AppLayout() {
   /** Fixado expandido pelos 3 riscos; senão só ícones e hover abre temporário */
   const [sidebarPinned, setSidebarPinned] = useState(false)
   const [sidebarHover, setSidebarHover] = useState(false)
+  const hoverTimerRef = useRef<number | null>(null)
+  const hoverLockedUntilRef = useRef(0)
   const sidebarWide = sidebarPinned || sidebarHover
   const [clock, setClock] = useState(() => formatClock(new Date()))
   const [notifOpen, setNotifOpen] = useState(false)
   const [chatCargaId, setChatCargaId] = useState<string | null>(null)
   const notifWrapRef = useRef<HTMLDivElement>(null)
+
+  function clearHoverTimer() {
+    if (hoverTimerRef.current != null) {
+      window.clearTimeout(hoverTimerRef.current)
+      hoverTimerRef.current = null
+    }
+  }
+
+  function openSidebarHover() {
+    if (sidebarPinned) return
+    if (Date.now() < hoverLockedUntilRef.current) return
+    clearHoverTimer()
+    hoverTimerRef.current = window.setTimeout(() => {
+      setSidebarHover(true)
+      hoverTimerRef.current = null
+    }, 120)
+  }
+
+  function closeSidebarHover() {
+    clearHoverTimer()
+    setSidebarHover(false)
+  }
+
+  function toggleSidebarPin() {
+    setSidebarPinned((pinned) => {
+      if (pinned) {
+        // Recolhe de verdade (evita ficar aberto sob o cursor)
+        hoverLockedUntilRef.current = Date.now() + 400
+        clearHoverTimer()
+        setSidebarHover(false)
+        return false
+      }
+      setSidebarHover(false)
+      return true
+    })
+  }
+
+  useEffect(() => () => clearHoverTimer(), [])
 
   useEffect(() => {
     if (!notifOpen) return
@@ -212,7 +252,7 @@ export function AppLayout() {
     if (isSuper) {
       return [
         ...minervaLinks,
-        { to: '/transportador', label: 'Kanban Transportador', icon: <IconTruck />, end: true },
+        { to: '/transportador', label: 'Kanban Transportador', icon: <IconGrid />, end: true },
       ]
     }
     const base = user?.role === 'transportador' ? transportadorLinks : minervaLinks
@@ -246,7 +286,7 @@ export function AppLayout() {
           <button
             type="button"
             className="app-topbar-menu"
-            onClick={() => setSidebarPinned((v) => !v)}
+            onClick={toggleSidebarPin}
             aria-label={sidebarPinned ? 'Recolher menu lateral' : 'Fixar menu expandido'}
             aria-pressed={sidebarPinned}
             title={
@@ -384,8 +424,8 @@ export function AppLayout() {
           ]
             .filter(Boolean)
             .join(' ')}
-          onMouseEnter={() => setSidebarHover(true)}
-          onMouseLeave={() => setSidebarHover(false)}
+          onMouseEnter={openSidebarHover}
+          onMouseLeave={closeSidebarHover}
           title={
             !sidebarWide
               ? 'Passe o mouse para ver os nomes'
@@ -400,6 +440,7 @@ export function AppLayout() {
                 key={item.to}
                 to={item.to}
                 end={item.end}
+                title={!sidebarWide ? item.label : undefined}
                 className={({ isActive }) =>
                   [
                     'sidebar-section',
