@@ -180,12 +180,20 @@ export function KanbanTransportador() {
               return colunaTransportador(c, tid, temMeu) === col.key
             })
             .map((c) => {
-              const meuLance = lancesDaCarga(c.id)
-                .filter(
-                  (l) =>
-                    l.transportador_id === tid && ['ativo', 'vencedor'].includes(l.status),
+              const ativos = lancesDaCarga(c.id)
+                .filter((l) => ['ativo', 'vencedor'].includes(l.status))
+                .sort(
+                  (a, b) =>
+                    a.valor - b.valor ||
+                    new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
                 )
-                .sort((a, b) => a.valor - b.valor)[0]
+              const meuLance =
+                ativos.find((l) => l.transportador_id === tid) ??
+                null
+              const pos =
+                meuLance && col.key !== 'nova_carga'
+                  ? ativos.findIndex((l) => l.id === meuLance.id) + 1
+                  : null
 
               return {
                 id: c.id,
@@ -196,6 +204,7 @@ export function KanbanTransportador() {
                     bidValue={
                       meuLance?.valor ?? (col.key !== 'nova_carga' ? c.frete_fechado : null)
                     }
+                    bidPosition={pos && pos > 0 ? pos : null}
                     onSelect={() => {
                       if (col.key === 'nova_carga' || col.key === 'propostas') setBidCarga(c)
                       else if (col.key === 'confirmadas') setAllocCarga(c)

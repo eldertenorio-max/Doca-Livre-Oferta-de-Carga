@@ -419,16 +419,19 @@ export function CargoCard({
               </span>
             </p>
           )}
+        </div>
+        <div className="flex shrink-0 flex-col items-center gap-1">
+          <TrafficLight prioridade={carga.prioridade} />
           {bidPosition != null && (
-            <p>
-              <span className="font-bold text-ink">Posição:</span>{' '}
-              <span className="rounded bg-ink px-1.5 py-0.5 text-[10px] font-bold text-white">
-                {bidPosition}º
-              </span>
-            </p>
+            <span
+              className="text-[22px] font-black leading-none tabular-nums text-[#e84752]"
+              title={`Sua oferta está em ${bidPosition}º lugar (menor valor)`}
+              aria-label={`Posição da oferta: ${bidPosition}º`}
+            >
+              {bidPosition}°
+            </span>
           )}
         </div>
-        <TrafficLight prioridade={carga.prioridade} />
       </div>
 
       <div className="mt-2 border-t border-ink/50 pt-2.5">
