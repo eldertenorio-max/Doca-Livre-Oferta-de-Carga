@@ -297,7 +297,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
 
   if (!editavel) {
     return (
-      <div className="space-y-2 text-sm">
+      <div className="space-y-0.5 text-[13px] leading-snug">
         <Row label="Número" value={carga.numero} />
         <Row label="Pedido" value={carga.pedido || '—'} />
         <Row label="Origem" value={carga.origem || '—'} />
@@ -561,9 +561,9 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-3 border-b border-ink/5 pb-1">
-      <span className="shrink-0 text-xs text-ink-muted">{label}</span>
-      <span className="text-right text-xs font-medium">{value}</span>
+    <div className="flex items-baseline justify-between gap-3 border-b border-ink/5 py-0.5">
+      <span className="shrink-0 text-[13px] text-ink-muted">{label}</span>
+      <span className="text-right text-[13px] font-semibold text-ink">{value}</span>
     </div>
   )
 }
