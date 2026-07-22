@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 import { Link, Navigate } from 'react-router-dom'
 import { useData } from '../context/DataContext'
 import { LOGO_DOCA_LIVRE_SRC } from '../lib/brandAssets'
@@ -80,6 +81,8 @@ export function CadastroTransportadorPage() {
   const [emailConfirmado, setEmailConfirmado] = useState(false)
   const [debugCodigo, setDebugCodigo] = useState('')
   const [otpInfo, setOtpInfo] = useState('')
+  const [showSenha, setShowSenha] = useState(false)
+  const [showConfirmarSenha, setShowConfirmarSenha] = useState(false)
 
   const docsOk = useMemo(() => {
     return DOCUMENTOS_TRANSPORTADOR.filter((d) => d.obrigatorio).every((d) => Boolean(docs[d.tipo]))
@@ -616,22 +619,58 @@ export function CadastroTransportadorPage() {
                     <>
                       <p className="portal-login__info">E-mail confirmado ✓ {acesso.email}</p>
                       <Field label="Senha" required>
-                        <input
-                          type="password"
-                          value={acesso.senha}
-                          onChange={(e) => setAcc('senha', e.target.value)}
-                          placeholder="Mínimo 6 caracteres"
-                          autoComplete="new-password"
-                        />
+                        <div className="form-field__password-wrap">
+                          <input
+                            type={showSenha ? 'text' : 'password'}
+                            value={acesso.senha}
+                            onChange={(e) => setAcc('senha', e.target.value)}
+                            placeholder="Mínimo 6 caracteres"
+                            autoComplete="new-password"
+                            className="form-field__input--password"
+                          />
+                          <button
+                            type="button"
+                            className="form-field__password-toggle"
+                            onClick={() => setShowSenha((v) => !v)}
+                            aria-label={showSenha ? 'Ocultar senha' : 'Mostrar senha'}
+                            title={showSenha ? 'Ocultar senha' : 'Mostrar senha'}
+                          >
+                            {showSenha ? (
+                              <EyeOff size={18} strokeWidth={1.75} />
+                            ) : (
+                              <Eye size={18} strokeWidth={1.75} />
+                            )}
+                          </button>
+                        </div>
                       </Field>
                       <Field label="Confirmar senha" required>
-                        <input
-                          type="password"
-                          value={acesso.confirmarSenha}
-                          onChange={(e) => setAcc('confirmarSenha', e.target.value)}
-                          placeholder="Repita a senha"
-                          autoComplete="new-password"
-                        />
+                        <div className="form-field__password-wrap">
+                          <input
+                            type={showConfirmarSenha ? 'text' : 'password'}
+                            value={acesso.confirmarSenha}
+                            onChange={(e) => setAcc('confirmarSenha', e.target.value)}
+                            placeholder="Repita a senha"
+                            autoComplete="new-password"
+                            className="form-field__input--password"
+                          />
+                          <button
+                            type="button"
+                            className="form-field__password-toggle"
+                            onClick={() => setShowConfirmarSenha((v) => !v)}
+                            aria-label={
+                              showConfirmarSenha ? 'Ocultar confirmação' : 'Mostrar confirmação'
+                            }
+                            title={
+                              showConfirmarSenha ? 'Ocultar confirmação' : 'Mostrar confirmação'
+                            }
+                          >
+                            {showConfirmarSenha ? (
+                              <EyeOff size={18} strokeWidth={1.75} />
+                            ) : (
+                              <Eye size={18} strokeWidth={1.75} />
+                            )}
+                          </button>
+                        </div>
                       </Field>
                     </>
                   )}
