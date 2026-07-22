@@ -711,7 +711,7 @@ export function PublishPanel({
                 : 'text-ink-muted hover:text-ink'
             }`}
           >
-            {isNova ? 'Publicar' : 'Negociação'}
+            {isNova ? 'Parâmetros e publicação' : 'Negociação'}
           </button>
         </div>
 
