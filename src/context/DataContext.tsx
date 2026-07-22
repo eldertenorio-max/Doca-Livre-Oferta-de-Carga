@@ -65,6 +65,7 @@ import {
   setPortalAccountAtivoPorTransportador,
 } from '../lib/portalAuth'
 import {
+  carregarTransportadoresDoSupabase,
   submeterCadastroTransportador,
   type CadastroTransportadorInput,
 } from '../lib/cadastroTransportador'
@@ -218,6 +219,8 @@ interface DataContextValue extends DataState, AuthState {
   registrarCadastroTransportador: (
     input: CadastroTransportadorInput,
   ) => Promise<{ ok: boolean; error?: string; mensagem?: string }>
+  /** Recarrega transportadoras/docs do Supabase (fila de aprovação). */
+  refreshTransportadores: () => Promise<void>
   aprovarTransportador: (id: string) => Promise<{ ok: boolean; error?: string }>
   recusarTransportador: (id: string, motivo?: string) => Promise<{ ok: boolean; error?: string }>
 }
@@ -614,6 +617,37 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (pushTimerRef.current != null) window.clearTimeout(pushTimerRef.current)
     }
   }, [flushKanbanPush])
+
+  const refreshTransportadores = useCallback(async () => {
+    const remote = await carregarTransportadoresDoSupabase()
+    if (!remote) return
+    setState((prev) => {
+      const byId = new Map(prev.transportadores.map((t) => [t.id, t]))
+      for (const t of remote.transportadores) {
+        const local = byId.get(t.id)
+        // Remoto manda na situacao/dados cadastrais; preserva pontuação local se mais recente
+        byId.set(t.id, local ? { ...local, ...t, pontuacao: t.pontuacao ?? local.pontuacao } : t)
+      }
+      const docsById = new Map((prev.documentos ?? []).map((d) => [d.id, d]))
+      for (const d of remote.documentos) docsById.set(d.id, d)
+      const next = {
+        ...prev,
+        transportadores: Array.from(byId.values()),
+        documentos: Array.from(docsById.values()),
+      }
+      stateRef.current = next
+      return next
+    })
+  }, [])
+
+  // Hidrata cadastros pendentes/aprovados direto da tabela (não depende só do kanban_sync)
+  useEffect(() => {
+    void refreshTransportadores()
+    const id = window.setInterval(() => {
+      void refreshTransportadores()
+    }, 15_000)
+    return () => window.clearInterval(id)
+  }, [refreshTransportadores])
 
   useEffect(() => {
     saveConfigNegocio(config)
@@ -2303,19 +2337,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
     async (input: CadastroTransportadorInput) => {
       const result = await submeterCadastroTransportador(input)
       if (!result.ok) return { ok: false, error: result.erro }
-      setState((prev) => ({
-        ...prev,
-        transportadores: [...prev.transportadores, result.transportador],
-        documentos: [...(prev.documentos ?? []), ...result.documentos],
-      }))
+      setState((prev) => {
+        const next = {
+          ...prev,
+          transportadores: [...prev.transportadores.filter((t) => t.id !== result.transportador.id), result.transportador],
+          documentos: [
+            ...(prev.documentos ?? []).filter((d) => d.transportador_id !== result.transportador.id),
+            ...result.documentos,
+          ],
+        }
+        stateRef.current = next
+        return next
+      })
       syncTransportadoraNaHierarquia({
         id: result.transportador.id,
         nome_fantasia: result.transportador.nome_fantasia,
         cnpj: result.transportador.cnpj,
       })
+      flushKanbanPush(stateRef.current)
       return { ok: true, mensagem: result.mensagem }
     },
-    [],
+    [flushKanbanPush],
   )
 
   const aprovarTransportador = useCallback(async (id: string) => {
@@ -2337,15 +2379,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
           cnpj: atual.cnpj,
         })
       }
-      return {
+      const next = {
         ...prev,
         transportadores: prev.transportadores.map((t) =>
-          t.id === id ? { ...t, situacao: 'ativo', motivo_recusa: undefined } : t,
+          t.id === id ? { ...t, situacao: 'ativo' as const, motivo_recusa: undefined } : t,
         ),
       }
+      stateRef.current = next
+      return next
     })
+    flushKanbanPush(stateRef.current)
     return { ok: true }
-  }, [])
+  }, [flushKanbanPush])
 
   const recusarTransportador = useCallback(async (id: string, motivo?: string) => {
     if (isSupabaseConfigured && supabase) {
@@ -2358,14 +2403,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     setPortalAccountAtivoPorTransportador(id, false)
     removeTransportadoraDaHierarquia(id)
-    setState((prev) => ({
-      ...prev,
-      transportadores: prev.transportadores.map((t) =>
-        t.id === id ? { ...t, situacao: 'recusado', motivo_recusa: motivo } : t,
-      ),
-    }))
+    setState((prev) => {
+      const next = {
+        ...prev,
+        transportadores: prev.transportadores.map((t) =>
+          t.id === id ? { ...t, situacao: 'recusado' as const, motivo_recusa: motivo } : t,
+        ),
+      }
+      stateRef.current = next
+      return next
+    })
+    flushKanbanPush(stateRef.current)
     return { ok: true }
-  }, [])
+  }, [flushKanbanPush])
 
   const salvarVeiculo = useCallback((v: Veiculo) => {
     setState((prev) => {
@@ -2893,6 +2943,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       marcarChatLido,
       documentosDoTransportador,
       registrarCadastroTransportador,
+      refreshTransportadores,
       aprovarTransportador,
       recusarTransportador,
     }),
@@ -2953,6 +3004,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       marcarChatLido,
       documentosDoTransportador,
       registrarCadastroTransportador,
+      refreshTransportadores,
       aprovarTransportador,
       recusarTransportador,
     ],

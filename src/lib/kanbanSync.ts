@@ -128,9 +128,9 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
     cargas,
     lances,
     cargas_excluidas: cargasExcluidas,
-    grupos: slice.grupos?.length ? slice.grupos : prev.grupos,
+    grupos: slice.grupos?.length ? mergeById(prev.grupos, slice.grupos) : prev.grupos,
     transportadores: slice.transportadores?.length
-      ? slice.transportadores
+      ? mergeById(prev.transportadores, slice.transportadores)
       : prev.transportadores,
     notificacoes: mergeById(prev.notificacoes ?? [], slice.notificacoes ?? []).filter(
       (n) => !n.carga_id || !excluidas.has(n.carga_id),

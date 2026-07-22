@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useData } from '../../context/DataContext'
 import { CnpjInput } from '../../components/ui/CnpjInput'
 import { formatCnpj } from '../../lib/cnpj'
@@ -46,6 +46,7 @@ export function TransportadoresPage() {
     cargas,
     grupos,
     rankingTransportadores,
+    refreshTransportadores,
   } = useData()
   const [mode, setMode] = useState<'lista' | 'form' | 'revisao' | 'ficha'>('lista')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -57,6 +58,10 @@ export function TransportadoresPage() {
   const [error, setError] = useState('')
   const [motivoRecusa, setMotivoRecusa] = useState('')
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    void refreshTransportadores()
+  }, [refreshTransportadores])
 
   const filtered = useMemo(() => {
     let list = transportadores

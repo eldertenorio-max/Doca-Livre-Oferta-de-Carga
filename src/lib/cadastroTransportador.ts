@@ -398,3 +398,74 @@ export async function submeterCadastroTransportador(
   if (isSupabaseConfigured) return cadastrarTransportadorRemoto(input)
   return cadastrarTransportadorLocal(input)
 }
+
+function mapTransportadorRow(row: Record<string, unknown>): Transportador {
+  return {
+    id: String(row.id),
+    razao_social: String(row.razao_social ?? ''),
+    nome_fantasia: String(row.nome_fantasia ?? ''),
+    cnpj: String(row.cnpj ?? ''),
+    inscricao_estadual: (row.inscricao_estadual as string | null) ?? undefined,
+    inscricao_municipal: (row.inscricao_municipal as string | null) ?? undefined,
+    rntrc: (row.rntrc as string | null) ?? undefined,
+    cidade: String(row.cidade ?? ''),
+    uf: String(row.uf ?? ''),
+    endereco: (row.endereco as string | null) ?? undefined,
+    numero: (row.numero as string | null) ?? undefined,
+    bairro: (row.bairro as string | null) ?? undefined,
+    complemento: (row.complemento as string | null) ?? undefined,
+    cep: (row.cep as string | null) ?? undefined,
+    classificacao: (row.classificacao as Transportador['classificacao']) || 'bronze',
+    pontuacao: Number(row.pontuacao ?? 50),
+    situacao: (row.situacao as Transportador['situacao']) || 'pendente',
+    telefone: (row.telefone as string | null) ?? undefined,
+    email: (row.email as string | null) ?? undefined,
+    contato_nome: (row.contato_nome as string | null) ?? undefined,
+    contato_telefone: (row.contato_telefone as string | null) ?? undefined,
+    motivo_recusa: (row.motivo_recusa as string | null) ?? undefined,
+    created_at: (row.created_at as string | null) ?? undefined,
+  }
+}
+
+function mapDocumentoRow(row: Record<string, unknown>): TransportadorDocumento {
+  return {
+    id: String(row.id),
+    transportador_id: String(row.transportador_id),
+    tipo: row.tipo as TransportadorDocumento['tipo'],
+    nome_arquivo: String(row.nome_arquivo ?? ''),
+    url: String(row.url ?? ''),
+    storage_path: (row.storage_path as string | null) ?? undefined,
+    created_at: String(row.created_at ?? new Date().toISOString()),
+  }
+}
+
+/** Carrega transportadoras + docs do Supabase (fonte da verdade para aprovação). */
+export async function carregarTransportadoresDoSupabase(): Promise<{
+  transportadores: Transportador[]
+  documentos: TransportadorDocumento[]
+} | null> {
+  if (!isSupabaseConfigured || !supabase) return null
+
+  const { data: rows, error } = await supabase
+    .from('transportadores')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.warn('[cadastro] falha ao listar transportadores:', error.message)
+    return null
+  }
+
+  const { data: docRows, error: docErr } = await supabase
+    .from('transportador_documentos')
+    .select('*')
+
+  if (docErr) {
+    console.warn('[cadastro] falha ao listar documentos:', docErr.message)
+  }
+
+  return {
+    transportadores: (rows ?? []).map((r) => mapTransportadorRow(r as Record<string, unknown>)),
+    documentos: (docRows ?? []).map((r) => mapDocumentoRow(r as Record<string, unknown>)),
+  }
+}
