@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useData } from '../../context/DataContext'
 import { CnpjInput } from '../../components/ui/CnpjInput'
 import { formatCnpj } from '../../lib/cnpj'
+import { formatPhoneBr } from '../../lib/phoneBr'
 import { labelDocumento } from '../../lib/transportadorDocs'
 import type { ClassificacaoTransportador, SituacaoTransportador, Transportador } from '../../types'
 import '../../styles/cadastro.css'
@@ -617,7 +618,14 @@ export function TransportadoresPage() {
           <div className="form-card__body">
             <div className="form-fields">
               <Field label="Telefone">
-                <input value={form.telefone ?? ''} onChange={(e) => set('telefone', e.target.value)} />
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="(00) 00000-0000"
+                  value={form.telefone ?? ''}
+                  onChange={(e) => set('telefone', formatPhoneBr(e.target.value))}
+                />
               </Field>
               <Field label="E-mail">
                 <input type="email" value={form.email ?? ''} onChange={(e) => set('email', e.target.value)} />
@@ -626,7 +634,14 @@ export function TransportadoresPage() {
                 <input value={form.contato_nome ?? ''} onChange={(e) => set('contato_nome', e.target.value)} />
               </Field>
               <Field label="Telefone do Contato">
-                <input value={form.contato_telefone ?? ''} onChange={(e) => set('contato_telefone', e.target.value)} />
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel-national"
+                  placeholder="(00) 00000-0000"
+                  value={form.contato_telefone ?? ''}
+                  onChange={(e) => set('contato_telefone', formatPhoneBr(e.target.value))}
+                />
               </Field>
             </div>
           </div>
