@@ -140,7 +140,9 @@ export function PublishPanel({
     onPanelSizeChange?.(panelSize)
   }, [panelSize, onPanelSizeChange])
   const [nomeMontada, setNomeMontada] = useState('')
-  const [buscaSalvas, setBuscaSalvas] = useState('')
+  const [buscaRascunhos, setBuscaRascunhos] = useState('')
+  const [buscaFavoritas, setBuscaFavoritas] = useState('')
+  const [buscaMontadas, setBuscaMontadas] = useState('')
   const [margem, setMargem] = useState(margens[1])
   const [grupoIds, setGrupoIds] = useState<string[]>([])
   const [escalonar, setEscalonar] = useState(false)
@@ -199,7 +201,11 @@ export function PublishPanel({
 
   useEffect(() => {
     if (tab === 'salvas') setMontadas(loadCargasMontadas())
-    else setBuscaSalvas('')
+    else {
+      setBuscaRascunhos('')
+      setBuscaFavoritas('')
+      setBuscaMontadas('')
+    }
   }, [tab])
 
   const rascunhosNaoPublicados = useMemo(() => {
@@ -217,10 +223,12 @@ export function PublishPanel({
     [rotas],
   )
 
-  const qSalvas = normalizarTexto(buscaSalvas)
+  const qRascunhos = normalizarTexto(buscaRascunhos)
+  const qFavoritas = normalizarTexto(buscaFavoritas)
+  const qMontadas = normalizarTexto(buscaMontadas)
 
   const rascunhosFiltrados = useMemo(() => {
-    if (!qSalvas) return rascunhosNaoPublicados
+    if (!qRascunhos) return rascunhosNaoPublicados
     return rascunhosNaoPublicados.filter((c) => {
       const blob = normalizarTexto(
         [
@@ -237,12 +245,12 @@ export function PublishPanel({
           c.classificacao_rota ?? '',
         ].join(' '),
       )
-      return blob.includes(qSalvas)
+      return blob.includes(qRascunhos)
     })
-  }, [rascunhosNaoPublicados, qSalvas])
+  }, [rascunhosNaoPublicados, qRascunhos])
 
   const favoritasFiltradas = useMemo(() => {
-    if (!qSalvas) return rotasFavoritas
+    if (!qFavoritas) return rotasFavoritas
     return rotasFavoritas.filter((r) => {
       const blob = normalizarTexto(
         [
@@ -253,12 +261,12 @@ export function PublishPanel({
           r.classificacao,
         ].join(' '),
       )
-      return blob.includes(qSalvas)
+      return blob.includes(qFavoritas)
     })
-  }, [rotasFavoritas, qSalvas])
+  }, [rotasFavoritas, qFavoritas])
 
   const montadasFiltradas = useMemo(() => {
-    if (!qSalvas) return montadas
+    if (!qMontadas) return montadas
     return montadas.filter((m) => {
       const d = m.dados
       const blob = normalizarTexto(
@@ -273,9 +281,9 @@ export function PublishPanel({
           String(d.frete_tabela ?? ''),
         ].join(' '),
       )
-      return blob.includes(qSalvas)
+      return blob.includes(qMontadas)
     })
-  }, [montadas, qSalvas])
+  }, [montadas, qMontadas])
 
   const { ganho, freteOferta } = useMemo(
     () => calcularFreteOferta(carga?.frete_tabela ?? 0, margem),
@@ -760,56 +768,34 @@ export function PublishPanel({
 
           {isNova && tab === 'salvas' && (
             <>
-              <div className="space-y-2">
-                <div className="relative">
-                  <Search
-                    size={15}
-                    className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-muted"
-                  />
-                  <input
-                    className={`${inputClass} pl-9 pr-9`}
-                    value={buscaSalvas}
-                    onChange={(e) => setBuscaSalvas(e.target.value)}
-                    placeholder="Pesquisar: número, pedido, origem, destino, CNPJ, favorita…"
-                    autoComplete="off"
-                  />
-                  {buscaSalvas && (
-                    <button
-                      type="button"
-                      className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-ink-muted hover:bg-sand-light hover:text-ink"
-                      title="Limpar"
-                      onClick={() => setBuscaSalvas('')}
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
-                <p className="text-[11px] text-ink-muted">
-                  Busca única em <strong className="text-ink">não publicadas</strong>,{' '}
-                  <strong className="text-ink">favoritas</strong> e modelos.
-                  {qSalvas
-                    ? ` · ${rascunhosFiltrados.length + favoritasFiltradas.length + montadasFiltradas.length} resultado(s)`
-                    : ''}
-                </p>
-              </div>
-
               <div className="rounded-lg border border-ink/10 bg-white p-3">
-                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-ink">
-                  Não publicadas ({rascunhosFiltrados.length}
-                  {qSalvas && rascunhosFiltrados.length !== rascunhosNaoPublicados.length
-                    ? ` de ${rascunhosNaoPublicados.length}`
-                    : ''}
-                  )
-                </p>
-                <p className="mb-2 text-[11px] text-ink-muted">
-                  Rascunhos salvos — só entram em Nova Carga depois de publicar.
-                </p>
+                <div className="mb-1 flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold uppercase tracking-wide text-ink">
+                      Não publicadas ({rascunhosFiltrados.length}
+                      {qRascunhos && rascunhosFiltrados.length !== rascunhosNaoPublicados.length
+                        ? ` de ${rascunhosNaoPublicados.length}`
+                        : ''}
+                      )
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-ink-muted">
+                      Rascunhos salvos — só entram em Nova Carga depois de publicar.
+                    </p>
+                  </div>
+                  <SectionSearch
+                    value={buscaRascunhos}
+                    onChange={setBuscaRascunhos}
+                    placeholder="Pesquisar rascunho…"
+                  />
+                </div>
                 {rascunhosFiltrados.length === 0 ? (
-                  <p className="text-[11px] text-ink-muted">
-                    {qSalvas ? 'Nenhum rascunho corresponde à pesquisa.' : 'Nenhum rascunho pendente.'}
+                  <p className="mt-2 text-[11px] text-ink-muted">
+                    {qRascunhos
+                      ? 'Nenhum rascunho corresponde à pesquisa.'
+                      : 'Nenhum rascunho pendente.'}
                   </p>
                 ) : (
-                  <ul className="max-h-52 space-y-1.5 overflow-y-auto">
+                  <ul className="mt-2 max-h-52 space-y-1.5 overflow-y-auto">
                     {rascunhosFiltrados.map((c) => {
                       const atual = c.id === carga.id
                       return (
@@ -871,24 +857,33 @@ export function PublishPanel({
               </div>
 
               <div className="rounded-lg border border-ink/10 bg-white p-3">
-                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-ink">
-                  Favoritas ({favoritasFiltradas.length}
-                  {qSalvas && favoritasFiltradas.length !== rotasFavoritas.length
-                    ? ` de ${rotasFavoritas.length}`
-                    : ''}
-                  )
-                </p>
-                <p className="mb-2 text-[11px] text-ink-muted">
-                  Rotas salvas para reutilizar. Clique para aplicar na carga aberta.
-                </p>
+                <div className="mb-1 flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold uppercase tracking-wide text-ink">
+                      Favoritas ({favoritasFiltradas.length}
+                      {qFavoritas && favoritasFiltradas.length !== rotasFavoritas.length
+                        ? ` de ${rotasFavoritas.length}`
+                        : ''}
+                      )
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-ink-muted">
+                      Rotas salvas para reutilizar. Clique para aplicar na carga aberta.
+                    </p>
+                  </div>
+                  <SectionSearch
+                    value={buscaFavoritas}
+                    onChange={setBuscaFavoritas}
+                    placeholder="Pesquisar favorita…"
+                  />
+                </div>
                 {favoritasFiltradas.length === 0 ? (
-                  <p className="text-[11px] text-ink-muted">
-                    {qSalvas
+                  <p className="mt-2 text-[11px] text-ink-muted">
+                    {qFavoritas
                       ? 'Nenhuma favorita corresponde à pesquisa.'
                       : 'Nenhuma favorita. Em Dados da carga, marque “Salvar como rota favorita” ao salvar.'}
                   </p>
                 ) : (
-                  <ul className="max-h-48 space-y-1.5 overflow-y-auto">
+                  <ul className="mt-2 max-h-48 space-y-1.5 overflow-y-auto">
                     {favoritasFiltradas.map((r) => {
                       const aplicada = isNova && carga.rota_id === r.id
                       return (
@@ -940,16 +935,25 @@ export function PublishPanel({
               </div>
 
               <div className="rounded-lg border border-ink/10 bg-sand-light/50 p-3">
-                <p className="mb-1 text-xs font-bold uppercase tracking-wide text-ink">
-                  Modelos guardados ({montadasFiltradas.length}
-                  {qSalvas && montadasFiltradas.length !== montadas.length
-                    ? ` de ${montadas.length}`
-                    : ''}
-                  )
-                </p>
-                <p className="mb-2 text-[11px] text-ink-muted">
-                  Guarde a carga atual (preenchida) para reutilizar em outro rascunho.
-                </p>
+                <div className="mb-1 flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold uppercase tracking-wide text-ink">
+                      Modelos guardados ({montadasFiltradas.length}
+                      {qMontadas && montadasFiltradas.length !== montadas.length
+                        ? ` de ${montadas.length}`
+                        : ''}
+                      )
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-ink-muted">
+                      Guarde a carga atual (preenchida) para reutilizar em outro rascunho.
+                    </p>
+                  </div>
+                  <SectionSearch
+                    value={buscaMontadas}
+                    onChange={setBuscaMontadas}
+                    placeholder="Pesquisar modelo…"
+                  />
+                </div>
                 <div className="mb-2 flex gap-2">
                   <input
                     className={`${inputClass} flex-1`}
@@ -970,7 +974,7 @@ export function PublishPanel({
                 </div>
                 {montadasFiltradas.length === 0 ? (
                   <p className="text-[11px] text-ink-muted">
-                    {qSalvas
+                    {qMontadas
                       ? 'Nenhum modelo corresponde à pesquisa.'
                       : 'Nenhum modelo guardado ainda.'}
                   </p>
@@ -1816,6 +1820,42 @@ export function PublishPanel({
         </div>
       </Modal>
     </>
+  )
+}
+
+function SectionSearch({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string
+  onChange: (v: string) => void
+  placeholder: string
+}) {
+  return (
+    <div className="relative w-full max-w-[220px] shrink-0 sm:w-52">
+      <Search
+        size={14}
+        className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-ink-muted"
+      />
+      <input
+        className={`${inputClass} py-1.5 pl-8 pr-8 text-xs`}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoComplete="off"
+      />
+      {value && (
+        <button
+          type="button"
+          className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded p-0.5 text-ink-muted hover:bg-sand-light hover:text-ink"
+          title="Limpar"
+          onClick={() => onChange('')}
+        >
+          <X size={12} />
+        </button>
+      )}
+    </div>
   )
 }
 
