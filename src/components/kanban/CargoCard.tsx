@@ -411,6 +411,14 @@ export function CargoCard({
             <span className="font-bold text-ink">Peso:</span>{' '}
             <span className="text-ink/90">{formatNumber(carga.peso ?? 0)}</span>
           </p>
+          {mode === 'transportador' && bidValue != null && (
+            <p>
+              <span className="font-bold text-ink">Seu lance:</span>{' '}
+              <span className="rounded bg-ink px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-white">
+                {formatCurrency(bidValue)}
+              </span>
+            </p>
+          )}
           {bidPosition != null && (
             <p>
               <span className="font-bold text-ink">Posição:</span>{' '}
@@ -426,9 +434,17 @@ export function CargoCard({
       <div className="mt-2 border-t border-ink/50 pt-2.5">
         <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
           <p>
-            <span className="font-bold text-ink">Frete:</span>{' '}
+            <span className="font-bold text-ink">
+              {mode === 'transportador' && bidValue != null ? 'Frete oferta:' : 'Frete:'}
+            </span>{' '}
             <span className="text-[13px] font-semibold tabular-nums text-ink">
-              {freteLinha != null ? formatCurrency(freteLinha) : '—'}
+              {mode === 'transportador' && bidValue != null
+                ? frete != null
+                  ? formatCurrency(frete)
+                  : '—'
+                : freteLinha != null
+                  ? formatCurrency(freteLinha)
+                  : '—'}
             </span>
           </p>
           {ofertasCount != null && (
