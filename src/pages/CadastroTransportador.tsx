@@ -30,6 +30,25 @@ const UFS = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO',
 ]
 
+function formatCep(raw: string): string {
+  const d = raw.replace(/\D/g, '').slice(0, 8)
+  if (d.length <= 5) return d
+  return `${d.slice(0, 5)}-${d.slice(5)}`
+}
+
+function formatPhoneBr(raw: string): string {
+  const d = raw.replace(/\D/g, '').slice(0, 11)
+  if (!d) return ''
+  if (d.length <= 2) return `(${d}`
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+}
+
+function onlyDigits(raw: string, max: number): string {
+  return raw.replace(/\D/g, '').slice(0, max)
+}
+
 export function CadastroTransportadorPage() {
   const { user, registrarCadastroTransportador } = useData()
   const [step, setStep] = useState<Step>(1)
@@ -284,46 +303,70 @@ export function CadastroTransportadorPage() {
                     <input
                       value={empresa.razao_social}
                       onChange={(e) => setEmp('razao_social', e.target.value)}
+                      placeholder="Ex.: Santos Transportes Ltda"
+                      autoComplete="organization"
                     />
                   </Field>
                   <Field label="Nome Fantasia" required>
                     <input
                       value={empresa.nome_fantasia}
                       onChange={(e) => setEmp('nome_fantasia', e.target.value)}
+                      placeholder="Ex.: Santos Transportes"
+                      autoComplete="organization"
                     />
                   </Field>
                   <Field label="CNPJ" required>
                     <CnpjInput
                       value={empresa.cnpj}
                       onChange={(v) => setEmp('cnpj', formatCnpj(v))}
+                      placeholder="00.000.000/0000-00"
                     />
                   </Field>
                   <Field label="RNTRC">
-                    <input value={empresa.rntrc} onChange={(e) => setEmp('rntrc', e.target.value)} />
+                    <input
+                      value={empresa.rntrc}
+                      onChange={(e) => setEmp('rntrc', onlyDigits(e.target.value, 14))}
+                      placeholder="Registro ANTT (somente números)"
+                      inputMode="numeric"
+                    />
                   </Field>
                   <Field label="Inscrição Estadual">
                     <input
                       value={empresa.inscricao_estadual}
                       onChange={(e) => setEmp('inscricao_estadual', e.target.value)}
+                      placeholder="Ex.: 10.20.0.3 ou Isento"
                     />
                   </Field>
                   <Field label="Inscrição Municipal">
                     <input
                       value={empresa.inscricao_municipal}
                       onChange={(e) => setEmp('inscricao_municipal', e.target.value)}
+                      placeholder="Número da IM (se houver)"
                     />
                   </Field>
                   <Field label="CEP">
-                    <input value={empresa.cep} onChange={(e) => setEmp('cep', e.target.value)} />
+                    <input
+                      value={empresa.cep}
+                      onChange={(e) => setEmp('cep', formatCep(e.target.value))}
+                      placeholder="00000-000"
+                      inputMode="numeric"
+                      autoComplete="postal-code"
+                    />
                   </Field>
                   <Field label="Cidade" required>
                     <input
                       value={empresa.cidade}
                       onChange={(e) => setEmp('cidade', e.target.value)}
+                      placeholder="Ex.: São Paulo"
+                      autoComplete="address-level2"
                     />
                   </Field>
                   <Field label="UF" required>
-                    <select value={empresa.uf} onChange={(e) => setEmp('uf', e.target.value)}>
+                    <select
+                      value={empresa.uf}
+                      onChange={(e) => setEmp('uf', e.target.value)}
+                      aria-label="UF — selecione o estado"
+                    >
                       {UFS.map((uf) => (
                         <option key={uf} value={uf}>
                           {uf}
@@ -335,24 +378,29 @@ export function CadastroTransportadorPage() {
                     <input
                       value={empresa.endereco}
                       onChange={(e) => setEmp('endereco', e.target.value)}
+                      placeholder="Rua, avenida ou rodovia"
+                      autoComplete="street-address"
                     />
                   </Field>
                   <Field label="Número">
                     <input
                       value={empresa.numero}
                       onChange={(e) => setEmp('numero', e.target.value)}
+                      placeholder="Nº ou S/N"
                     />
                   </Field>
                   <Field label="Bairro">
                     <input
                       value={empresa.bairro}
                       onChange={(e) => setEmp('bairro', e.target.value)}
+                      placeholder="Ex.: Centro"
                     />
                   </Field>
                   <Field label="Complemento" className="form-field--span2">
                     <input
                       value={empresa.complemento}
                       onChange={(e) => setEmp('complemento', e.target.value)}
+                      placeholder="Sala, galpão, bloco (opcional)"
                     />
                   </Field>
                 </div>
@@ -377,18 +425,24 @@ export function CadastroTransportadorPage() {
                     <input
                       value={empresa.contato_nome}
                       onChange={(e) => setEmp('contato_nome', e.target.value)}
+                      autoComplete="name"
                     />
                   </Field>
                   <Field label="Telefone" required>
                     <input
                       value={empresa.telefone}
-                      onChange={(e) => setEmp('telefone', e.target.value)}
+                      onChange={(e) => setEmp('telefone', formatPhoneBr(e.target.value))}
+                      placeholder="(00) 00000-0000"
+                      inputMode="tel"
+                      autoComplete="tel"
                     />
                   </Field>
                   <Field label="Telefone do contato">
                     <input
                       value={empresa.contato_telefone}
-                      onChange={(e) => setEmp('contato_telefone', e.target.value)}
+                      onChange={(e) => setEmp('contato_telefone', formatPhoneBr(e.target.value))}
+                      placeholder="(00) 00000-0000"
+                      inputMode="tel"
                     />
                   </Field>
                   <Field label="E-mail da empresa">
@@ -396,6 +450,8 @@ export function CadastroTransportadorPage() {
                       type="email"
                       value={empresa.email}
                       onChange={(e) => setEmp('email', e.target.value)}
+                      placeholder="contato@suaempresa.com.br"
+                      autoComplete="email"
                     />
                   </Field>
                 </div>
@@ -477,13 +533,15 @@ export function CadastroTransportadorPage() {
                     <input
                       value={acesso.nome}
                       onChange={(e) => setAcc('nome', e.target.value)}
-                      placeholder={empresa.contato_nome || 'Seu nome'}
+                      placeholder={empresa.contato_nome || undefined}
+                      autoComplete="name"
                     />
                   </Field>
                   <Field label="Usuário" required>
                     <input
                       value={acesso.usuario}
                       onChange={(e) => setAcc('usuario', e.target.value)}
+                      placeholder="Ex.: santos.transportes"
                       autoComplete="username"
                     />
                   </Field>
@@ -495,6 +553,7 @@ export function CadastroTransportadorPage() {
                         setEmailConfirmado(false)
                         setAcc('email', e.target.value)
                       }}
+                      placeholder="login@suaempresa.com.br"
                       autoComplete="email"
                       disabled={emailConfirmado}
                     />
@@ -544,6 +603,7 @@ export function CadastroTransportadorPage() {
                           type="password"
                           value={acesso.senha}
                           onChange={(e) => setAcc('senha', e.target.value)}
+                          placeholder="Mínimo 6 caracteres"
                           autoComplete="new-password"
                         />
                       </Field>
@@ -552,6 +612,7 @@ export function CadastroTransportadorPage() {
                           type="password"
                           value={acesso.confirmarSenha}
                           onChange={(e) => setAcc('confirmarSenha', e.target.value)}
+                          placeholder="Repita a senha"
                           autoComplete="new-password"
                         />
                       </Field>
