@@ -157,6 +157,7 @@ export function KanbanMinerva() {
           </p>
 
           <KanbanBoard
+            storageKey="doca-livre-kanban-collapsed-minerva"
             onCardDrop={handleCardDrop}
             columns={COLUMNS.map((col) => ({
               ...col,

@@ -171,6 +171,7 @@ export function KanbanTransportador() {
       </p>
 
       <KanbanBoard
+        storageKey="doca-livre-kanban-collapsed-transportador"
         columns={COLUMNS.map((col) => ({
           ...col,
           items: cargas
