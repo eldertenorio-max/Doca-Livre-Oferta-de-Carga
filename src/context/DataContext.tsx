@@ -772,6 +772,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             alocacao_expira_em: new Date(
               now + (c.prazo_alocacao_minutos ?? 10) * 60_000,
             ).toISOString(),
+            updated_at: new Date(now).toISOString(),
           }
           transportadores = transportadores.map((t) => {
             if (t.id !== best.transportador_id) return t
@@ -1161,6 +1162,32 @@ export function DataProvider({ children }: { children: ReactNode }) {
           valor,
           status: 'vencedor',
           created_at: agora,
+          updated_at: agora,
+        }
+        const outrosPerdedores = base.lances
+          .filter(
+            (l) =>
+              l.carga_id === cargaId &&
+              l.transportador_id !== tid &&
+              l.status === 'ativo',
+          )
+          .map((l) => l.transportador_id)
+        let notifs = base.notificacoes
+        notifs = pushNotif(notifs, {
+          role: 'transportador',
+          transportador_id: tid,
+          titulo: 'Frete fechado',
+          mensagem: `Sua proposta na carga ${cargaOk.numero} fechou o frete.`,
+          carga_id: cargaId,
+        })
+        for (const pid of [...new Set(outrosPerdedores)]) {
+          notifs = pushNotif(notifs, {
+            role: 'transportador',
+            transportador_id: pid,
+            titulo: 'Frete fechado com outro',
+            mensagem: `A carga ${cargaOk.numero} foi fechada com outra transportadora.`,
+            carga_id: cargaId,
+          })
         }
         const next: DataState = {
           ...base,
@@ -1174,14 +1201,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
                   alocacao_expira_em: new Date(
                     Date.now() + Math.max(c.prazo_alocacao_minutos ?? 10, 10) * 60_000,
                   ).toISOString(),
+                  updated_at: agora,
                 }
               : c,
           ),
           lances: [
-            ...base.lances.filter(
-              (l) =>
-                !(l.carga_id === cargaId && l.transportador_id === tid && l.status === 'ativo'),
-            ),
+            ...base.lances
+              .filter(
+                (l) =>
+                  !(l.carga_id === cargaId && l.transportador_id === tid && l.status === 'ativo'),
+              )
+              .map((l) =>
+                l.carga_id === cargaId && l.status === 'ativo'
+                  ? { ...l, status: 'perdido' as const, updated_at: agora }
+                  : l,
+              ),
             lance,
           ],
           transportadores: base.transportadores.map((t) => {
@@ -1203,6 +1237,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             ),
             ...base.historico,
           ].slice(0, 2000),
+          notificacoes: notifs,
         }
         stateRef.current = next
         setState(next)
@@ -1359,19 +1394,42 @@ export function DataProvider({ children }: { children: ReactNode }) {
         },
         userRef.current,
       )
+      const perdedores = [
+        ...new Set(
+          prev.lances
+            .filter(
+              (l) =>
+                l.carga_id === current.carga_id &&
+                l.id !== lanceId &&
+                ['ativo', 'perdido', 'recusado'].includes(l.status),
+            )
+            .map((l) => l.transportador_id)
+            .filter((id) => id !== current.transportador_id),
+        ),
+      ]
+      let notifs = pushNotif(prev.notificacoes, {
+        role: 'transportador',
+        transportador_id: current.transportador_id,
+        titulo: 'Frete fechado',
+        mensagem: `Sua proposta na carga ${cargaAtual.numero} foi aceita.`,
+        carga_id: current.carga_id,
+      })
+      for (const pid of perdedores) {
+        notifs = pushNotif(notifs, {
+          role: 'transportador',
+          transportador_id: pid,
+          titulo: 'Frete fechado com outro',
+          mensagem: `A carga ${cargaAtual.numero} foi fechada com outra transportadora.`,
+          carga_id: current.carga_id,
+        })
+      }
       const next: DataState = {
         ...prev,
         cargas,
         lances,
         transportadores,
         historico: [hist, ...prev.historico].slice(0, 2000),
-        notificacoes: pushNotif(prev.notificacoes, {
-          role: 'transportador',
-          transportador_id: current.transportador_id,
-          titulo: 'Frete fechado',
-          mensagem: `Sua proposta na carga ${cargaAtual.numero} foi aceita.`,
-          carga_id: current.carga_id,
-        }),
+        notificacoes: notifs,
       }
       stateRef.current = next
       setState(next)
@@ -2711,11 +2769,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
 
       return state.cargas.filter((c) => {
-        // Frete fechado / alocada / recusada do próprio vencedor
-        if (c.transportador_vencedor_id === transportadorId) {
-          return ['propostas', 'alocadas', 'recusadas', 'negociando', 'suspensas'].includes(
-            c.status,
-          )
+        // Frete fechado: só o vencedor continua vendo (Confirmadas / Alocadas)
+        if (c.transportador_vencedor_id) {
+          if (c.transportador_vencedor_id !== transportadorId) return false
+          return !['canceladas'].includes(c.status)
         }
 
         // Já participou na rodada atual — continua vendo enquanto a negociação existir
@@ -2728,14 +2785,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         )
         if (
           temLanceProprio &&
-          ['negociando', 'propostas', 'suspensas'].includes(c.status) &&
-          !c.transportador_vencedor_id
+          ['negociando', 'propostas', 'suspensas'].includes(c.status)
         ) {
           return true
         }
 
         if (!['negociando', 'propostas', 'suspensas'].includes(c.status)) return false
-        if (c.transportador_vencedor_id) return false
         if (!c.publicado_em) return false
 
         // Escalonar: só quem já foi notificado; sem escalonar, grupos_notificados = todos

@@ -92,6 +92,11 @@ export function colunaTransportador(
 ): ColunaTransportador | null {
   if (!transportadorId) return null
 
+  // Frete fechado com outro: some do Kanban deste transportador
+  if (c.transportador_vencedor_id && c.transportador_vencedor_id !== transportadorId) {
+    return null
+  }
+
   if (c.status === 'alocadas' && c.transportador_vencedor_id === transportadorId) {
     return 'alocadas'
   }
