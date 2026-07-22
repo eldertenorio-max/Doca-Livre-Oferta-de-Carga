@@ -360,7 +360,7 @@ export function CargoCard({
     Boolean(carga.expira_em) &&
     new Date(carga.expira_em!).getTime() - Date.now() < 5 * 60_000
 
-  const isAlocada = carga.status === 'alocadas' || Boolean(onAllocate)
+  const showAlocar = Boolean(onAllocate)
   const isRascunho = !carga.publicado_em || carga.status === 'nova_carga'
 
   return (
@@ -481,24 +481,23 @@ export function CargoCard({
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            {isAlocada ? (
+            {showAlocar && (
               <IconBtn title="Alocar composição" tone="truck" onClick={onAllocate}>
                 <IconTruck />
               </IconBtn>
-            ) : (
-              <IconBtn
-                title={
-                  chatNaoLidas > 0
-                    ? `Mensagens (${chatNaoLidas} não lida${chatNaoLidas > 1 ? 's' : ''})`
-                    : 'Mensagens'
-                }
-                tone="msg"
-                badge={chatNaoLidas}
-                onClick={() => setChatOpen(true)}
-              >
-                <IconChat />
-              </IconBtn>
             )}
+            <IconBtn
+              title={
+                chatNaoLidas > 0
+                  ? `Mensagens (${chatNaoLidas} não lida${chatNaoLidas > 1 ? 's' : ''})`
+                  : 'Mensagens'
+              }
+              tone="msg"
+              badge={chatNaoLidas}
+              onClick={() => setChatOpen(true)}
+            >
+              <IconChat />
+            </IconBtn>
           </div>
         </div>
       </div>
