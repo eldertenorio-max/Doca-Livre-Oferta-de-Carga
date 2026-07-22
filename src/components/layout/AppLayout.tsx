@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
 import { BRAND_EMBARCADOR_LABEL, LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
@@ -148,6 +148,25 @@ export function AppLayout() {
   const [clock, setClock] = useState(() => formatClock(new Date()))
   const [notifOpen, setNotifOpen] = useState(false)
   const [chatCargaId, setChatCargaId] = useState<string | null>(null)
+  const notifWrapRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!notifOpen) return
+    function onPointerDown(e: MouseEvent) {
+      if (!notifWrapRef.current?.contains(e.target as Node)) {
+        setNotifOpen(false)
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setNotifOpen(false)
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [notifOpen])
 
   const chatCarga = useMemo(
     () => (chatCargaId ? (cargas ?? []).find((c) => c.id === chatCargaId) ?? null : null),
@@ -239,7 +258,7 @@ export function AppLayout() {
         </div>
 
         <div className="app-topbar-right">
-          <div className="app-topbar-notif-wrap">
+          <div className="app-topbar-notif-wrap" ref={notifWrapRef}>
             <button
               type="button"
               className="app-topbar-refresh"
