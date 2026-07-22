@@ -97,6 +97,8 @@ interface PublishPayload {
   grupoIds: string[]
   prazoLeilaoMinutos: number
   prazoAlocacaoMinutos: number
+  /** Escolha manual na UI; se omitido, segue a regra do prazo. */
+  modoPublicacao?: ModoPublicacao
   justificativaMotivo?: string
   justificativaObs?: string
   observacao?: string
@@ -934,10 +936,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const publicarCarga = useCallback(
     (payload: PublishPayload) => {
-      const { prioridade, modo, exigeJustificativa } = calcularPrioridadeEModo(
+      const { prioridade, modo: modoSugerido, exigeJustificativa } = calcularPrioridadeEModo(
         payload.prazoLeilaoMinutos,
         config.limite_urgencia_minutos,
       )
+      const modo = payload.modoPublicacao ?? modoSugerido
       if (exigeJustificativa && !payload.justificativaMotivo) {
         return {
           ok: false,

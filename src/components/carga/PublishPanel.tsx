@@ -39,7 +39,13 @@ import {
 import { isRascunhoNaoPublicado } from '../../lib/kanbanColumns'
 import { prazosAlocacaoPermitidos, prazosOfertaPermitidos } from '../../lib/configNegocio'
 import { canEditModulo } from '../../lib/portalModules'
-import type { Carga, ClassificacaoTransportador, Rota, Transportador } from '../../types'
+import type {
+  Carga,
+  ClassificacaoTransportador,
+  ModoPublicacao,
+  Rota,
+  Transportador,
+} from '../../types'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
 import { CargaDadosForm } from './CargaDadosForm'
 
@@ -148,6 +154,8 @@ export function PublishPanel({
   const [info, setInfo] = useState('')
   const [contraLanceId, setContraLanceId] = useState<string | null>(null)
   const [contraValor, setContraValor] = useState('')
+  /** null = segue sugestão do prazo; valor = escolha manual Leilão/Oferta */
+  const [modoOverride, setModoOverride] = useState<ModoPublicacao | null>(null)
 
   // Reset do formulário só ao trocar de carga (sync de grupos não pode resetar a aba)
   useEffect(() => {
@@ -159,6 +167,7 @@ export function PublishPanel({
     setEscalonar(false)
     setPrazoLeilao(carga.prazo_leilao_minutos ?? config.prazo_oferta_padrao_minutos)
     setPrazoAlocacao(carga.prazo_alocacao_minutos ?? config.prazo_alocacao_padrao_minutos)
+    setModoOverride(null)
     setError('')
     setMotivo(carga.justificativa_motivo ?? '')
     setObs(carga.justificativa_obs ?? '')
@@ -264,10 +273,11 @@ export function PublishPanel({
     [carga, margem],
   )
 
-  const { prioridade, modo, exigeJustificativa } = useMemo(
+  const { prioridade, modo: modoSugerido, exigeJustificativa } = useMemo(
     () => calcularPrioridadeEModo(prazoLeilao, config.limite_urgencia_minutos),
     [prazoLeilao, config.limite_urgencia_minutos],
   )
+  const modo = modoOverride ?? modoSugerido
 
   const previewTransportadores = useMemo(() => {
     const notificadosAgora =
@@ -400,6 +410,7 @@ export function PublishPanel({
       grupoIds,
       prazoLeilaoMinutos: prazoLeilao,
       prazoAlocacaoMinutos: prazoAlocacao,
+      modoPublicacao: modo,
       justificativaMotivo: justificativa?.motivo || motivo || undefined,
       justificativaObs: (justificativa?.obs ?? obs) || undefined,
       observacao: observacao.trim() || undefined,
@@ -1161,13 +1172,33 @@ export function PublishPanel({
                 </div>
                 <div>
                   <p className="mb-1 text-xs text-ink-muted">Modo</p>
-                  <span
-                    className={`inline-block rounded-lg px-3 py-2 text-xs font-bold capitalize text-white ${
-                      modo === 'oferta' ? 'bg-brand' : 'bg-ink'
-                    }`}
-                  >
-                    {modo === 'oferta' ? 'Oferta (1ª fecha)' : 'Leilão'}
-                  </span>
+                  <div className="inline-flex rounded-lg border border-ink/15 bg-white p-0.5">
+                    <button
+                      type="button"
+                      disabled={!canEdit}
+                      onClick={() => setModoOverride('leilao')}
+                      className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${
+                        modo === 'leilao'
+                          ? 'bg-ink text-white'
+                          : 'text-ink-muted hover:bg-sand-light hover:text-ink'
+                      }`}
+                    >
+                      Leilão
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canEdit}
+                      onClick={() => setModoOverride('oferta')}
+                      title="1ª menor oferta fecha o frete"
+                      className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${
+                        modo === 'oferta'
+                          ? 'bg-brand text-white'
+                          : 'text-ink-muted hover:bg-sand-light hover:text-ink'
+                      }`}
+                    >
+                      Oferta
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1720,8 +1751,7 @@ export function PublishPanel({
       >
         <div className="space-y-3">
           <p className="text-sm text-ink-muted">
-            Prazo ≤ {config.limite_urgencia_minutos} min define prioridade alta e modo Oferta.
-            Informe o motivo.
+            Prazo ≤ {config.limite_urgencia_minutos} min define prioridade alta. Informe o motivo.
           </p>
           <Field label="Motivo">
             <select className={inputClass} value={motivo} onChange={(e) => setMotivo(e.target.value)}>
