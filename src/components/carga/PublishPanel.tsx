@@ -837,7 +837,7 @@ export function PublishPanel({
                             <span className="flex items-center gap-1.5">
                               <span className="font-semibold text-ink">Carga {c.numero}</span>
                               {atual && (
-                                <span className="rounded bg-brand/15 px-1.5 py-0.5 text-[10px] font-bold text-brand">
+                                <span className="rounded bg-brand/15 px-1.5 py-0.5 text-[10px] font-bold text-ink">
                                   Aberta
                                 </span>
                               )}
