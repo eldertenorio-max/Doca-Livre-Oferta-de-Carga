@@ -8,10 +8,10 @@ import {
   isAcceptedImageFile,
   normalizeFotosVeiculo,
 } from '../../lib/veiculoFotos'
+import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
 import type { FotoVeiculoSlot, FotosVeiculo, Veiculo } from '../../types'
 import '../../styles/cadastro.css'
 
-const TIPOS_VEICULO = ['Caminhão', 'Carreta', 'Bitrem', 'Truck', 'Van', 'Utilitário']
 const MARCAS = ['Volvo', 'Scania', 'Mercedes-Benz', 'Volkswagen', 'Iveco', 'Ford', 'Outra']
 const TIPOS_CARROCERIA = ['Baú', 'Sider', 'Graneleiro', 'Tanque', 'Container', 'Plataforma']
 const ACLIMATACAO = ['Seco', 'Refrigerado', 'Congelado']

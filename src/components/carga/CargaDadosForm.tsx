@@ -3,6 +3,7 @@ import { useData } from '../../context/DataContext'
 import { formatCurrency, formatMoneyInput, parseMoneyInput } from '../../lib/businessRules'
 import { buscarCidades, filtrarSugestoes } from '../../lib/cidadesBrasil'
 import { formatCnpj } from '../../lib/cnpj'
+import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
 import type { Carga, ClassificacaoRota, Rota } from '../../types'
 import { Button, Field, inputClass } from '../ui/Modal'
 import { CnpjInput } from '../ui/CnpjInput'
@@ -47,20 +48,6 @@ const SUGESTOES_TIPO_CARGA = [
   'GRANEL',
   'PERIGOSA',
   'PALLETIZADA',
-]
-
-const SUGESTOES_VEICULO = [
-  'CARRETA BAU',
-  'CARRETA (CONTAINER 40)',
-  'CARRETA (CONTAINER 20)',
-  'CARRETA SIDER',
-  'CARRETA GRADE BAIXA',
-  'BITREM',
-  'RODOTREM',
-  'TRUCK',
-  'TOCO',
-  'VUC',
-  '3/4',
 ]
 
 const SUGESTOES_OBS = [
@@ -148,7 +135,8 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
   )
 
   const sugVeiculo = useMemo(
-    () => (q: string) => filtrarSugestoes(q, [SUGESTOES_VEICULO, historico.veiculo], 12),
+    () => (q: string) =>
+      filtrarSugestoes(q, [[...TIPOS_VEICULO], historico.veiculo], 20),
     [historico.veiculo],
   )
 
@@ -448,12 +436,12 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
               placeholder="Escolha ou digite…"
             />
           </Field>
-          <Field label="Veículo">
+          <Field label="Veículo *">
             <SuggestInput
               value={veiculo}
               onChange={setVeiculo}
               suggestions={sugVeiculo}
-              placeholder="Escolha ou digite…"
+              placeholder="Selecione ou digite o tipo…"
             />
           </Field>
           <Field label="Valor mercadorias (R$)">
