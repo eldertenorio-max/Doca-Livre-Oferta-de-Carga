@@ -14,6 +14,8 @@ import {
   isAcceptedDocFile,
 } from '../lib/transportadorDocs'
 import type { TipoDocumentoTransportador } from '../types'
+import { CnpjInput } from '../components/ui/CnpjInput'
+import { formatCnpj } from '../lib/cnpj'
 import '../styles/cadastro.css'
 import '../styles/login.css'
 import '../styles/shell.css'
@@ -291,10 +293,9 @@ export function CadastroTransportadorPage() {
                     />
                   </Field>
                   <Field label="CNPJ" required>
-                    <input
-                      placeholder="00.000.000/0000-00"
+                    <CnpjInput
                       value={empresa.cnpj}
-                      onChange={(e) => setEmp('cnpj', e.target.value)}
+                      onChange={(v) => setEmp('cnpj', formatCnpj(v))}
                     />
                   </Field>
                   <Field label="RNTRC">

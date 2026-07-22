@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useData } from '../../context/DataContext'
 import { formatCurrency, formatMoneyInput, parseMoneyInput } from '../../lib/businessRules'
 import { buscarCidades, filtrarSugestoes } from '../../lib/cidadesBrasil'
+import { formatCnpj } from '../../lib/cnpj'
 import type { Carga, ClassificacaoRota, Rota } from '../../types'
 import { Button, Field, inputClass } from '../ui/Modal'
+import { CnpjInput } from '../ui/CnpjInput'
 import { SuggestInput } from '../ui/SuggestInput'
 
 type Props = {
@@ -95,7 +97,9 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
   const [tipoCarga, setTipoCarga] = useState(carga.tipo_carga)
   const [veiculo, setVeiculo] = useState(carga.veiculo)
   const [destinatario, setDestinatario] = useState(carga.destinatario)
-  const [destinatarioCnpj, setDestinatarioCnpj] = useState(carga.destinatario_cnpj)
+  const [destinatarioCnpj, setDestinatarioCnpj] = useState(
+    formatCnpj(carga.destinatario_cnpj || ''),
+  )
   const [peso, setPeso] = useState(formatMoneyInput(carga.peso || 0))
   const [volumes, setVolumes] = useState(String(carga.volumes || 0))
   const [valorMerc, setValorMerc] = useState(formatMoneyInput(carga.valor_mercadorias || 0))
@@ -160,11 +164,6 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
     [historico.destinatario],
   )
 
-  const sugCnpj = useMemo(
-    () => (q: string) => filtrarSugestoes(q, [historico.cnpj], 12),
-    [historico.cnpj],
-  )
-
   const sugPedido = useMemo(
     () => (q: string) => filtrarSugestoes(q, [historico.pedido], 12),
     [historico.pedido],
@@ -207,7 +206,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
     setTipoCarga(carga.tipo_carga)
     setVeiculo(carga.veiculo)
     setDestinatario(carga.destinatario)
-    setDestinatarioCnpj(carga.destinatario_cnpj)
+    setDestinatarioCnpj(formatCnpj(carga.destinatario_cnpj || ''))
     setPeso(formatMoneyInput(carga.peso || 0))
     setVolumes(String(carga.volumes || 0))
     setValorMerc(formatMoneyInput(carga.valor_mercadorias || 0))
@@ -318,7 +317,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       tipo_carga: tipoCarga.trim() || 'COMERCIAL - SECO',
       veiculo: veiculo.trim() || 'CARRETA BAU',
       destinatario: destinatario.trim(),
-      destinatario_cnpj: destinatarioCnpj.trim(),
+      destinatario_cnpj: formatCnpj(destinatarioCnpj),
       peso: pesoNum,
       volumes: Math.round(volumesNum),
       valor_mercadorias: valorNum,
@@ -560,11 +559,10 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
         />
       </Field>
       <Field label="CNPJ destinatário">
-        <SuggestInput
+        <CnpjInput
           value={destinatarioCnpj}
           onChange={setDestinatarioCnpj}
-          suggestions={sugCnpj}
-          placeholder="00.000.000/0000-00"
+          suggestions={historico.cnpj}
         />
       </Field>
 

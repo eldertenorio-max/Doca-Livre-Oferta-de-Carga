@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useData } from '../../context/DataContext'
+import { CnpjInput } from '../../components/ui/CnpjInput'
+import { formatCnpj } from '../../lib/cnpj'
 import { labelDocumento } from '../../lib/transportadorDocs'
 import type { ClassificacaoTransportador, SituacaoTransportador, Transportador } from '../../types'
 import '../../styles/cadastro.css'
@@ -82,7 +84,7 @@ export function TransportadoresPage() {
 
   function openEdit(t: Transportador) {
     setEditingId(t.id)
-    setForm({ ...t })
+    setForm({ ...t, cnpj: formatCnpj(t.cnpj || '') })
     setError('')
     setMode('form')
   }
@@ -155,7 +157,7 @@ export function TransportadoresPage() {
       id: editingId ?? `t-${Math.random().toString(36).slice(2, 8)}`,
       razao_social: form.razao_social!.trim(),
       nome_fantasia: form.nome_fantasia!.trim(),
-      cnpj: form.cnpj!.trim(),
+      cnpj: formatCnpj(form.cnpj ?? ''),
       inscricao_estadual: form.inscricao_estadual,
       inscricao_municipal: form.inscricao_municipal,
       rntrc: form.rntrc,
@@ -529,7 +531,10 @@ export function TransportadoresPage() {
                 <input value={form.nome_fantasia ?? ''} onChange={(e) => set('nome_fantasia', e.target.value)} />
               </Field>
               <Field label="CNPJ" required>
-                <input placeholder="00.000.000/0000-00" value={form.cnpj ?? ''} onChange={(e) => set('cnpj', e.target.value)} />
+                <CnpjInput
+                  value={form.cnpj ?? ''}
+                  onChange={(v) => set('cnpj', formatCnpj(v))}
+                />
               </Field>
               <Field label="RNTRC">
                 <input value={form.rntrc ?? ''} onChange={(e) => set('rntrc', e.target.value)} />
