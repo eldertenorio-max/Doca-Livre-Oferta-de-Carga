@@ -44,15 +44,28 @@ function uid() {
   return `u-${Math.random().toString(36).slice(2, 10)}`
 }
 
-/** Conta demo pronta para testar o Kanban do transportador. */
-export const DEMO_TRANSPORTADOR = {
-  id: 'u-santos',
-  usuario: 'santos',
-  email: 'santos@transportes.com',
-  password: 'santos123',
-  nome: 'Santos Transportes',
-  transportador_id: 't1',
-} as const
+/** Contas demo prontas para testar o Kanban do transportador. */
+export const DEMO_TRANSPORTADORES = [
+  {
+    id: 'u-santos',
+    usuario: 'santos',
+    email: 'santos@transportes.com',
+    password: 'santos123',
+    nome: 'Santos Transportes',
+    transportador_id: 't1',
+  },
+  {
+    id: 'u-novaera',
+    usuario: 'novaera',
+    email: 'novaera@log.com',
+    password: 'novaera123',
+    nome: 'Log Nova Era',
+    transportador_id: 't2',
+  },
+] as const
+
+/** @deprecated use DEMO_TRANSPORTADORES[0] */
+export const DEMO_TRANSPORTADOR = DEMO_TRANSPORTADORES[0]
 
 export function loadPortalAccounts(): PortalAccount[] {
   try {
@@ -60,7 +73,7 @@ export function loadPortalAccounts(): PortalAccount[] {
     if (raw) {
       const parsed = JSON.parse(raw) as PortalAccount[]
       let list = parsed.filter((u) => !isContaMinervaDemo(u))
-      list = ensureDemoTransportador(list)
+      list = ensureDemoTransportadores(list)
       savePortalAccounts(list)
       return list
     }
@@ -80,56 +93,49 @@ function isContaMinervaDemo(u: PortalAccount) {
   )
 }
 
-function demoTransportadorAccount(): PortalAccount {
+function demoTransportadorAccount(
+  d: (typeof DEMO_TRANSPORTADORES)[number] = DEMO_TRANSPORTADORES[0],
+): PortalAccount {
   return {
-    id: DEMO_TRANSPORTADOR.id,
-    usuario: DEMO_TRANSPORTADOR.usuario,
-    email: DEMO_TRANSPORTADOR.email,
-    password: DEMO_TRANSPORTADOR.password,
-    nome: DEMO_TRANSPORTADOR.nome,
+    id: d.id,
+    usuario: d.usuario,
+    email: d.email,
+    password: d.password,
+    nome: d.nome,
     role: 'transportador',
-    transportador_id: DEMO_TRANSPORTADOR.transportador_id,
+    transportador_id: d.transportador_id,
     nivel: 'operador',
     ativo: true,
     created_at: new Date().toISOString(),
   }
 }
 
-/** Garante que a conta demo Santos exista e esteja ativa. */
-function ensureDemoTransportador(list: PortalAccount[]): PortalAccount[] {
-  const demo = demoTransportadorAccount()
-  const idx = list.findIndex(
-    (u) =>
-      u.id === demo.id ||
-      u.email.toLowerCase() === demo.email ||
-      u.usuario.toLowerCase() === demo.usuario,
-  )
-  if (idx < 0) return [demo, ...list]
-  const next = [...list]
-  next[idx] = {
-    ...next[idx],
-    ...demo,
-    created_at: next[idx].created_at || demo.created_at,
+/** Garante que as contas demo de transportador existam e estejam ativas. */
+function ensureDemoTransportadores(list: PortalAccount[]): PortalAccount[] {
+  let next = [...list]
+  for (const d of DEMO_TRANSPORTADORES) {
+    const demo = demoTransportadorAccount(d)
+    const idx = next.findIndex(
+      (u) =>
+        u.id === demo.id ||
+        u.email.toLowerCase() === demo.email ||
+        u.usuario.toLowerCase() === demo.usuario,
+    )
+    if (idx < 0) {
+      next = [demo, ...next]
+    } else {
+      next[idx] = {
+        ...next[idx],
+        ...demo,
+        created_at: next[idx].created_at || demo.created_at,
+      }
+    }
   }
   return next
 }
 
 function seedAccounts(): PortalAccount[] {
-  const seed: PortalAccount[] = [
-    demoTransportadorAccount(),
-    {
-      id: 'u-novaera',
-      usuario: 'novaera',
-      email: 'novaera@log.com',
-      password: 'novaera123',
-      nome: 'Log Nova Era',
-      role: 'transportador',
-      transportador_id: 't2',
-      nivel: 'operador',
-      ativo: true,
-      created_at: new Date().toISOString(),
-    },
-  ]
+  const seed = DEMO_TRANSPORTADORES.map((d) => demoTransportadorAccount(d))
   savePortalAccounts(seed)
   return seed
 }

@@ -12,7 +12,7 @@ import {
   portalSenhaRedefinir,
   portalSenhaVerificarCodigo,
 } from '../lib/portalApi'
-import { DEMO_TRANSPORTADOR } from '../lib/portalAuth'
+import { DEMO_TRANSPORTADORES } from '../lib/portalAuth'
 import '../styles/login.css'
 import '../styles/shell.css'
 
@@ -566,26 +566,31 @@ export function LoginPage() {
         {mode === 'login' && (
           <div className="portal-login__demo-transportador">
             <p className="portal-login__demos-title">Demo transportador (teste)</p>
-            <p className="portal-login__hint">
-              <strong>{DEMO_TRANSPORTADOR.nome}</strong>
-              <br />
-              E-mail: {DEMO_TRANSPORTADOR.email}
-              <br />
-              Senha: {DEMO_TRANSPORTADOR.password}
-            </p>
-            <button
-              type="button"
-              className="portal-login__submit"
-              style={{ marginTop: 10 }}
-              onClick={() => {
-                setUsuario(DEMO_TRANSPORTADOR.email)
-                setSenha(DEMO_TRANSPORTADOR.password)
-                setError('')
-                setInfo('Conta demo preenchida. Clique em Entrar.')
-              }}
-            >
-              Usar conta demo transportador
-            </button>
+            <div className="portal-login__demo-list">
+              {DEMO_TRANSPORTADORES.map((demo) => (
+                <div key={demo.id} className="portal-login__demo-card">
+                  <p className="portal-login__hint">
+                    <strong>{demo.nome}</strong>
+                    <br />
+                    E-mail: {demo.email}
+                    <br />
+                    Senha: {demo.password}
+                  </p>
+                  <button
+                    type="button"
+                    className="portal-login__submit"
+                    onClick={() => {
+                      setUsuario(demo.email)
+                      setSenha(demo.password)
+                      setError('')
+                      setInfo(`Conta demo “${demo.nome}” preenchida. Clique em Entrar.`)
+                    }}
+                  >
+                    Usar conta demo
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

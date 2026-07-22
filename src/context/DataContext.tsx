@@ -334,14 +334,15 @@ function cancelarLancesDaCarga(lances: Lance[], cargaId: string, nowIso: string)
   )
 }
 
-/** Garante grupos com t1 (Santos); não reabre cargas automaticamente. */
+/** Garante grupos com demos t1/t2; não reabre cargas automaticamente. */
 function ensureDemoOfertasVisiveis(state: DataState): DataState {
-  const DEMO_TID = 't1'
+  const DEMO_TIDS = ['t1', 't2']
   let grupos = state.grupos.map((g) => {
     if (g.situacao === 'inativo') return g
     const ids = g.transportador_ids ?? []
-    if (ids.includes(DEMO_TID)) return g
-    return { ...g, transportador_ids: [...ids, DEMO_TID] }
+    const missing = DEMO_TIDS.filter((id) => !ids.includes(id))
+    if (missing.length === 0) return g
+    return { ...g, transportador_ids: [...ids, ...missing] }
   })
   if (grupos.length === 0) {
     grupos = structuredClone(SEED_GRUPOS)
@@ -352,11 +353,13 @@ function ensureDemoOfertasVisiveis(state: DataState): DataState {
   cargas = alinharStatusComLances(cargas, lances)
 
   let transportadores = state.transportadores
-  const t1 = transportadores.find((t) => t.id === DEMO_TID)
-  if (t1 && t1.situacao === 'inativo') {
-    transportadores = transportadores.map((t) =>
-      t.id === DEMO_TID ? { ...t, situacao: 'ativo' as const } : t,
-    )
+  for (const tid of DEMO_TIDS) {
+    const t = transportadores.find((x) => x.id === tid)
+    if (t && t.situacao === 'inativo') {
+      transportadores = transportadores.map((x) =>
+        x.id === tid ? { ...x, situacao: 'ativo' as const } : x,
+      )
+    }
   }
 
   return { ...state, cargas, lances, grupos, transportadores }

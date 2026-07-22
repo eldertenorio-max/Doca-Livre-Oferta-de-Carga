@@ -148,12 +148,14 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
     chatLeituras: { ...(prev.chatLeituras ?? {}), ...(slice.chatLeituras ?? {}) },
   }
 
-  // Garante Santos (t1) nos grupos ativos após sync
+  // Garante demos t1/t2 nos grupos ativos após sync
+  const DEMO_TIDS = ['t1', 't2']
   const grupos = merged.grupos.map((g) => {
     if (g.situacao === 'inativo') return g
     const ids = g.transportador_ids ?? []
-    if (ids.includes('t1')) return g
-    return { ...g, transportador_ids: [...ids, 't1'] }
+    const missing = DEMO_TIDS.filter((id) => !ids.includes(id))
+    if (missing.length === 0) return g
+    return { ...g, transportador_ids: [...ids, ...missing] }
   })
 
   return {
