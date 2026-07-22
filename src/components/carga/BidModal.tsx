@@ -34,7 +34,6 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
     registrarVisualizacao,
     lancesDaCarga,
     historicoPropostasDaCarga,
-    transportadorById,
     effectiveTransportadorId,
   } = useData()
   const [valor, setValor] = useState('')
@@ -80,18 +79,16 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só reinit ao abrir / trocar id
   }, [open, carga?.id, tid, registrarVisualizacao])
 
-  const ranking = useMemo(() => {
-    if (!live) return []
-    return lancesDaCarga(live.id).filter((l) =>
-      ['ativo', 'vencedor'].includes(l.status),
+  /** Só o próprio lance — nunca lances de outros transportadores */
+  const meuLance = useMemo(() => {
+    if (!live || !tid) return null
+    return (
+      lancesDaCarga(live.id).find(
+        (l) =>
+          l.transportador_id === tid && ['ativo', 'vencedor'].includes(l.status),
+      ) ?? null
     )
-  }, [live, lancesDaCarga])
-
-  const minhaPosicao = useMemo(() => {
-    if (!tid) return null
-    const idx = ranking.findIndex((l) => l.transportador_id === tid)
-    return idx >= 0 ? idx + 1 : null
-  }, [ranking, tid])
+  }, [live, tid, lancesDaCarga])
 
   const histMeu = useMemo(() => {
     if (!live || !tid) return []
@@ -175,58 +172,16 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
               value={live.modo_publicacao === 'oferta' ? 'Oferta (1ª menor fecha)' : 'Leilão'}
             />
             <Detail label="Prioridade" value={live.prioridade ?? '—'} />
-            {minhaPosicao != null && (
-              <Detail label="Sua posição" value={`${minhaPosicao}º`} />
+            {meuLance && (
+              <Detail
+                label="Seu lance"
+                value={`${formatCurrency(meuLance.valor)}${
+                  meuLance.status === 'vencedor' ? ' (vencedor)' : ''
+                }`}
+              />
             )}
           </div>
         </div>
-
-        {ranking.length > 0 && (
-          <div className="rounded-lg border border-ink/10 p-3">
-            <p className="mb-2 text-xs font-semibold text-ink-muted">Ranking de lances</p>
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-ink/10 text-left text-ink-muted">
-                  <th className="py-1">#</th>
-                  <th>Transportadora</th>
-                  <th>Lance</th>
-                  <th>Quando</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ranking.map((l, idx) => {
-                  const t = transportadorById(l.transportador_id)
-                  const souEu = l.transportador_id === tid
-                  return (
-                    <tr
-                      key={l.id}
-                      className={`border-b border-ink/5 ${souEu ? 'bg-teal-50 font-semibold' : ''}`}
-                    >
-                      <td className="py-1.5 pr-2">{idx + 1}º</td>
-                      <td className="py-1.5 pr-2">
-                        {t?.nome_fantasia ?? '—'}
-                        {souEu && (
-                          <span className="ml-1 rounded bg-teal-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                            você
-                          </span>
-                        )}
-                        {l.status === 'vencedor' && (
-                          <span className="ml-1 text-[10px] font-bold text-emerald-700">
-                            vencedor
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-1.5 pr-2 tabular-nums">{formatCurrency(l.valor)}</td>
-                      <td className="py-1.5 text-[10px] text-ink-muted">
-                        {formatDateTime(l.updated_at ?? l.created_at)}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
 
         {histMeu.length > 0 && (
           <div className="rounded-lg border border-ink/10 p-3 text-xs">
