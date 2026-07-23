@@ -316,8 +316,12 @@ export function CadastroTransportadorPage() {
   function nextFromEmpresa(e: FormEvent) {
     e.preventDefault()
     setError('')
-    if (!empresa.razao_social.trim() || !empresa.nome_fantasia.trim() || !empresa.cnpj.trim()) {
-      setError('Preencha Razão Social, Nome Fantasia e CNPJ.')
+    if (!empresa.cnpj.trim() || !empresa.nome_fantasia.trim() || !empresa.razao_social.trim()) {
+      setError('Preencha CNPJ, Nome Fantasia e Razão Social.')
+      return
+    }
+    if (!empresa.rntrc.trim()) {
+      setError('Preencha o RNTRC (registro ANTT).')
       return
     }
     if (!empresa.cidade.trim() || !empresa.uf.trim()) {
@@ -521,22 +525,6 @@ export function CadastroTransportadorPage() {
                   origem&quot;.
                 </p>
                 <div className="form-fields">
-                  <Field label="Razão Social" required>
-                    <input
-                      value={empresa.razao_social}
-                      onChange={(e) => setEmp('razao_social', e.target.value)}
-                      placeholder="Ex.: Santos Transportes Ltda"
-                      autoComplete="organization"
-                    />
-                  </Field>
-                  <Field label="Nome Fantasia" required>
-                    <input
-                      value={empresa.nome_fantasia}
-                      onChange={(e) => setEmp('nome_fantasia', e.target.value)}
-                      placeholder="Ex.: Santos Transportes"
-                      autoComplete="organization"
-                    />
-                  </Field>
                   <Field label="CNPJ" required>
                     <CnpjInput
                       value={empresa.cnpj}
@@ -567,12 +555,29 @@ export function CadastroTransportadorPage() {
                       </p>
                     )}
                   </Field>
-                  <Field label="RNTRC">
+                  <Field label="Nome Fantasia" required>
+                    <input
+                      value={empresa.nome_fantasia}
+                      onChange={(e) => setEmp('nome_fantasia', e.target.value)}
+                      placeholder="Ex.: Santos Transportes"
+                      autoComplete="organization"
+                    />
+                  </Field>
+                  <Field label="Razão Social" required>
+                    <input
+                      value={empresa.razao_social}
+                      onChange={(e) => setEmp('razao_social', e.target.value)}
+                      placeholder="Ex.: Santos Transportes Ltda"
+                      autoComplete="organization"
+                    />
+                  </Field>
+                  <Field label="RNTRC (ANTT)" required>
                     <input
                       value={empresa.rntrc}
                       onChange={(e) => setEmp('rntrc', onlyDigits(e.target.value, 14))}
                       placeholder="Registro ANTT (somente números)"
                       inputMode="numeric"
+                      required
                     />
                   </Field>
                   <Field label="Inscrição Estadual">
