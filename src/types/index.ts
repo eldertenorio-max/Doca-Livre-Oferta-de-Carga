@@ -134,6 +134,8 @@ export interface Veiculo {
   capacidade_kg?: number
   cubagem_m3?: number
   eixos?: number
+  /** Frete mínimo que este veículo/categoria aceita (R$). */
+  frete_minimo: number
   usa_manobrista: boolean
   padiado: boolean
   situacao: 'ativo' | 'inativo'

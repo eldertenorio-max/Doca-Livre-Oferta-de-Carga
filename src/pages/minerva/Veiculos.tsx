@@ -1,6 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useData } from '../../context/DataContext'
 import {
+  formatCurrency,
+  formatMoneyInput,
+  roundMoney,
+} from '../../lib/businessRules'
+import {
   FOTOS_VEICULO_ROTEIRO,
   emptyFotosVeiculo,
   fileToDataUrl,
@@ -18,6 +23,13 @@ const ACLIMATACAO = ['Seco', 'Refrigerado', 'Congelado']
 const UFS = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO',
 ]
+
+/** Só dígitos → valor em reais (centavos da direita) e texto pt-BR. */
+function moneyFromDigits(raw: string): { display: string; value: number } {
+  const digits = raw.replace(/\D/g, '').slice(0, 12)
+  const value = roundMoney(Number(digits || '0') / 100)
+  return { display: formatMoneyInput(value), value }
+}
 
 const emptyForm = (): Partial<Veiculo> => ({
   placa: '',
@@ -39,6 +51,7 @@ const emptyForm = (): Partial<Veiculo> => ({
   capacidade_kg: undefined,
   cubagem_m3: undefined,
   eixos: undefined,
+  frete_minimo: 0,
   usa_manobrista: false,
   padiado: false,
   situacao: 'ativo',
@@ -50,6 +63,7 @@ export function VeiculosPage() {
   const [mode, setMode] = useState<'lista' | 'form'>('lista')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<Partial<Veiculo>>(emptyForm)
+  const [freteMinimoTxt, setFreteMinimoTxt] = useState('0,00')
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
 
@@ -95,6 +109,7 @@ export function VeiculosPage() {
           ? user.transportador_id
           : scopedTransportadores[0]?.id ?? '',
     })
+    setFreteMinimoTxt('0,00')
     setError('')
     setMode('form')
   }
@@ -105,12 +120,19 @@ export function VeiculosPage() {
       ...v,
       fotos: normalizeFotosVeiculo(v.fotos, v.foto_url),
     })
+    setFreteMinimoTxt(formatMoneyInput(Number(v.frete_minimo) || 0))
     setError('')
     setMode('form')
   }
 
   function set<K extends keyof Veiculo>(key: K, value: Veiculo[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function onFreteMinimoChange(raw: string) {
+    const { display, value } = moneyFromDigits(raw)
+    setFreteMinimoTxt(display)
+    set('frete_minimo', value)
   }
 
   const fotosAtuais: FotosVeiculo = normalizeFotosVeiculo(form.fotos, form.foto_url)
@@ -151,7 +173,12 @@ export function VeiculosPage() {
   function save() {
     const semEmpresa = form.transportador_id == null || form.transportador_id === ''
     if (!form.placa?.trim() || !form.tipo) {
-      setError('Preencha Placa e Tipo.')
+      setError('Preencha Placa e Tipo (categoria) do veículo.')
+      return
+    }
+    const freteMin = Number(form.frete_minimo)
+    if (!Number.isFinite(freteMin) || freteMin <= 0) {
+      setError('Informe o frete mínimo (maior que zero) para esta categoria de veículo.')
       return
     }
     if (!semEmpresa && !form.transportador_id) {
@@ -184,6 +211,7 @@ export function VeiculosPage() {
       capacidade_kg: form.capacidade_kg != null ? Number(form.capacidade_kg) : undefined,
       cubagem_m3: form.cubagem_m3 != null ? Number(form.cubagem_m3) : undefined,
       eixos: form.eixos != null ? Number(form.eixos) : undefined,
+      frete_minimo: roundMoney(freteMin),
       usa_manobrista: Boolean(form.usa_manobrista),
       padiado: Boolean(form.padiado),
       situacao: (form.situacao as 'ativo' | 'inativo') ?? 'ativo',
@@ -223,6 +251,7 @@ export function VeiculosPage() {
                   <th>Placa</th>
                   <th>Empresa</th>
                   <th>Tipo</th>
+                  <th>Frete mín.</th>
                   <th>Modelo</th>
                   <th>Capacidade</th>
                   <th>Situação</th>
@@ -241,6 +270,9 @@ export function VeiculosPage() {
                         : 'Autônomo'}
                     </td>
                     <td>{v.tipo}</td>
+                    <td>
+                      {v.frete_minimo > 0 ? formatCurrency(v.frete_minimo) : '—'}
+                    </td>
                     <td>
                       {[v.marca, v.modelo].filter(Boolean).join(' ') || '—'}
                     </td>
@@ -327,7 +359,7 @@ export function VeiculosPage() {
                 onChange={(e) => set('condutor', e.target.value)}
               />
             </Field>
-            <Field label="Tipo (Ex: Caminhão, Carreta)" required>
+            <Field label="Tipo (categoria do veículo)" required>
               <select value={form.tipo ?? ''} onChange={(e) => set('tipo', e.target.value)}>
                 <option value="">Selecione o Tipo...</option>
                 {TIPOS_VEICULO.map((t) => (
@@ -336,6 +368,22 @@ export function VeiculosPage() {
                   </option>
                 ))}
               </select>
+            </Field>
+            <Field label="Frete mínimo (R$)" required>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontWeight: 700, color: '#64748b' }}>R$</span>
+                <input
+                  inputMode="numeric"
+                  autoComplete="off"
+                  placeholder="0,00"
+                  value={freteMinimoTxt}
+                  onChange={(e) => onFreteMinimoChange(e.target.value)}
+                  aria-label="Frete mínimo em reais"
+                />
+              </div>
+              <p className="form-field-hint" style={{ marginTop: 6, fontSize: 12, color: '#64748b' }}>
+                Valor mínimo de frete que este veículo/categoria aceita. Digite só números.
+              </p>
             </Field>
             <Field label="Marca">
               <select value={form.marca ?? ''} onChange={(e) => set('marca', e.target.value)}>

@@ -11,8 +11,11 @@ export function normalizeMotorista(m: Motorista): Motorista {
 }
 
 export function normalizeVeiculo(v: Veiculo): Veiculo {
+  const frete =
+    typeof v.frete_minimo === 'number' && Number.isFinite(v.frete_minimo) ? v.frete_minimo : 0
   return {
     ...v,
     transportador_id: v.transportador_id || null,
+    frete_minimo: frete,
   }
 }

@@ -28,6 +28,7 @@ create table if not exists veiculos (
 );
 
 alter table veiculos add column if not exists fotos jsonb not null default '{}'::jsonb;
+alter table veiculos add column if not exists frete_minimo numeric(12,2) not null default 0;
 
 create index if not exists idx_veiculos_placa on veiculos(placa);
 create index if not exists idx_veiculos_transportador on veiculos(transportador_id);
