@@ -305,6 +305,7 @@ export interface NotificacaoInApp {
   carga_id?: string | null
   lida: boolean
   created_at: string
+  updated_at?: string
 }
 
 /** Chat da carga (embarcador ↔ transportador) */

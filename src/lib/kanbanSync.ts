@@ -132,9 +132,16 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
     transportadores: slice.transportadores?.length
       ? mergeById(prev.transportadores, slice.transportadores)
       : prev.transportadores,
-    notificacoes: mergeById(prev.notificacoes ?? [], slice.notificacoes ?? []).filter(
-      (n) => !n.carga_id || !excluidas.has(n.carga_id),
-    ),
+    notificacoes: (() => {
+      const local = prev.notificacoes ?? []
+      const remote = slice.notificacoes ?? []
+      const merged = mergeById(local, remote).filter(
+        (n) => !n.carga_id || !excluidas.has(n.carga_id),
+      )
+      // Uma vez lida localmente, não “desler” por sync antigo
+      const localLidas = new Set(local.filter((n) => n.lida).map((n) => n.id))
+      return merged.map((n) => (localLidas.has(n.id) ? { ...n, lida: true } : n))
+    })(),
     mensagens: mergeById(prev.mensagens ?? [], slice.mensagens ?? []).filter(
       (m) => !excluidas.has(m.carga_id),
     ),

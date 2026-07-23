@@ -270,11 +270,13 @@ function pushNotif(
   list: NotificacaoInApp[],
   n: Omit<NotificacaoInApp, 'id' | 'lida' | 'created_at'> & { lida?: boolean },
 ): NotificacaoInApp[] {
+  const agora = new Date().toISOString()
   return [
     {
       id: uid('ntf'),
       lida: false,
-      created_at: new Date().toISOString(),
+      created_at: agora,
+      updated_at: agora,
       ...n,
     },
     ...list,
@@ -2686,17 +2688,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
   )
 
   const marcarNotificacaoLida = useCallback((id: string) => {
-    setState((prev) => ({
-      ...prev,
-      notificacoes: prev.notificacoes.map((n) => (n.id === id ? { ...n, lida: true } : n)),
-    }))
+    const agora = new Date().toISOString()
+    setState((prev) => {
+      const next = {
+        ...prev,
+        notificacoes: prev.notificacoes.map((n) =>
+          n.id === id ? { ...n, lida: true, updated_at: agora } : n,
+        ),
+      }
+      stateRef.current = next
+      return next
+    })
   }, [])
 
   const marcarTodasNotificacoesLidas = useCallback(() => {
-    setState((prev) => ({
-      ...prev,
-      notificacoes: prev.notificacoes.map((n) => ({ ...n, lida: true })),
-    }))
+    const agora = new Date().toISOString()
+    setState((prev) => {
+      const next = {
+        ...prev,
+        notificacoes: prev.notificacoes.map((n) =>
+          n.lida ? n : { ...n, lida: true, updated_at: agora },
+        ),
+      }
+      stateRef.current = next
+      return next
+    })
   }, [])
 
   const mensagensDaCarga = useCallback(
@@ -2833,7 +2849,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         n.carga_id === cargaId &&
         !n.lida &&
         n.titulo.toLowerCase().includes('mensagem')
-          ? { ...n, lida: true }
+          ? { ...n, lida: true, updated_at: agora }
           : n,
       ),
     }

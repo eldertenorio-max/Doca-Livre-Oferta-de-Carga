@@ -349,11 +349,13 @@ export function AppLayout() {
                         type="button"
                         className={`app-topbar-notif-item${n.lida ? '' : ' app-topbar-notif-item--unread'}`}
                         onClick={() => {
-                          marcarNotificacaoLida(n.id)
-                          setNotifOpen(false)
+                          if (!n.lida) marcarNotificacaoLida(n.id)
                           if (n.carga_id) {
                             const c = (cargas ?? []).find((x) => x.id === n.carga_id)
-                            if (c) setChatCargaId(c.id)
+                            if (c) {
+                              setNotifOpen(false)
+                              setChatCargaId(c.id)
+                            }
                           }
                         }}
                       >
