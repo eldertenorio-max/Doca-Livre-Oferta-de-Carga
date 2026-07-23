@@ -642,6 +642,31 @@
   width: 100%;
 }
 
+.cadastro-publico__card .portal-login__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.cadastro-publico__card .portal-login__logo {
+  margin: 0 auto;
+}
+
+.cadastro-publico__card .portal-login__title,
+.cadastro-publico__card .portal-login__subtitle {
+  text-align: center;
+}
+
+.cadastro-publico__card .portal-login__subtitle {
+  margin: 0 0 16px;
+  color: #334155;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
 .cadastro-publico__aviso {
   margin: 0 0 14px;
   padding: 10px 12px;
@@ -651,6 +676,7 @@
   color: #9a3412;
   font-size: 0.85rem;
   line-height: 1.4;
+  text-align: center;
 }
 
 .cadastro-publico__hint {
