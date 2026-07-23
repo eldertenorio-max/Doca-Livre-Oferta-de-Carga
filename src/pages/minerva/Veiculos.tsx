@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useData } from '../../context/DataContext'
+import { CadastroStatsCards } from '../../components/cadastro/CadastroStatsCards'
 import {
   formatCurrency,
   formatMoneyInput,
@@ -99,6 +100,13 @@ export function VeiculosPage() {
       )
     })
   }, [scopedVeiculos, search, transportadorById])
+
+  const statsCadastro = useMemo(() => {
+    const total = scopedVeiculos.length
+    const ativos = scopedVeiculos.filter((v) => v.situacao === 'ativo').length
+    const inativos = scopedVeiculos.filter((v) => v.situacao === 'inativo').length
+    return { total, ativos, inativos }
+  }, [scopedVeiculos])
 
   function openNew() {
     setEditingId(null)
@@ -228,6 +236,12 @@ export function VeiculosPage() {
           <IconTruck />
           Cadastro de Veículo
         </h1>
+
+        <CadastroStatsCards
+          total={statsCadastro.total}
+          ativos={statsCadastro.ativos}
+          inativos={statsCadastro.inativos}
+        />
 
         <div className="cadastro-toolbar">
           <input

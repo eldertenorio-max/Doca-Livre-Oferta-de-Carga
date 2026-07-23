@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useData } from '../../context/DataContext'
+import { CadastroStatsCards } from '../../components/cadastro/CadastroStatsCards'
 import { inputClass } from '../../components/ui/Modal'
 import type { Motorista } from '../../types'
 import '../../styles/cadastro.css'
@@ -90,6 +91,13 @@ export function MotoristasPage() {
       )
     })
   }, [scoped, search, transportadorById, listaVeiculos])
+
+  const statsCadastro = useMemo(() => {
+    const total = scoped.length
+    const ativos = scoped.filter((m) => m.situacao === 'ativo').length
+    const inativos = scoped.filter((m) => m.situacao === 'inativo').length
+    return { total, ativos, inativos }
+  }, [scoped])
 
   function openNew() {
     setEditingId(null)
@@ -182,6 +190,12 @@ export function MotoristasPage() {
               Novo motorista
             </button>
           </header>
+
+          <CadastroStatsCards
+            total={statsCadastro.total}
+            ativos={statsCadastro.ativos}
+            inativos={statsCadastro.inativos}
+          />
 
           <input
             className="cadastro-search mb-3 max-w-md"

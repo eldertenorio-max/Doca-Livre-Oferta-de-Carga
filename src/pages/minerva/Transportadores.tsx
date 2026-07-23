@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useData } from '../../context/DataContext'
+import { CadastroStatsCards } from '../../components/cadastro/CadastroStatsCards'
 import { TransportadorPainel } from '../../components/transportador/TransportadorPainel'
 import { CnpjInput } from '../../components/ui/CnpjInput'
 import { formatCnpj } from '../../lib/cnpj'
@@ -92,6 +93,13 @@ export function TransportadoresPage() {
   }, [transportadores, search, filtro])
 
   const pendentesCount = transportadores.filter((t) => t.situacao === 'pendente').length
+  const statsCadastro = useMemo(() => {
+    const total = transportadores.length
+    const ativos = transportadores.filter((t) => t.situacao === 'ativo').length
+    const inativos = transportadores.filter((t) => t.situacao === 'inativo').length
+    return { total, ativos, inativos }
+  }, [transportadores])
+
   const revisao = revisaoId ? transportadores.find((t) => t.id === revisaoId) : null
   const docsRevisao = revisaoId ? documentosDoTransportador(revisaoId) : []
 
@@ -608,6 +616,12 @@ export function TransportadoresPage() {
           <IconBuilding />
           Cadastro de Transportadora
         </h1>
+
+        <CadastroStatsCards
+          total={statsCadastro.total}
+          ativos={statsCadastro.ativos}
+          inativos={statsCadastro.inativos}
+        />
 
         <div className="cadastro-toolbar">
           <input
