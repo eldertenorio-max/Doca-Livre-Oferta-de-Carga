@@ -4,6 +4,7 @@ import { formatCurrency, formatMoneyInput, parseMoneyInput } from '../../lib/bus
 import { buscarCidades, filtrarSugestoes } from '../../lib/cidadesBrasil'
 import { formatCnpj } from '../../lib/cnpj'
 import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
+import { TIPOS_CARGA } from '../../lib/tiposCarga'
 import type { Carga, ClassificacaoRota, Rota } from '../../types'
 import { Button, Field, inputClass } from '../ui/Modal'
 import { CnpjInput } from '../ui/CnpjInput'
@@ -37,18 +38,6 @@ function descricaoRota(origem: string, destino: string) {
   const d = destino.trim().toUpperCase()
   return `${o} - ${d}`
 }
-
-const SUGESTOES_TIPO_CARGA = [
-  'COMERCIAL - SECO',
-  'COMERCIAL - CONG',
-  'COMERCIAL - CONG - CTRN',
-  'COMERCIAL - REFRIGERADO',
-  'COMERCIAL - FRIGORIFICADO',
-  'INDUSTRIAL - SECO',
-  'GRANEL',
-  'PERIGOSA',
-  'PALLETIZADA',
-]
 
 const SUGESTOES_OBS = [
   'seco',
@@ -130,7 +119,15 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
   )
 
   const sugTipo = useMemo(
-    () => (q: string) => filtrarSugestoes(q, [SUGESTOES_TIPO_CARGA, historico.tipo], 12),
+    () => (q: string) => {
+      const catalog = [...TIPOS_CARGA]
+      const qt = q.trim()
+      if (!qt) return catalog
+      const noCatalogo = catalog.some((t) => t.toLowerCase() === qt.toLowerCase())
+      const matched = filtrarSugestoes(qt, [catalog], 20)
+      if (!noCatalogo && matched.length === 0) return catalog
+      return filtrarSugestoes(qt, [catalog, historico.tipo], 20)
+    },
     [historico.tipo],
   )
 
@@ -291,7 +288,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       destino: destinoFinal,
       frete_tabela: freteFinal,
       pedido: pedido.trim(),
-      tipo_carga: tipoCarga.trim() || 'COMERCIAL - SECO',
+      tipo_carga: tipoCarga.trim() || TIPOS_CARGA[0],
       veiculo: veiculo.trim(),
       destinatario: destinatario.trim(),
       destinatario_cnpj: formatCnpj(destinatarioCnpj),
@@ -449,7 +446,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
               value={tipoCarga}
               onChange={setTipoCarga}
               suggestions={sugTipo}
-              placeholder="Escolha ou digite…"
+              placeholder="Carga seca, refrigerada, congelada…"
             />
           </Field>
           <Field label="Veículo *">
