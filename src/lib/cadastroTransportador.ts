@@ -172,6 +172,7 @@ export function cadastrarTransportadorLocal(
     origem_lat: input.origem.lat ?? null,
     origem_lng: input.origem.lng ?? null,
     raio_km: Number(input.origem.raio_km) || 50,
+    origem_cadastro: 'link',
     classificacao: 'bronze',
     pontuacao: 50,
     situacao: 'pendente',
@@ -332,6 +333,7 @@ export async function cadastrarTransportadorRemoto(
     origem_lat: input.origem.lat ?? null,
     origem_lng: input.origem.lng ?? null,
     raio_km: Number(input.origem.raio_km) || 50,
+    origem_cadastro: 'link',
     situacao: 'pendente' as const,
     motivo_recusa: null,
   }
@@ -479,6 +481,10 @@ export async function cadastrarTransportadorRemoto(
     origem_lat: tRow.origem_lat != null ? Number(tRow.origem_lat) : null,
     origem_lng: tRow.origem_lng != null ? Number(tRow.origem_lng) : null,
     raio_km: tRow.raio_km != null ? Number(tRow.raio_km) : undefined,
+    origem_cadastro:
+      tRow.origem_cadastro === 'link' || tRow.origem_cadastro === 'painel'
+        ? tRow.origem_cadastro
+        : 'link',
     classificacao: tRow.classificacao,
     pontuacao: tRow.pontuacao,
     situacao: 'pendente',
@@ -561,6 +567,10 @@ function mapTransportadorRow(row: Record<string, unknown>): Transportador {
       row.raio_km != null && row.raio_km !== ''
         ? Number(row.raio_km)
         : undefined,
+    origem_cadastro:
+      row.origem_cadastro === 'link' || row.origem_cadastro === 'painel'
+        ? row.origem_cadastro
+        : undefined,
     classificacao: (row.classificacao as Transportador['classificacao']) || 'bronze',
     pontuacao: Number(row.pontuacao ?? 50),
     situacao: (row.situacao as Transportador['situacao']) || 'pendente',
@@ -571,6 +581,16 @@ function mapTransportadorRow(row: Record<string, unknown>): Transportador {
     motivo_recusa: (row.motivo_recusa as string | null) ?? undefined,
     created_at: (row.created_at as string | null) ?? undefined,
   }
+}
+
+/** Canal de cadastro para exibição (com heurística para registros antigos). */
+export function origemCadastroDe(t: Pick<Transportador, 'origem_cadastro' | 'situacao'>): 'link' | 'painel' {
+  if (t.origem_cadastro === 'link' || t.origem_cadastro === 'painel') return t.origem_cadastro
+  return t.situacao === 'pendente' ? 'link' : 'painel'
+}
+
+export function labelOrigemCadastro(origem: 'link' | 'painel'): string {
+  return origem === 'link' ? 'Link público' : 'Painel'
 }
 
 function mapDocumentoRow(row: Record<string, unknown>): TransportadorDocumento {

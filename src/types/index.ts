@@ -94,6 +94,12 @@ export interface Transportador {
   origem_lng?: number | null
   /** Distância máxima (km) entre a origem e o local de carregamento. */
   raio_km?: number
+  /**
+   * Como o cadastro entrou no sistema:
+   * - `link` = formulário público (#/cadastro-transportador)
+   * - `painel` = criado/editado pelo embarcador no painel
+   */
+  origem_cadastro?: 'link' | 'painel'
   classificacao: ClassificacaoTransportador
   pontuacao: number
   situacao: SituacaoTransportador

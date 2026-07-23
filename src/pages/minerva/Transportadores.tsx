@@ -7,11 +7,12 @@ import { formatCnpj } from '../../lib/cnpj'
 import { formatPhoneBr } from '../../lib/phoneBr'
 import { formatCurrency, formatDateTime } from '../../lib/businessRules'
 import { labelDocumento } from '../../lib/transportadorDocs'
-import { urlDocumentoTransportador } from '../../lib/cadastroTransportador'
+import { urlDocumentoTransportador, origemCadastroDe, labelOrigemCadastro } from '../../lib/cadastroTransportador'
 import type { ClassificacaoTransportador, SituacaoTransportador, Transportador } from '../../types'
 import '../../styles/cadastro.css'
 
 type FilterSit = 'todos' | SituacaoTransportador
+type FilterOrigem = 'todos' | 'link' | 'painel'
 type FichaTab = 'painel' | 'dados' | 'historico'
 
 const emptyForm = (): Partial<Transportador> => ({
@@ -38,6 +39,7 @@ const emptyForm = (): Partial<Transportador> => ({
   origem_lat: null,
   origem_lng: null,
   raio_km: 50,
+  origem_cadastro: 'painel',
   classificacao: 'bronze',
   pontuacao: 50,
   situacao: 'ativo',
@@ -71,17 +73,27 @@ export function TransportadoresPage() {
   const [form, setForm] = useState<Partial<Transportador>>(emptyForm)
   const [search, setSearch] = useState('')
   const [filtro, setFiltro] = useState<FilterSit>('todos')
+  const [filtroOrigem, setFiltroOrigem] = useState<FilterOrigem>('todos')
   const [error, setError] = useState('')
   const [motivoRecusa, setMotivoRecusa] = useState('')
   const [busy, setBusy] = useState(false)
+  const [linkCopiado, setLinkCopiado] = useState(false)
 
   useEffect(() => {
     void refreshTransportadores()
   }, [refreshTransportadores])
 
+  const linkCadastroPublico =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}${window.location.pathname}#/cadastro-transportador`
+      : 'https://doca-livre-oferta-de-carga.onrender.com/#/cadastro-transportador'
+
   const filtered = useMemo(() => {
     let list = transportadores
     if (filtro !== 'todos') list = list.filter((t) => t.situacao === filtro)
+    if (filtroOrigem !== 'todos') {
+      list = list.filter((t) => origemCadastroDe(t) === filtroOrigem)
+    }
     const q = search.trim().toLowerCase()
     if (!q) return list
     return list.filter(
@@ -91,9 +103,11 @@ export function TransportadoresPage() {
         t.cnpj.includes(q) ||
         t.cidade.toLowerCase().includes(q),
     )
-  }, [transportadores, search, filtro])
+  }, [transportadores, search, filtro, filtroOrigem])
 
   const pendentesCount = transportadores.filter((t) => t.situacao === 'pendente').length
+  const linkCount = transportadores.filter((t) => origemCadastroDe(t) === 'link').length
+  const painelCount = transportadores.filter((t) => origemCadastroDe(t) === 'painel').length
   const statsCadastro = useMemo(() => {
     const total = transportadores.length
     const ativos = transportadores.filter((t) => t.situacao === 'ativo').length
@@ -208,6 +222,7 @@ export function TransportadoresPage() {
       origem_lat: form.origem_lat ?? null,
       origem_lng: form.origem_lng ?? null,
       raio_km: form.raio_km != null ? Number(form.raio_km) : undefined,
+      origem_cadastro: editingId ? (form.origem_cadastro ?? 'painel') : 'painel',
       classificacao: (form.classificacao as ClassificacaoTransportador) ?? 'bronze',
       pontuacao: Number(form.pontuacao) || 0,
       situacao: (form.situacao as SituacaoTransportador) ?? 'ativo',
@@ -215,6 +230,7 @@ export function TransportadoresPage() {
       email: form.email,
       contato_nome: form.contato_nome,
       contato_telefone: form.contato_telefone,
+      created_at: form.created_at ?? new Date().toISOString(),
     }
     salvarTransportador(t)
     setMode('lista')
@@ -373,6 +389,16 @@ export function TransportadoresPage() {
                       </span>
                     </dd>
                   </div>
+                  <div>
+                    <dt>Origem do cadastro</dt>
+                    <dd>
+                      <span
+                        className={`badge-origem badge-origem--${origemCadastroDe(ficha)}`}
+                      >
+                        {labelOrigemCadastro(origemCadastroDe(ficha))}
+                      </span>
+                    </dd>
+                  </div>
                 </dl>
               </div>
             </section>
@@ -466,6 +492,16 @@ export function TransportadoresPage() {
                 <div>
                   <dt>RNTRC</dt>
                   <dd>{revisao.rntrc || '—'}</dd>
+                </div>
+                <div>
+                  <dt>Origem do cadastro</dt>
+                  <dd>
+                    <span
+                      className={`badge-origem badge-origem--${origemCadastroDe(revisao)}`}
+                    >
+                      {labelOrigemCadastro(origemCadastroDe(revisao))}
+                    </span>
+                  </dd>
                 </div>
                 <div>
                   <dt>Endereço (CNPJ)</dt>
@@ -649,6 +685,28 @@ export function TransportadoresPage() {
           </button>
         </div>
 
+        <div className="cadastro-link-publico">
+          <div>
+            <strong>Link para transportadores se cadastrarem</strong>
+            <p>{linkCadastroPublico}</p>
+          </div>
+          <button
+            type="button"
+            className="cadastro-btn cadastro-btn--ghost"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(linkCadastroPublico)
+                setLinkCopiado(true)
+                window.setTimeout(() => setLinkCopiado(false), 2000)
+              } catch {
+                setError('Não foi possível copiar o link.')
+              }
+            }}
+          >
+            {linkCopiado ? 'Copiado!' : 'Copiar link'}
+          </button>
+        </div>
+
         <div className="cadastro-filtros">
           {(
             [
@@ -670,6 +728,25 @@ export function TransportadoresPage() {
           ))}
         </div>
 
+        <div className="cadastro-filtros" aria-label="Filtro por origem do cadastro">
+          {(
+            [
+              ['todos', 'Cadastro: todos'],
+              ['link', `Link público${linkCount ? ` (${linkCount})` : ''}`],
+              ['painel', `Painel${painelCount ? ` (${painelCount})` : ''}`],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              className={`cadastro-btn ${filtroOrigem === id ? 'cadastro-btn--primary' : 'cadastro-btn--ghost'}`}
+              onClick={() => setFiltroOrigem(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div className="cadastro-table-wrap">
           {filtered.length === 0 ? (
             <p className="cadastro-empty">Nenhuma transportadora encontrada.</p>
@@ -681,12 +758,15 @@ export function TransportadoresPage() {
                   <th>CNPJ</th>
                   <th>Cidade</th>
                   <th>Classificação</th>
+                  <th>Cadastro</th>
                   <th>Situação</th>
                   <th />
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((t) => (
+                {filtered.map((t) => {
+                  const origem = origemCadastroDe(t)
+                  return (
                   <tr key={t.id}>
                     <td>
                       <strong>{t.nome_fantasia}</strong>
@@ -697,6 +777,11 @@ export function TransportadoresPage() {
                       {t.cidade}/{t.uf}
                     </td>
                     <td>{t.classificacao}</td>
+                    <td>
+                      <span className={`badge-origem badge-origem--${origem}`}>
+                        {labelOrigemCadastro(origem)}
+                      </span>
+                    </td>
                     <td>
                       <span className={`badge-situacao badge-situacao--${t.situacao}`}>
                         {t.situacao}
@@ -724,7 +809,8 @@ export function TransportadoresPage() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           )}

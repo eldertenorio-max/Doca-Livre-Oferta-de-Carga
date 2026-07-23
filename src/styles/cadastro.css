@@ -574,6 +574,53 @@
   color: #991b1b;
 }
 
+.badge-origem {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.badge-origem--link {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.badge-origem--painel {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.cadastro-link-publico {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+}
+
+.cadastro-link-publico strong {
+  display: block;
+  font-size: 0.82rem;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.cadastro-link-publico p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #475569;
+  word-break: break-all;
+}
+
 .cadastro-filtros {
   display: flex;
   flex-wrap: wrap;
