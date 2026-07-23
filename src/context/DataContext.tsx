@@ -2494,7 +2494,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         pedido: '',
         ordem: `O/${69000 + Math.floor(Math.random() * 900)}-1`,
         tipo_carga: 'COMERCIAL - SECO',
-        veiculo: 'CARRETA BAU',
+        veiculo: '',
         remetente: 'DOCA LIVRE OFERTA DE CARGA',
         remetente_cnpj: '67.620.377/0001-00',
         origem: '',

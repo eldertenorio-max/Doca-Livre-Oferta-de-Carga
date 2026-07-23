@@ -34,8 +34,8 @@ export function SuggestInput({
   const options = useMemo(() => {
     if (typeof suggestions === 'function') return suggestions(value)
     const q = value.trim().toLowerCase()
-    if (!q) return suggestions.slice(0, 12)
-    return suggestions.filter((s) => s.toLowerCase().includes(q)).slice(0, 12)
+    if (!q) return suggestions.slice(0, 20)
+    return suggestions.filter((s) => s.toLowerCase().includes(q)).slice(0, 20)
   }, [suggestions, value])
 
   const show =
@@ -100,7 +100,7 @@ export function SuggestInput({
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-40 mt-1 max-h-52 w-full overflow-y-auto rounded-lg border border-ink/15 bg-white py-1 shadow-lg"
+          className="absolute z-40 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-ink/15 bg-white py-1 shadow-lg"
         >
           {options.map((opt, i) => (
             <li key={`${opt}-${i}`} role="option" aria-selected={i === active}>

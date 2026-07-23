@@ -135,8 +135,20 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
   )
 
   const sugVeiculo = useMemo(
-    () => (q: string) =>
-      filtrarSugestoes(q, [[...TIPOS_VEICULO], historico.veiculo], 20),
+    () => (q: string) => {
+      const catalog = [...TIPOS_VEICULO]
+      const qt = q.trim()
+      if (!qt) return catalog
+      const noCatalogo = catalog.some(
+        (t) => t.toLowerCase() === qt.toLowerCase(),
+      )
+      const matched = filtrarSugestoes(qt, [catalog], 20)
+      // Texto legado (ex.: "CARRETA BAU") sem match → mostra todos os tipos oficiais
+      if (!noCatalogo && matched.length === 0) {
+        return catalog
+      }
+      return filtrarSugestoes(qt, [catalog, historico.veiculo], 20)
+    },
     [historico.veiculo],
   )
 
@@ -215,6 +227,10 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       setError('Informe origem e destino da rota.')
       return
     }
+    if (!veiculo.trim()) {
+      setError('Selecione o tipo de veículo.')
+      return
+    }
     if (Number.isNaN(freteFinal) || freteFinal <= 0) {
       setError('Informe o valor do frete tabela.')
       return
@@ -276,7 +292,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       frete_tabela: freteFinal,
       pedido: pedido.trim(),
       tipo_carga: tipoCarga.trim() || 'COMERCIAL - SECO',
-      veiculo: veiculo.trim() || 'CARRETA BAU',
+      veiculo: veiculo.trim(),
       destinatario: destinatario.trim(),
       destinatario_cnpj: formatCnpj(destinatarioCnpj),
       peso: pesoNum,
@@ -441,7 +457,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
               value={veiculo}
               onChange={setVeiculo}
               suggestions={sugVeiculo}
-              placeholder="Selecione ou digite o tipo…"
+              placeholder="HR, Fiorino, Van, Carreta, Truck…"
             />
           </Field>
           <Field label="Valor mercadorias (R$)">
