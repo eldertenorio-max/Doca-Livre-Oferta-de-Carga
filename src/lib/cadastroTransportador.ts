@@ -36,6 +36,18 @@ export type CadastroTransportadorInput = {
     contato_nome?: string
     contato_telefone?: string
   }
+  /** Residência real — distinta do endereço do CNPJ. */
+  origem: {
+    cep?: string
+    cidade: string
+    uf: string
+    endereco: string
+    numero?: string
+    bairro?: string
+    complemento?: string
+    lat?: number | null
+    lng?: number | null
+  }
   acesso: {
     usuario: string
     email: string
@@ -68,6 +80,22 @@ export function validarCadastroTransportador(
   if (!e.cidade.trim() || !e.uf.trim()) return 'Preencha cidade e UF.'
   if (!e.contato_nome?.trim() || !e.telefone?.trim()) {
     return 'Preencha nome do responsável e telefone.'
+  }
+
+  const o = input.origem
+  if (!o?.cidade?.trim() || !o?.uf?.trim()) {
+    return 'Preencha a origem (cidade e UF onde você mora).'
+  }
+  if (!o.endereco?.trim() && !(o.cep || '').replace(/\D/g, '').length) {
+    return 'Na origem, informe o CEP ou a rua/endereço.'
+  }
+  if (
+    o.lat == null ||
+    o.lng == null ||
+    !Number.isFinite(o.lat) ||
+    !Number.isFinite(o.lng)
+  ) {
+    return 'Aguarde as coordenadas da origem ou revise o endereço residencial.'
   }
 
   for (const tipo of TIPOS_DOC_OBRIGATORIOS) {
@@ -128,6 +156,15 @@ export function cadastrarTransportadorLocal(
     bairro: input.empresa.bairro,
     complemento: input.empresa.complemento,
     cep: input.empresa.cep,
+    origem_cep: input.origem.cep,
+    origem_cidade: input.origem.cidade.trim(),
+    origem_uf: input.origem.uf.trim().toUpperCase(),
+    origem_endereco: input.origem.endereco,
+    origem_numero: input.origem.numero,
+    origem_bairro: input.origem.bairro,
+    origem_complemento: input.origem.complemento,
+    origem_lat: input.origem.lat ?? null,
+    origem_lng: input.origem.lng ?? null,
     classificacao: 'bronze',
     pontuacao: 50,
     situacao: 'pendente',
@@ -278,6 +315,15 @@ export async function cadastrarTransportadorRemoto(
     email: input.empresa.email || email,
     contato_nome: input.empresa.contato_nome ?? null,
     contato_telefone: input.empresa.contato_telefone ?? null,
+    origem_cep: input.origem.cep ?? null,
+    origem_cidade: input.origem.cidade.trim(),
+    origem_uf: input.origem.uf.trim().toUpperCase().slice(0, 2),
+    origem_endereco: input.origem.endereco ?? null,
+    origem_numero: input.origem.numero ?? null,
+    origem_bairro: input.origem.bairro ?? null,
+    origem_complemento: input.origem.complemento ?? null,
+    origem_lat: input.origem.lat ?? null,
+    origem_lng: input.origem.lng ?? null,
     situacao: 'pendente' as const,
     motivo_recusa: null,
   }
@@ -415,6 +461,15 @@ export async function cadastrarTransportadorRemoto(
     bairro: tRow.bairro ?? undefined,
     complemento: tRow.complemento ?? undefined,
     cep: tRow.cep ?? undefined,
+    origem_cep: tRow.origem_cep ?? undefined,
+    origem_cidade: tRow.origem_cidade ?? undefined,
+    origem_uf: tRow.origem_uf ?? undefined,
+    origem_endereco: tRow.origem_endereco ?? undefined,
+    origem_numero: tRow.origem_numero ?? undefined,
+    origem_bairro: tRow.origem_bairro ?? undefined,
+    origem_complemento: tRow.origem_complemento ?? undefined,
+    origem_lat: tRow.origem_lat != null ? Number(tRow.origem_lat) : null,
+    origem_lng: tRow.origem_lng != null ? Number(tRow.origem_lng) : null,
     classificacao: tRow.classificacao,
     pontuacao: tRow.pontuacao,
     situacao: 'pendente',
@@ -478,6 +533,21 @@ function mapTransportadorRow(row: Record<string, unknown>): Transportador {
     bairro: (row.bairro as string | null) ?? undefined,
     complemento: (row.complemento as string | null) ?? undefined,
     cep: (row.cep as string | null) ?? undefined,
+    origem_cep: (row.origem_cep as string | null) ?? undefined,
+    origem_cidade: (row.origem_cidade as string | null) ?? undefined,
+    origem_uf: (row.origem_uf as string | null) ?? undefined,
+    origem_endereco: (row.origem_endereco as string | null) ?? undefined,
+    origem_numero: (row.origem_numero as string | null) ?? undefined,
+    origem_bairro: (row.origem_bairro as string | null) ?? undefined,
+    origem_complemento: (row.origem_complemento as string | null) ?? undefined,
+    origem_lat:
+      row.origem_lat != null && row.origem_lat !== ''
+        ? Number(row.origem_lat)
+        : null,
+    origem_lng:
+      row.origem_lng != null && row.origem_lng !== ''
+        ? Number(row.origem_lng)
+        : null,
     classificacao: (row.classificacao as Transportador['classificacao']) || 'bronze',
     pontuacao: Number(row.pontuacao ?? 50),
     situacao: (row.situacao as Transportador['situacao']) || 'pendente',

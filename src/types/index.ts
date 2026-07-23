@@ -82,6 +82,16 @@ export interface Transportador {
   bairro?: string
   complemento?: string
   cep?: string
+  /** Residência real do transportador (não o endereço do CNPJ). */
+  origem_cep?: string
+  origem_cidade?: string
+  origem_uf?: string
+  origem_endereco?: string
+  origem_numero?: string
+  origem_bairro?: string
+  origem_complemento?: string
+  origem_lat?: number | null
+  origem_lng?: number | null
   classificacao: ClassificacaoTransportador
   pontuacao: number
   situacao: SituacaoTransportador

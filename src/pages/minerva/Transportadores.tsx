@@ -27,6 +27,15 @@ const emptyForm = (): Partial<Transportador> => ({
   bairro: '',
   complemento: '',
   cep: '',
+  origem_cep: '',
+  origem_cidade: '',
+  origem_uf: 'SP',
+  origem_endereco: '',
+  origem_numero: '',
+  origem_bairro: '',
+  origem_complemento: '',
+  origem_lat: null,
+  origem_lng: null,
   classificacao: 'bronze',
   pontuacao: 50,
   situacao: 'ativo',
@@ -180,6 +189,15 @@ export function TransportadoresPage() {
       bairro: form.bairro,
       complemento: form.complemento,
       cep: form.cep,
+      origem_cep: form.origem_cep,
+      origem_cidade: form.origem_cidade,
+      origem_uf: form.origem_uf,
+      origem_endereco: form.origem_endereco,
+      origem_numero: form.origem_numero,
+      origem_bairro: form.origem_bairro,
+      origem_complemento: form.origem_complemento,
+      origem_lat: form.origem_lat ?? null,
+      origem_lng: form.origem_lng ?? null,
       classificacao: (form.classificacao as ClassificacaoTransportador) ?? 'bronze',
       pontuacao: Number(form.pontuacao) || 0,
       situacao: (form.situacao as SituacaoTransportador) ?? 'ativo',
@@ -290,11 +308,38 @@ export function TransportadoresPage() {
                     <dd>{ficha.rntrc || '—'}</dd>
                   </div>
                   <div>
-                    <dt>Endereço</dt>
+                    <dt>Endereço (CNPJ)</dt>
                     <dd>
                       {[ficha.endereco, ficha.numero, ficha.bairro, ficha.cidade, ficha.uf]
                         .filter(Boolean)
                         .join(', ') || '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Origem (residência)</dt>
+                    <dd>
+                      {[
+                        ficha.origem_endereco,
+                        ficha.origem_numero,
+                        ficha.origem_bairro,
+                        ficha.origem_cidade,
+                        ficha.origem_uf,
+                        ficha.origem_cep,
+                      ]
+                        .filter(Boolean)
+                        .join(', ') || '—'}
+                      {ficha.origem_lat != null && ficha.origem_lng != null ? (
+                        <>
+                          <br />
+                          <a
+                            href={`https://www.openstreetmap.org/?mlat=${ficha.origem_lat}&mlon=${ficha.origem_lng}#map=16/${ficha.origem_lat}/${ficha.origem_lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {ficha.origem_lat.toFixed(5)}, {ficha.origem_lng.toFixed(5)}
+                          </a>
+                        </>
+                      ) : null}
                     </dd>
                   </div>
                   <div>
@@ -407,11 +452,38 @@ export function TransportadoresPage() {
                   <dd>{revisao.rntrc || '—'}</dd>
                 </div>
                 <div>
-                  <dt>Endereço</dt>
+                  <dt>Endereço (CNPJ)</dt>
                   <dd>
                     {[revisao.endereco, revisao.numero, revisao.bairro, revisao.cidade, revisao.uf]
                       .filter(Boolean)
                       .join(', ') || '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Origem (residência)</dt>
+                  <dd>
+                    {[
+                      revisao.origem_endereco,
+                      revisao.origem_numero,
+                      revisao.origem_bairro,
+                      revisao.origem_cidade,
+                      revisao.origem_uf,
+                      revisao.origem_cep,
+                    ]
+                      .filter(Boolean)
+                      .join(', ') || '—'}
+                    {revisao.origem_lat != null && revisao.origem_lng != null ? (
+                      <>
+                        <br />
+                        <a
+                          href={`https://www.openstreetmap.org/?mlat=${revisao.origem_lat}&mlon=${revisao.origem_lng}#map=16/${revisao.origem_lat}/${revisao.origem_lng}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {revisao.origem_lat.toFixed(5)}, {revisao.origem_lng.toFixed(5)}
+                        </a>
+                      </>
+                    ) : null}
                   </dd>
                 </div>
                 <div>
@@ -731,6 +803,76 @@ export function TransportadoresPage() {
               </Field>
               <Field label="Complemento" className="form-field--span2">
                 <input value={form.complemento ?? ''} onChange={(e) => set('complemento', e.target.value)} />
+              </Field>
+            </div>
+          </div>
+        </section>
+
+        <section className="form-card form-card--orange">
+          <header className="form-card__head">
+            <h2 className="form-card__title">Origem (residência)</h2>
+          </header>
+          <div className="form-card__body">
+            <p className="form-field-hint" style={{ marginBottom: 12, fontSize: 12, color: '#64748b' }}>
+              Onde o transportador mora — distinto do endereço do CNPJ.
+            </p>
+            <div className="form-fields">
+              <Field label="CEP">
+                <input
+                  value={form.origem_cep ?? ''}
+                  onChange={(e) => set('origem_cep', e.target.value)}
+                />
+              </Field>
+              <Field label="Cidade">
+                <input
+                  value={form.origem_cidade ?? ''}
+                  onChange={(e) => set('origem_cidade', e.target.value)}
+                />
+              </Field>
+              <Field label="UF">
+                <input
+                  maxLength={2}
+                  value={form.origem_uf ?? ''}
+                  onChange={(e) => set('origem_uf', e.target.value.toUpperCase())}
+                />
+              </Field>
+              <Field label="Rua" className="form-field--span2">
+                <input
+                  value={form.origem_endereco ?? ''}
+                  onChange={(e) => set('origem_endereco', e.target.value)}
+                />
+              </Field>
+              <Field label="Número">
+                <input
+                  value={form.origem_numero ?? ''}
+                  onChange={(e) => set('origem_numero', e.target.value)}
+                />
+              </Field>
+              <Field label="Bairro">
+                <input
+                  value={form.origem_bairro ?? ''}
+                  onChange={(e) => set('origem_bairro', e.target.value)}
+                />
+              </Field>
+              <Field label="Latitude">
+                <input
+                  type="number"
+                  step="any"
+                  value={form.origem_lat ?? ''}
+                  onChange={(e) =>
+                    set('origem_lat', e.target.value === '' ? null : Number(e.target.value))
+                  }
+                />
+              </Field>
+              <Field label="Longitude">
+                <input
+                  type="number"
+                  step="any"
+                  value={form.origem_lng ?? ''}
+                  onChange={(e) =>
+                    set('origem_lng', e.target.value === '' ? null : Number(e.target.value))
+                  }
+                />
               </Field>
             </div>
           </div>

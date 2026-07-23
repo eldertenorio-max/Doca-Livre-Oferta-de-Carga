@@ -106,6 +106,15 @@ alter table transportadores add column if not exists cep text;
 alter table transportadores add column if not exists contato_nome text;
 alter table transportadores add column if not exists contato_telefone text;
 alter table transportadores add column if not exists motivo_recusa text;
+alter table transportadores add column if not exists origem_cep text;
+alter table transportadores add column if not exists origem_cidade text;
+alter table transportadores add column if not exists origem_uf char(2);
+alter table transportadores add column if not exists origem_endereco text;
+alter table transportadores add column if not exists origem_numero text;
+alter table transportadores add column if not exists origem_bairro text;
+alter table transportadores add column if not exists origem_complemento text;
+alter table transportadores add column if not exists origem_lat double precision;
+alter table transportadores add column if not exists origem_lng double precision;
 
 alter table profiles add column if not exists usuario text;
 alter table profiles add column if not exists ativo boolean not null default true;

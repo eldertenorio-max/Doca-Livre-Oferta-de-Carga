@@ -1,0 +1,15 @@
+---
+description: Após qualquer ajuste, commit e push automático para main
+alwaysApply: true
+---
+
+# Auto commit + push
+
+Depois de concluir qualquer ajuste de código neste repositório (feature, fix, estilo, SQL, etc.):
+
+1. Faça **commit** das alterações relevantes (não inclua `.env`, secrets ou credenciais).
+2. Faça **push** para `origin` na branch atual (em geral `main`), sem perguntar.
+3. No Windows/PowerShell, use mensagem simples: `git commit -m "mensagem"`.
+4. Autor do commit: `git -c user.name="Diego" -c user.email="diego@docalivre.com" commit ...`
+5. Só pule o push se não houver mudanças ou se o push falhar por rede — nesse caso avise em uma linha.
+6. Não use `--force` em main/master.

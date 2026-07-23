@@ -19,6 +19,12 @@ import type { TipoDocumentoTransportador } from '../types'
 import { CnpjInput } from '../components/ui/CnpjInput'
 import { cnpjDigits, formatCnpj, isValidCnpj } from '../lib/cnpj'
 import { buscarDadosPorCnpj } from '../lib/cnpjLookup'
+import {
+  buscarEnderecoPorCep,
+  enderecoProntoParaGeocode,
+  formatCepBr,
+  geocodificarEndereco,
+} from '../lib/geocodeEndereco'
 import { formatPhoneBr } from '../lib/phoneBr'
 import '../styles/cadastro.css'
 import '../styles/login.css'
@@ -35,14 +41,24 @@ const UFS = [
 ]
 
 function formatCep(raw: string): string {
-  const d = raw.replace(/\D/g, '').slice(0, 8)
-  if (d.length <= 5) return d
-  return `${d.slice(0, 5)}-${d.slice(5)}`
+  return formatCepBr(raw)
 }
 
 function onlyDigits(raw: string, max: number): string {
   return raw.replace(/\D/g, '').slice(0, max)
 }
+
+const emptyOrigem = () => ({
+  cep: '',
+  cidade: '',
+  uf: 'SP',
+  endereco: '',
+  numero: '',
+  bairro: '',
+  complemento: '',
+  lat: null as number | null,
+  lng: null as number | null,
+})
 
 export function CadastroTransportadorPage() {
   const { user, registrarCadastroTransportador } = useData()
@@ -70,6 +86,12 @@ export function CadastroTransportadorPage() {
     contato_nome: '',
     contato_telefone: '',
   })
+
+  const [origem, setOrigem] = useState(emptyOrigem)
+  const [origemInfo, setOrigemInfo] = useState('')
+  const [origemBuscandoCep, setOrigemBuscandoCep] = useState(false)
+  const [origemGeocoding, setOrigemGeocoding] = useState(false)
+  const ultimoCepOrigem = useRef('')
 
   const [docs, setDocs] = useState<DocState>({})
   const [acesso, setAcesso] = useState({
@@ -143,6 +165,92 @@ export function CadastroTransportadorPage() {
     }
   }, [empresa.cnpj])
 
+  // CEP da origem → preenche rua/cidade (ViaCEP)
+  useEffect(() => {
+    const cep = origem.cep.replace(/\D/g, '')
+    if (cep.length !== 8) {
+      setOrigemBuscandoCep(false)
+      return
+    }
+    if (ultimoCepOrigem.current === cep) return
+
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        setOrigemBuscandoCep(true)
+        setOrigemInfo('Consultando CEP…')
+        const res = await buscarEnderecoPorCep(cep)
+        if (cancelled) return
+        setOrigemBuscandoCep(false)
+        if (!res.ok) {
+          setOrigemInfo(res.erro)
+          return
+        }
+        ultimoCepOrigem.current = cep
+        setOrigem((prev) => ({
+          ...prev,
+          ...res.dados,
+          cep: res.dados.cep || prev.cep,
+          lat: null,
+          lng: null,
+        }))
+        setOrigemInfo('Endereço preenchido pelo CEP. Confira e aguarde as coordenadas.')
+      })()
+    }, 350)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [origem.cep])
+
+  // Geocode quando CEP completo ou cidade+rua (+número se tiver)
+  useEffect(() => {
+    if (!enderecoProntoParaGeocode(origem)) {
+      setOrigemGeocoding(false)
+      return
+    }
+    // Evita re-geocode se já tem coords e nada mudou de forma parcial — limpa coords ao editar
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        setOrigemGeocoding(true)
+        setOrigemInfo((prev) =>
+          prev.includes('coordenadas') ? prev : 'Localizando coordenadas no mapa…',
+        )
+        const res = await geocodificarEndereco(origem)
+        if (cancelled) return
+        setOrigemGeocoding(false)
+        if (!res.ok) {
+          setOrigem((prev) => ({ ...prev, lat: null, lng: null }))
+          setOrigemInfo(res.erro)
+          return
+        }
+        setOrigem((prev) => ({
+          ...prev,
+          lat: res.coords.lat,
+          lng: res.coords.lng,
+        }))
+        setOrigemInfo(
+          `Coordenadas encontradas: ${res.coords.lat.toFixed(5)}, ${res.coords.lng.toFixed(5)}`,
+        )
+      })()
+    }, 700)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- geocode pelos campos de endereço
+  }, [
+    origem.cep,
+    origem.cidade,
+    origem.uf,
+    origem.endereco,
+    origem.numero,
+    origem.bairro,
+  ])
+
   if (user) {
     return (
       <Navigate
@@ -154,6 +262,21 @@ export function CadastroTransportadorPage() {
 
   function setEmp<K extends keyof typeof empresa>(key: K, value: (typeof empresa)[K]) {
     setEmpresa((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function setOri<K extends keyof typeof origem>(key: K, value: (typeof origem)[K]) {
+    setOrigem((prev) => {
+      const next = { ...prev, [key]: value }
+      if (key !== 'lat' && key !== 'lng') {
+        next.lat = null
+        next.lng = null
+      }
+      return next
+    })
+    if (key === 'cep') {
+      const digits = String(value).replace(/\D/g, '')
+      if (digits !== ultimoCepOrigem.current) ultimoCepOrigem.current = ''
+    }
   }
 
   function setAcc<K extends keyof typeof acesso>(key: K, value: (typeof acesso)[K]) {
@@ -193,7 +316,23 @@ export function CadastroTransportadorPage() {
       return
     }
     if (!empresa.cidade.trim() || !empresa.uf.trim()) {
-      setError('Preencha cidade e UF.')
+      setError('Preencha cidade e UF da empresa.')
+      return
+    }
+    if (!origem.cidade.trim() || !origem.uf.trim()) {
+      setError('Preencha cidade e UF da sua origem (onde você mora).')
+      return
+    }
+    if (!origem.endereco.trim() && origem.cep.replace(/\D/g, '').length < 8) {
+      setError('Na origem, informe o CEP ou a rua.')
+      return
+    }
+    if (origemGeocoding || origemBuscandoCep) {
+      setError('Aguarde a consulta do CEP/coordenadas da origem.')
+      return
+    }
+    if (origem.lat == null || origem.lng == null) {
+      setError('Não encontramos as coordenadas da origem. Confira o endereço ou o CEP.')
       return
     }
     setStep(2)
@@ -276,6 +415,17 @@ export function CadastroTransportadorPage() {
     setLoading(true)
     const result = await registrarCadastroTransportador({
       empresa,
+      origem: {
+        cep: origem.cep,
+        cidade: origem.cidade,
+        uf: origem.uf,
+        endereco: origem.endereco,
+        numero: origem.numero,
+        bairro: origem.bairro,
+        complemento: origem.complemento,
+        lat: origem.lat,
+        lng: origem.lng,
+      },
       acesso: {
         ...acesso,
         nome: acesso.nome.trim() || empresa.contato_nome.trim(),
@@ -356,6 +506,10 @@ export function CadastroTransportadorPage() {
                 <h2 className="form-card__title">Dados da empresa</h2>
               </header>
               <div className="form-card__body">
+                <p className="cadastro-publico__hint">
+                  Endereço abaixo é o da empresa (CNPJ). Sua residência fica em &quot;Cadastre sua
+                  origem&quot;.
+                </p>
                 <div className="form-fields">
                   <Field label="Razão Social" required>
                     <input
@@ -487,6 +641,126 @@ export function CadastroTransportadorPage() {
                 </div>
               </div>
             </section>
+
+            <section className="form-card form-card--orange" style={{ marginTop: 16 }}>
+              <header className="form-card__head">
+                <h2 className="form-card__title">Cadastre sua origem</h2>
+              </header>
+              <div className="form-card__body">
+                <p className="cadastro-publico__hint">
+                  Endereço onde você realmente mora (residência) — não use o endereço do CNPJ.
+                  Informe o CEP ou cidade, rua e número; as coordenadas são preenchidas
+                  automaticamente.
+                </p>
+                <div className="form-fields">
+                  <Field label="CEP da origem">
+                    <input
+                      value={origem.cep}
+                      onChange={(e) => setOri('cep', formatCep(e.target.value))}
+                      placeholder="00000-000"
+                      inputMode="numeric"
+                      autoComplete="postal-code"
+                    />
+                  </Field>
+                  <Field label="Cidade" required>
+                    <input
+                      value={origem.cidade}
+                      onChange={(e) => setOri('cidade', e.target.value)}
+                      placeholder="Ex.: Santos"
+                      autoComplete="address-level2"
+                    />
+                  </Field>
+                  <Field label="UF" required>
+                    <select
+                      value={origem.uf}
+                      onChange={(e) => setOri('uf', e.target.value)}
+                      aria-label="UF da origem"
+                    >
+                      {UFS.map((uf) => (
+                        <option key={uf} value={uf}>
+                          {uf}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Rua / logradouro" className="form-field--span2" required>
+                    <input
+                      value={origem.endereco}
+                      onChange={(e) => setOri('endereco', e.target.value)}
+                      placeholder="Rua onde você mora"
+                      autoComplete="street-address"
+                    />
+                  </Field>
+                  <Field label="Número">
+                    <input
+                      value={origem.numero}
+                      onChange={(e) => setOri('numero', e.target.value)}
+                      placeholder="Nº ou S/N"
+                    />
+                  </Field>
+                  <Field label="Bairro">
+                    <input
+                      value={origem.bairro}
+                      onChange={(e) => setOri('bairro', e.target.value)}
+                      placeholder="Ex.: Centro"
+                    />
+                  </Field>
+                  <Field label="Complemento" className="form-field--span2">
+                    <input
+                      value={origem.complemento}
+                      onChange={(e) => setOri('complemento', e.target.value)}
+                      placeholder="Apto, bloco (opcional)"
+                    />
+                  </Field>
+                  <Field label="Latitude" className="form-field--span2">
+                    <input
+                      value={origem.lat != null ? String(origem.lat) : ''}
+                      readOnly
+                      placeholder={origemGeocoding ? 'Buscando…' : 'Automático'}
+                    />
+                  </Field>
+                  <Field label="Longitude" className="form-field--span2">
+                    <input
+                      value={origem.lng != null ? String(origem.lng) : ''}
+                      readOnly
+                      placeholder={origemGeocoding ? 'Buscando…' : 'Automático'}
+                    />
+                  </Field>
+                </div>
+                {(origemBuscandoCep || origemGeocoding || origemInfo) && (
+                  <p
+                    style={{
+                      marginTop: 10,
+                      fontSize: 12,
+                      color:
+                        origem.lat != null
+                          ? '#047857'
+                          : origemBuscandoCep || origemGeocoding
+                            ? '#64748b'
+                            : '#b45309',
+                    }}
+                  >
+                    {origemBuscandoCep
+                      ? 'Consultando CEP…'
+                      : origemGeocoding
+                        ? 'Localizando coordenadas…'
+                        : origemInfo}
+                  </p>
+                )}
+                {origem.lat != null && origem.lng != null && (
+                  <p style={{ marginTop: 8, fontSize: 12 }}>
+                    <a
+                      href={`https://www.openstreetmap.org/?mlat=${origem.lat}&mlon=${origem.lng}#map=16/${origem.lat}/${origem.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Ver no mapa
+                    </a>
+                  </p>
+                )}
+              </div>
+            </section>
+
             {error && <p className="portal-login__erro">{error}</p>}
             <button type="submit" className="portal-login__submit">
               Continuar
