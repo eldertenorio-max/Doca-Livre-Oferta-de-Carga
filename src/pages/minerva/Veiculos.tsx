@@ -124,8 +124,6 @@ export function VeiculosPage() {
     return [...catalog, ...extras]
   }, [scopedVeiculos])
 
-  const maxPerfil = Math.max(1, ...porPerfil.map((p) => p.qtd))
-
   function openNew() {
     setEditingId(null)
     setForm({
@@ -262,54 +260,26 @@ export function VeiculosPage() {
         />
 
         {porPerfil.length > 0 && (
-          <section className="mb-4 rounded-xl border border-ink/10 bg-white p-4 shadow-sm">
-            <h2 className="mb-1 font-display text-base font-semibold text-ink">
+          <section className="mb-4 rounded-xl border border-ink/10 bg-white p-3 shadow-sm">
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
               Por perfil de veículo
             </h2>
-            <p className="mb-3 text-xs text-ink-muted">
-              Os {TIPOS_VEICULO.length} perfis do cadastro (HR, Fiorino, Van, Carretas, etc.).
-            </p>
-            <div className="mb-3 flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {porPerfil.map((p) => (
                 <span
                   key={p.tipo}
-                  className={`inline-flex items-baseline gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm ${
+                  className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs ${
                     p.qtd > 0
-                      ? 'border-ink/10 bg-sand-light/60'
+                      ? 'border-ink/15 bg-sand-light/70 text-ink'
                       : 'border-ink/5 bg-white text-ink-muted'
                   }`}
+                  title={`${p.qtd} × ${p.tipo}`}
                 >
-                  <strong
-                    className={`font-display text-lg tabular-nums ${
-                      p.qtd > 0 ? 'text-ink' : 'text-ink-muted'
-                    }`}
-                  >
-                    {p.qtd}
-                  </strong>
-                  <span>{p.tipo}</span>
+                  <strong className="tabular-nums font-bold">{p.qtd}</strong>
+                  <span className="max-w-[10rem] truncate">{p.tipo}</span>
                 </span>
               ))}
             </div>
-            <ul className="grid gap-2 sm:grid-cols-2">
-              {porPerfil.map((p) => (
-                <li key={`bar-${p.tipo}`}>
-                  <div className="mb-0.5 flex items-center justify-between gap-2 text-sm">
-                    <span className="min-w-0 truncate font-medium text-ink">{p.tipo}</span>
-                    <span className="shrink-0 tabular-nums text-ink-muted">{p.qtd}</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-sand-light">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        p.qtd > 0 ? 'bg-teal-600' : 'bg-transparent'
-                      }`}
-                      style={{
-                        width: p.qtd > 0 ? `${Math.max(6, (p.qtd / maxPerfil) * 100)}%` : '0%',
-                      }}
-                    />
-                  </div>
-                </li>
-              ))}
-            </ul>
           </section>
         )}
 
