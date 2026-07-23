@@ -226,6 +226,93 @@ function traduzirErroAuth(msg: string): string {
   return msg
 }
 
+function traduzirErroTransportador(msg: string): string {
+  if (/Could not find the .+ column|schema cache/i.test(msg)) {
+    return (
+      'O banco ainda não tem as colunas novas do cadastro. No Supabase → SQL Editor, ' +
+      'rode o arquivo supabase/fix_cadastro_transportadores.sql e tente de novo.'
+    )
+  }
+  return msg
+}
+
+/** Colunas opcionais que podem faltar se a migration ainda não rodou. */
+const COLUNAS_OPCIONAIS_TRANSPORTADOR = [
+  'origem_cep',
+  'origem_cidade',
+  'origem_uf',
+  'origem_endereco',
+  'origem_numero',
+  'origem_bairro',
+  'origem_complemento',
+  'origem_lat',
+  'origem_lng',
+  'raio_km',
+  'origem_cadastro',
+  'inscricao_estadual',
+  'inscricao_municipal',
+  'rntrc',
+  'endereco',
+  'numero',
+  'bairro',
+  'complemento',
+  'cep',
+  'contato_nome',
+  'contato_telefone',
+  'motivo_recusa',
+] as const
+
+function colunaFaltandoNoSchema(msg: string): string | null {
+  const m = msg.match(/Could not find the '([^']+)' column/i)
+  return m?.[1] ?? null
+}
+
+type TransportadorWritePayload = Record<string, unknown>
+
+async function upsertTransportadorComFallback(
+  mode: 'insert' | 'update',
+  payload: TransportadorWritePayload,
+  id?: string,
+): Promise<{ ok: true; row: Record<string, unknown> } | { ok: false; erro: string }> {
+  if (!supabase) return { ok: false, erro: 'Supabase não configurado.' }
+
+  let body: TransportadorWritePayload = { ...payload }
+
+  for (let attempt = 0; attempt < COLUNAS_OPCIONAIS_TRANSPORTADOR.length + 2; attempt++) {
+    const query =
+      mode === 'insert'
+        ? supabase.from('transportadores').insert(body).select('*').single()
+        : supabase.from('transportadores').update(body).eq('id', id!).select('*').single()
+
+    const { data, error } = await query
+    if (!error && data) return { ok: true, row: data as Record<string, unknown> }
+
+    const msg = error?.message ?? 'Falha ao salvar transportadora.'
+    const missing = colunaFaltandoNoSchema(msg)
+    if (missing && missing in body) {
+      const next = { ...body }
+      delete next[missing]
+      body = next
+      continue
+    }
+
+    // Se o erro cita schema cache sem nome claro, remove o próximo opcional ainda presente
+    if (/schema cache/i.test(msg)) {
+      const drop = COLUNAS_OPCIONAIS_TRANSPORTADOR.find((c) => c in body)
+      if (drop) {
+        const next = { ...body }
+        delete next[drop]
+        body = next
+        continue
+      }
+    }
+
+    return { ok: false, erro: traduzirErroTransportador(msg) }
+  }
+
+  return { ok: false, erro: traduzirErroTransportador('Falha ao salvar transportadora.') }
+}
+
 async function sleep(ms: number) {
   await new Promise((r) => setTimeout(r, ms))
 }
@@ -353,36 +440,26 @@ export async function cadastrarTransportadorRemoto(
 
   let tRow = existente
   if (existente?.situacao === 'recusado') {
-    const { data: updated, error: upErr } = await supabase
-      .from('transportadores')
-      .update({
+    const up = await upsertTransportadorComFallback(
+      'update',
+      {
         ...payloadEmpresa,
         classificacao: existente.classificacao ?? 'bronze',
         pontuacao: existente.pontuacao ?? 50,
-      })
-      .eq('id', existente.id)
-      .select('*')
-      .single()
-    if (upErr || !updated) {
-      return { ok: false, erro: upErr?.message || 'Falha ao reenviar cadastro recusado.' }
-    }
-    tRow = updated
+      },
+      existente.id,
+    )
+    if (!up.ok) return { ok: false, erro: up.erro }
+    tRow = up.row
     await supabase.from('transportador_documentos').delete().eq('transportador_id', existente.id)
   } else {
-    const { data: inserted, error: tErr } = await supabase
-      .from('transportadores')
-      .insert({
-        ...payloadEmpresa,
-        classificacao: 'bronze',
-        pontuacao: 50,
-      })
-      .select('*')
-      .single()
-
-    if (tErr || !inserted) {
-      return { ok: false, erro: tErr?.message || 'Falha ao salvar transportadora.' }
-    }
-    tRow = inserted
+    const ins = await upsertTransportadorComFallback('insert', {
+      ...payloadEmpresa,
+      classificacao: 'bronze',
+      pontuacao: 50,
+    })
+    if (!ins.ok) return { ok: false, erro: ins.erro }
+    tRow = ins.row
   }
 
   if (!tRow) {
