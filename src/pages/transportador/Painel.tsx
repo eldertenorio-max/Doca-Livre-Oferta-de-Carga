@@ -53,7 +53,7 @@ export function PainelTransportadorPage() {
     ''
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
+    <div className="w-full max-w-none space-y-4">
       {canPick && (
         <label className="flex max-w-md flex-col gap-1 text-xs font-semibold text-ink">
           Transportadora
