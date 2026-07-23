@@ -5,6 +5,9 @@ import { inputClass } from '../../components/ui/Modal'
 import type { Motorista } from '../../types'
 import '../../styles/cadastro.css'
 
+/** Categorias oficiais de CNH (ordem de exibição). */
+const CATEGORIAS_CNH = ['A', 'B', 'C', 'D', 'E', 'AB', 'AC', 'AD', 'AE'] as const
+
 const emptyForm = (): Partial<Motorista> => ({
   nome: '',
   transportador_id: '',
@@ -97,6 +100,22 @@ export function MotoristasPage() {
     const ativos = scoped.filter((m) => m.situacao === 'ativo').length
     const inativos = scoped.filter((m) => m.situacao === 'inativo').length
     return { total, ativos, inativos }
+  }, [scoped])
+
+  /** Quantidade por categoria de habilitação (CNH). */
+  const porCategoria = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const c of CATEGORIAS_CNH) map.set(c, 0)
+    for (const m of scoped) {
+      const cat = (m.categoria_cnh || '').trim().toUpperCase() || '—'
+      map.set(cat, (map.get(cat) ?? 0) + 1)
+    }
+    const catalog = CATEGORIAS_CNH.map((cat) => ({ cat, qtd: map.get(cat) ?? 0 }))
+    const extras = [...map.entries()]
+      .filter(([cat]) => !(CATEGORIAS_CNH as readonly string[]).includes(cat))
+      .map(([cat, qtd]) => ({ cat, qtd }))
+      .sort((a, b) => b.qtd - a.qtd || a.cat.localeCompare(b.cat))
+    return [...catalog, ...extras]
   }, [scoped])
 
   function openNew() {
@@ -196,6 +215,28 @@ export function MotoristasPage() {
             ativos={statsCadastro.ativos}
             inativos={statsCadastro.inativos}
           />
+
+          <section className="mb-3 rounded-xl border border-ink/10 bg-white p-3 shadow-sm">
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
+              Por categoria de habilitação
+            </h2>
+            <div className="flex flex-wrap gap-1.5">
+              {porCategoria.map((p) => (
+                <span
+                  key={p.cat}
+                  className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs ${
+                    p.qtd > 0
+                      ? 'border-ink/15 bg-sand-light/70 text-ink'
+                      : 'border-ink/5 bg-white text-ink-muted'
+                  }`}
+                  title={`${p.qtd} motorista(s) categoria ${p.cat}`}
+                >
+                  <span className="font-medium text-ink-muted">Cat. {p.cat}</span>
+                  <strong className="tabular-nums font-bold">{p.qtd}</strong>
+                </span>
+              ))}
+            </div>
+          </section>
 
           <input
             className="cadastro-search mb-3 max-w-md"
@@ -380,11 +421,18 @@ export function MotoristasPage() {
               </label>
               <label className="block text-sm">
                 <span className="mb-1 block text-xs font-semibold text-ink-muted">Categoria</span>
-                <input
+                <select
                   className={inputClass}
                   value={form.categoria_cnh ?? ''}
                   onChange={(e) => set('categoria_cnh', e.target.value)}
-                />
+                >
+                  <option value="">Selecione…</option>
+                  {CATEGORIAS_CNH.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label className="block text-sm">
                 <span className="mb-1 block text-xs font-semibold text-ink-muted">
