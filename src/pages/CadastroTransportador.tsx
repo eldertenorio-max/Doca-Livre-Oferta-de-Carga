@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { Link, Navigate } from 'react-router-dom'
 import { useData } from '../context/DataContext'
@@ -16,7 +16,8 @@ import {
 } from '../lib/transportadorDocs'
 import type { TipoDocumentoTransportador } from '../types'
 import { CnpjInput } from '../components/ui/CnpjInput'
-import { formatCnpj } from '../lib/cnpj'
+import { cnpjDigits, formatCnpj, isValidCnpj } from '../lib/cnpj'
+import { buscarDadosPorCnpj } from '../lib/cnpjLookup'
 import { formatPhoneBr } from '../lib/phoneBr'
 import '../styles/cadastro.css'
 import '../styles/login.css'
@@ -84,10 +85,62 @@ export function CadastroTransportadorPage() {
   const [otpInfo, setOtpInfo] = useState('')
   const [showSenha, setShowSenha] = useState(false)
   const [showConfirmarSenha, setShowConfirmarSenha] = useState(false)
+  const [cnpjBuscando, setCnpjBuscando] = useState(false)
+  const [cnpjInfo, setCnpjInfo] = useState('')
+  const ultimoCnpjBuscado = useRef('')
 
   const docsOk = useMemo(() => {
     return DOCUMENTOS_TRANSPORTADOR.filter((d) => d.obrigatorio).every((d) => Boolean(docs[d.tipo]))
   }, [docs])
+
+  // Ao completar CNPJ válido, puxa dados da Receita (BrasilAPI)
+  useEffect(() => {
+    const digits = cnpjDigits(empresa.cnpj)
+    if (digits.length !== 14 || !isValidCnpj(digits)) {
+      setCnpjBuscando(false)
+      return
+    }
+    if (ultimoCnpjBuscado.current === digits) return
+
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        setCnpjBuscando(true)
+        setCnpjInfo('Consultando CNPJ na Receita…')
+        setError('')
+        const res = await buscarDadosPorCnpj(digits)
+        if (cancelled) return
+        setCnpjBuscando(false)
+        if (!res.ok) {
+          setCnpjInfo(res.erro)
+          return
+        }
+        ultimoCnpjBuscado.current = digits
+        const d = res.dados
+        setEmpresa((prev) => ({
+          ...prev,
+          cnpj: d.cnpj || prev.cnpj,
+          razao_social: d.razao_social || prev.razao_social,
+          nome_fantasia: d.nome_fantasia || prev.nome_fantasia,
+          cep: d.cep || prev.cep,
+          cidade: d.cidade || prev.cidade,
+          uf: d.uf || prev.uf,
+          endereco: d.endereco || prev.endereco,
+          numero: d.numero || prev.numero,
+          bairro: d.bairro || prev.bairro,
+          complemento: d.complemento || prev.complemento,
+          telefone: d.telefone || prev.telefone,
+          email: d.email || prev.email,
+        }))
+        setCnpjInfo('Dados da empresa preenchidos automaticamente. Confira antes de continuar.')
+      })()
+    }, 400)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [empresa.cnpj])
 
   if (user) {
     return (
@@ -322,9 +375,32 @@ export function CadastroTransportadorPage() {
                   <Field label="CNPJ" required>
                     <CnpjInput
                       value={empresa.cnpj}
-                      onChange={(v) => setEmp('cnpj', formatCnpj(v))}
+                      onChange={(v) => {
+                        const next = formatCnpj(v)
+                        if (cnpjDigits(next) !== ultimoCnpjBuscado.current) {
+                          ultimoCnpjBuscado.current = ''
+                          setCnpjInfo('')
+                        }
+                        setEmp('cnpj', next)
+                      }}
                       placeholder="00.000.000/0000-00"
+                      disabled={cnpjBuscando}
                     />
+                    {(cnpjBuscando || cnpjInfo) && (
+                      <p
+                        style={{
+                          marginTop: 6,
+                          fontSize: 12,
+                          color: cnpjBuscando
+                            ? '#64748b'
+                            : cnpjInfo.includes('preenchidos')
+                              ? '#047857'
+                              : '#b45309',
+                        }}
+                      >
+                        {cnpjBuscando ? 'Consultando CNPJ na Receita…' : cnpjInfo}
+                      </p>
+                    )}
                   </Field>
                   <Field label="RNTRC">
                     <input
