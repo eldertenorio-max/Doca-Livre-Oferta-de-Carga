@@ -839,7 +839,7 @@ export function CadastroTransportadorPage() {
                       autoComplete="tel"
                     />
                   </Field>
-                  <Field label="Telefone do contato">
+                  <Field label="Celular / WhatsApp">
                     <input
                       type="tel"
                       value={empresa.contato_telefone}

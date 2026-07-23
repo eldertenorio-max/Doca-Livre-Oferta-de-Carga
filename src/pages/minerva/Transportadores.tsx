@@ -1025,7 +1025,7 @@ export function TransportadoresPage() {
               <Field label="Nome do Contato">
                 <input value={form.contato_nome ?? ''} onChange={(e) => set('contato_nome', e.target.value)} />
               </Field>
-              <Field label="Telefone do Contato">
+              <Field label="Celular / WhatsApp">
                 <input
                   type="tel"
                   inputMode="tel"
