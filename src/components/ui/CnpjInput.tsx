@@ -10,6 +10,8 @@ type Props = {
   placeholder?: string
   disabled?: boolean
   required?: boolean
+  /** Quando false, oculta o texto de validação (útil se o pai mostra status próprio). */
+  showHint?: boolean
 }
 
 export function CnpjInput({
@@ -18,6 +20,7 @@ export function CnpjInput({
   suggestions = [],
   placeholder = '00.000.000/0000-00',
   disabled,
+  showHint = true,
 }: Props) {
   const digits = cnpjDigits(value)
   const completo = digits.length === 14
@@ -41,7 +44,7 @@ export function CnpjInput({
         disabled={disabled}
         inputMode="numeric"
       />
-      {digits.length > 0 && (
+      {showHint && digits.length > 0 && (
         <p
           className={`text-[11px] ${
             completo

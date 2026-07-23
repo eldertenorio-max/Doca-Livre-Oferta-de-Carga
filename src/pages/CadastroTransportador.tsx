@@ -115,6 +115,7 @@ export function CadastroTransportadorPage() {
   const [showConfirmarSenha, setShowConfirmarSenha] = useState(false)
   const [cnpjBuscando, setCnpjBuscando] = useState(false)
   const [cnpjInfo, setCnpjInfo] = useState('')
+  const [cnpjInfoOk, setCnpjInfoOk] = useState(false)
   const ultimoCnpjBuscado = useRef('')
 
   const docsOk = useMemo(() => {
@@ -134,16 +135,25 @@ export function CadastroTransportadorPage() {
     const timer = window.setTimeout(() => {
       void (async () => {
         setCnpjBuscando(true)
+        setCnpjInfoOk(false)
         setCnpjInfo('Consultando CNPJ na Receita…')
         setError('')
         const res = await buscarDadosPorCnpj(digits)
         if (cancelled) return
         setCnpjBuscando(false)
+        // Evita repetir a mesma consulta até o usuário alterar o CNPJ
+        ultimoCnpjBuscado.current = digits
         if (!res.ok) {
-          setCnpjInfo(res.erro)
+          setCnpjInfoOk(false)
+          // CNPJ já passou na validação local — só a consulta externa falhou
+          const rede = /rede|internet|consultar|Receita|encontrado|Muitas/i.test(res.erro)
+          setCnpjInfo(
+            rede
+              ? 'CNPJ válido. Não foi possível buscar os dados na Receita agora — preencha manualmente.'
+              : res.erro,
+          )
           return
         }
-        ultimoCnpjBuscado.current = digits
         const d = res.dados
         setEmpresa((prev) => ({
           ...prev,
@@ -160,6 +170,7 @@ export function CadastroTransportadorPage() {
           telefone: d.telefone || prev.telefone,
           email: d.email || prev.email,
         }))
+        setCnpjInfoOk(true)
         setCnpjInfo('Dados da empresa preenchidos automaticamente. Confira antes de continuar.')
       })()
     }, 400)
@@ -533,11 +544,13 @@ export function CadastroTransportadorPage() {
                         if (cnpjDigits(next) !== ultimoCnpjBuscado.current) {
                           ultimoCnpjBuscado.current = ''
                           setCnpjInfo('')
+                          setCnpjInfoOk(false)
                         }
                         setEmp('cnpj', next)
                       }}
                       placeholder="00.000.000/0000-00"
                       disabled={cnpjBuscando}
+                      showHint={!cnpjBuscando && !cnpjInfo}
                     />
                     {(cnpjBuscando || cnpjInfo) && (
                       <p
@@ -546,7 +559,7 @@ export function CadastroTransportadorPage() {
                           fontSize: 12,
                           color: cnpjBuscando
                             ? '#64748b'
-                            : cnpjInfo.includes('preenchidos')
+                            : cnpjInfoOk
                               ? '#047857'
                               : '#b45309',
                         }}
