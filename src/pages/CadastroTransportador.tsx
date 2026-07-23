@@ -13,6 +13,7 @@ import {
   DOCUMENTOS_TRANSPORTADOR,
   fileToDataUrl,
   isAcceptedDocFile,
+  openLocalDocumento,
 } from '../lib/transportadorDocs'
 import type { TipoDocumentoTransportador } from '../types'
 import { CnpjInput } from '../components/ui/CnpjInput'
@@ -584,7 +585,16 @@ export function CadastroTransportadorPage() {
                                 type="button"
                                 className="cadastro-btn cadastro-btn--ghost doc-upload-row__btn"
                                 onClick={() => {
-                                  window.open(item.data_url, '_blank', 'noopener,noreferrer')
+                                  void openLocalDocumento({
+                                    file: item.file,
+                                    data_url: item.data_url,
+                                  }).catch((err) => {
+                                    setError(
+                                      err instanceof Error
+                                        ? err.message
+                                        : 'Não foi possível abrir o documento.',
+                                    )
+                                  })
                                 }}
                               >
                                 Visualizar

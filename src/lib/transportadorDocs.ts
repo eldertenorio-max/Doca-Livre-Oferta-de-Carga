@@ -66,3 +66,35 @@ export function isAcceptedDocFile(file: File): boolean {
   const name = file.name.toLowerCase()
   return /\.(pdf|jpe?g|png|webp)$/.test(name)
 }
+
+/**
+ * Abre documento local no cadastro.
+ * `window.open(data:...)` falha em PDFs grandes — usa Object URL do File/Blob.
+ */
+export async function openLocalDocumento(opts: {
+  file?: File | null
+  data_url?: string | null
+}): Promise<void> {
+  let objectUrl: string | null = null
+  if (opts.file) {
+    objectUrl = URL.createObjectURL(opts.file)
+  } else if (opts.data_url) {
+    const res = await fetch(opts.data_url)
+    const blob = await res.blob()
+    objectUrl = URL.createObjectURL(blob)
+  } else {
+    throw new Error('Arquivo indisponível para visualização.')
+  }
+
+  const a = document.createElement('a')
+  a.href = objectUrl
+  a.target = '_blank'
+  a.rel = 'noopener noreferrer'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+
+  window.setTimeout(() => {
+    if (objectUrl) URL.revokeObjectURL(objectUrl)
+  }, 120_000)
+}

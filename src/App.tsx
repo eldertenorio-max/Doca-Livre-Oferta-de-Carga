@@ -17,6 +17,7 @@ import { VeiculosPage } from './pages/minerva/Veiculos'
 import { MotoristasPage } from './pages/minerva/Motoristas'
 import { PortalConfigPage } from './pages/minerva/PortalConfig'
 import { KanbanTransportador } from './pages/transportador/KanbanTransportador'
+import { PainelTransportadorPage } from './pages/transportador/Painel'
 import { isLocalSuperUser } from './lib/superUsers'
 import type { UserRole } from './types'
 
@@ -152,8 +153,16 @@ export default function App() {
         <Route
           path="/transportador"
           element={
-            <Protected role={['transportador', 'super']}>
+            <Protected role={['transportador', 'super', 'minerva']}>
               <KanbanTransportador />
+            </Protected>
+          }
+        />
+        <Route
+          path="/transportador/painel"
+          element={
+            <Protected role={['transportador', 'super', 'minerva']}>
+              <PainelTransportadorPage />
             </Protected>
           }
         />

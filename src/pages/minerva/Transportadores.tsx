@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useData } from '../../context/DataContext'
+import { TransportadorPainel } from '../../components/transportador/TransportadorPainel'
 import { CnpjInput } from '../../components/ui/CnpjInput'
 import { formatCnpj } from '../../lib/cnpj'
 import { formatPhoneBr } from '../../lib/phoneBr'
+import { formatCurrency, formatDateTime } from '../../lib/businessRules'
 import { labelDocumento } from '../../lib/transportadorDocs'
 import { urlDocumentoTransportador } from '../../lib/cadastroTransportador'
 import type { ClassificacaoTransportador, SituacaoTransportador, Transportador } from '../../types'
 import '../../styles/cadastro.css'
 
 type FilterSit = 'todos' | SituacaoTransportador
+type FichaTab = 'painel' | 'dados' | 'historico'
 
 const emptyForm = (): Partial<Transportador> => ({
   razao_social: '',
@@ -53,6 +56,7 @@ export function TransportadoresPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [revisaoId, setRevisaoId] = useState<string | null>(null)
   const [fichaId, setFichaId] = useState<string | null>(null)
+  const [fichaTab, setFichaTab] = useState<FichaTab>('painel')
   const [form, setForm] = useState<Partial<Transportador>>(emptyForm)
   const [search, setSearch] = useState('')
   const [filtro, setFiltro] = useState<FilterSit>('todos')
@@ -105,6 +109,7 @@ export function TransportadoresPage() {
 
   function openFicha(t: Transportador) {
     setFichaId(t.id)
+    setFichaTab('painel')
     setMode('ficha')
   }
 
@@ -222,66 +227,151 @@ export function TransportadoresPage() {
 
   if (mode === 'ficha' && ficha) {
     const pos = ranking.findIndex((t) => t.id === ficha.id) + 1
+    const tabs: { id: FichaTab; label: string }[] = [
+      { id: 'painel', label: 'Painel' },
+      { id: 'dados', label: 'Dados' },
+      { id: 'historico', label: 'Histórico' },
+    ]
     return (
       <div className="cadastro-page animate-fade-up">
         <button type="button" className="cadastro-back" onClick={() => setMode('lista')}>
           ← Voltar para Lista
         </button>
         <h1 className="cadastro-page-title">
-          Desempenho — {ficha.nome_fantasia}
+          {ficha.nome_fantasia}
+          <span style={{ marginLeft: 12, fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>
+            {ficha.classificacao} · {ficha.pontuacao} pts
+            {pos > 0 ? ` · ${pos}º` : ''}
+          </span>
         </h1>
-        <div className="grid gap-4 lg:grid-cols-3 mb-4">
-          <div className="rounded-xl border border-ink/10 bg-white p-4">
-            <p className="text-xs text-ink-muted">Pontuação / Ranking</p>
-            <p className="font-display text-2xl font-bold">
-              {ficha.pontuacao} pts · {pos > 0 ? `${pos}º` : '—'}
-            </p>
-            <p className="text-xs uppercase">{ficha.classificacao}</p>
-          </div>
-          <div className="rounded-xl border border-ink/10 bg-white p-4">
-            <p className="text-xs text-ink-muted">Propostas</p>
-            <p className="font-display text-2xl font-bold">{fichaLances.length}</p>
-          </div>
-          <div className="rounded-xl border border-ink/10 bg-white p-4">
-            <p className="text-xs text-ink-muted">Fretes ganhos</p>
-            <p className="font-display text-2xl font-bold">
-              {cargas.filter((c) => c.transportador_vencedor_id === ficha.id && c.frete_fechado).length}
-            </p>
-          </div>
+
+        <div className="cadastro-filtros" style={{ marginBottom: 16 }}>
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              className={`cadastro-btn ${fichaTab === tab.id ? 'cadastro-btn--primary' : 'cadastro-btn--ghost'}`}
+              onClick={() => setFichaTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="cadastro-btn cadastro-btn--ghost"
+            onClick={() => openEdit(ficha)}
+          >
+            Editar cadastro
+          </button>
         </div>
-        <section className="form-card form-card--blue mb-4">
-          <header className="form-card__head">
-            <h2 className="form-card__title">Grupos</h2>
-          </header>
-          <div className="form-card__body text-sm">
-            {fichaGrupos.length === 0
-              ? 'Não participa de grupos.'
-              : fichaGrupos.map((g) => g.descricao).join(', ')}
+
+        {fichaTab === 'painel' && (
+          <TransportadorPainel transportadorId={ficha.id} compact />
+        )}
+
+        {fichaTab === 'dados' && (
+          <div className="grid gap-4 lg:grid-cols-2">
+            <section className="form-card form-card--blue">
+              <header className="form-card__head">
+                <h2 className="form-card__title">Empresa</h2>
+              </header>
+              <div className="form-card__body">
+                <dl className="revisao-dl">
+                  <div>
+                    <dt>Razão social</dt>
+                    <dd>{ficha.razao_social}</dd>
+                  </div>
+                  <div>
+                    <dt>CNPJ</dt>
+                    <dd>{ficha.cnpj}</dd>
+                  </div>
+                  <div>
+                    <dt>RNTRC</dt>
+                    <dd>{ficha.rntrc || '—'}</dd>
+                  </div>
+                  <div>
+                    <dt>Endereço</dt>
+                    <dd>
+                      {[ficha.endereco, ficha.numero, ficha.bairro, ficha.cidade, ficha.uf]
+                        .filter(Boolean)
+                        .join(', ') || '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Contato</dt>
+                    <dd>
+                      {ficha.contato_nome || '—'} · {ficha.telefone || '—'}
+                      {ficha.email ? ` · ${ficha.email}` : ''}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Situação</dt>
+                    <dd>
+                      <span className={`badge-situacao badge-situacao--${ficha.situacao}`}>
+                        {ficha.situacao}
+                      </span>
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </section>
+            <section className="form-card form-card--green">
+              <header className="form-card__head">
+                <h2 className="form-card__title">Vínculos</h2>
+              </header>
+              <div className="form-card__body text-sm space-y-3">
+                <p>
+                  <strong>Grupos:</strong>{' '}
+                  {fichaGrupos.length === 0
+                    ? 'Nenhum'
+                    : fichaGrupos.map((g) => g.descricao).join(', ')}
+                </p>
+                <p>
+                  <strong>Propostas:</strong> {fichaLances.length}
+                </p>
+                <p>
+                  <strong>Fretes ganhos:</strong> {fichaFretes.length}
+                  {fichaFretes.length > 0
+                    ? ` · ${formatCurrency(
+                        fichaFretes.reduce((s, c) => s + (c.frete_fechado ?? 0), 0),
+                      )}`
+                    : ''}
+                </p>
+                <p>
+                  <strong>Veículos / motoristas:</strong>{' '}
+                  {vinculosTransportador(ficha.id).placas.length} /{' '}
+                  {vinculosTransportador(ficha.id).motoristas.length}
+                </p>
+              </div>
+            </section>
           </div>
-        </section>
-        <section className="form-card form-card--green mb-4">
-          <header className="form-card__head">
-            <h2 className="form-card__title">Histórico de propostas / fretes</h2>
-          </header>
-          <div className="form-card__body">
-            <ul className="space-y-1 text-sm">
-              {fichaHist.slice(0, 40).map((h) => (
-                <li key={h.id} className="border-b border-ink/5 py-1">
-                  <strong>{h.titulo}</strong>
-                  <span className="ml-2 text-xs text-ink-muted">{h.detalhe}</span>
-                </li>
-              ))}
-              {fichaHist.length === 0 && (
-                <li className="text-ink-muted">Sem eventos ainda.</li>
-              )}
-            </ul>
-            {fichaFretes.length > 0 && (
-              <p className="mt-3 text-xs text-ink-muted">
-                Cargas vinculadas: {fichaFretes.map((c) => c.numero).join(', ')}
-              </p>
-            )}
-          </div>
-        </section>
+        )}
+
+        {fichaTab === 'historico' && (
+          <section className="form-card form-card--orange">
+            <header className="form-card__head">
+              <h2 className="form-card__title">Histórico</h2>
+            </header>
+            <div className="form-card__body">
+              <ul className="space-y-1 text-sm">
+                {fichaHist.slice(0, 80).map((h) => (
+                  <li key={h.id} className="border-b border-ink/5 py-1.5">
+                    <strong>{h.titulo}</strong>
+                    {h.detalhe ? (
+                      <span className="ml-2 text-xs text-ink-muted">{h.detalhe}</span>
+                    ) : null}
+                    <span className="ml-2 text-[11px] text-ink-muted">
+                      {formatDateTime(h.created_at)}
+                    </span>
+                  </li>
+                ))}
+                {fichaHist.length === 0 && (
+                  <li className="text-ink-muted">Sem eventos ainda.</li>
+                )}
+              </ul>
+            </div>
+          </section>
+        )}
       </div>
     )
   }
@@ -519,7 +609,7 @@ export function TransportadoresPage() {
                         </button>
                       )}
                       <button type="button" className="cadastro-link" onClick={() => openFicha(t)}>
-                        Desempenho
+                        Painel
                       </button>
                       <button type="button" className="cadastro-link" onClick={() => openEdit(t)}>
                         Editar

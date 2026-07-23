@@ -512,7 +512,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [flushKanbanPush])
 
   const effectiveTransportadorId = useCallback(() => {
-    return user?.transportador_id || actingTransportadorId || null
+    // “Ver como” (acting) tem prioridade — senão Super não consegue trocar o Kanban
+    return actingTransportadorId || user?.transportador_id || null
   }, [user?.transportador_id, actingTransportadorId])
 
   useEffect(() => {
@@ -1120,7 +1121,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const enviarLance = useCallback(
     (cargaId: string, valor: number) => {
-      const tid = userRef.current?.transportador_id || actingTransportadorId
+      const tid = actingTransportadorId || userRef.current?.transportador_id
       if (!tid) return { ok: false, error: 'Usuário sem transportador' }
 
       const prev = stateRef.current
@@ -2125,7 +2126,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const recusarCargaTransportador = useCallback(
     (cargaId: string) => {
-      const tid = user?.transportador_id || actingTransportadorId
+      const tid = actingTransportadorId || user?.transportador_id
       if (!tid) return
       setState((prev) => {
         const transportadores = prev.transportadores.map((t) => {

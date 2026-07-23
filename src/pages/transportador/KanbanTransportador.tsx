@@ -15,6 +15,8 @@ import {
 import { isKanbanSyncReady } from '../../lib/kanbanSync'
 import type { Carga } from '../../types'
 
+const VIEW_AS_STORAGE_KEY = 'doca-livre-kanban-transportador-view-as'
+
 const COLUMNS: {
   key: ColunaTransportador
   title: string
@@ -47,6 +49,14 @@ const COLUMNS: {
   },
 ]
 
+function readStoredViewAs(): string {
+  try {
+    return sessionStorage.getItem(VIEW_AS_STORAGE_KEY) || ''
+  } catch {
+    return ''
+  }
+}
+
 export function KanbanTransportador() {
   const {
     user,
@@ -65,12 +75,19 @@ export function KanbanTransportador() {
     isLocalSuperUser(user?.usuario ?? '') ||
     isLocalSuperUser(user?.email ?? '')
 
+  /** Super (e embarcador sem vínculo) escolhem qual Kanban ver. */
+  const canPickTransportador = isSuper || user?.role === 'minerva' || !user?.transportador_id
+
   const transportadoresAtivos = useMemo(
-    () => transportadores.filter((t) => t.situacao !== 'inativo'),
+    () =>
+      [...transportadores]
+        .filter((t) => t.situacao !== 'inativo')
+        .sort((a, b) => a.nome_fantasia.localeCompare(b.nome_fantasia, 'pt-BR')),
     [transportadores],
   )
 
   const defaultViewAs =
+    (canPickTransportador ? readStoredViewAs() : '') ||
     user?.transportador_id ||
     transportadoresAtivos.find((t) => t.id === DEMO_TRANSPORTADOR.transportador_id)?.id ||
     transportadoresAtivos[0]?.id ||
@@ -86,12 +103,24 @@ export function KanbanTransportador() {
   }, [defaultViewAs, viewAsId])
 
   useEffect(() => {
-    if (isSuper) setActingTransportadorId(viewAsId || null)
-    else setActingTransportadorId(user?.transportador_id ?? null)
+    if (canPickTransportador) {
+      setActingTransportadorId(viewAsId || null)
+      try {
+        if (viewAsId) sessionStorage.setItem(VIEW_AS_STORAGE_KEY, viewAsId)
+      } catch {
+        /* ignore */
+      }
+    } else {
+      setActingTransportadorId(user?.transportador_id ?? null)
+    }
     return () => setActingTransportadorId(null)
-  }, [isSuper, viewAsId, user?.transportador_id, setActingTransportadorId])
+  }, [canPickTransportador, viewAsId, user?.transportador_id, setActingTransportadorId])
 
-  const tid = effectiveTransportadorId() || user?.transportador_id || (isSuper ? viewAsId : '') || ''
+  const tid =
+    (canPickTransportador ? viewAsId : '') ||
+    effectiveTransportadorId() ||
+    user?.transportador_id ||
+    ''
 
   const cargas = useMemo(() => {
     const list = cargasVisiveisTransportador(tid)
@@ -114,7 +143,27 @@ export function KanbanTransportador() {
   return (
     <div className="flex h-[calc(100vh-7rem)] flex-col gap-3">
       <div className="flex flex-wrap items-end gap-3">
-        <div className="relative max-w-md flex-1 min-w-[220px]">
+        {canPickTransportador && (
+          <label className="flex min-w-[260px] flex-1 flex-col gap-1 text-xs font-semibold text-ink">
+            Kanban do transportador
+            <select
+              value={viewAsId}
+              onChange={(e) => setViewAsId(e.target.value)}
+              className="rounded-lg border border-brand/40 bg-white px-3 py-2 text-sm font-medium text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+            >
+              {transportadoresAtivos.length === 0 && (
+                <option value="">Nenhuma transportadora ativa</option>
+              )}
+              {transportadoresAtivos.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.nome_fantasia} · {t.classificacao}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        <div className="relative min-w-[220px] max-w-md flex-1">
           <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-muted" />
           <input
             value={search}
@@ -123,30 +172,19 @@ export function KanbanTransportador() {
             className="w-full rounded-lg border border-ink/15 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
           />
         </div>
-
-        {isSuper && (
-          <label className="flex flex-col gap-1 text-xs text-ink-muted">
-            Ver como transportadora
-            <select
-              value={viewAsId}
-              onChange={(e) => setViewAsId(e.target.value)}
-              className="min-w-[220px] rounded-lg border border-ink/15 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-            >
-              {transportadoresAtivos.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nome_fantasia} ({t.classificacao})
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
       </div>
 
       {!tid && (
         <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900">
-          Esta conta não está vinculada a uma transportadora. Entre com{' '}
-          <strong>{DEMO_TRANSPORTADOR.email}</strong> / {DEMO_TRANSPORTADOR.password} ou peça ao
-          Super para vincular o usuário.
+          {canPickTransportador
+            ? 'Selecione uma transportadora acima para ver o Kanban dela.'
+            : (
+              <>
+                Esta conta não está vinculada a uma transportadora. Entre com{' '}
+                <strong>{DEMO_TRANSPORTADOR.email}</strong> / {DEMO_TRANSPORTADOR.password} ou peça
+                ao Super para vincular o usuário.
+              </>
+            )}
         </p>
       )}
 

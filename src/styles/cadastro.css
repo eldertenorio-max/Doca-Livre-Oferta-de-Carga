@@ -58,6 +58,28 @@
   background: #fff;
 }
 
+.cadastro-input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font: inherit;
+  background: #fff;
+  color: #0f172a;
+  box-sizing: border-box;
+}
+
+.cadastro-input:focus {
+  outline: none;
+  border-color: #94a3b8;
+  box-shadow: 0 0 0 3px rgb(148 163 184 / 0.25);
+}
+
+.cadastro-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .cadastro-btn {
   display: inline-flex;
   align-items: center;

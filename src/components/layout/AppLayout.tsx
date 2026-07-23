@@ -114,6 +114,7 @@ const minervaLinks: NavItem[] = [
 ]
 
 const transportadorLinks: NavItem[] = [
+  { to: '/transportador/painel', label: 'Painel', icon: <IconChart /> },
   { to: '/transportador', label: 'Kanban Ofertas', icon: <IconGrid />, end: true },
   { to: '/transportador/veiculos', label: 'Meus Veículos', icon: <IconTruck /> },
   { to: '/transportador/motoristas', label: 'Meus Motoristas', icon: <IconUsers /> },
@@ -224,7 +225,7 @@ export function AppLayout() {
 
   const minhasNotifs = useMemo(() => {
     if (!user) return []
-    const tid = user.transportador_id || actingTransportadorId
+    const tid = actingTransportadorId || user.transportador_id
     return (notificacoes ?? [])
       .filter((n) => {
         // Super vê tudo (inclui chat do embarcador e do transportador)
@@ -252,8 +253,22 @@ export function AppLayout() {
     if (isSuper) {
       return [
         ...minervaLinks,
+        { to: '/transportador/painel', label: 'Painel Transportador', icon: <IconChart /> },
         { to: '/transportador', label: 'Kanban Transportador', icon: <IconGrid />, end: true },
       ]
+    }
+    if (user?.role === 'minerva') {
+      const base = [
+        ...minervaLinks,
+        { to: '/transportador/painel', label: 'Painel Transportador', icon: <IconChart /> },
+        { to: '/transportador', label: 'Kanban Transportador', icon: <IconGrid />, end: true },
+      ]
+      return base.filter((item) => {
+        if (item.to === '/minerva/config' || item.to === '/minerva/financeiro') return false
+        const mod = moduloFromPath(item.to)
+        if (!mod) return true
+        return canOpenModulo(user?.permissoes_modulos, mod)
+      })
     }
     const base = user?.role === 'transportador' ? transportadorLinks : minervaLinks
     return base.filter((item) => {
