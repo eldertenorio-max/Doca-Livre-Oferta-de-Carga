@@ -5,8 +5,8 @@ import { inputClass } from '../../components/ui/Modal'
 import type { Motorista } from '../../types'
 import '../../styles/cadastro.css'
 
-/** Categorias oficiais de CNH (ordem de exibição). */
-const CATEGORIAS_CNH = ['A', 'B', 'C', 'D', 'E', 'AB', 'AC', 'AD', 'AE'] as const
+/** Categorias oficiais de CNH (ordem de exibição). Sem A (só moto). */
+const CATEGORIAS_CNH = ['B', 'C', 'D', 'E', 'AB', 'AC', 'AD', 'AE'] as const
 
 const emptyForm = (): Partial<Motorista> => ({
   nome: '',
