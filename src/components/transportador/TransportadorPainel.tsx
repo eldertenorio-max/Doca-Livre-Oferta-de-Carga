@@ -440,19 +440,29 @@ export function TransportadorPainel({ transportadorId, compact }: Props) {
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        {kpis.map((k) => (
-          <div
-            key={k.label}
-            className={`rounded-xl border border-ink/10 border-l-4 bg-white p-4 shadow-sm ${k.accent}`}
-          >
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
-              {k.label}
-            </p>
-            <p className="mt-1 font-display text-2xl font-bold tabular-nums text-ink sm:text-3xl">
-              {k.value}
-            </p>
-          </div>
-        ))}
+        {kpis.map((k) => {
+          const isMoney = k.value.startsWith('R$')
+          return (
+            <div
+              key={k.label}
+              className={`min-w-0 overflow-hidden rounded-xl border border-ink/10 border-l-4 bg-white p-3 shadow-sm sm:p-4 ${k.accent}`}
+            >
+              <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+                {k.label}
+              </p>
+              <p
+                className={`mt-1 font-display font-bold tabular-nums leading-tight text-ink break-words ${
+                  isMoney
+                    ? 'text-base sm:text-lg lg:text-xl'
+                    : 'text-2xl sm:text-3xl'
+                }`}
+                title={k.value}
+              >
+                {k.value}
+              </p>
+            </div>
+          )
+        })}
       </section>
 
       <section className="grid gap-4 lg:grid-cols-5">
