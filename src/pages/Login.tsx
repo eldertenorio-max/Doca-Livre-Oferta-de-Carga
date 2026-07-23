@@ -250,7 +250,7 @@ export function LoginPage() {
         ? step === 'codigo'
           ? 'Cole o código enviado para o seu e-mail'
           : step === 'dados'
-            ? 'Escolha usuário e senha. Super Users: Diego ou Elder'
+            ? 'Escolha usuário e senha. Contas de equipe precisam de aprovação (Diego/Elder). Super: Diego ou Elder'
             : 'Informe o e-mail para receber o código de confirmação'
         : step === 'codigo'
           ? 'Cole o código enviado para o seu e-mail'

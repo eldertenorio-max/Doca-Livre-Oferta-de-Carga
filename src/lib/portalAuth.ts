@@ -257,7 +257,8 @@ export async function portalCadastroConcluir(input: {
     nome: usuario,
     role: isSuper ? 'super' : 'minerva',
     nivel: isSuper ? 'super' : 'operador',
-    ativo: true,
+    // Só Diego/Elder entram ativos; demais aguardam aprovação do Super
+    ativo: isSuper,
     created_at: new Date().toISOString(),
   }
   savePortalAccounts([...users, account])
@@ -268,7 +269,7 @@ export async function portalCadastroConcluir(input: {
     usuario,
     mensagem: isSuper
       ? 'Super Usuário criado. Faça login.'
-      : 'Cadastro realizado. Faça login. Um Super Usuário poderá ajustar suas permissões.',
+      : 'Cadastro enviado. Aguarde aprovação de Diego ou Elder para fazer login.',
   }
 }
 

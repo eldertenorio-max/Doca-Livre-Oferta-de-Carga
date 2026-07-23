@@ -44,7 +44,10 @@ export function PortalConfigPage() {
   const [selectedUser, setSelectedUser] = useState('')
   const [msg, setMsg] = useState('')
 
-  const isSuper = Boolean(user?.is_superuser) || isLocalSuperUser(user?.usuario ?? '') || isLocalSuperUser(user?.email ?? '')
+  const isSuper =
+    Boolean(user?.is_superuser) ||
+    isLocalSuperUser(user?.usuario ?? '') ||
+    isLocalSuperUser(user?.email ?? '')
 
   // Ao abrir Hierarquia (ou mudar cadastro), sincroniza transportadoras na árvore
   useEffect(() => {
@@ -52,6 +55,36 @@ export function PortalConfigPage() {
     const next = syncTodasTransportadorasNaHierarquia(transportadores)
     setTree(next)
   }, [tab, transportadores])
+
+  const editableUsers = useMemo(
+    () =>
+      accounts.filter(
+        (a) => !isLocalSuperUser(a.usuario) && !isLocalSuperUser(a.email) && a.role !== 'super',
+      ),
+    [accounts],
+  )
+
+  const pendentesEquipe = useMemo(
+    () =>
+      accounts.filter(
+        (a) =>
+          !a.ativo &&
+          a.role !== 'transportador' &&
+          !isLocalSuperUser(a.usuario) &&
+          !isLocalSuperUser(a.email) &&
+          a.role !== 'super',
+      ),
+    [accounts],
+  )
+
+  const accountsSorted = useMemo(() => {
+    return [...accounts].sort((a, b) => {
+      const ap = !a.ativo && a.role !== 'transportador' ? 0 : 1
+      const bp = !b.ativo && b.role !== 'transportador' ? 0 : 1
+      if (ap !== bp) return ap - bp
+      return a.usuario.localeCompare(b.usuario)
+    })
+  }, [accounts])
 
   if (!user) return <Navigate to="/login" replace />
   if (!isSuper) {
@@ -62,14 +95,6 @@ export function PortalConfigPage() {
       </div>
     )
   }
-
-  const editableUsers = useMemo(
-    () =>
-      accounts.filter(
-        (a) => !isLocalSuperUser(a.usuario) && !isLocalSuperUser(a.email) && a.role !== 'super',
-      ),
-    [accounts],
-  )
 
   function persistTree(next: OrgNo[]) {
     setTree(next)
@@ -163,7 +188,12 @@ export function PortalConfigPage() {
           [
             ['hierarquia', 'Hierarquia'],
             ['permissoes', 'Permissões'],
-            ['usuarios', 'Usuários'],
+            [
+              'usuarios',
+              pendentesEquipe.length
+                ? `Usuários (${pendentesEquipe.length} pendente${pendentesEquipe.length > 1 ? 's' : ''})`
+                : 'Usuários',
+            ],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -315,6 +345,22 @@ export function PortalConfigPage() {
             <h2 className="form-card__title">Contas do portal</h2>
           </header>
           <div className="form-card__body">
+            {pendentesEquipe.length > 0 && (
+              <p
+                style={{
+                  marginBottom: 12,
+                  padding: '10px 12px',
+                  borderRadius: 8,
+                  background: '#fff7ed',
+                  border: '1px solid #fed7aa',
+                  color: '#9a3412',
+                  fontSize: 13,
+                }}
+              >
+                <strong>{pendentesEquipe.length}</strong> conta(s) de equipe aguardando aprovação.
+                Use <strong>Aprovar</strong> para liberar o login.
+              </p>
+            )}
             <div className="cadastro-table-wrap">
               <table className="cadastro-table">
                 <thead>
@@ -323,19 +369,43 @@ export function PortalConfigPage() {
                     <th>E-mail</th>
                     <th>Perfil sistema</th>
                     <th>Perfil operacional</th>
-                    <th>Ativo</th>
+                    <th>Situação</th>
+                    <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {accounts.map((a) => {
-                    const superU = isLocalSuperUser(a.usuario) || isLocalSuperUser(a.email) || a.role === 'super'
+                  {accountsSorted.map((a) => {
+                    const superU =
+                      isLocalSuperUser(a.usuario) ||
+                      isLocalSuperUser(a.email) ||
+                      a.role === 'super'
+                    const pendenteEquipe =
+                      !superU && !a.ativo && a.role !== 'transportador'
                     return (
-                      <tr key={a.id}>
+                      <tr
+                        key={a.id}
+                        style={pendenteEquipe ? { background: '#fffbeb' } : undefined}
+                      >
                         <td>
                           <strong>{a.usuario}</strong>
                           {superU && (
-                            <span className="badge-situacao badge-situacao--ativo" style={{ marginLeft: 8 }}>
+                            <span
+                              className="badge-situacao badge-situacao--ativo"
+                              style={{ marginLeft: 8 }}
+                            >
                               Super
+                            </span>
+                          )}
+                          {pendenteEquipe && (
+                            <span
+                              className="badge-situacao"
+                              style={{
+                                marginLeft: 8,
+                                background: '#f59e0b',
+                                color: '#fff',
+                              }}
+                            >
+                              Pendente
                             </span>
                           )}
                         </td>
@@ -362,19 +432,60 @@ export function PortalConfigPage() {
                             ? '—'
                             : a.role === 'transportador'
                               ? '—'
-                              : (a.perfil_operacional
-                                  ? PERFIL_OPERACIONAL_LABEL[a.perfil_operacional]
-                                  : '—')}
+                              : a.perfil_operacional
+                                ? PERFIL_OPERACIONAL_LABEL[a.perfil_operacional]
+                                : '—'}
                         </td>
                         <td>
                           {superU ? (
-                            'sim'
+                            'Ativo'
+                          ) : a.ativo ? (
+                            'Ativo'
+                          ) : a.role === 'transportador' ? (
+                            'Aguarda aprovação (Transportadoras)'
                           ) : (
-                            <input
-                              type="checkbox"
-                              checked={a.ativo}
-                              onChange={(e) => updateAccount(a.usuario, { ativo: e.target.checked })}
-                            />
+                            'Aguarda aprovação (Diego/Elder)'
+                          )}
+                        </td>
+                        <td>
+                          {superU ? (
+                            '—'
+                          ) : pendenteEquipe ? (
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                              <button
+                                type="button"
+                                className="cadastro-btn cadastro-btn--save"
+                                onClick={() => {
+                                  updateAccount(a.usuario, { ativo: true })
+                                  setMsg(`Conta “${a.usuario}” aprovada. Login liberado.`)
+                                }}
+                              >
+                                Aprovar
+                              </button>
+                              <button
+                                type="button"
+                                className="cadastro-btn cadastro-btn--ghost"
+                                onClick={() => {
+                                  const next = accounts.filter((x) => x.id !== a.id)
+                                  setAccounts(next)
+                                  savePortalAccounts(next)
+                                  setMsg(`Cadastro “${a.usuario}” removido.`)
+                                }}
+                              >
+                                Recusar
+                              </button>
+                            </div>
+                          ) : (
+                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                              <input
+                                type="checkbox"
+                                checked={a.ativo}
+                                onChange={(e) =>
+                                  updateAccount(a.usuario, { ativo: e.target.checked })
+                                }
+                              />
+                              Ativo
+                            </label>
                           )}
                         </td>
                       </tr>
@@ -384,8 +495,8 @@ export function PortalConfigPage() {
               </table>
             </div>
             <p className="portal-login__hint" style={{ marginTop: 12 }}>
-              Super Users (Diego/Elder) não são editáveis aqui. Contas novas entram pelo cadastro com
-              confirmação de e-mail.
+              Contas criadas em “Criar conta (equipe / Super)” ficam pendentes até Diego ou Elder
+              aprovarem aqui. Super Users (Diego/Elder) já entram ativos e não são editáveis.
             </p>
           </div>
         </section>
