@@ -108,19 +108,23 @@ export function VeiculosPage() {
     return { total, ativos, inativos }
   }, [scopedVeiculos])
 
-  /** Quantidade por perfil/categoria (tipo) — só tipos com pelo menos 1. */
+  /** Todos os tipos do catálogo + eventuais fora da lista. */
   const porPerfil = useMemo(() => {
     const map = new Map<string, number>()
+    for (const t of TIPOS_VEICULO) map.set(t, 0)
     for (const v of scopedVeiculos) {
-      const tipo = (v.tipo || 'Sem tipo').trim() || 'Sem tipo'
+      const tipo = (v.tipo || '').trim() || 'Sem tipo'
       map.set(tipo, (map.get(tipo) ?? 0) + 1)
     }
-    return [...map.entries()]
+    const catalog = TIPOS_VEICULO.map((tipo) => ({ tipo, qtd: map.get(tipo) ?? 0 }))
+    const extras = [...map.entries()]
+      .filter(([tipo]) => !(TIPOS_VEICULO as readonly string[]).includes(tipo))
       .map(([tipo, qtd]) => ({ tipo, qtd }))
       .sort((a, b) => b.qtd - a.qtd || a.tipo.localeCompare(b.tipo, 'pt-BR'))
+    return [...catalog, ...extras]
   }, [scopedVeiculos])
 
-  const maxPerfil = porPerfil[0]?.qtd ?? 1
+  const maxPerfil = Math.max(1, ...porPerfil.map((p) => p.qtd))
 
   function openNew() {
     setEditingId(null)
@@ -263,20 +267,30 @@ export function VeiculosPage() {
               Por perfil de veículo
             </h2>
             <p className="mb-3 text-xs text-ink-muted">
-              Quantidade cadastrada por categoria (tipo).
+              Os {TIPOS_VEICULO.length} perfis do cadastro (HR, Fiorino, Van, Carretas, etc.).
             </p>
             <div className="mb-3 flex flex-wrap gap-2">
               {porPerfil.map((p) => (
                 <span
                   key={p.tipo}
-                  className="inline-flex items-baseline gap-1.5 rounded-lg border border-ink/10 bg-sand-light/60 px-2.5 py-1.5 text-sm"
+                  className={`inline-flex items-baseline gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm ${
+                    p.qtd > 0
+                      ? 'border-ink/10 bg-sand-light/60'
+                      : 'border-ink/5 bg-white text-ink-muted'
+                  }`}
                 >
-                  <strong className="font-display text-lg tabular-nums text-ink">{p.qtd}</strong>
-                  <span className="text-ink-muted">{p.tipo}</span>
+                  <strong
+                    className={`font-display text-lg tabular-nums ${
+                      p.qtd > 0 ? 'text-ink' : 'text-ink-muted'
+                    }`}
+                  >
+                    {p.qtd}
+                  </strong>
+                  <span>{p.tipo}</span>
                 </span>
               ))}
             </div>
-            <ul className="space-y-2">
+            <ul className="grid gap-2 sm:grid-cols-2">
               {porPerfil.map((p) => (
                 <li key={`bar-${p.tipo}`}>
                   <div className="mb-0.5 flex items-center justify-between gap-2 text-sm">
@@ -285,8 +299,12 @@ export function VeiculosPage() {
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-sand-light">
                     <div
-                      className="h-full rounded-full bg-teal-600 transition-all"
-                      style={{ width: `${Math.max(6, (p.qtd / maxPerfil) * 100)}%` }}
+                      className={`h-full rounded-full transition-all ${
+                        p.qtd > 0 ? 'bg-teal-600' : 'bg-transparent'
+                      }`}
+                      style={{
+                        width: p.qtd > 0 ? `${Math.max(6, (p.qtd / maxPerfil) * 100)}%` : '0%',
+                      }}
                     />
                   </div>
                 </li>

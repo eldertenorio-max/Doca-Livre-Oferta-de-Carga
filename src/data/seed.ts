@@ -165,7 +165,7 @@ export const SEED_VEICULOS: Veiculo[] = [
     transportador_id: 't1',
     renavam: '00112233445',
     condutor: 'Carlos Motorista',
-    tipo: 'Carreta',
+    tipo: 'Carreta Simples',
     marca: 'Volvo',
     modelo: 'FH 460',
     cor: 'Branco',
