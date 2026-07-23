@@ -82,7 +82,7 @@ export function KanbanBoard({
   }
 
   return (
-    <div className="flex h-full gap-3 overflow-x-auto pb-2">
+    <div className="flex h-full min-h-0 gap-3 overflow-x-auto overflow-y-hidden pb-2 [-webkit-overflow-scrolling:touch]">
       {columns.map((col) => {
         const isOver = dragOverKey === col.key
         const isCollapsed = collapsed.has(col.key)
@@ -91,7 +91,7 @@ export function KanbanBoard({
           return (
             <section
               key={col.key}
-              className={`flex w-12 shrink-0 flex-col overflow-hidden rounded-xl border transition-all duration-200 ${
+              className={`flex w-11 shrink-0 flex-col overflow-hidden rounded-xl border transition-all duration-200 ${
                 isOver
                   ? 'border-brand ring-2 ring-brand/50 bg-brand/5'
                   : 'border-ink/10 bg-white/70'
@@ -147,7 +147,7 @@ export function KanbanBoard({
         return (
           <section
             key={col.key}
-            className={`flex w-[280px] shrink-0 flex-col rounded-xl border bg-white/70 backdrop-blur-sm transition-all duration-200 ${
+            className={`flex w-[min(280px,calc(100vw-5.75rem))] shrink-0 flex-col rounded-xl border bg-white/70 backdrop-blur-sm transition-all duration-200 ${
               isOver
                 ? 'border-brand ring-2 ring-brand/50 bg-brand/5'
                 : 'border-ink/10'
@@ -180,7 +180,7 @@ export function KanbanBoard({
               style={{ backgroundColor: col.color }}
             >
               <div className="flex items-center justify-between gap-2">
-                <h2 className="min-w-0 flex-1 font-display text-xs font-bold tracking-wide uppercase">
+                <h2 className="min-w-0 flex-1 truncate font-display text-xs font-bold tracking-wide uppercase">
                   {col.title}
                 </h2>
                 <div className="flex shrink-0 items-center gap-1">
@@ -203,7 +203,7 @@ export function KanbanBoard({
               )}
             </header>
             <div
-              className={`flex flex-1 flex-col gap-2 overflow-y-auto p-2 transition-colors ${
+              className={`flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2 transition-colors ${
                 isOver ? 'bg-brand/10' : ''
               }`}
             >

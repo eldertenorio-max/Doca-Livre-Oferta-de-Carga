@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Plus, Search } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { CargoCard } from '../../components/kanban/CargoCard'
@@ -73,7 +73,18 @@ export function KanbanMinerva() {
   const [panelSize, setPanelSize] = useState<PanelSize>(() => loadPanelSize())
   const [initialTab, setInitialTab] = useState<'dados' | 'salvas' | 'publicar'>('dados')
   const [dragMsg, setDragMsg] = useState<string | null>(null)
-  const panelFullscreen = panelOpen && panelSize === 'largo'
+  const [isNarrow, setIsNarrow] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches,
+  )
+  const panelFullscreen = panelOpen && (panelSize === 'largo' || isNarrow)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 900px)')
+    const onChange = () => setIsNarrow(mq.matches)
+    onChange()
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -118,14 +129,14 @@ export function KanbanMinerva() {
     <div
       className={
         panelFullscreen
-          ? 'flex h-[calc(100dvh-var(--app-topbar-h,54px))] gap-0 -mx-[14px] -mt-[10px] -mb-[24px]'
-          : 'flex h-[calc(100vh-7rem)] gap-3'
+          ? 'flex h-[calc(100dvh-var(--app-topbar-h,54px))] min-h-0 gap-0 -mx-[8px] -mt-[8px] -mb-[16px] sm:-mx-[14px] sm:-mt-[10px] sm:-mb-[24px]'
+          : 'flex h-full min-h-0 gap-3 overflow-hidden'
       }
     >
       {!panelFullscreen && (
-        <div className="flex min-w-0 flex-1 flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[220px] flex-1">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <div className="relative min-w-0 w-full flex-1 sm:min-w-[220px]">
               <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-muted" />
               <input
                 value={search}
@@ -146,44 +157,46 @@ export function KanbanMinerva() {
           </div>
 
           {dragMsg && (
-            <p className="animate-fade-up rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+            <p className="shrink-0 animate-fade-up rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
               {dragMsg}
             </p>
           )}
 
-          <p className="text-[11px] text-ink-muted">
+          <p className="shrink-0 text-[11px] text-ink-muted">
             Fluxo: Nova carga → salve (fica em Cargas salvas) → Publicar → aparece em Nova Carga.
             Depois: Negociando (1º lance) → Confirmadas → Alocadas.
           </p>
 
-          <KanbanBoard
-            storageKey="doca-livre-kanban-collapsed-minerva"
-            onCardDrop={handleCardDrop}
-            columns={COLUMNS.map((col) => ({
-              ...col,
-              items: filtered
-                .filter((c) => colunaMinerva(c, temLanceAtivoNaRodada(c, lances)) === col.key)
-                .map((c) => ({
-                  id: c.id,
-                  node: (
-                    <CargoCard
-                      carga={c}
-                      mode="minerva"
-                      selected={liveSelected?.id === c.id}
-                      ofertasCount={
-                        col.key === 'negociando'
-                          ? lancesDaCarga(c.id).filter(
-                              (l) => l.status === 'ativo' || l.status === 'vencedor',
-                            ).length
-                          : undefined
-                      }
-                      onSelect={() => openPanel(c)}
-                      onView={() => openPanel(c)}
-                    />
-                  ),
-                })),
-            }))}
-          />
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <KanbanBoard
+              storageKey="doca-livre-kanban-collapsed-minerva"
+              onCardDrop={handleCardDrop}
+              columns={COLUMNS.map((col) => ({
+                ...col,
+                items: filtered
+                  .filter((c) => colunaMinerva(c, temLanceAtivoNaRodada(c, lances)) === col.key)
+                  .map((c) => ({
+                    id: c.id,
+                    node: (
+                      <CargoCard
+                        carga={c}
+                        mode="minerva"
+                        selected={liveSelected?.id === c.id}
+                        ofertasCount={
+                          col.key === 'negociando'
+                            ? lancesDaCarga(c.id).filter(
+                                (l) => l.status === 'ativo' || l.status === 'vencedor',
+                              ).length
+                            : undefined
+                        }
+                        onSelect={() => openPanel(c)}
+                        onView={() => openPanel(c)}
+                      />
+                    ),
+                  })),
+              }))}
+            />
+          </div>
         </div>
       )}
 

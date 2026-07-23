@@ -163,8 +163,14 @@ export function AppLayout() {
     }
   }
 
+  function isNarrowViewport() {
+    return typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches
+  }
+
   function openSidebarHover() {
     if (sidebarPinned) return
+    /* No mobile/tablet o menu abre só pelo botão (hover atrapalha o toque) */
+    if (isNarrowViewport()) return
     if (Date.now() < hoverLockedUntilRef.current) return
     clearHoverTimer()
     hoverTimerRef.current = window.setTimeout(() => {
@@ -432,6 +438,14 @@ export function AppLayout() {
       <div className="app-workspace">
         {/* Reserva a coluna de ícones enquanto o menu flutua no hover */}
         {sidebarHover && !sidebarPinned && <div className="sidebar-rail" aria-hidden />}
+        {sidebarPinned && (
+          <button
+            type="button"
+            className="app-workspace-backdrop"
+            aria-label="Fechar menu"
+            onClick={() => toggleSidebarPin()}
+          />
+        )}
         <aside
           className={[
             'sidebar',
@@ -458,6 +472,14 @@ export function AppLayout() {
                 to={item.to}
                 end={item.end}
                 title={!sidebarWide ? item.label : undefined}
+                onClick={() => {
+                  if (sidebarPinned && isNarrowViewport()) {
+                    hoverLockedUntilRef.current = Date.now() + 400
+                    clearHoverTimer()
+                    setSidebarHover(false)
+                    setSidebarPinned(false)
+                  }
+                }}
                 className={({ isActive }) =>
                   [
                     'sidebar-section',

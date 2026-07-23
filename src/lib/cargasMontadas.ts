@@ -22,6 +22,6 @@ export function savePanelSize(size: PanelSize) {
 
 export function panelSizeClass(size: PanelSize): string {
   if (size === 'largo') return 'w-full min-w-0 flex-1'
-  if (size === 'medio') return 'w-[min(720px,62vw)]'
-  return 'w-[min(480px,94vw)]'
+  if (size === 'medio') return 'w-full max-sm:min-w-0 sm:w-[min(720px,62vw)]'
+  return 'w-full max-sm:min-w-0 sm:w-[min(480px,94vw)]'
 }

@@ -13,7 +13,7 @@ interface ModalProps {
 export function Modal({ open, title, onClose, children, wide }: ModalProps) {
   if (!open || typeof document === 'undefined') return null
   return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[200] flex items-end justify-center p-0 sm:items-center sm:p-4">
       <div
         role="presentation"
         aria-hidden
@@ -23,10 +23,10 @@ export function Modal({ open, title, onClose, children, wide }: ModalProps) {
       <div
         role="dialog"
         aria-modal="true"
-        className={`relative z-10 w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} animate-fade-up rounded-xl border border-ink/10 bg-panel shadow-2xl`}
+        className={`relative z-10 flex max-h-[min(92dvh,100%)] w-full flex-col overflow-hidden ${wide ? 'max-w-3xl' : 'max-w-lg'} animate-fade-up rounded-t-xl border border-ink/10 bg-panel shadow-2xl sm:rounded-xl`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-ink/10 px-5 py-3">
+        <div className="flex shrink-0 items-center justify-between border-b border-ink/10 px-5 py-3">
           <h3 className="font-display text-lg font-semibold text-ink">{title}</h3>
           <button
             type="button"
@@ -36,7 +36,7 @@ export function Modal({ open, title, onClose, children, wide }: ModalProps) {
             <X size={18} />
           </button>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
       </div>
     </div>,
     document.body,

@@ -141,10 +141,10 @@ export function KanbanTransportador() {
     (tid ? tid : 'nenhuma transportadora')
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] flex-col gap-3">
-      <div className="flex flex-wrap items-end gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
+      <div className="flex shrink-0 flex-wrap items-end gap-3">
         {canPickTransportador && (
-          <label className="flex min-w-[260px] flex-1 flex-col gap-1 text-xs font-semibold text-ink">
+          <label className="flex min-w-0 w-full flex-1 flex-col gap-1 text-xs font-semibold text-ink sm:min-w-[260px] sm:w-auto">
             Kanban do transportador
             <select
               value={viewAsId}
@@ -163,7 +163,7 @@ export function KanbanTransportador() {
           </label>
         )}
 
-        <div className="relative min-w-[220px] max-w-md flex-1">
+        <div className="relative min-w-0 w-full max-w-md flex-1 sm:min-w-[220px]">
           <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-muted" />
           <input
             value={search}
@@ -175,7 +175,7 @@ export function KanbanTransportador() {
       </div>
 
       {!tid && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900">
+        <p className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900">
           {canPickTransportador
             ? 'Selecione uma transportadora acima para ver o Kanban dela.'
             : (
@@ -189,7 +189,7 @@ export function KanbanTransportador() {
       )}
 
       {tid && cargas.length === 0 && (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        <p className="shrink-0 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
           Nenhuma oferta visível para <strong>{nomeVista}</strong>. Publique uma carga no Kanban
           Minerva (com grupos que incluam esta transportadora). Atualiza sozinho em tempo real
           {isKanbanSyncReady() ? ' (sync ativo)' : ' — configure VITE_SUPABASE no Render'}.
@@ -197,80 +197,82 @@ export function KanbanTransportador() {
       )}
 
       {!isKanbanSyncReady() && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900">
+        <p className="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900">
           Sync em tempo real desligado: faltam <code>VITE_SUPABASE_URL</code> e{' '}
           <code>VITE_SUPABASE_ANON_KEY</code> no Render, e o SQL{' '}
           <code>supabase/kanban_sync.sql</code> no projeto Supabase.
         </p>
       )}
 
-      <p className="text-[11px] text-ink-muted">
+      <p className="shrink-0 text-[11px] text-ink-muted">
         Fluxo: Nova Carga → Propostas (seu lance) → Confirmadas → Alocadas.
       </p>
 
-      <KanbanBoard
-        storageKey="doca-livre-kanban-collapsed-transportador"
-        columns={COLUMNS.map((col) => ({
-          ...col,
-          items: cargas
-            .filter((c) => {
-              const temMeu = meuLanceAtivoNaRodada(c, lances, tid)
-              return colunaTransportador(c, tid, temMeu) === col.key
-            })
-            .map((c) => {
-              const ativos = lancesDaCarga(c.id)
-                .filter((l) => ['ativo', 'vencedor'].includes(l.status))
-                .sort(
-                  (a, b) =>
-                    a.valor - b.valor ||
-                    new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-                )
-              const meuLance =
-                ativos.find((l) => l.transportador_id === tid) ??
-                null
-              const pos =
-                meuLance && col.key !== 'nova_carga'
-                  ? ativos.findIndex((l) => l.id === meuLance.id) + 1
-                  : null
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <KanbanBoard
+          storageKey="doca-livre-kanban-collapsed-transportador"
+          columns={COLUMNS.map((col) => ({
+            ...col,
+            items: cargas
+              .filter((c) => {
+                const temMeu = meuLanceAtivoNaRodada(c, lances, tid)
+                return colunaTransportador(c, tid, temMeu) === col.key
+              })
+              .map((c) => {
+                const ativos = lancesDaCarga(c.id)
+                  .filter((l) => ['ativo', 'vencedor'].includes(l.status))
+                  .sort(
+                    (a, b) =>
+                      a.valor - b.valor ||
+                      new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+                  )
+                const meuLance =
+                  ativos.find((l) => l.transportador_id === tid) ??
+                  null
+                const pos =
+                  meuLance && col.key !== 'nova_carga'
+                    ? ativos.findIndex((l) => l.id === meuLance.id) + 1
+                    : null
 
-              return {
-                id: c.id,
-                node: (
-                  <CargoCard
-                    carga={c}
-                    mode="transportador"
-                    bidValue={
-                      meuLance?.valor ?? (col.key !== 'nova_carga' ? c.frete_fechado : null)
-                    }
-                    bidPosition={pos && pos > 0 ? pos : null}
-                    onSelect={() => {
-                      if (col.key === 'nova_carga' || col.key === 'propostas') setBidCarga(c)
-                      else if (col.key === 'confirmadas') setAllocCarga(c)
-                    }}
-                    onView={() => setBidCarga(c)}
-                    onBid={
-                      col.key === 'nova_carga' || col.key === 'propostas'
-                        ? () => setBidCarga(c)
-                        : undefined
-                    }
-                    onRefuse={
-                      col.key === 'nova_carga'
-                        ? () => {
-                            if (tid) recusarCargaTransportador(c.id)
-                          }
-                        : undefined
-                    }
-                    onAllocate={
-                      col.key === 'confirmadas' || col.key === 'alocadas'
-                        ? () => setAllocCarga(c)
-                        : undefined
-                    }
-                  />
-                ),
-              }
-            }),
-        }))}
-      />
+                return {
+                  id: c.id,
+                  node: (
+                    <CargoCard
+                      carga={c}
+                      mode="transportador"
+                      bidValue={
+                        meuLance?.valor ?? (col.key !== 'nova_carga' ? c.frete_fechado : null)
+                      }
+                      bidPosition={pos && pos > 0 ? pos : null}
+                      onSelect={() => {
+                        if (col.key === 'nova_carga' || col.key === 'propostas') setBidCarga(c)
+                        else if (col.key === 'confirmadas') setAllocCarga(c)
+                      }}
+                      onView={() => setBidCarga(c)}
+                      onBid={
+                        col.key === 'nova_carga' || col.key === 'propostas'
+                          ? () => setBidCarga(c)
+                          : undefined
+                      }
+                      onRefuse={
+                        col.key === 'nova_carga'
+                          ? () => {
+                              if (tid) recusarCargaTransportador(c.id)
+                            }
+                          : undefined
+                      }
+                      onAllocate={
+                        col.key === 'confirmadas' || col.key === 'alocadas'
+                          ? () => setAllocCarga(c)
+                          : undefined
+                      }
+                    />
+                  ),
+                }
+              }),
+          }))}
+        />
+      </div>
 
       <BidModal carga={bidCarga} open={!!bidCarga} onClose={() => setBidCarga(null)} />
       <AllocateModal

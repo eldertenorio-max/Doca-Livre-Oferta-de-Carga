@@ -40,8 +40,14 @@
   min-width: 0;
 }
 
-.app-topbar-left { flex: 1; }
-.app-topbar-right { margin-left: auto; flex-shrink: 0; }
+.app-topbar-left {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+.app-topbar-right {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
 
 .app-topbar-menu {
   width: 38px;
@@ -522,10 +528,118 @@ a.sidebar-section:first-of-type {
   z-index: 1;
 }
 
+/* Backdrop do menu — só no mobile (ver media query) */
+.app-workspace-backdrop {
+  display: none;
+}
+
+/* —— Mobile / tablet —— */
 @media (max-width: 900px) {
-  .app-topbar-user-text { display: none; }
-  .app-topbar-meta { display: none; }
-  .sidebar.sidebar--wide {
-    width: min(280px, calc(100vw - 24px));
+  :root {
+    --sidebar-w-collapsed: 56px;
+    --app-topbar-h: 50px;
+  }
+
+  .app-topbar {
+    gap: 8px;
+    padding: 0 8px 0 6px;
+  }
+
+  .app-topbar-left,
+  .app-topbar-right {
+    gap: 6px;
+  }
+
+  .app-topbar-menu {
+    width: 36px;
+    height: 36px;
+  }
+
+  .app-topbar-brand {
+    gap: 8px;
+  }
+
+  .app-topbar-logo {
+    height: 28px;
+    max-width: min(140px, 34vw);
+  }
+
+  /* Evita sobreposição logo × ações */
+  .app-topbar-wms,
+  .app-topbar-user-text,
+  .app-topbar-meta {
+    display: none !important;
+  }
+
+  .app-topbar-user {
+    padding: 2px;
+  }
+
+  .app-topbar-avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .app-topbar-refresh {
+    width: 34px;
+    height: 34px;
+  }
+
+  .app-topbar-logout {
+    padding: 7px 10px;
+    font-size: 0.72rem;
+  }
+
+  .main-panel {
+    padding: 8px 8px 16px;
+    overflow-x: hidden;
+  }
+
+  /* Sidebar: rail estreito; expandido vira overlay */
+  .sidebar.sidebar--wide,
+  .sidebar.sidebar--pinned,
+  .sidebar.sidebar--flyout {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    height: 100%;
+    width: min(280px, calc(100vw - 48px));
+    z-index: 90;
+    box-shadow: 8px 0 28px rgb(0 0 0 / 0.28);
+  }
+
+  .sidebar-rail {
+    width: var(--sidebar-w-collapsed);
+  }
+
+  .app-workspace-backdrop {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 70;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    background: rgb(0 0 0 / 0.35);
+    cursor: pointer;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-topbar-logo {
+    max-width: min(112px, 28vw);
+    height: 26px;
+  }
+
+  .app-topbar-logout {
+    padding: 7px 8px;
+  }
+}
+
+/* Touch: sem hover expandindo o menu */
+@media (hover: none), (pointer: coarse) {
+  .sidebar:not(.sidebar--pinned):not(.sidebar--wide) {
+    width: var(--sidebar-w-collapsed);
   }
 }
