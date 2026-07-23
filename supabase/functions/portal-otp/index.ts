@@ -54,6 +54,21 @@ function emailValido(email: string) {
   return Boolean(email) && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) && email.length <= 254
 }
 
+function maskEmail(email: string) {
+  const [name, domain] = email.split('@')
+  if (!name || !domain) return email
+  return `${name.slice(0, 2)}***@${domain}`
+}
+
+function escapeHtml(raw: string) {
+  return raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 function gerarCodigo() {
   return String(Math.floor(Math.random() * 1_000_000)).padStart(OTP_LEN, '0')
 }
@@ -131,14 +146,6 @@ async function verifyTokenPayload(token: string, finalidade: string) {
 }
 
 async function enviarResend(email: string, codigo: string, finalidade: string) {
-  const apiKey = Deno.env.get('RESEND_API_KEY')?.trim()
-  if (!apiKey) {
-    return { ok: false as const, motivo: 'smtp_nao_configurado' }
-  }
-  const from =
-    Deno.env.get('RESEND_FROM')?.trim() ||
-    'Doca Livre Oferta de Carga <onboarding@resend.dev>'
-
   const isCadastro = finalidade === 'cadastro'
   const assunto = isCadastro
     ? 'Doca Livre — código de confirmação de e-mail'
@@ -156,6 +163,23 @@ async function enviarResend(email: string, codigo: string, finalidade: string) {
     `<p style="font-size:28px;font-weight:700;letter-spacing:4px">${codigo}</p>` +
     `<p>Use este código para ${acao}. Vale por ${OTP_TTL_SEC / 60} minutos.</p>` +
     `<p style="color:#64748b;font-size:13px">Se você não solicitou, ignore este e-mail.</p>`
+
+  return enviarResendLivre(email, assunto, texto, html)
+}
+
+async function enviarResendLivre(
+  email: string,
+  assunto: string,
+  texto: string,
+  html: string,
+) {
+  const apiKey = Deno.env.get('RESEND_API_KEY')?.trim()
+  if (!apiKey) {
+    return { ok: false as const, motivo: 'smtp_nao_configurado' }
+  }
+  const from =
+    Deno.env.get('RESEND_FROM')?.trim() ||
+    'Doca Livre Oferta de Carga <onboarding@resend.dev>'
 
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -437,6 +461,58 @@ Deno.serve(async (req) => {
       }
 
       return json({ ok: false, erro: msg || 'Falha ao criar usuário.' }, 400)
+    }
+
+    if (action === 'cadastro_recusa_enviar') {
+      const email = normalizeEmail(String(body.email || ''))
+      const nome = String(body.nome || 'Transportador').trim() || 'Transportador'
+      const motivo = String(body.motivo || '').trim()
+      const link = String(body.link_cadastro || '').trim()
+      if (!emailValido(email)) return json({ ok: false, erro: 'E-mail do cadastro inválido.' }, 400)
+      if (!motivo) {
+        return json({ ok: false, erro: 'Informe o motivo da recusa para enviar o e-mail.' }, 400)
+      }
+
+      const assunto = 'Doca Livre — cadastro de transportador recusado'
+      const texto =
+        `Olá, ${nome}.\n\n` +
+        `Seu cadastro de transportador na Doca Livre Oferta de Carga foi recusado.\n\n` +
+        `Motivo:\n${motivo}\n\n` +
+        `Você pode corrigir os dados/documentos e enviar um novo cadastro` +
+        (link ? ` em:\n${link}\n` : '.\n') +
+        `\nSe precisar de ajuda, responda este e-mail ou fale com o embarcador.`
+      const html =
+        `<p>Olá, <strong>${escapeHtml(nome)}</strong>.</p>` +
+        `<p>Seu cadastro de transportador na <strong>Doca Livre Oferta de Carga</strong> foi <strong>recusado</strong>.</p>` +
+        `<p><strong>Motivo:</strong></p>` +
+        `<p style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;white-space:pre-wrap">${escapeHtml(motivo)}</p>` +
+        `<p>Corrija os dados/documentos e envie um novo cadastro` +
+        (link
+          ? `: <a href="${escapeHtml(link)}">${escapeHtml(link)}</a>.`
+          : '.') +
+        `</p>` +
+        `<p style="color:#64748b;font-size:13px">Se não reconhece este e-mail, ignore a mensagem.</p>`
+
+      const mail = await enviarResendLivre(email, assunto, texto, html)
+      if (!mail.ok) {
+        if (debugEnabled()) {
+          return json({
+            ok: true,
+            mensagem: 'Recusa registrada (modo debug — e-mail não enviado).',
+            smtp_motivo: mail.motivo,
+          })
+        }
+        return json(
+          { ok: false, erro: msgFalhaEmail(mail.motivo), smtp_motivo: mail.motivo },
+          503,
+        )
+      }
+      return json({
+        ok: true,
+        mensagem: 'E-mail de recusa enviado.',
+        email,
+        email_mascarado: maskEmail(email),
+      })
     }
 
     return json({ ok: false, erro: `Ação desconhecida: ${action}` }, 400)

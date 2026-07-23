@@ -202,8 +202,13 @@ export function TransportadoresPage() {
 
   async function handleRecusar() {
     if (!revisaoId) return
+    if (!motivoRecusa.trim()) {
+      setError('Informe o motivo da recusa. Ele será enviado por e-mail ao transportador.')
+      return
+    }
     setBusy(true)
-    const res = await recusarTransportador(revisaoId, motivoRecusa.trim() || undefined)
+    setError('')
+    const res = await recusarTransportador(revisaoId, motivoRecusa.trim())
     setBusy(false)
     if (!res.ok) {
       setError(res.error ?? 'Falha ao recusar.')
@@ -211,6 +216,8 @@ export function TransportadoresPage() {
     }
     setMode('lista')
     setRevisaoId(null)
+    setMotivoRecusa('')
+    window.alert(res.mensagem || 'Cadastro recusado e e-mail enviado.')
   }
 
   if (mode === 'ficha' && ficha) {
@@ -386,12 +393,16 @@ export function TransportadoresPage() {
             </header>
             <div className="form-card__body">
               <div className="form-field">
-                <label>Motivo da recusa (opcional)</label>
+                <label>Motivo da recusa (obrigatório — enviado por e-mail)</label>
                 <input
                   value={motivoRecusa}
                   onChange={(e) => setMotivoRecusa(e.target.value)}
-                  placeholder="Informe se for recusar..."
+                  placeholder="Explique o que precisa ser corrigido..."
                 />
+                <p className="form-field-hint" style={{ marginTop: 6, fontSize: 12, color: '#64748b' }}>
+                  O transportador recebe este motivo no e-mail do cadastro
+                  {revisao.email ? ` (${revisao.email})` : ''} para poder se cadastrar de novo.
+                </p>
               </div>
               {error && <p style={{ color: '#dc2626', marginTop: 10 }}>{error}</p>}
               <div className="cadastro-actions" style={{ gap: 12 }}>

@@ -260,35 +260,77 @@ export async function cadastrarTransportadorRemoto(
     return { ok: false, erro: traduzirErroAuth(signInErr.message) }
   }
 
-  const { data: tRow, error: tErr } = await supabase
-    .from('transportadores')
-    .insert({
-      razao_social: input.empresa.razao_social.trim(),
-      nome_fantasia: input.empresa.nome_fantasia.trim(),
-      cnpj: input.empresa.cnpj.trim(),
-      inscricao_estadual: input.empresa.inscricao_estadual ?? null,
-      inscricao_municipal: input.empresa.inscricao_municipal ?? null,
-      rntrc: input.empresa.rntrc ?? null,
-      cidade: input.empresa.cidade.trim(),
-      uf: input.empresa.uf.trim().toUpperCase().slice(0, 2),
-      endereco: input.empresa.endereco ?? null,
-      numero: input.empresa.numero ?? null,
-      bairro: input.empresa.bairro ?? null,
-      complemento: input.empresa.complemento ?? null,
-      cep: input.empresa.cep ?? null,
-      classificacao: 'bronze',
-      pontuacao: 50,
-      situacao: 'pendente',
-      telefone: input.empresa.telefone ?? null,
-      email: input.empresa.email || email,
-      contato_nome: input.empresa.contato_nome ?? null,
-      contato_telefone: input.empresa.contato_telefone ?? null,
-    })
-    .select('*')
-    .single()
+  const payloadEmpresa = {
+    razao_social: input.empresa.razao_social.trim(),
+    nome_fantasia: input.empresa.nome_fantasia.trim(),
+    cnpj: input.empresa.cnpj.trim(),
+    inscricao_estadual: input.empresa.inscricao_estadual ?? null,
+    inscricao_municipal: input.empresa.inscricao_municipal ?? null,
+    rntrc: input.empresa.rntrc ?? null,
+    cidade: input.empresa.cidade.trim(),
+    uf: input.empresa.uf.trim().toUpperCase().slice(0, 2),
+    endereco: input.empresa.endereco ?? null,
+    numero: input.empresa.numero ?? null,
+    bairro: input.empresa.bairro ?? null,
+    complemento: input.empresa.complemento ?? null,
+    cep: input.empresa.cep ?? null,
+    telefone: input.empresa.telefone ?? null,
+    email: input.empresa.email || email,
+    contato_nome: input.empresa.contato_nome ?? null,
+    contato_telefone: input.empresa.contato_telefone ?? null,
+    situacao: 'pendente' as const,
+    motivo_recusa: null,
+  }
 
-  if (tErr || !tRow) {
-    return { ok: false, erro: tErr?.message || 'Falha ao salvar transportadora.' }
+  const { data: existente } = await supabase
+    .from('transportadores')
+    .select('*')
+    .eq('cnpj', payloadEmpresa.cnpj)
+    .maybeSingle()
+
+  if (existente && existente.situacao !== 'recusado') {
+    return {
+      ok: false,
+      erro: 'Este CNPJ já está cadastrado. Se o acesso estiver bloqueado, fale com o embarcador.',
+    }
+  }
+
+  let tRow = existente
+  if (existente?.situacao === 'recusado') {
+    const { data: updated, error: upErr } = await supabase
+      .from('transportadores')
+      .update({
+        ...payloadEmpresa,
+        classificacao: existente.classificacao ?? 'bronze',
+        pontuacao: existente.pontuacao ?? 50,
+      })
+      .eq('id', existente.id)
+      .select('*')
+      .single()
+    if (upErr || !updated) {
+      return { ok: false, erro: upErr?.message || 'Falha ao reenviar cadastro recusado.' }
+    }
+    tRow = updated
+    await supabase.from('transportador_documentos').delete().eq('transportador_id', existente.id)
+  } else {
+    const { data: inserted, error: tErr } = await supabase
+      .from('transportadores')
+      .insert({
+        ...payloadEmpresa,
+        classificacao: 'bronze',
+        pontuacao: 50,
+      })
+      .select('*')
+      .single()
+
+    if (tErr || !inserted) {
+      return { ok: false, erro: tErr?.message || 'Falha ao salvar transportadora.' }
+    }
+    tRow = inserted
+  }
+
+  if (!tRow) {
+    return { ok: false, erro: 'Falha ao salvar transportadora.' }
   }
 
   await supabase

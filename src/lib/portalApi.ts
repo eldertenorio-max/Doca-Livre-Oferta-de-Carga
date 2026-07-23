@@ -246,6 +246,39 @@ export async function portalEmailVerificarCodigo(email: string, codigo: string) 
   return portalCadastroVerificarCodigo(email, codigo)
 }
 
+/** Avisa o transportador que o cadastro foi recusado (com motivo). */
+export async function portalEmailRecusaCadastro(input: {
+  email: string
+  nome: string
+  motivo: string
+  linkCadastro?: string
+}): Promise<OkMail | Fail> {
+  const email = input.email.trim().toLowerCase()
+  if (!email.includes('@')) return { ok: false, erro: 'E-mail do cadastro inválido.' }
+  if (!input.motivo.trim()) {
+    return { ok: false, erro: 'Informe o motivo da recusa para enviar o e-mail.' }
+  }
+
+  if (!useRemoteOtp()) {
+    console.info('[portal] e-mail de recusa (local):', {
+      email,
+      motivo: input.motivo.trim(),
+    })
+    return {
+      ok: true,
+      mensagem: 'Recusa registrada (modo local — e-mail simulado no console).',
+      email,
+    }
+  }
+
+  return invokeOtp<OkMail>('cadastro_recusa_enviar', {
+    email,
+    nome: input.nome,
+    motivo: input.motivo.trim(),
+    link_cadastro: input.linkCadastro || '',
+  })
+}
+
 /** Cria usuário Auth já confirmado (Edge) — sem reenviar e-mail do Supabase. */
 export async function portalCriarUsuarioAuth(input: {
   verifyToken: string

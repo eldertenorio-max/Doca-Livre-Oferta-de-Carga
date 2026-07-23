@@ -69,6 +69,7 @@ import {
   submeterCadastroTransportador,
   type CadastroTransportadorInput,
 } from '../lib/cadastroTransportador'
+import { portalEmailRecusaCadastro } from '../lib/portalApi'
 import { isLocalSuperUser } from '../lib/superUsers'
 import {
   removeTransportadoraDaHierarquia,
@@ -222,7 +223,10 @@ interface DataContextValue extends DataState, AuthState {
   /** Recarrega transportadoras/docs do Supabase (fila de aprovação). */
   refreshTransportadores: () => Promise<void>
   aprovarTransportador: (id: string) => Promise<{ ok: boolean; error?: string }>
-  recusarTransportador: (id: string, motivo?: string) => Promise<{ ok: boolean; error?: string }>
+  recusarTransportador: (
+    id: string,
+    motivo?: string,
+  ) => Promise<{ ok: boolean; error?: string; mensagem?: string }>
 }
 
 const DataContext = createContext<DataContextValue | null>(null)
@@ -2393,28 +2397,61 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [flushKanbanPush])
 
   const recusarTransportador = useCallback(async (id: string, motivo?: string) => {
+    const motivoTxt = (motivo || '').trim()
+    if (!motivoTxt) {
+      return { ok: false, error: 'Informe o motivo da recusa. Ele será enviado por e-mail.' }
+    }
+
+    const atual = stateRef.current.transportadores.find((t) => t.id === id)
+    const emailDestino = (atual?.email || '').trim()
+    if (!emailDestino || !emailDestino.includes('@')) {
+      return {
+        ok: false,
+        error: 'Cadastro sem e-mail válido. Não é possível enviar a recusa por e-mail.',
+      }
+    }
+
+    const linkCadastro =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}${window.location.pathname || '/'}#/cadastro-transportador`
+        : ''
+
+    const mail = await portalEmailRecusaCadastro({
+      email: emailDestino,
+      nome: atual?.nome_fantasia || atual?.contato_nome || 'Transportador',
+      motivo: motivoTxt,
+      linkCadastro,
+    })
+    if (!mail.ok) {
+      return { ok: false, error: mail.erro || 'Falha ao enviar e-mail de recusa.' }
+    }
+
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase
         .from('transportadores')
-        .update({ situacao: 'recusado', motivo_recusa: motivo ?? null })
+        .update({ situacao: 'recusado', motivo_recusa: motivoTxt })
         .eq('id', id)
       if (error) return { ok: false, error: error.message }
       await supabase.from('profiles').update({ ativo: false }).eq('transportador_id', id)
     }
     setPortalAccountAtivoPorTransportador(id, false)
+    removePortalAccountsPorTransportador(id)
     removeTransportadoraDaHierarquia(id)
     setState((prev) => {
       const next = {
         ...prev,
         transportadores: prev.transportadores.map((t) =>
-          t.id === id ? { ...t, situacao: 'recusado' as const, motivo_recusa: motivo } : t,
+          t.id === id ? { ...t, situacao: 'recusado' as const, motivo_recusa: motivoTxt } : t,
         ),
       }
       stateRef.current = next
       return next
     })
     flushKanbanPush(stateRef.current)
-    return { ok: true }
+    return {
+      ok: true,
+      mensagem: mail.mensagem || `E-mail de recusa enviado para ${emailDestino}.`,
+    }
   }, [flushKanbanPush])
 
   const salvarVeiculo = useCallback((v: Veiculo) => {
