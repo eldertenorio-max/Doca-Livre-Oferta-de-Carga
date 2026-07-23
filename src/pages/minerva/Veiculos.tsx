@@ -108,6 +108,20 @@ export function VeiculosPage() {
     return { total, ativos, inativos }
   }, [scopedVeiculos])
 
+  /** Quantidade por perfil/categoria (tipo) — só tipos com pelo menos 1. */
+  const porPerfil = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const v of scopedVeiculos) {
+      const tipo = (v.tipo || 'Sem tipo').trim() || 'Sem tipo'
+      map.set(tipo, (map.get(tipo) ?? 0) + 1)
+    }
+    return [...map.entries()]
+      .map(([tipo, qtd]) => ({ tipo, qtd }))
+      .sort((a, b) => b.qtd - a.qtd || a.tipo.localeCompare(b.tipo, 'pt-BR'))
+  }, [scopedVeiculos])
+
+  const maxPerfil = porPerfil[0]?.qtd ?? 1
+
   function openNew() {
     setEditingId(null)
     setForm({
@@ -242,6 +256,44 @@ export function VeiculosPage() {
           ativos={statsCadastro.ativos}
           inativos={statsCadastro.inativos}
         />
+
+        {porPerfil.length > 0 && (
+          <section className="mb-4 rounded-xl border border-ink/10 bg-white p-4 shadow-sm">
+            <h2 className="mb-1 font-display text-base font-semibold text-ink">
+              Por perfil de veículo
+            </h2>
+            <p className="mb-3 text-xs text-ink-muted">
+              Quantidade cadastrada por categoria (tipo).
+            </p>
+            <div className="mb-3 flex flex-wrap gap-2">
+              {porPerfil.map((p) => (
+                <span
+                  key={p.tipo}
+                  className="inline-flex items-baseline gap-1.5 rounded-lg border border-ink/10 bg-sand-light/60 px-2.5 py-1.5 text-sm"
+                >
+                  <strong className="font-display text-lg tabular-nums text-ink">{p.qtd}</strong>
+                  <span className="text-ink-muted">{p.tipo}</span>
+                </span>
+              ))}
+            </div>
+            <ul className="space-y-2">
+              {porPerfil.map((p) => (
+                <li key={`bar-${p.tipo}`}>
+                  <div className="mb-0.5 flex items-center justify-between gap-2 text-sm">
+                    <span className="min-w-0 truncate font-medium text-ink">{p.tipo}</span>
+                    <span className="shrink-0 tabular-nums text-ink-muted">{p.qtd}</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-sand-light">
+                    <div
+                      className="h-full rounded-full bg-teal-600 transition-all"
+                      style={{ width: `${Math.max(6, (p.qtd / maxPerfil) * 100)}%` }}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <div className="cadastro-toolbar">
           <input
