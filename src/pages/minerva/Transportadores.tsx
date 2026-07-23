@@ -37,6 +37,7 @@ const emptyForm = (): Partial<Transportador> => ({
   origem_complemento: '',
   origem_lat: null,
   origem_lng: null,
+  raio_km: 50,
   classificacao: 'bronze',
   pontuacao: 50,
   situacao: 'ativo',
@@ -206,6 +207,7 @@ export function TransportadoresPage() {
       origem_complemento: form.origem_complemento,
       origem_lat: form.origem_lat ?? null,
       origem_lng: form.origem_lng ?? null,
+      raio_km: form.raio_km != null ? Number(form.raio_km) : undefined,
       classificacao: (form.classificacao as ClassificacaoTransportador) ?? 'bronze',
       pontuacao: Number(form.pontuacao) || 0,
       situacao: (form.situacao as SituacaoTransportador) ?? 'ativo',
@@ -346,6 +348,12 @@ export function TransportadoresPage() {
                           >
                             {ficha.origem_lat.toFixed(5)}, {ficha.origem_lng.toFixed(5)}
                           </a>
+                        </>
+                      ) : null}
+                      {ficha.raio_km != null ? (
+                        <>
+                          <br />
+                          Raio de pesquisa: {ficha.raio_km} km
                         </>
                       ) : null}
                     </dd>
@@ -490,6 +498,12 @@ export function TransportadoresPage() {
                         >
                           {revisao.origem_lat.toFixed(5)}, {revisao.origem_lng.toFixed(5)}
                         </a>
+                      </>
+                    ) : null}
+                    {revisao.raio_km != null ? (
+                      <>
+                        <br />
+                        Raio de pesquisa: {revisao.raio_km} km
                       </>
                     ) : null}
                   </dd>
@@ -886,6 +900,16 @@ export function TransportadoresPage() {
                   onChange={(e) =>
                     set('origem_lng', e.target.value === '' ? null : Number(e.target.value))
                   }
+                />
+              </Field>
+              <Field label="Raio de pesquisa (km)" className="form-field--span2">
+                <input
+                  type="number"
+                  min={10}
+                  max={500}
+                  step={5}
+                  value={form.raio_km ?? 50}
+                  onChange={(e) => set('raio_km', Number(e.target.value))}
                 />
               </Field>
             </div>

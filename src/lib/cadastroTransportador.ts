@@ -47,6 +47,8 @@ export type CadastroTransportadorInput = {
     complemento?: string
     lat?: number | null
     lng?: number | null
+    /** Distância máxima origem → carregamento (km). */
+    raio_km: number
   }
   acesso: {
     usuario: string
@@ -96,6 +98,10 @@ export function validarCadastroTransportador(
     !Number.isFinite(o.lng)
   ) {
     return 'Aguarde as coordenadas da origem ou revise o endereço residencial.'
+  }
+  const raio = Number(o.raio_km)
+  if (!Number.isFinite(raio) || raio < 10) {
+    return 'Informe o raio de pesquisa (mínimo 10 km).'
   }
 
   for (const tipo of TIPOS_DOC_OBRIGATORIOS) {
@@ -165,6 +171,7 @@ export function cadastrarTransportadorLocal(
     origem_complemento: input.origem.complemento,
     origem_lat: input.origem.lat ?? null,
     origem_lng: input.origem.lng ?? null,
+    raio_km: Number(input.origem.raio_km) || 50,
     classificacao: 'bronze',
     pontuacao: 50,
     situacao: 'pendente',
@@ -324,6 +331,7 @@ export async function cadastrarTransportadorRemoto(
     origem_complemento: input.origem.complemento ?? null,
     origem_lat: input.origem.lat ?? null,
     origem_lng: input.origem.lng ?? null,
+    raio_km: Number(input.origem.raio_km) || 50,
     situacao: 'pendente' as const,
     motivo_recusa: null,
   }
@@ -470,6 +478,7 @@ export async function cadastrarTransportadorRemoto(
     origem_complemento: tRow.origem_complemento ?? undefined,
     origem_lat: tRow.origem_lat != null ? Number(tRow.origem_lat) : null,
     origem_lng: tRow.origem_lng != null ? Number(tRow.origem_lng) : null,
+    raio_km: tRow.raio_km != null ? Number(tRow.raio_km) : undefined,
     classificacao: tRow.classificacao,
     pontuacao: tRow.pontuacao,
     situacao: 'pendente',
@@ -548,6 +557,10 @@ function mapTransportadorRow(row: Record<string, unknown>): Transportador {
       row.origem_lng != null && row.origem_lng !== ''
         ? Number(row.origem_lng)
         : null,
+    raio_km:
+      row.raio_km != null && row.raio_km !== ''
+        ? Number(row.raio_km)
+        : undefined,
     classificacao: (row.classificacao as Transportador['classificacao']) || 'bronze',
     pontuacao: Number(row.pontuacao ?? 50),
     situacao: (row.situacao as Transportador['situacao']) || 'pendente',

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { Link, Navigate } from 'react-router-dom'
 import { useData } from '../context/DataContext'
@@ -48,6 +48,10 @@ function onlyDigits(raw: string, max: number): string {
   return raw.replace(/\D/g, '').slice(0, max)
 }
 
+const RAIO_MIN_KM = 10
+const RAIO_MAX_KM = 500
+const RAIO_DEFAULT_KM = 50
+
 const emptyOrigem = () => ({
   cep: '',
   cidade: '',
@@ -58,6 +62,7 @@ const emptyOrigem = () => ({
   complemento: '',
   lat: null as number | null,
   lng: null as number | null,
+  raio_km: RAIO_DEFAULT_KM,
 })
 
 export function CadastroTransportadorPage() {
@@ -267,7 +272,7 @@ export function CadastroTransportadorPage() {
   function setOri<K extends keyof typeof origem>(key: K, value: (typeof origem)[K]) {
     setOrigem((prev) => {
       const next = { ...prev, [key]: value }
-      if (key !== 'lat' && key !== 'lng') {
+      if (key !== 'lat' && key !== 'lng' && key !== 'raio_km') {
         next.lat = null
         next.lng = null
       }
@@ -333,6 +338,10 @@ export function CadastroTransportadorPage() {
     }
     if (origem.lat == null || origem.lng == null) {
       setError('Não encontramos as coordenadas da origem. Confira o endereço ou o CEP.')
+      return
+    }
+    if (!Number.isFinite(origem.raio_km) || origem.raio_km < RAIO_MIN_KM) {
+      setError(`Defina o raio de pesquisa (mínimo ${RAIO_MIN_KM} km).`)
       return
     }
     setStep(2)
@@ -425,6 +434,7 @@ export function CadastroTransportadorPage() {
         complemento: origem.complemento,
         lat: origem.lat,
         lng: origem.lng,
+        raio_km: origem.raio_km,
       },
       acesso: {
         ...acesso,
@@ -726,6 +736,37 @@ export function CadastroTransportadorPage() {
                       placeholder={origemGeocoding ? 'Buscando…' : 'Automático'}
                     />
                   </Field>
+                  <div className="form-field form-field--span2 raio-pesquisa">
+                    <label>
+                      Pesquisar por raio <span className="req">*</span>
+                    </label>
+                    <p className="raio-pesquisa__hint">
+                      Distância máxima entre a sua origem e o local de carregamento.
+                    </p>
+                    <div className="raio-pesquisa__value">
+                      <strong>{origem.raio_km}</strong>
+                      <span>km</span>
+                    </div>
+                    <input
+                      type="range"
+                      className="raio-pesquisa__slider"
+                      min={RAIO_MIN_KM}
+                      max={RAIO_MAX_KM}
+                      step={5}
+                      value={origem.raio_km}
+                      onChange={(e) => setOri('raio_km', Number(e.target.value))}
+                      aria-label="Raio de pesquisa em quilômetros"
+                      style={
+                        {
+                          '--raio-pct': `${((origem.raio_km - RAIO_MIN_KM) / (RAIO_MAX_KM - RAIO_MIN_KM)) * 100}%`,
+                        } as CSSProperties
+                      }
+                    />
+                    <div className="raio-pesquisa__scale">
+                      <span>{RAIO_MIN_KM} km</span>
+                      <span>{RAIO_MAX_KM} km</span>
+                    </div>
+                  </div>
                 </div>
                 {(origemBuscandoCep || origemGeocoding || origemInfo) && (
                   <p

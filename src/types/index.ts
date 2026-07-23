@@ -92,6 +92,8 @@ export interface Transportador {
   origem_complemento?: string
   origem_lat?: number | null
   origem_lng?: number | null
+  /** Distância máxima (km) entre a origem e o local de carregamento. */
+  raio_km?: number
   classificacao: ClassificacaoTransportador
   pontuacao: number
   situacao: SituacaoTransportador

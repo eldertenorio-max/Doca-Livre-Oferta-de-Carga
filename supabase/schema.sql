@@ -115,6 +115,7 @@ alter table transportadores add column if not exists origem_bairro text;
 alter table transportadores add column if not exists origem_complemento text;
 alter table transportadores add column if not exists origem_lat double precision;
 alter table transportadores add column if not exists origem_lng double precision;
+alter table transportadores add column if not exists raio_km integer;
 
 alter table profiles add column if not exists usuario text;
 alter table profiles add column if not exists ativo boolean not null default true;
