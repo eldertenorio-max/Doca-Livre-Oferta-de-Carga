@@ -43,7 +43,7 @@ export function RotasPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 animate-fade-up">
+    <div className="w-full space-y-6 animate-fade-up">
       <header>
         <h2 className="font-display text-2xl font-bold">Rotas de Frete</h2>
         <p className="text-sm text-ink-muted">

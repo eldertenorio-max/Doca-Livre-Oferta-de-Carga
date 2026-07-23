@@ -284,7 +284,7 @@ export function IndicadoresPage() {
   ]
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 animate-fade-up pb-8">
+    <div className="w-full space-y-6 animate-fade-up pb-8">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="font-display text-2xl font-bold text-ink">Indicadores</h2>

@@ -60,7 +60,7 @@ export function ConfiguracoesPage() {
   }
 
   return (
-    <div className="cadastro-page animate-fade-up mx-auto max-w-3xl">
+    <div className="cadastro-page animate-fade-up">
       <header className="mb-5">
         <h1 className="cadastro-page-title">Configurações</h1>
         <p className="text-sm text-ink-muted">
