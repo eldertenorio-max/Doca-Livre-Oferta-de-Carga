@@ -123,9 +123,11 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       const catalog = [...TIPOS_CARGA]
       const qt = q.trim()
       if (!qt) return catalog
-      const noCatalogo = catalog.some((t) => t.toLowerCase() === qt.toLowerCase())
+      // Já selecionou um tipo do catálogo → ao focar mostra a lista inteira
+      const exact = catalog.some((t) => t.toLowerCase() === qt.toLowerCase())
+      if (exact) return catalog
       const matched = filtrarSugestoes(qt, [catalog], 20)
-      if (!noCatalogo && matched.length === 0) return catalog
+      if (matched.length === 0) return catalog
       return filtrarSugestoes(qt, [catalog, historico.tipo], 20)
     },
     [historico.tipo],
@@ -136,14 +138,10 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       const catalog = [...TIPOS_VEICULO]
       const qt = q.trim()
       if (!qt) return catalog
-      const noCatalogo = catalog.some(
-        (t) => t.toLowerCase() === qt.toLowerCase(),
-      )
+      const exact = catalog.some((t) => t.toLowerCase() === qt.toLowerCase())
+      if (exact) return catalog
       const matched = filtrarSugestoes(qt, [catalog], 20)
-      // Texto legado (ex.: "CARRETA BAU") sem match → mostra todos os tipos oficiais
-      if (!noCatalogo && matched.length === 0) {
-        return catalog
-      }
+      if (matched.length === 0) return catalog
       return filtrarSugestoes(qt, [catalog, historico.veiculo], 20)
     },
     [historico.veiculo],

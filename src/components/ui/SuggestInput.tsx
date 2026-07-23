@@ -74,7 +74,11 @@ export function SuggestInput({
         aria-expanded={show}
         aria-controls={listId}
         aria-autocomplete="list"
-        onFocus={() => setOpen(true)}
+        onFocus={(e) => {
+          setOpen(true)
+          // Facilita trocar a opção: seleciona o texto atual
+          e.currentTarget.select()
+        }}
         onChange={(e) => {
           onChange(e.target.value)
           setOpen(true)
