@@ -632,39 +632,6 @@ export function VeiculosPage() {
         </section>
       </div>
 
-      <section className="form-card form-card--purple" style={{ marginTop: 16 }}>
-        <header className="form-card__head">
-          <IconUser />
-          <h2 className="form-card__title">Configurações de Manobra / Pátio</h2>
-        </header>
-        <div className="form-card__body">
-          <div className="check-row">
-            <label className="check-box check-box--purple">
-              <input
-                type="checkbox"
-                checked={Boolean(form.usa_manobrista)}
-                onChange={(e) => set('usa_manobrista', e.target.checked)}
-              />
-              <div>
-                <strong>Veículo utiliza manobrista?</strong>
-                <span>Se ativo, libera o acionamento para a fila do manobrista.</span>
-              </div>
-            </label>
-            <label className="check-box check-box--green">
-              <input
-                type="checkbox"
-                checked={Boolean(form.padiado)}
-                onChange={(e) => set('padiado', e.target.checked)}
-              />
-              <div>
-                <strong>Veículo Padiado?</strong>
-                <span>Se ativo, entra automaticamente no status &apos;Aguardando Serviço&apos; ao fazer check-in.</span>
-              </div>
-            </label>
-          </div>
-        </div>
-      </section>
-
       {error && <p style={{ color: '#dc2626', marginTop: 12, textAlign: 'center' }}>{error}</p>}
 
       <div className="cadastro-actions">
@@ -724,15 +691,6 @@ function IconExpand() {
   return (
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden>
       <path d="M9 4H4v5M15 4h5v5M9 20H4v-5M20 15v5h-5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-function IconUser() {
-  return (
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden>
-      <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.75" />
-      <path d="M5 19c0-3.5 3-6 7-6s7 2.5 7 6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
     </svg>
   )
 }
