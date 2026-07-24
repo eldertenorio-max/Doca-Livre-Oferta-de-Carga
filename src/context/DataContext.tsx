@@ -85,6 +85,7 @@ import {
   subscribeKanbanSync,
 } from '../lib/kanbanSync'
 import { alinharStatusComLances } from '../lib/kanbanColumns'
+import { enviarPushCarga, notificarLocalNativa } from '../lib/webPush'
 
 const STORAGE_KEY = 'doca-livre-data-v8'
 const STORAGE_KEY_LEGACY = 'doca-livre-data-v7'
@@ -1311,28 +1312,63 @@ export function DataProvider({ children }: { children: ReactNode }) {
       stateRef.current = next
       setState(next)
       flushKanbanPush(next)
+      // Push nativo (barra do celular + som) para transportadores do(s) grupo(s)
+      const tids = [...transportadoresNotificados]
+      if (tids.length > 0) {
+        const titulo = 'Nova oferta de carga'
+        const mensagem = `Carga ${carga?.numero ?? ''} disponível no seu Kanban.`
+        void enviarPushCarga({
+          transportadorIds: tids,
+          titulo,
+          mensagem,
+          cargaId: payload.cargaId,
+          url: '/#/transportador',
+        })
+        void notificarLocalNativa({
+          titulo,
+          mensagem,
+          url: '/#/transportador',
+          tag: `carga-${payload.cargaId}`,
+        })
+      }
       return { ok: true }
     },
     [config, flushKanbanPush],
   )
 
   const notificarTodosGrupos = useCallback((cargaId: string) => {
-    setState((prev) => {
-      const carga = prev.cargas.find((c) => c.id === cargaId)
-      const hist = makeHistorico(
-        'grupos_notificados',
-        `Notificação manual de todos os grupos — ${carga?.numero ?? ''}`,
-        { carga_id: cargaId },
-      )
-      return {
-        ...prev,
-        cargas: prev.cargas.map((c) =>
-          c.id === cargaId ? { ...c, grupos_notificados: [...c.grupo_ids] } : c,
-        ),
-        historico: [hist, ...prev.historico].slice(0, 2000),
-      }
-    })
-  }, [])
+    const prev = stateRef.current
+    const carga = prev.cargas.find((c) => c.id === cargaId)
+    const hist = makeHistorico(
+      'grupos_notificados',
+      `Notificação manual de todos os grupos — ${carga?.numero ?? ''}`,
+      { carga_id: cargaId },
+    )
+    const tids = new Set<string>()
+    for (const g of prev.grupos) {
+      if (!carga?.grupo_ids.includes(g.id)) continue
+      for (const tid of g.transportador_ids ?? []) tids.add(tid)
+    }
+    const next = {
+      ...prev,
+      cargas: prev.cargas.map((c) =>
+        c.id === cargaId ? { ...c, grupos_notificados: [...c.grupo_ids] } : c,
+      ),
+      historico: [hist, ...prev.historico].slice(0, 2000),
+    }
+    stateRef.current = next
+    setState(next)
+    flushKanbanPush(next)
+    if (tids.size > 0) {
+      void enviarPushCarga({
+        transportadorIds: [...tids],
+        titulo: 'Nova oferta de carga',
+        mensagem: `Carga ${carga?.numero ?? ''} disponível no seu Kanban.`,
+        cargaId,
+        url: '/#/transportador',
+      })
+    }
+  }, [flushKanbanPush])
 
   const enviarLance = useCallback(
     (cargaId: string, valor: number, opts?: { aceitarOferta?: boolean }) => {

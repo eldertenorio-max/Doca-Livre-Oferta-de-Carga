@@ -89,11 +89,24 @@
   color: #e2e8f0;
 }
 
+.pwa-install--push {
+  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+}
+
+.pwa-install__err {
+  color: #fca5a5 !important;
+  font-weight: 600;
+}
+
 @media (min-width: 900px) {
   .pwa-install {
     left: auto;
     right: 20px;
     bottom: 20px;
     max-width: 380px;
+  }
+
+  .pwa-install--push {
+    bottom: 100px;
   }
 }

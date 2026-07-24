@@ -20,6 +20,7 @@ import { KanbanTransportador } from './pages/transportador/KanbanTransportador'
 import { PainelTransportadorPage } from './pages/transportador/Painel'
 import { MapaFrotaPage } from './pages/minerva/MapaFrota'
 import { PwaInstallBanner } from './components/PwaInstallBanner'
+import { PushEnableBanner } from './components/PushEnableBanner'
 import { isLocalSuperUser } from './lib/superUsers'
 import type { UserRole } from './types'
 
@@ -56,6 +57,7 @@ export default function App() {
   return (
     <>
       <PwaInstallBanner />
+      <PushEnableBanner />
       <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/cadastro-transportador" element={<CadastroTransportadorPage />} />

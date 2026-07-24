@@ -48,6 +48,7 @@ export default defineConfig({
         // SPA com HashRouter — navegações offline caem no index
         navigateFallback: 'index.html',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webp}'],
+        importScripts: ['push-sw.js'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
