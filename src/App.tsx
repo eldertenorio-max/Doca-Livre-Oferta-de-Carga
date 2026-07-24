@@ -66,7 +66,7 @@ export default function App() {
         <Route
           path="/minerva"
           element={
-            <Protected role={['minerva', 'super']}>
+            <Protected role={['super']}>
               <KanbanMinerva />
             </Protected>
           }
@@ -74,7 +74,7 @@ export default function App() {
         <Route
           path="/minerva/rotas"
           element={
-            <Protected role={['minerva', 'super']}>
+            <Protected role={['super']}>
               <RotasPage />
             </Protected>
           }
@@ -82,7 +82,7 @@ export default function App() {
         <Route
           path="/minerva/transportadores"
           element={
-            <Protected role={['minerva', 'super']}>
+            <Protected role={['super']}>
               <TransportadoresPage />
             </Protected>
           }
@@ -90,7 +90,7 @@ export default function App() {
         <Route
           path="/minerva/veiculos"
           element={
-            <Protected role={['minerva', 'super', 'transportador']}>
+            <Protected role={['super', 'transportador']}>
               <VeiculosPage />
             </Protected>
           }
@@ -98,7 +98,7 @@ export default function App() {
         <Route
           path="/minerva/motoristas"
           element={
-            <Protected role={['minerva', 'super', 'transportador']}>
+            <Protected role={['super', 'transportador']}>
               <MotoristasPage />
             </Protected>
           }
@@ -106,7 +106,7 @@ export default function App() {
         <Route
           path="/minerva/mapa-frota"
           element={
-            <Protected role={['minerva', 'super']}>
+            <Protected role={['super']}>
               <MapaFrotaPage />
             </Protected>
           }
@@ -114,7 +114,7 @@ export default function App() {
         <Route
           path="/minerva/grupos"
           element={
-            <Protected role={['minerva', 'super']}>
+            <Protected role={['super']}>
               <GruposPage />
             </Protected>
           }
@@ -122,7 +122,7 @@ export default function App() {
         <Route
           path="/minerva/indicadores"
           element={
-            <Protected role={['minerva', 'super']}>
+            <Protected role={['super']}>
               <IndicadoresPage />
             </Protected>
           }
@@ -130,7 +130,7 @@ export default function App() {
         <Route
           path="/minerva/configuracoes"
           element={
-            <Protected role={['minerva', 'super']}>
+            <Protected role={['super']}>
               <ConfiguracoesPage />
             </Protected>
           }
@@ -138,7 +138,7 @@ export default function App() {
         <Route
           path="/minerva/historico"
           element={
-            <Protected role={['minerva', 'super']}>
+            <Protected role={['super']}>
               <HistoricoPage />
             </Protected>
           }
@@ -162,7 +162,7 @@ export default function App() {
         <Route
           path="/transportador"
           element={
-            <Protected role={['transportador', 'super', 'minerva']}>
+            <Protected role={['transportador', 'super']}>
               <KanbanTransportador />
             </Protected>
           }
@@ -170,7 +170,7 @@ export default function App() {
         <Route
           path="/transportador/painel"
           element={
-            <Protected role={['transportador', 'super', 'minerva']}>
+            <Protected role={['transportador', 'super']}>
               <PainelTransportadorPage />
             </Protected>
           }

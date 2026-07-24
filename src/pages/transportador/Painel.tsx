@@ -18,7 +18,7 @@ export function PainelTransportadorPage() {
     isLocalSuperUser(user?.usuario ?? '') ||
     isLocalSuperUser(user?.email ?? '')
 
-  const canPick = isSuper || user?.role === 'minerva' || !user?.transportador_id
+  const canPick = isSuper || !user?.transportador_id
 
   const transportadoresAtivos = useMemo(
     () =>

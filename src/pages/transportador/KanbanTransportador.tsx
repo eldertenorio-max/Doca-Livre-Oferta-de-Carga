@@ -76,7 +76,7 @@ export function KanbanTransportador() {
     isLocalSuperUser(user?.email ?? '')
 
   /** Super (e embarcador sem vínculo) escolhem qual Kanban ver. */
-  const canPickTransportador = isSuper || user?.role === 'minerva' || !user?.transportador_id
+  const canPickTransportador = isSuper || !user?.transportador_id
 
   const transportadoresAtivos = useMemo(
     () =>

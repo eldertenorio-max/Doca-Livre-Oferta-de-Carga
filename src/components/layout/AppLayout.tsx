@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
-import { BRAND_EMBARCADOR_LABEL, LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
+import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { ProductMark } from '../ProductMark'
 import { ChatModal } from '../carga/ChatModal'
 import { DisponibilidadeMapaFlag } from '../transportador/DisponibilidadeMapaFlag'
 import { canOpenModulo, moduloFromPath } from '../../lib/portalModules'
-import { PERFIL_OPERACIONAL_LABEL } from '../../lib/perfisOperacionais'
 import { isLocalSuperUser } from '../../lib/superUsers'
 import '../../styles/shell.css'
 
@@ -251,14 +250,15 @@ export function AppLayout() {
         }
         if (n.role === 'todos') return true
         if (n.role === 'minerva') {
+          // Lado embarcador → só Super (equipe Minerva removida)
           if (actingTransportadorId) return false
-          return user.role === 'minerva' || user.role === 'super' || Boolean(user.is_superuser)
+          return user.role === 'super' || Boolean(user.is_superuser)
         }
         if (n.role === 'transportador') {
           return user.role === 'transportador' || Boolean(actingTransportadorId)
         }
         if (!n.user_id && !n.transportador_id && !n.role) {
-          return user.role === 'minerva' || Boolean(user.is_superuser)
+          return user.role === 'super' || Boolean(user.is_superuser)
         }
         return false
       })
@@ -276,23 +276,8 @@ export function AppLayout() {
         { to: '/transportador', label: 'Kanban Transportador', icon: <IconGrid />, end: true },
       ]
     }
-    if (user?.role === 'minerva') {
-      const base = [
-        ...minervaLinks,
-        { to: '/transportador/painel', label: 'Painel Transportador', icon: <IconChart /> },
-        { to: '/transportador', label: 'Kanban Transportador', icon: <IconGrid />, end: true },
-      ]
-      return base.filter((item) => {
-        if (item.to === '/minerva/config' || item.to === '/minerva/financeiro') return false
-        const mod = moduloFromPath(item.to)
-        if (!mod) return true
-        return canOpenModulo(user?.permissoes_modulos, mod)
-      })
-    }
-    const base = user?.role === 'transportador' ? transportadorLinks : minervaLinks
-    return base.filter((item) => {
-      // Super-only
-      if (item.to === '/minerva/config' || item.to === '/minerva/financeiro') return false
+    // Só transportador (demos / cadastro público) — sem equipe Minerva
+    return transportadorLinks.filter((item) => {
       const mod = moduloFromPath(item.to)
       if (!mod) return true
       return canOpenModulo(user?.permissoes_modulos, mod)
@@ -305,13 +290,7 @@ export function AppLayout() {
     return () => window.clearInterval(id)
   }, [])
 
-  const roleLabel = isSuper
-    ? 'Super Usuário'
-    : user?.role === 'minerva'
-      ? user.perfil_operacional
-        ? `${BRAND_EMBARCADOR_LABEL} · ${PERFIL_OPERACIONAL_LABEL[user.perfil_operacional]}`
-        : BRAND_EMBARCADOR_LABEL
-      : 'Transportador'
+  const roleLabel = isSuper ? 'Super Usuário' : 'Transportador'
 
   return (
     <div className="app-shell">

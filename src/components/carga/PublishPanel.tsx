@@ -121,7 +121,7 @@ export function PublishPanel({
     canEditModulo(user?.permissoes_modulos, 'kanban') ||
     Boolean(user?.is_superuser) ||
     user?.role === 'super' ||
-    user?.role === 'minerva'
+    Boolean(user?.is_superuser)
   const classificacao = carga?.classificacao_rota ?? 'B'
   const margens = config.margens[classificacao]
   const prazosOferta = prazosOfertaPermitidos(config)

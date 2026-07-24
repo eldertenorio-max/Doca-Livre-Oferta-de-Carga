@@ -312,16 +312,16 @@ function notifDestinadaAoUsuario(
   if (n.transportador_id) return Boolean(tid && n.transportador_id === tid)
   if (n.role === 'todos') return true
   if (n.role === 'minerva') {
-    // Embarcador: só se não estiver “vendo como” transportador
+    // Lado embarcador → só Super
     if (actingTransportadorId) return false
-    return user.role === 'minerva' || user.role === 'super' || Boolean(user.is_superuser)
+    return user.role === 'super' || Boolean(user.is_superuser)
   }
   if (n.role === 'transportador') {
     if (n.transportador_id) return Boolean(tid && n.transportador_id === tid)
     return user.role === 'transportador' || Boolean(actingTransportadorId)
   }
   if (!n.user_id && !n.transportador_id && !n.role) {
-    return user.role === 'minerva' || Boolean(user.is_superuser)
+    return user.role === 'super' || Boolean(user.is_superuser)
   }
   return false
 }
@@ -584,7 +584,14 @@ function loadState(): DataState {
 function loadAuth(): Profile | null {
   try {
     const raw = localStorage.getItem(AUTH_KEY)
-    if (raw) return JSON.parse(raw) as Profile
+    if (!raw) return null
+    const profile = JSON.parse(raw) as Profile
+    // Equipe Minerva/embarcador removida — força novo login
+    if (profile.role === 'minerva' && !profile.is_superuser) {
+      localStorage.removeItem(AUTH_KEY)
+      return null
+    }
+    return profile
   } catch {
     /* ignore */
   }
@@ -1043,9 +1050,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const role =
       isSuperuser || account.role === 'super'
         ? ('super' as const)
-        : account.role === 'transportador'
-          ? ('transportador' as const)
-          : ('minerva' as const)
+        : ('transportador' as const)
     setUser({
       id: account.id,
       email: account.email,
@@ -1087,14 +1092,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const role = isSuperuser
         ? prev.role === 'transportador'
           ? prev.role
-          : prev.role === 'super'
-            ? prev.role
-            : ('minerva' as const)
+          : ('super' as const)
         : account.role === 'transportador'
           ? ('transportador' as const)
-          : account.role === 'super'
-            ? ('super' as const)
-            : ('minerva' as const)
+          : ('super' as const)
       if (
         prev.transportador_id === transportador_id &&
         prev.is_superuser === isSuperuser &&

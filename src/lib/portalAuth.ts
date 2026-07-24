@@ -72,7 +72,8 @@ export function loadPortalAccounts(): PortalAccount[] {
     const raw = localStorage.getItem(USERS_KEY)
     if (raw) {
       const parsed = JSON.parse(raw) as PortalAccount[]
-      let list = parsed.filter((u) => !isContaMinervaDemo(u))
+      // Só Super + transportadores (demos / cadastro público). Sem equipe Minerva/embarcador.
+      let list = parsed.filter((u) => !isContaEquipeMinerva(u))
       list = ensureDemoTransportadores(list)
       savePortalAccounts(list)
       return list
@@ -83,7 +84,11 @@ export function loadPortalAccounts(): PortalAccount[] {
   return seedAccounts()
 }
 
-function isContaMinervaDemo(u: PortalAccount) {
+/** Contas de equipe embarcador (legado) — removidas do portal. */
+function isContaEquipeMinerva(u: PortalAccount) {
+  if (u.role === 'minerva') return true
+  if (u.role === 'transportador' || u.role === 'super') return false
+  if (isLocalSuperUser(u.usuario) || isLocalSuperUser(u.email)) return false
   const email = (u.email || '').toLowerCase()
   const usuario = (u.usuario || '').toLowerCase()
   return (
@@ -249,16 +254,22 @@ export async function portalCadastroConcluir(input: {
   }
 
   const isSuper = isLocalSuperUser(usuario) || isLocalSuperUser(email)
+  if (!isSuper) {
+    return {
+      ok: false,
+      erro:
+        'Cadastro de equipe (embarcador) foi desativado. Use o cadastro de transportadora ou acesse como Super Usuário (Diego/Elder).',
+    }
+  }
   const account: PortalAccount = {
     id: uid(),
     usuario,
     email,
     password: input.senha,
     nome: usuario,
-    role: isSuper ? 'super' : 'minerva',
-    nivel: isSuper ? 'super' : 'operador',
-    // Só Diego/Elder entram ativos; demais aguardam aprovação do Super
-    ativo: isSuper,
+    role: 'super',
+    nivel: 'super',
+    ativo: true,
     created_at: new Date().toISOString(),
   }
   savePortalAccounts([...users, account])
@@ -267,9 +278,7 @@ export async function portalCadastroConcluir(input: {
   return {
     ok: true,
     usuario,
-    mensagem: isSuper
-      ? 'Super Usuário criado. Faça login.'
-      : 'Cadastro enviado. Aguarde aprovação de Diego ou Elder para fazer login.',
+    mensagem: 'Super Usuário criado. Faça login.',
   }
 }
 
@@ -312,6 +321,14 @@ export function portalLoginLocal(
     account.role === 'super' ||
     isLocalSuperUser(account.usuario) ||
     isLocalSuperUser(account.email)
+  // Equipe Minerva/embarcador não existe mais — só Super ou Transportador
+  if (!isSuperuser && account.role !== 'transportador') {
+    return {
+      ok: false,
+      erro:
+        'Conta de equipe desativada. Use Super Usuário (Diego/Elder) ou uma conta de transportador.',
+    }
+  }
   return {
     ok: true,
     account,

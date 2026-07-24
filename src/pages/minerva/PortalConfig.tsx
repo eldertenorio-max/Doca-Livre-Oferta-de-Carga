@@ -16,11 +16,6 @@ import {
   type OfertaPermissao,
 } from '../../lib/portalModules'
 import {
-  PERFIL_OPERACIONAL_LABEL,
-  permissaoPorPerfil,
-  type PerfilOperacional,
-} from '../../lib/perfisOperacionais'
-import {
   ORG_TIPO_LABEL,
   allowedOrgChildTypes,
   deleteOrgNo,
@@ -59,31 +54,16 @@ export function PortalConfigPage() {
   const editableUsers = useMemo(
     () =>
       accounts.filter(
-        (a) => !isLocalSuperUser(a.usuario) && !isLocalSuperUser(a.email) && a.role !== 'super',
-      ),
-    [accounts],
-  )
-
-  const pendentesEquipe = useMemo(
-    () =>
-      accounts.filter(
         (a) =>
-          !a.ativo &&
-          a.role !== 'transportador' &&
+          a.role === 'transportador' &&
           !isLocalSuperUser(a.usuario) &&
-          !isLocalSuperUser(a.email) &&
-          a.role !== 'super',
+          !isLocalSuperUser(a.email),
       ),
     [accounts],
   )
 
   const accountsSorted = useMemo(() => {
-    return [...accounts].sort((a, b) => {
-      const ap = !a.ativo && a.role !== 'transportador' ? 0 : 1
-      const bp = !b.ativo && b.role !== 'transportador' ? 0 : 1
-      if (ap !== bp) return ap - bp
-      return a.usuario.localeCompare(b.usuario)
-    })
+    return [...accounts].sort((a, b) => a.usuario.localeCompare(b.usuario))
   }, [accounts])
 
   if (!user) return <Navigate to="/login" replace />
@@ -154,19 +134,6 @@ export function PortalConfigPage() {
     setMsg('Permissões salvas.')
   }
 
-  function applyPerfilOperacional(perfil: PerfilOperacional) {
-    if (!selectedUser) return
-    const account = accounts.find((a) => a.usuario === selectedUser)
-    if (!account || account.role === 'transportador') {
-      setMsg('Perfis Admin/Operador/Consulta aplicam-se a usuários embarcadores.')
-      return
-    }
-    const nextPerm = permissaoPorPerfil(perfil)
-    setPerms((prev) => ({ ...prev, [selectedUser]: nextPerm }))
-    updateAccount(selectedUser, { perfil_operacional: perfil })
-    setMsg(`Perfil ${PERFIL_OPERACIONAL_LABEL[perfil]} aplicado. Clique em Salvar permissões.`)
-  }
-
   function updateAccount(usuario: string, patch: Partial<PortalAccount>) {
     const next = accounts.map((a) => (a.usuario === usuario ? { ...a, ...patch } : a))
     setAccounts(next)
@@ -190,9 +157,7 @@ export function PortalConfigPage() {
             ['permissoes', 'Permissões'],
             [
               'usuarios',
-              pendentesEquipe.length
-                ? `Usuários (${pendentesEquipe.length} pendente${pendentesEquipe.length > 1 ? 's' : ''})`
-                : 'Usuários',
+              'Usuários',
             ],
           ] as const
         ).map(([id, label]) => (
@@ -252,11 +217,7 @@ export function PortalConfigPage() {
                         }}
                         onClick={() => selectPermUser(a.usuario)}
                       >
-                        {a.usuario} ·{' '}
-                        {a.role === 'minerva'
-                          ? 'Doca Livre Oferta de Carga'
-                          : a.role}{' '}
-                        · {a.email}
+                        {a.usuario} · {a.role} · {a.email}
                       </button>
                     </li>
                   ))}
@@ -277,21 +238,8 @@ export function PortalConfigPage() {
               ) : (
                 <>
                   <p className="portal-login__hint" style={{ marginBottom: 10 }}>
-                    Atalhos da especificação (PPT): Administrador (cadastrar/configurar/publicar),
-                    Operador (publicar/acompanhar), Consulta (somente leitura).
+                    Ajuste o acesso por módulo deste transportador. Super Usuários têm acesso total.
                   </p>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-                    {(Object.keys(PERFIL_OPERACIONAL_LABEL) as PerfilOperacional[]).map((p) => (
-                      <button
-                        key={p}
-                        type="button"
-                        className="cadastro-btn cadastro-btn--ghost"
-                        onClick={() => applyPerfilOperacional(p)}
-                      >
-                        {PERFIL_OPERACIONAL_LABEL[p]}
-                      </button>
-                    ))}
-                  </div>
                   <table className="cadastro-table">
                     <thead>
                       <tr>
@@ -345,30 +293,13 @@ export function PortalConfigPage() {
             <h2 className="form-card__title">Contas do portal</h2>
           </header>
           <div className="form-card__body">
-            {pendentesEquipe.length > 0 && (
-              <p
-                style={{
-                  marginBottom: 12,
-                  padding: '10px 12px',
-                  borderRadius: 8,
-                  background: '#fff7ed',
-                  border: '1px solid #fed7aa',
-                  color: '#9a3412',
-                  fontSize: 13,
-                }}
-              >
-                <strong>{pendentesEquipe.length}</strong> conta(s) de equipe aguardando aprovação.
-                Use <strong>Aprovar</strong> para liberar o login.
-              </p>
-            )}
             <div className="cadastro-table-wrap">
               <table className="cadastro-table">
                 <thead>
                   <tr>
                     <th>Usuário</th>
                     <th>E-mail</th>
-                    <th>Perfil sistema</th>
-                    <th>Perfil operacional</th>
+                    <th>Perfil</th>
                     <th>Situação</th>
                     <th>Ações</th>
                   </tr>
@@ -379,13 +310,8 @@ export function PortalConfigPage() {
                       isLocalSuperUser(a.usuario) ||
                       isLocalSuperUser(a.email) ||
                       a.role === 'super'
-                    const pendenteEquipe =
-                      !superU && !a.ativo && a.role !== 'transportador'
                     return (
-                      <tr
-                        key={a.id}
-                        style={pendenteEquipe ? { background: '#fffbeb' } : undefined}
-                      >
+                      <tr key={a.id}>
                         <td>
                           <strong>{a.usuario}</strong>
                           {superU && (
@@ -396,85 +322,19 @@ export function PortalConfigPage() {
                               Super
                             </span>
                           )}
-                          {pendenteEquipe && (
-                            <span
-                              className="badge-situacao"
-                              style={{
-                                marginLeft: 8,
-                                background: '#f59e0b',
-                                color: '#fff',
-                              }}
-                            >
-                              Pendente
-                            </span>
-                          )}
                         </td>
                         <td>{a.email}</td>
-                        <td>
-                          {superU ? (
-                            'super'
-                          ) : (
-                            <select
-                              value={a.role}
-                              onChange={(e) =>
-                                updateAccount(a.usuario, {
-                                  role: e.target.value as PortalAccount['role'],
-                                })
-                              }
-                            >
-                              <option value="minerva">Doca Livre Oferta de Carga</option>
-                              <option value="transportador">transportador</option>
-                            </select>
-                          )}
-                        </td>
+                        <td>{superU ? 'super' : 'transportador'}</td>
                         <td>
                           {superU
-                            ? '—'
-                            : a.role === 'transportador'
-                              ? '—'
-                              : a.perfil_operacional
-                                ? PERFIL_OPERACIONAL_LABEL[a.perfil_operacional]
-                                : '—'}
-                        </td>
-                        <td>
-                          {superU ? (
-                            'Ativo'
-                          ) : a.ativo ? (
-                            'Ativo'
-                          ) : a.role === 'transportador' ? (
-                            'Aguarda aprovação (Transportadoras)'
-                          ) : (
-                            'Aguarda aprovação (Diego/Elder)'
-                          )}
+                            ? 'Ativo'
+                            : a.ativo
+                              ? 'Ativo'
+                              : 'Aguarda aprovação (Transportadoras)'}
                         </td>
                         <td>
                           {superU ? (
                             '—'
-                          ) : pendenteEquipe ? (
-                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                              <button
-                                type="button"
-                                className="cadastro-btn cadastro-btn--save"
-                                onClick={() => {
-                                  updateAccount(a.usuario, { ativo: true })
-                                  setMsg(`Conta “${a.usuario}” aprovada. Login liberado.`)
-                                }}
-                              >
-                                Aprovar
-                              </button>
-                              <button
-                                type="button"
-                                className="cadastro-btn cadastro-btn--ghost"
-                                onClick={() => {
-                                  const next = accounts.filter((x) => x.id !== a.id)
-                                  setAccounts(next)
-                                  savePortalAccounts(next)
-                                  setMsg(`Cadastro “${a.usuario}” removido.`)
-                                }}
-                              >
-                                Recusar
-                              </button>
-                            </div>
                           ) : (
                             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                               <input
@@ -495,8 +355,9 @@ export function PortalConfigPage() {
               </table>
             </div>
             <p className="portal-login__hint" style={{ marginTop: 12 }}>
-              Contas criadas em “Criar conta (equipe / Super)” ficam pendentes até Diego ou Elder
-              aprovarem aqui. Super Users (Diego/Elder) já entram ativos e não são editáveis.
+              Contas do portal: Super Usuários (Diego/Elder) e transportadores (demos + cadastro
+              público). Equipe embarcador/Minerva foi removida — o painel operacional é só dos
+              Supers.
             </p>
           </div>
         </section>
