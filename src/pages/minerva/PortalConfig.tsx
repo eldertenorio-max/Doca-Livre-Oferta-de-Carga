@@ -4,7 +4,9 @@ import { useData } from '../../context/DataContext'
 import {
   createPortalAccount,
   loadPortalAccounts,
+  removePortalAccountRemote,
   savePortalAccounts,
+  syncPortalAccounts,
   loadPermissoesMap,
   savePermissoesMap,
   type PortalAccount,
@@ -44,6 +46,7 @@ export function PortalConfigPage() {
   useEffect(() => {
     if (tab !== 'usuarios') return
     setAccounts(loadPortalAccounts())
+    void syncPortalAccounts().then(setAccounts)
   }, [tab])
 
   useEffect(() => {
@@ -220,6 +223,7 @@ export function PortalConfigPage() {
     const next = accounts.filter((x) => x.id !== a.id)
     setAccounts(next)
     savePortalAccounts(next)
+    void removePortalAccountRemote(a)
     if (selectedUser === a.usuario) setSelectedUser('')
     setMsg(`Conta “${a.usuario}” excluída.`)
   }

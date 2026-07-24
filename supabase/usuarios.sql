@@ -44,18 +44,19 @@ alter table public.usuarios enable row level security;
 drop policy if exists "auth read usuarios" on public.usuarios;
 drop policy if exists "auth write usuarios" on public.usuarios;
 
--- Leitura autenticada (ajuste depois se quiser restringir a super)
+-- O login do portal é local e usa a chave anon; essas políticas permitem
+-- compartilhar a mesma lista entre celular e computador.
 create policy "auth read usuarios"
   on public.usuarios
   for select
-  to authenticated
+  to anon, authenticated
   using (true);
 
--- Escrita autenticada (Portal / Super)
+-- Escrita pelo Portal / Super (login local não cria sessão Supabase Auth).
 create policy "auth write usuarios"
   on public.usuarios
   for all
-  to authenticated
+  to anon, authenticated
   using (true)
   with check (true);
 

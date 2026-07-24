@@ -12,6 +12,7 @@ import {
   type OfertaPermissao,
 } from './portalModules'
 import type { PerfilOperacional, UserRole } from '../types'
+import { isSupabaseConfigured, supabase } from './supabase'
 
 const USERS_KEY = 'doca-livre-oferta-users-v2'
 /** Chaves antigas — migra contas criadas antes da troca de versão. */
@@ -125,7 +126,7 @@ export function loadPortalAccounts(): PortalAccount[] {
   const stored = readStoredAccounts()
   if (stored) {
     const list = normalizePortalList(stored)
-    savePortalAccounts(list)
+    savePortalAccountsLocal(list)
     return list
   }
   return seedAccounts()
@@ -270,7 +271,8 @@ function ensureDemoTransportadores(list: PortalAccount[]): PortalAccount[] {
 
 function seedAccounts(): PortalAccount[] {
   const seed = normalizePortalList([])
-  savePortalAccounts(seed)
+  savePortalAccountsLocal(seed)
+  void persistPortalAccountsRemote(seed)
   return seed
 }
 
@@ -318,8 +320,135 @@ export function createPortalAccount(input: {
   return { ok: true, account, list }
 }
 
-export function savePortalAccounts(list: PortalAccount[]) {
+function savePortalAccountsLocal(list: PortalAccount[]) {
   localStorage.setItem(USERS_KEY, JSON.stringify(list))
+}
+
+function validUuid(value?: string | null) {
+  return Boolean(
+    value &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        value,
+      ),
+  )
+}
+
+type RemotePortalAccount = {
+  id: string
+  usuario: string
+  email: string
+  senha_hash: string | null
+  nome: string
+  role: PortalAccount['role']
+  nivel: PortalAccount['nivel']
+  perfil_operacional: PerfilOperacional | null
+  transportador_id: string | null
+  empresa_org_id: string | null
+  ativo: boolean
+  created_at: string
+}
+
+function fromRemoteAccount(row: RemotePortalAccount, local?: PortalAccount): PortalAccount {
+  return {
+    id: row.id,
+    usuario: row.usuario,
+    email: row.email,
+    password: row.senha_hash || local?.password || '',
+    nome: row.nome,
+    role: row.role,
+    nivel: row.nivel,
+    perfil_operacional: row.perfil_operacional ?? undefined,
+    transportador_id: row.transportador_id,
+    empresa_org_id: row.empresa_org_id,
+    ativo: row.ativo,
+    created_at: row.created_at,
+  }
+}
+
+async function persistPortalAccountsRemote(list: PortalAccount[]) {
+  if (!isSupabaseConfigured || !supabase) return
+  try {
+    const { data, error } = await supabase
+      .from('usuarios')
+      .select('id, usuario, email')
+    if (error) return
+
+    const remote = (data ?? []) as Array<{ id: string; usuario: string; email: string }>
+    for (const account of list) {
+      const row = {
+        usuario: account.usuario.trim(),
+        email: account.email.trim().toLowerCase(),
+        senha_hash: account.password || null,
+        nome: account.nome || account.usuario,
+        role: account.role === 'super' ? 'super' : 'transportador',
+        nivel: account.role === 'super' ? 'super' : (account.nivel ?? 'operador'),
+        perfil_operacional: account.perfil_operacional ?? null,
+        transportador_id: validUuid(account.transportador_id)
+          ? account.transportador_id
+          : null,
+        empresa_org_id: account.empresa_org_id ?? null,
+        ativo: account.ativo,
+        updated_at: new Date().toISOString(),
+      }
+      const found = remote.find(
+        (item) =>
+          item.usuario.toLowerCase() === row.usuario.toLowerCase() ||
+          item.email.toLowerCase() === row.email,
+      )
+      if (found) {
+        await supabase.from('usuarios').update(row).eq('id', found.id)
+      } else {
+        await supabase.from('usuarios').insert(row)
+      }
+    }
+  } catch {
+    // O modo local continua funcionando se a tabela/política ainda não foi instalada.
+  }
+}
+
+/** Salva localmente e replica no Supabase para os demais aparelhos. */
+export function savePortalAccounts(list: PortalAccount[]) {
+  savePortalAccountsLocal(list)
+  void persistPortalAccountsRemote(list)
+}
+
+/** Une as contas locais com as contas compartilhadas do Supabase. */
+export async function syncPortalAccounts(): Promise<PortalAccount[]> {
+  const local = loadPortalAccounts()
+  if (!isSupabaseConfigured || !supabase) return local
+  try {
+    const { data, error } = await supabase
+      .from('usuarios')
+      .select(
+        'id, usuario, email, senha_hash, nome, role, nivel, perfil_operacional, transportador_id, empresa_org_id, ativo, created_at',
+      )
+      .order('created_at', { ascending: true })
+    if (error) return local
+
+    const merged = [...local]
+    for (const row of (data ?? []) as RemotePortalAccount[]) {
+      if (row.role !== 'super' && row.role !== 'transportador') continue
+      const idx = merged.findIndex(
+        (account) =>
+          account.usuario.toLowerCase() === row.usuario.toLowerCase() ||
+          account.email.toLowerCase() === row.email.toLowerCase(),
+      )
+      const account = fromRemoteAccount(row, idx >= 0 ? merged[idx] : undefined)
+      if (idx >= 0) merged[idx] = account
+      else merged.push(account)
+    }
+    const normalized = normalizePortalList(merged)
+    savePortalAccountsLocal(normalized)
+    void persistPortalAccountsRemote(normalized)
+    return normalized
+  } catch {
+    return local
+  }
+}
+
+export async function removePortalAccountRemote(account: PortalAccount) {
+  if (!isSupabaseConfigured || !supabase) return
+  await supabase.from('usuarios').delete().eq('usuario', account.usuario)
 }
 
 export function loadPermissoesMap(): Record<string, OfertaPermissao> {

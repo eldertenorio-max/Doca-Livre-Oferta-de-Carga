@@ -12,7 +12,7 @@ import {
   portalSenhaRedefinir,
   portalSenhaVerificarCodigo,
 } from '../lib/portalApi'
-import { DEMO_TRANSPORTADORES } from '../lib/portalAuth'
+import { DEMO_TRANSPORTADORES, syncPortalAccounts } from '../lib/portalAuth'
 import '../styles/login.css'
 import '../styles/shell.css'
 
@@ -21,6 +21,10 @@ type Step = 'form' | 'codigo' | 'dados'
 
 export function LoginPage() {
   const { login, user } = useData()
+
+  useEffect(() => {
+    void syncPortalAccounts()
+  }, [])
 
   const [mode, setMode] = useState<Mode>('login')
   const [step, setStep] = useState<Step>('form')
