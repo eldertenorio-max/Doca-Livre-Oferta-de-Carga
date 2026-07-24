@@ -259,42 +259,11 @@ export function MapaFrotaPage() {
               ))}
             </ul>
           </div>
-
-          {filtrados.length === 0 ? (
+          {filtrados.length === 0 && (
             <p className="mapa-frota__empty">
               Nenhum ponto para exibir. Cadastre origem (coordenadas) no transportador, vincule
               motorista ao veículo e marque como disponível.
             </p>
-          ) : (
-            <ul className="mapa-frota__motoristas">
-              {filtrados.map((p) => (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    className={`mapa-frota__item${selecionado === p.id ? ' is-selected' : ''}`}
-                    onClick={() => setSelecionado(p.id)}
-                  >
-                    <span className="mapa-frota__item-ico" aria-hidden>
-                      {p.emoji}
-                    </span>
-                    <span className="mapa-frota__item-body">
-                      <strong>{p.motoristaNome}</strong>
-                      <span>
-                        {p.tipoVeiculo} · {p.placa}
-                      </span>
-                      <span className="mapa-frota__item-meta">
-                        ★ {p.avaliacao.toFixed(1).replace('.', ',')} ·{' '}
-                        {p.freteMinimo > 0 ? formatCurrency(p.freteMinimo) : 'sem frete mín.'}
-                      </span>
-                    </span>
-                    <span
-                      className={`mapa-frota__dot mapa-frota__dot--${p.disponivel ? 'ok' : 'off'}`}
-                      title={p.disponivel ? 'Disponível' : 'Indisponível'}
-                    />
-                  </button>
-                </li>
-              ))}
-            </ul>
           )}
         </aside>
         <div className="mapa-frota__map-wrap">
