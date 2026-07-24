@@ -94,7 +94,8 @@ function makeIcon(p: PontoFrota) {
     html: markerHtml(p),
     iconSize: [110, 44],
     iconAnchor: [55, 44],
-    popupAnchor: [0, -48],
+    // Âncora na base da bolha; o CSS --below coloca o card embaixo
+    popupAnchor: [0, 4],
   })
 }
 
@@ -152,12 +153,14 @@ export function MapaFrotaPage() {
     for (const p of filtrados) {
       const m = L.marker([p.lat, p.lng], { icon: makeIcon(p) })
       m.bindPopup(popupHtml(p), {
-        className: 'frota-leaflet-popup',
+        className: 'frota-leaflet-popup frota-leaflet-popup--below',
         maxWidth: 320,
         minWidth: 260,
-        offset: L.point(0, -6),
+        offset: L.point(0, 8),
         autoPan: true,
-        autoPanPadding: L.point(36, 36),
+        autoPanPadding: L.point(48, 48),
+        autoPanPaddingTopLeft: L.point(24, 24),
+        autoPanPaddingBottomRight: L.point(24, 72),
         closeButton: true,
       })
       m.on('click', () => setSelecionado(p.id))
@@ -186,8 +189,12 @@ export function MapaFrotaPage() {
     const marker = markersRef.current.get(selecionado)
     const p = filtrados.find((x) => x.id === selecionado)
     if (!marker || !p) return
-    map.setView([p.lat, p.lng], Math.max(map.getZoom(), 10), { animate: true })
-    marker.openPopup()
+    const zoom = Math.max(map.getZoom(), 10)
+    // Deixa o pin mais alto na tela para o popup caber embaixo
+    const pt = map.project([p.lat, p.lng], zoom)
+    const shifted = map.unproject([pt.x, pt.y - 120], zoom)
+    map.setView(shifted, zoom, { animate: true })
+    window.setTimeout(() => marker.openPopup(), 180)
   }, [selecionado, filtrados])
 
   const nDisp = pontos.filter((p) => p.disponivel).length

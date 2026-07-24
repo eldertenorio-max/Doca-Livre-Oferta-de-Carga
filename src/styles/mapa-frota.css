@@ -241,7 +241,7 @@
   padding-right: 2px;
 }
 
-/* Popup Leaflet ancorado no pin */
+/* Popup Leaflet — abre EMBAIXO do pin */
 .frota-leaflet-popup .leaflet-popup-content-wrapper {
   border-radius: 16px;
   border: 1px solid #e2e8f0;
@@ -253,12 +253,27 @@
 .frota-leaflet-popup .leaflet-popup-content {
   margin: 12px 14px 14px;
   min-width: 240px;
-  max-height: min(420px, 55vh);
+  max-height: min(380px, 50vh);
   overflow: auto;
 }
 
-.frota-leaflet-popup .leaflet-popup-tip {
+/* Leaflet posiciona o card acima do tip; forçamos abaixo do pin */
+.frota-leaflet-popup--below.leaflet-popup {
+  bottom: auto !important;
+  top: 12px !important;
+  margin-bottom: 0 !important;
+}
+
+.frota-leaflet-popup--below .leaflet-popup-tip-container {
+  top: -19px;
+  bottom: auto;
+  margin-top: 0;
+}
+
+.frota-leaflet-popup--below .leaflet-popup-tip {
+  transform: rotate(180deg);
   box-shadow: none;
+  background: #fff;
 }
 
 .frota-leaflet-popup a.leaflet-popup-close-button {
