@@ -119,17 +119,11 @@ function encaixarPopupNoMapa(map: L.Map, popup: L.Popup) {
   const er = el.getBoundingClientRect()
   const content = el.querySelector('.leaflet-popup-content') as HTMLElement | null
 
-  const maxH = Math.max(160, cr.bottom - er.top - pad - 8)
+  // Só limita altura — não mexe no zoom/posição do mapa (usuário navega livre)
+  const maxH = Math.max(140, Math.min(380, cr.bottom - Math.max(er.top, cr.top) - pad - 8))
   if (content) content.style.maxHeight = `${maxH}px`
 
-  const er2 = el.getBoundingClientRect()
-  let dx = 0
-  let dy = 0
-  if (er2.bottom > cr.bottom - pad) dy += er2.bottom - (cr.bottom - pad)
-  if (er2.top < cr.top + pad) dy -= cr.top + pad - er2.top
-  if (er2.right > cr.right - pad) dx += er2.right - (cr.right - pad)
-  if (er2.left < cr.left + pad) dx -= cr.left + pad - er2.left
-  if (dx || dy) map.panBy([dx, dy], { animate: false })
+  void map
 }
 
 export function MapaFrotaPage() {
@@ -145,6 +139,8 @@ export function MapaFrotaPage() {
   const [selecionado, setSelecionado] = useState<string | null>(null)
   const selecionadoRef = useRef<string | null>(null)
   selecionadoRef.current = selecionado
+  const chaveFiltroAnteriorRef = useRef('')
+  const enquadrouInicialRef = useRef(false)
   const [busca, setBusca] = useState('')
   const [cidade, setCidade] = useState('')
   const [uf, setUf] = useState('')
@@ -152,6 +148,21 @@ export function MapaFrotaPage() {
   const [raioMin, setRaioMin] = useState<number | ''>('')
   const [raioGeo, setRaioGeo] = useState<number | ''>('')
   const [tipos, setTipos] = useState<FrotaIconeGrupo[]>([])
+
+  const chaveFiltro = useMemo(
+    () =>
+      JSON.stringify({
+        filtro,
+        busca: busca.trim().toLowerCase(),
+        cidade,
+        uf,
+        regiao,
+        raioMin,
+        raioGeo,
+        tipos,
+      }),
+    [filtro, busca, cidade, uf, regiao, raioMin, raioGeo, tipos],
+  )
 
   const pontos = useMemo(
     () => montarPontosFrota(motoristas, veiculos, transportadores),
@@ -291,6 +302,14 @@ export function MapaFrotaPage() {
     const map = mapRef.current
     const layer = layerRef.current
     if (!map || !layer) return
+
+    const filtrosMudaram = chaveFiltroAnteriorRef.current !== chaveFiltro
+    chaveFiltroAnteriorRef.current = chaveFiltro
+
+    // Preserva popup aberto durante rebuild
+    const idAberto = selecionadoRef.current
+    if (idAberto) ignorarFecharPopupRef.current = true
+
     layer.clearLayers()
     markersRef.current.clear()
 
@@ -356,12 +375,9 @@ export function MapaFrotaPage() {
       bounds.push([p.lat, p.lng])
     }
 
-    // Reabre o popup se o filtro reconstruiu os markers com o mesmo id selecionado
-    const idSel = selecionadoRef.current
-    if (idSel) {
-      const keep = markersRef.current.get(idSel)
+    if (idAberto) {
+      const keep = markersRef.current.get(idAberto)
       if (keep) {
-        ignorarFecharPopupRef.current = true
         window.setTimeout(() => {
           keep.openPopup()
           const popup = keep.getPopup()
@@ -370,25 +386,33 @@ export function MapaFrotaPage() {
         }, 0)
       } else {
         setSelecionado(null)
+        ignorarFecharPopupRef.current = false
       }
     }
 
-    if (raioLayerRef.current) {
-      const b = raioLayerRef.current.getBounds()
-      if (bounds.length > 0) {
-        map.fitBounds(b.extend(L.latLngBounds(bounds as L.LatLngTuple[])), {
-          padding: [40, 40],
-          maxZoom: 11,
-        })
-      } else {
-        map.fitBounds(b, { padding: [40, 40], maxZoom: 10 })
+    // Só enquadra na 1ª carga ou quando o usuário muda filtros — não reseta pan/zoom livre
+    const deveEnquadrar = filtrosMudaram || !enquadrouInicialRef.current
+    if (deveEnquadrar) {
+      if (raioLayerRef.current) {
+        const b = raioLayerRef.current.getBounds()
+        if (bounds.length > 0) {
+          map.fitBounds(b.extend(L.latLngBounds(bounds as L.LatLngTuple[])), {
+            padding: [40, 40],
+            maxZoom: 11,
+          })
+        } else {
+          map.fitBounds(b, { padding: [40, 40], maxZoom: 10 })
+        }
+        enquadrouInicialRef.current = true
+      } else if (bounds.length === 1) {
+        map.setView(bounds[0], 10)
+        enquadrouInicialRef.current = true
+      } else if (bounds.length > 1) {
+        map.fitBounds(L.latLngBounds(bounds), { padding: [48, 48], maxZoom: 11 })
+        enquadrouInicialRef.current = true
       }
-    } else if (bounds.length === 1) {
-      map.setView(bounds[0], 10)
-    } else if (bounds.length > 1) {
-      map.fitBounds(L.latLngBounds(bounds), { padding: [48, 48], maxZoom: 11 })
     }
-  }, [filtrados, raioGeo, centroBusca])
+  }, [filtrados, raioGeo, centroBusca, chaveFiltro])
 
   return (
     <div className="mapa-frota animate-fade-up">
