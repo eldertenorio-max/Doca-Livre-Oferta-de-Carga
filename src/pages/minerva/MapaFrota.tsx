@@ -188,7 +188,7 @@ export function MapaFrotaPage() {
     return { lat, lng }
   }, [pontos, cidade, uf, regiao])
 
-  const filtrados = useMemo(() => {
+  const filtradosSemTipo = useMemo(() => {
     const q = busca.trim().toLowerCase()
     return pontos.filter((p) => {
       if (filtro === 'disponiveis' && !p.disponivel) return false
@@ -197,7 +197,6 @@ export function MapaFrotaPage() {
       if (uf && p.uf !== uf) return false
       if (regiao && regiaoDaUf(p.uf) !== regiao) return false
       if (raioMin !== '' && !(p.raioKm >= raioMin)) return false
-      if (tipos.length > 0 && !tipos.includes(p.icone)) return false
       if (raioGeo !== '' && centroBusca) {
         if (distanciaKm(centroBusca.lat, centroBusca.lng, p.lat, p.lng) > raioGeo) return false
       }
@@ -216,12 +215,17 @@ export function MapaFrotaPage() {
       }
       return true
     })
-  }, [pontos, filtro, cidade, uf, regiao, raioMin, raioGeo, tipos, busca, centroBusca])
+  }, [pontos, filtro, cidade, uf, regiao, raioMin, raioGeo, busca, centroBusca])
+
+  const filtrados = useMemo(() => {
+    if (tipos.length === 0) return filtradosSemTipo
+    return filtradosSemTipo.filter((p) => tipos.includes(p.icone))
+  }, [filtradosSemTipo, tipos])
 
   const contagemPorCategoria = useMemo(() => {
     const map = new Map<string, number>()
     for (const item of LEGENDA_FROTA) map.set(item.grupo, 0)
-    for (const p of filtrados) {
+    for (const p of filtradosSemTipo) {
       if (!p.disponivel) continue
       map.set(p.icone, (map.get(p.icone) ?? 0) + 1)
     }
@@ -229,7 +233,7 @@ export function MapaFrotaPage() {
       ...item,
       qtd: map.get(item.grupo) ?? 0,
     }))
-  }, [filtrados])
+  }, [filtradosSemTipo])
 
   const nDisp = pontos.filter((p) => p.disponivel).length
   const nIndisp = pontos.length - nDisp
@@ -250,6 +254,11 @@ export function MapaFrotaPage() {
     setRaioMin('')
     setRaioGeo('')
     setTipos([])
+  }
+
+  /** Clique na categoria: mostra só aquele tipo; clica de novo libera. */
+  function filtrarSoTipo(grupo: FrotaIconeGrupo) {
+    setTipos((prev) => (prev.length === 1 && prev[0] === grupo ? [] : [grupo]))
   }
 
   function toggleTipo(grupo: FrotaIconeGrupo) {
@@ -522,24 +531,33 @@ export function MapaFrotaPage() {
           </div>
 
           <div className="mapa-frota__cats" aria-label="Quantidade disponível por categoria">
-            <p className="mapa-frota__cats-title">Disponíveis (filtro atual)</p>
+            <p className="mapa-frota__cats-title">Disponíveis no mapa</p>
+            <p className="mapa-frota__cats-hint">Clique para ver só esse tipo no mapa</p>
             <ul className="mapa-frota__cats-list">
-              {contagemPorCategoria.map((item) => (
-                <li key={item.grupo}>
-                  <button
-                    type="button"
-                    className="mapa-frota__cats-row"
-                    onClick={() => toggleTipo(item.grupo)}
-                    title={`Filtrar ${item.label}`}
-                  >
-                    <span className="mapa-frota__cats-ico" aria-hidden>
-                      {item.emoji}
-                    </span>
-                    <span className="mapa-frota__cats-label">{item.label}</span>
-                    <strong className="mapa-frota__cats-qtd">{item.qtd}</strong>
-                  </button>
-                </li>
-              ))}
+              {contagemPorCategoria.map((item) => {
+                const ativo = tipos.length === 1 && tipos[0] === item.grupo
+                return (
+                  <li key={item.grupo}>
+                    <button
+                      type="button"
+                      className={`mapa-frota__cats-row${ativo ? ' is-on' : ''}`}
+                      onClick={() => filtrarSoTipo(item.grupo)}
+                      aria-pressed={ativo}
+                      title={
+                        ativo
+                          ? `Mostrando só ${item.label} — clique para ver todos`
+                          : `Mostrar só ${item.label} no mapa`
+                      }
+                    >
+                      <span className="mapa-frota__cats-ico" aria-hidden>
+                        {item.emoji}
+                      </span>
+                      <span className="mapa-frota__cats-label">{item.label}</span>
+                      <strong className="mapa-frota__cats-qtd">{item.qtd}</strong>
+                    </button>
+                  </li>
+                )
+              })}
             </ul>
           </div>
 
