@@ -1025,6 +1025,134 @@
   color: #fff;
 }
 
+.disponivel-flag {
+  position: relative;
+}
+
+.disponivel-flag__panel {
+  flex-basis: 100%;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.disp-placas {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 0.08);
+}
+
+.disp-placas__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.disp-placas__head strong {
+  font-size: 0.88rem;
+  color: #0f172a;
+}
+
+.disp-placas__head span {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.disp-placas__bulk {
+  display: flex;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  background: #f8fafc;
+}
+
+.disp-placas__bulk-btn {
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.disp-placas__bulk-btn:hover {
+  background: #f1f5f9;
+}
+
+.disp-placas__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(52vh, 360px);
+  overflow: auto;
+}
+
+.disp-placas__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.disp-placas__row:last-child {
+  border-bottom: 0;
+}
+
+.disp-placas__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.disp-placas__meta strong {
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+  color: #0f172a;
+}
+
+.disp-placas__meta span {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.disp-placas__toggle {
+  display: inline-flex;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #d0d7de;
+  flex-shrink: 0;
+}
+
+.disp-placas__btn {
+  border: 0;
+  padding: 7px 10px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+  background: #f8fafc;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.disp-placas__btn--ok.is-on {
+  background: #22c55e;
+  color: #fff;
+}
+
+.disp-placas__btn--off.is-on {
+  background: #ef4444;
+  color: #fff;
+}
+
 .frota-modal {
   position: fixed;
   inset: 0;

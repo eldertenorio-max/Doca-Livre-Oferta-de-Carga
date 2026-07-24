@@ -281,7 +281,7 @@ export function montarPontosFrota(
       freteMinimo: Number(v.frete_minimo) || 0,
       lat,
       lng,
-      disponivel: t.disponivel_mapa !== false,
+      disponivel: v.disponivel_mapa !== false,
       icone: grupo,
       emoji,
       cidade,

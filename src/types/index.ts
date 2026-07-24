@@ -149,6 +149,11 @@ export interface Veiculo {
   eixos?: number
   /** Frete mínimo que este veículo/categoria aceita (R$). */
   frete_minimo: number
+  /**
+   * Se true, esta placa aparece no Mapa da Frota como disponível para carregar.
+   * Default: true.
+   */
+  disponivel_mapa?: boolean
   usa_manobrista: boolean
   padiado: boolean
   situacao: 'ativo' | 'inativo'

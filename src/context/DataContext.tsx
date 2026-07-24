@@ -238,9 +238,14 @@ interface DataContextValue extends DataState, AuthState {
   ) => Promise<{ ok: boolean; error?: string; mensagem?: string }>
   /** Recarrega transportadoras/docs do Supabase (fila de aprovação). */
   refreshTransportadores: () => Promise<void>
-  /** Liga/desliga aparição no Mapa da Frota. */
+  /** Liga/desliga todas as placas da transportadora no mapa (atalho). */
   setDisponivelMapa: (
     transportadorId: string,
+    disponivel: boolean,
+  ) => Promise<{ ok: boolean; error?: string }>
+  /** Liga/desliga uma placa específica no Mapa da Frota. */
+  setDisponivelMapaVeiculo: (
+    veiculoId: string,
     disponivel: boolean,
   ) => Promise<{ ok: boolean; error?: string }>
   aprovarTransportador: (id: string) => Promise<{ ok: boolean; error?: string }>
@@ -462,6 +467,10 @@ function ensureDemoFrotaMapa(state: DataState): DataState {
       ...cur,
       transportador_id: cur.transportador_id || s.transportador_id,
       frete_minimo: cur.frete_minimo ?? s.frete_minimo,
+      disponivel_mapa:
+        cur.disponivel_mapa === false || cur.disponivel_mapa === true
+          ? cur.disponivel_mapa
+          : (s.disponivel_mapa ?? true),
       situacao: cur.situacao || s.situacao,
     })
   }
@@ -2554,27 +2563,64 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const setDisponivelMapa = useCallback(
-    async (transportadorId: string, disponivel: boolean) => {
-      const atual = state.transportadores.find((x) => x.id === transportadorId)
-      if (!atual) return { ok: false, error: 'Transportadora não encontrada.' }
-      const next = { ...atual, disponivel_mapa: disponivel }
-      salvarTransportador(next)
+  const setDisponivelMapaVeiculo = useCallback(
+    async (veiculoId: string, disponivel: boolean) => {
+      const atual = stateRef.current.veiculos.find((x) => x.id === veiculoId)
+      if (!atual) return { ok: false, error: 'Veículo não encontrado.' }
+      const nextVeiculo = { ...atual, disponivel_mapa: disponivel }
+      const prev = stateRef.current
+      const next = {
+        ...prev,
+        veiculos: (prev.veiculos ?? []).map((v) => (v.id === veiculoId ? nextVeiculo : v)),
+      }
+      stateRef.current = next
+      setState(next)
       if (isSupabaseConfigured && supabase) {
         const { error } = await supabase
-          .from('transportadores')
+          .from('veiculos')
           .update({ disponivel_mapa: disponivel })
-          .eq('id', transportadorId)
-        if (error) {
-          // Coluna pode ainda não existir — estado local já atualizado
-          if (!/Could not find|schema cache/i.test(error.message)) {
-            return { ok: false, error: error.message }
-          }
+          .eq('id', veiculoId)
+        if (error && !/Could not find|schema cache/i.test(error.message)) {
+          return { ok: false, error: error.message }
         }
       }
       return { ok: true }
     },
-    [state.transportadores, salvarTransportador],
+    [],
+  )
+
+  const setDisponivelMapa = useCallback(
+    async (transportadorId: string, disponivel: boolean) => {
+      const prev = stateRef.current
+      const list = (prev.veiculos ?? []).filter((v) => v.transportador_id === transportadorId)
+      if (list.length === 0) {
+        return { ok: false, error: 'Nenhuma placa cadastrada para esta transportadora.' }
+      }
+      const ids = new Set(list.map((v) => v.id))
+      const next = {
+        ...prev,
+        veiculos: (prev.veiculos ?? []).map((v) =>
+          ids.has(v.id) ? { ...v, disponivel_mapa: disponivel } : v,
+        ),
+        // Mantém flag legado no transportador (compat)
+        transportadores: prev.transportadores.map((t) =>
+          t.id === transportadorId ? { ...t, disponivel_mapa: disponivel } : t,
+        ),
+      }
+      stateRef.current = next
+      setState(next)
+      if (isSupabaseConfigured && supabase) {
+        const { error } = await supabase
+          .from('veiculos')
+          .update({ disponivel_mapa: disponivel })
+          .eq('transportador_id', transportadorId)
+        if (error && !/Could not find|schema cache/i.test(error.message)) {
+          return { ok: false, error: error.message }
+        }
+      }
+      return { ok: true }
+    },
+    [],
   )
 
   const vinculosTransportador = useCallback(
@@ -3481,6 +3527,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       salvarGrupo,
       salvarTransportador,
       setDisponivelMapa,
+      setDisponivelMapaVeiculo,
       excluirTransportador,
       vinculosTransportador,
       salvarVeiculo,
@@ -3546,6 +3593,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       salvarGrupo,
       salvarTransportador,
       setDisponivelMapa,
+      setDisponivelMapaVeiculo,
       excluirTransportador,
       vinculosTransportador,
       salvarVeiculo,

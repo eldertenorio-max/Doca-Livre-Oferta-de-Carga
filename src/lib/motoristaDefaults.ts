@@ -17,5 +17,6 @@ export function normalizeVeiculo(v: Veiculo): Veiculo {
     ...v,
     transportador_id: v.transportador_id || null,
     frete_minimo: frete,
+    disponivel_mapa: v.disponivel_mapa !== false,
   }
 }

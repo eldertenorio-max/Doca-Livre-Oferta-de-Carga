@@ -232,10 +232,19 @@
 }
 
 .app-topbar-disp {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
+}
+
+.app-topbar-disp-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 70;
+  width: min(360px, calc(100vw - 24px));
 }
 
 .app-topbar-disp-toggle {
