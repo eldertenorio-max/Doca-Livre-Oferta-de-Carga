@@ -49,44 +49,64 @@ export type PontoFrota = {
   raioKm: number
 }
 
+const EMOJI_POR_GRUPO: Record<FrotaIconeGrupo, string> = {
+  van: '🚐',
+  fiorino: '🛻',
+  utilitario: '🚙',
+  passeio: '🚗',
+  hr: '📦',
+  vuc: '🚎',
+  leve: '🚚',
+  toco: '🚛',
+  truck: '🚜',
+  bitruck: '🏗️',
+  carreta: '🛞',
+  carreta_ls: '🛢️',
+  vanderleia: '🧱',
+  bitrem: '⛓️',
+  rodotrem: '🚂',
+  outros: '❔',
+}
+
 export const LEGENDA_FROTA: { grupo: FrotaIconeGrupo; emoji: string; label: string }[] = [
-  { grupo: 'van', emoji: '🚐', label: 'Van / Furgão' },
-  { grupo: 'fiorino', emoji: '🛻', label: 'Fiorino' },
-  { grupo: 'utilitario', emoji: '🚙', label: 'Utilitário' },
-  { grupo: 'passeio', emoji: '🚗', label: 'Carro Passeio' },
-  { grupo: 'hr', emoji: '📦', label: 'HR' },
-  { grupo: 'vuc', emoji: '🚐', label: 'VUC' },
-  { grupo: 'leve', emoji: '🚚', label: '3/4 Leve' },
-  { grupo: 'toco', emoji: '🚛', label: 'Toco' },
-  { grupo: 'truck', emoji: '🛻', label: 'Truck' },
-  { grupo: 'bitruck', emoji: '🚚', label: 'Bitruck' },
-  { grupo: 'carreta', emoji: '🚛', label: 'Carreta' },
-  { grupo: 'carreta_ls', emoji: '🚛', label: 'Carreta LS' },
-  { grupo: 'vanderleia', emoji: '🚛', label: 'Vanderleia' },
-  { grupo: 'bitrem', emoji: '🚚', label: 'Bitrem' },
-  { grupo: 'rodotrem', emoji: '🚂', label: 'Rodotrem' },
-]
+  { grupo: 'van', label: 'Van / Furgão' },
+  { grupo: 'fiorino', label: 'Fiorino' },
+  { grupo: 'utilitario', label: 'Utilitário' },
+  { grupo: 'passeio', label: 'Carro Passeio' },
+  { grupo: 'hr', label: 'HR' },
+  { grupo: 'vuc', label: 'VUC' },
+  { grupo: 'leve', label: '3/4 Leve' },
+  { grupo: 'toco', label: 'Toco' },
+  { grupo: 'truck', label: 'Truck' },
+  { grupo: 'bitruck', label: 'Bitruck' },
+  { grupo: 'carreta', label: 'Carreta' },
+  { grupo: 'carreta_ls', label: 'Carreta LS' },
+  { grupo: 'vanderleia', label: 'Vanderleia' },
+  { grupo: 'bitrem', label: 'Bitrem' },
+  { grupo: 'rodotrem', label: 'Rodotrem' },
+].map((item) => ({ ...item, emoji: EMOJI_POR_GRUPO[item.grupo] }))
 
 export function classificarIconeVeiculo(tipo: string): { grupo: FrotaIconeGrupo; emoji: string } {
   const t = tipo.toLowerCase()
 
-  if (/fiorino/.test(t)) return { grupo: 'fiorino', emoji: '🛻' }
-  if (/utilit/.test(t)) return { grupo: 'utilitario', emoji: '🚙' }
-  if (/passeio/.test(t)) return { grupo: 'passeio', emoji: '🚗' }
-  if (/\bhr\b/.test(t) || t === 'hr') return { grupo: 'hr', emoji: '📦' }
-  if (/vuc/.test(t)) return { grupo: 'vuc', emoji: '🚐' }
-  if (/van|furg/.test(t)) return { grupo: 'van', emoji: '🚐' }
-  if (/3\/4|caminh[aã]o leve/.test(t)) return { grupo: 'leve', emoji: '🚚' }
-  if (/bitruck/.test(t)) return { grupo: 'bitruck', emoji: '🚚' }
-  if (/\btoco\b/.test(t)) return { grupo: 'toco', emoji: '🚛' }
-  if (/\btruck\b/.test(t)) return { grupo: 'truck', emoji: '🛻' }
-  if (/carreta\s*ls|ls\b/.test(t)) return { grupo: 'carreta_ls', emoji: '🚛' }
-  if (/vanderleia/.test(t)) return { grupo: 'vanderleia', emoji: '🚛' }
-  if (/carreta/.test(t)) return { grupo: 'carreta', emoji: '🚛' }
-  if (/rodotrem/.test(t)) return { grupo: 'rodotrem', emoji: '🚂' }
-  if (/bitrem/.test(t)) return { grupo: 'bitrem', emoji: '🚚' }
+  let grupo: FrotaIconeGrupo = 'outros'
+  if (/fiorino/.test(t)) grupo = 'fiorino'
+  else if (/utilit/.test(t)) grupo = 'utilitario'
+  else if (/passeio/.test(t)) grupo = 'passeio'
+  else if (/\bhr\b/.test(t) || t === 'hr') grupo = 'hr'
+  else if (/vuc/.test(t)) grupo = 'vuc'
+  else if (/van|furg/.test(t)) grupo = 'van'
+  else if (/3\/4|caminh[aã]o leve/.test(t)) grupo = 'leve'
+  else if (/bitruck/.test(t)) grupo = 'bitruck'
+  else if (/\btoco\b/.test(t)) grupo = 'toco'
+  else if (/\btruck\b/.test(t)) grupo = 'truck'
+  else if (/carreta\s*ls|ls\b/.test(t)) grupo = 'carreta_ls'
+  else if (/vanderleia/.test(t)) grupo = 'vanderleia'
+  else if (/carreta/.test(t)) grupo = 'carreta'
+  else if (/rodotrem/.test(t)) grupo = 'rodotrem'
+  else if (/bitrem/.test(t)) grupo = 'bitrem'
 
-  return { grupo: 'outros', emoji: '🚛' }
+  return { grupo, emoji: EMOJI_POR_GRUPO[grupo] }
 }
 
 /** Valor curto no pin, estilo “R$ 3.500”. */
