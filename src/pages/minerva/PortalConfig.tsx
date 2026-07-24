@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
 import {
   createPortalAccount,
+  ensureContasTransportadores,
   loadPortalAccounts,
   removePortalAccountRemote,
   savePortalAccounts,
-  syncPortalAccounts,
   loadPermissoesMap,
   savePermissoesMap,
   type PortalAccount,
@@ -42,11 +42,14 @@ export function PortalConfigPage() {
   const [selectedUser, setSelectedUser] = useState('')
   const [msg, setMsg] = useState('')
 
-  // Recarrega do storage ao abrir a aba Usuários (conta criada no login / outra aba)
+  const transportadoresRef = useRef(transportadores)
+  transportadoresRef.current = transportadores
+
+  // Ao abrir Usuários: junta contas do Supabase e garante login de cada transportadora
   useEffect(() => {
     if (tab !== 'usuarios') return
     setAccounts(loadPortalAccounts())
-    void syncPortalAccounts().then(setAccounts)
+    void ensureContasTransportadores(transportadoresRef.current ?? []).then(setAccounts)
   }, [tab])
 
   useEffect(() => {

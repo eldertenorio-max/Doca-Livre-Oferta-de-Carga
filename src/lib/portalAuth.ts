@@ -358,15 +358,22 @@ function fromRemoteAccount(row: RemotePortalAccount, local?: PortalAccount): Por
     role: row.role,
     nivel: row.nivel,
     perfil_operacional: row.perfil_operacional ?? undefined,
-    transportador_id: row.transportador_id,
-    empresa_org_id: row.empresa_org_id,
+    transportador_id: row.transportador_id ?? local?.transportador_id ?? null,
+    empresa_org_id: row.empresa_org_id ?? local?.empresa_org_id ?? null,
     ativo: row.ativo,
     created_at: row.created_at,
   }
 }
 
+let ultimaListaEnviada = ''
+
 async function persistPortalAccountsRemote(list: PortalAccount[]) {
   if (!isSupabaseConfigured || !supabase) return
+  const fp = JSON.stringify(
+    list.map((a) => [a.usuario, a.email, a.password, a.nome, a.role, a.transportador_id, a.ativo]),
+  )
+  if (fp === ultimaListaEnviada) return
+  ultimaListaEnviada = fp
   try {
     const { data, error } = await supabase
       .from('usuarios')
@@ -406,10 +413,60 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
   }
 }
 
+/** Agrupa gravações remotas (a tabela é editada campo a campo pelo Super). */
+let pushTimer: number | null = null
+let pushPending: PortalAccount[] | null = null
+
+function schedulePersistRemote(list: PortalAccount[]) {
+  if (!isSupabaseConfigured || !supabase) return
+  pushPending = list
+  if (pushTimer != null) window.clearTimeout(pushTimer)
+  pushTimer = window.setTimeout(() => {
+    pushTimer = null
+    const pending = pushPending
+    pushPending = null
+    if (pending) void persistPortalAccountsRemote(pending)
+  }, 900)
+}
+
 /** Salva localmente e replica no Supabase para os demais aparelhos. */
 export function savePortalAccounts(list: PortalAccount[]) {
   savePortalAccountsLocal(list)
-  void persistPortalAccountsRemote(list)
+  schedulePersistRemote(list)
+}
+
+/** Logins de transportadora criados pelo cadastro público (tabela profiles). */
+async function accountsDeProfiles(): Promise<PortalAccount[]> {
+  if (!isSupabaseConfigured || !supabase) return []
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, email, nome, usuario, role, transportador_id, ativo, created_at')
+  if (error) return []
+  const rows = (data ?? []) as Array<{
+    id: string
+    email: string
+    nome: string
+    usuario: string | null
+    role: string
+    transportador_id: string | null
+    ativo: boolean
+    created_at: string
+  }>
+  return rows
+    .filter((row) => row.role === 'transportador' && row.transportador_id)
+    .map((row) => ({
+      id: row.id,
+      usuario: (row.usuario || row.email.split('@')[0] || '').trim(),
+      email: (row.email || '').trim().toLowerCase(),
+      password: '',
+      nome: row.nome || row.usuario || row.email,
+      role: 'transportador' as const,
+      transportador_id: row.transportador_id,
+      nivel: 'operador' as const,
+      ativo: row.ativo,
+      created_at: row.created_at,
+    }))
+    .filter((account) => account.usuario.length > 0 && account.email.includes('@'))
 }
 
 /** Une as contas locais com as contas compartilhadas do Supabase. */
@@ -437,6 +494,18 @@ export async function syncPortalAccounts(): Promise<PortalAccount[]> {
       if (idx >= 0) merged[idx] = account
       else merged.push(account)
     }
+
+    // Cadastros públicos: o login existe em profiles mesmo sem conta no portal
+    for (const account of await accountsDeProfiles()) {
+      const existe = merged.some(
+        (item) =>
+          item.usuario.toLowerCase() === account.usuario.toLowerCase() ||
+          item.email.toLowerCase() === account.email.toLowerCase() ||
+          (item.transportador_id && item.transportador_id === account.transportador_id),
+      )
+      if (!existe) merged.push(account)
+    }
+
     const normalized = normalizePortalList(merged)
     savePortalAccountsLocal(normalized)
     void persistPortalAccountsRemote(normalized)
@@ -444,6 +513,70 @@ export async function syncPortalAccounts(): Promise<PortalAccount[]> {
   } catch {
     return local
   }
+}
+
+function slugLogin(valor: string): string {
+  return (valor || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '')
+    .slice(0, 18)
+}
+
+/** Cria login para transportadoras aprovadas que ainda não têm conta no portal. */
+export async function ensureContasTransportadores(
+  transportadores: Array<{
+    id: string
+    nome_fantasia?: string
+    razao_social?: string
+    cnpj?: string
+    email?: string
+    situacao?: string
+  }>,
+): Promise<PortalAccount[]> {
+  const list = await syncPortalAccounts()
+  const comConta = new Set(
+    list.map((a) => a.transportador_id).filter((id): id is string => Boolean(id)),
+  )
+  const logins = new Set(list.map((a) => a.usuario.toLowerCase()))
+  const emails = new Set(list.map((a) => a.email.toLowerCase()))
+
+  const novas: PortalAccount[] = []
+  for (const t of transportadores) {
+    if (!t.id || comConta.has(t.id) || t.situacao === 'recusado') continue
+    const base =
+      slugLogin(t.nome_fantasia || t.razao_social || '') ||
+      (t.cnpj || '').replace(/\D+/g, '').slice(0, 8) ||
+      'transportador'
+    let usuario = base
+    let n = 2
+    while (logins.has(usuario)) usuario = `${base}${n++}`
+    let email = (t.email || '').trim().toLowerCase()
+    if (!email.includes('@') || emails.has(email)) email = `${usuario}@docalivre.com`
+    if (emails.has(email)) email = `${usuario}.${Date.now().toString(36)}@docalivre.com`
+
+    logins.add(usuario)
+    emails.add(email)
+    novas.push({
+      id: uid(),
+      usuario,
+      email,
+      password: `${base}123`,
+      nome: t.nome_fantasia || t.razao_social || usuario,
+      role: 'transportador',
+      transportador_id: t.id,
+      nivel: 'operador',
+      ativo: t.situacao === 'ativo',
+      created_at: new Date().toISOString(),
+    })
+  }
+
+  if (novas.length === 0) return list
+  const next = normalizePortalList([...list, ...novas])
+  savePortalAccountsLocal(next)
+  void persistPortalAccountsRemote(next)
+  return next
 }
 
 export async function removePortalAccountRemote(account: PortalAccount) {
