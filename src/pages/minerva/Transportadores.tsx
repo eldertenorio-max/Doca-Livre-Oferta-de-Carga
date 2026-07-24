@@ -252,7 +252,10 @@ export function TransportadoresPage() {
       setError(res.error ?? 'Falha ao aprovar.')
       return
     }
-    setFiltro('ativo')
+    const aindaPendentes = transportadores.some(
+      (t) => t.id !== revisaoId && t.situacao === 'pendente',
+    )
+    setFiltro(aindaPendentes ? 'pendente' : 'todos')
     setMode('lista')
     setRevisaoId(null)
     void refreshTransportadores()
@@ -272,6 +275,10 @@ export function TransportadoresPage() {
       setError(res.error ?? 'Falha ao recusar.')
       return
     }
+    const aindaPendentes = transportadores.some(
+      (t) => t.id !== revisaoId && t.situacao === 'pendente',
+    )
+    setFiltro(aindaPendentes ? 'pendente' : 'todos')
     setMode('lista')
     setRevisaoId(null)
     setMotivoRecusa('')
