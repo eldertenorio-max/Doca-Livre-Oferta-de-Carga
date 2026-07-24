@@ -928,6 +928,32 @@
   font-weight: 600;
 }
 
+.frota-ficha__whats {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #128c7e;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.frota-ficha__whats:hover,
+.frota-ficha__whats:focus-visible {
+  color: #075e54;
+  text-decoration: underline;
+}
+
+.frota-ficha__whats-ico {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #25d366;
+  color: #fff;
+  flex-shrink: 0;
+}
+
 .frota-ficha__veiculo {
   display: inline-flex;
   align-items: center;
