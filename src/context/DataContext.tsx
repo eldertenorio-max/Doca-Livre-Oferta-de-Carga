@@ -222,6 +222,11 @@ interface DataContextValue extends DataState, AuthState {
   ) => Promise<{ ok: boolean; error?: string; mensagem?: string }>
   /** Recarrega transportadoras/docs do Supabase (fila de aprovação). */
   refreshTransportadores: () => Promise<void>
+  /** Liga/desliga aparição no Mapa da Frota. */
+  setDisponivelMapa: (
+    transportadorId: string,
+    disponivel: boolean,
+  ) => Promise<{ ok: boolean; error?: string }>
   aprovarTransportador: (id: string) => Promise<{ ok: boolean; error?: string }>
   recusarTransportador: (
     id: string,
@@ -2259,6 +2264,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const setDisponivelMapa = useCallback(
+    async (transportadorId: string, disponivel: boolean) => {
+      const atual = state.transportadores.find((x) => x.id === transportadorId)
+      if (!atual) return { ok: false, error: 'Transportadora não encontrada.' }
+      const next = { ...atual, disponivel_mapa: disponivel }
+      salvarTransportador(next)
+      if (isSupabaseConfigured && supabase) {
+        const { error } = await supabase
+          .from('transportadores')
+          .update({ disponivel_mapa: disponivel })
+          .eq('id', transportadorId)
+        if (error) {
+          // Coluna pode ainda não existir — estado local já atualizado
+          if (!/Could not find|schema cache/i.test(error.message)) {
+            return { ok: false, error: error.message }
+          }
+        }
+      }
+      return { ok: true }
+    },
+    [state.transportadores, salvarTransportador],
+  )
+
   const vinculosTransportador = useCallback(
     (id: string) => {
       const placas = (state.veiculos ?? [])
@@ -2969,6 +2997,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       notificarTodosGrupos,
       salvarGrupo,
       salvarTransportador,
+      setDisponivelMapa,
       excluirTransportador,
       vinculosTransportador,
       salvarVeiculo,
@@ -3031,6 +3060,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       notificarTodosGrupos,
       salvarGrupo,
       salvarTransportador,
+      setDisponivelMapa,
       excluirTransportador,
       vinculosTransportador,
       salvarVeiculo,

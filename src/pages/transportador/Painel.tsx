@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { TransportadorPainel } from '../../components/transportador/TransportadorPainel'
+import { DisponibilidadeMapaFlag } from '../../components/transportador/DisponibilidadeMapaFlag'
 import { useData } from '../../context/DataContext'
 import { DEMO_TRANSPORTADOR } from '../../lib/portalAuth'
 import { isLocalSuperUser } from '../../lib/superUsers'
@@ -81,7 +82,10 @@ export function PainelTransportadorPage() {
             : 'Conta sem transportadora vinculada.'}
         </p>
       ) : (
-        <TransportadorPainel transportadorId={tid} />
+        <>
+          <DisponibilidadeMapaFlag transportadorId={tid} />
+          <TransportadorPainel transportadorId={tid} />
+        </>
       )}
     </div>
   )

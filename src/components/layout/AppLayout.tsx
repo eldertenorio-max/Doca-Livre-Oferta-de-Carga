@@ -101,6 +101,7 @@ function IconWallet() {
 
 const minervaLinks: NavItem[] = [
   { to: '/minerva', label: 'Kanban Cargas', icon: <IconGrid />, end: true },
+  { to: '/minerva/mapa-frota', label: 'Mapa da Frota', icon: <IconMap /> },
   { to: '/minerva/rotas', label: 'Rotas', icon: <IconMap /> },
   { to: '/minerva/transportadores', label: 'Transportadoras', icon: <IconUsers /> },
   { to: '/minerva/veiculos', label: 'Veículos', icon: <IconTruck /> },
@@ -116,6 +117,7 @@ const minervaLinks: NavItem[] = [
 const transportadorLinks: NavItem[] = [
   { to: '/transportador/painel', label: 'Painel', icon: <IconChart /> },
   { to: '/transportador', label: 'Kanban Ofertas', icon: <IconGrid />, end: true },
+  { to: '/minerva/mapa-frota', label: 'Mapa da Frota', icon: <IconMap /> },
   { to: '/transportador/veiculos', label: 'Meus Veículos', icon: <IconTruck /> },
   { to: '/transportador/motoristas', label: 'Meus Motoristas', icon: <IconUsers /> },
 ]

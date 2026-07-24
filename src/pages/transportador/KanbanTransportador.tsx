@@ -4,6 +4,7 @@ import { useData } from '../../context/DataContext'
 import { CargoCard } from '../../components/kanban/CargoCard'
 import { KanbanBoard } from '../../components/kanban/KanbanBoard'
 import { AllocateModal, BidModal } from '../../components/carga/BidModal'
+import { DisponibilidadeMapaFlag } from '../../components/transportador/DisponibilidadeMapaFlag'
 import { DEMO_TRANSPORTADOR } from '../../lib/portalAuth'
 import { isLocalSuperUser } from '../../lib/superUsers'
 import {
@@ -142,6 +143,7 @@ export function KanbanTransportador() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
+      {tid ? <DisponibilidadeMapaFlag transportadorId={tid} /> : null}
       <div className="flex shrink-0 flex-wrap items-end gap-3">
         {canPickTransportador && (
           <label className="flex min-w-0 w-full flex-1 flex-col gap-1 text-xs font-semibold text-ink sm:min-w-[260px] sm:w-auto">

@@ -9,6 +9,7 @@ export type OfertaModuloId =
   | 'transportadoras'
   | 'veiculos'
   | 'motoristas'
+  | 'mapa_frota'
   | 'grupos'
   | 'indicadores'
   | 'configuracoes'
@@ -29,6 +30,7 @@ export const OFERTA_MODULOS_CATALOGO: { id: OfertaModuloId; label: string; role?
   { id: 'transportadoras', label: 'Transportadoras', role: 'minerva' },
   { id: 'veiculos', label: 'Veículos', role: 'ambos' },
   { id: 'motoristas', label: 'Motoristas', role: 'ambos' },
+  { id: 'mapa_frota', label: 'Mapa da Frota', role: 'ambos' },
   { id: 'grupos', label: 'Grupos', role: 'minerva' },
   { id: 'indicadores', label: 'Indicadores', role: 'minerva' },
   { id: 'configuracoes', label: 'Configurações de Oferta', role: 'minerva' },
@@ -46,6 +48,7 @@ export const DEFAULT_PERMISSAO_MINERVA: OfertaPermissao = {
     transportadoras: 'editar',
     veiculos: 'editar',
     motoristas: 'editar',
+    mapa_frota: 'editar',
     grupos: 'editar',
     indicadores: 'editar',
     configuracoes: 'editar',
@@ -59,6 +62,7 @@ export const DEFAULT_PERMISSAO_TRANSPORTADOR: OfertaPermissao = {
     kanban_transportador: 'editar',
     veiculos: 'editar',
     motoristas: 'editar',
+    mapa_frota: 'visualizar',
   },
 }
 
@@ -104,6 +108,7 @@ export function moduloFromPath(pathname: string): OfertaModuloId | null {
     pathname.startsWith('/transportador/motoristas')
   )
     return 'motoristas'
+  if (pathname.startsWith('/minerva/mapa-frota')) return 'mapa_frota'
   if (pathname.startsWith('/minerva/grupos')) return 'grupos'
   if (pathname.startsWith('/minerva/indicadores')) return 'indicadores'
   if (pathname.startsWith('/minerva/configuracoes')) return 'configuracoes'

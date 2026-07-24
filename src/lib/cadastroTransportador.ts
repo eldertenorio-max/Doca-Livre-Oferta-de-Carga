@@ -173,6 +173,7 @@ export function cadastrarTransportadorLocal(
     origem_lng: input.origem.lng ?? null,
     raio_km: Number(input.origem.raio_km) || 50,
     origem_cadastro: 'link',
+    disponivel_mapa: true,
     classificacao: 'bronze',
     pontuacao: 50,
     situacao: 'pendente',
@@ -249,6 +250,7 @@ const COLUNAS_OPCIONAIS_TRANSPORTADOR = [
   'origem_lng',
   'raio_km',
   'origem_cadastro',
+  'disponivel_mapa',
   'inscricao_estadual',
   'inscricao_municipal',
   'rntrc',
@@ -421,6 +423,7 @@ export async function cadastrarTransportadorRemoto(
     origem_lng: input.origem.lng ?? null,
     raio_km: Number(input.origem.raio_km) || 50,
     origem_cadastro: 'link',
+    disponivel_mapa: true,
     situacao: 'pendente' as const,
     motivo_recusa: null,
   }
@@ -648,6 +651,7 @@ function mapTransportadorRow(row: Record<string, unknown>): Transportador {
       row.origem_cadastro === 'link' || row.origem_cadastro === 'painel'
         ? row.origem_cadastro
         : undefined,
+    disponivel_mapa: row.disponivel_mapa === false ? false : true,
     classificacao: (row.classificacao as Transportador['classificacao']) || 'bronze',
     pontuacao: Number(row.pontuacao ?? 50),
     situacao: (row.situacao as Transportador['situacao']) || 'pendente',

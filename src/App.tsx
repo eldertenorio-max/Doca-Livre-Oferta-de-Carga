@@ -18,6 +18,7 @@ import { MotoristasPage } from './pages/minerva/Motoristas'
 import { PortalConfigPage } from './pages/minerva/PortalConfig'
 import { KanbanTransportador } from './pages/transportador/KanbanTransportador'
 import { PainelTransportadorPage } from './pages/transportador/Painel'
+import { MapaFrotaPage } from './pages/minerva/MapaFrota'
 import { isLocalSuperUser } from './lib/superUsers'
 import type { UserRole } from './types'
 
@@ -99,6 +100,14 @@ export default function App() {
           element={
             <Protected role={['minerva', 'super', 'transportador']}>
               <MotoristasPage />
+            </Protected>
+          }
+        />
+        <Route
+          path="/minerva/mapa-frota"
+          element={
+            <Protected role={['minerva', 'super', 'transportador']}>
+              <MapaFrotaPage />
             </Protected>
           }
         />

@@ -100,6 +100,11 @@ export interface Transportador {
    * - `painel` = criado/editado pelo embarcador no painel
    */
   origem_cadastro?: 'link' | 'painel'
+  /**
+   * Se true, motoristas/veículos desta transportadora aparecem no Mapa da Frota
+   * como disponíveis para carregar.
+   */
+  disponivel_mapa?: boolean
   classificacao: ClassificacaoTransportador
   pontuacao: number
   situacao: SituacaoTransportador

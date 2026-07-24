@@ -32,6 +32,9 @@ alter table transportadores
   add constraint transportadores_origem_cadastro_check
   check (origem_cadastro is null or origem_cadastro in ('link', 'painel'));
 
+alter table transportadores
+  add column if not exists disponivel_mapa boolean not null default true;
+
 update transportadores
 set origem_cadastro = 'link'
 where origem_cadastro is null and situacao = 'pendente';
