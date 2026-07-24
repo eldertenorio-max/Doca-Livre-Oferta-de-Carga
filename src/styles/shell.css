@@ -245,6 +245,7 @@
   right: 0;
   z-index: 70;
   width: min(360px, calc(100vw - 24px));
+  max-width: calc(100vw - 16px);
 }
 
 .app-topbar-disp-toggle {
@@ -685,9 +686,47 @@ a.sidebar-section:first-of-type {
     font-size: 0.65rem;
   }
 
+  /* Painel de placas: fixo na viewport para não cortar no mobile */
+  .app-topbar-disp-panel {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    top: calc(var(--app-topbar-h, 50px) + 6px);
+    width: auto;
+    max-width: none;
+    z-index: 200;
+  }
+
+  .app-topbar-disp-panel .disp-placas__bulk {
+    flex-wrap: wrap;
+  }
+
+  .app-topbar-disp-panel .disp-placas__bulk-btn {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  .app-topbar-disp-panel .disp-placas__row {
+    gap: 8px;
+  }
+
+  .app-topbar-disp-panel .disp-placas__btn {
+    padding: 7px 8px;
+    font-size: 0.65rem;
+  }
+
   .app-topbar-disp-info {
     width: 26px;
     height: 26px;
+  }
+
+  .app-topbar-disp-tip {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    top: calc(var(--app-topbar-h, 50px) + 6px);
+    width: auto;
+    max-width: none;
   }
 
   .app-topbar-logout {
