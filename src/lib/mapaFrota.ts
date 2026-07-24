@@ -42,6 +42,11 @@ export type PontoFrota = {
   disponivel: boolean
   icone: FrotaIconeGrupo
   emoji: string
+  /** Cidade de origem no mapa (fallback: cidade da empresa). */
+  cidade: string
+  uf: string
+  /** Raio de pesquisa cadastrado pelo transportador (km). */
+  raioKm: number
 }
 
 export const LEGENDA_FROTA: { grupo: FrotaIconeGrupo; emoji: string; label: string }[] = [
@@ -120,6 +125,61 @@ export function iniciaisNome(nome: string): string {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
 }
 
+export const REGIOES_BR = ['Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul'] as const
+export type RegiaoBr = (typeof REGIOES_BR)[number]
+
+const UF_PARA_REGIAO: Record<string, RegiaoBr> = {
+  AC: 'Norte',
+  AP: 'Norte',
+  AM: 'Norte',
+  PA: 'Norte',
+  RO: 'Norte',
+  RR: 'Norte',
+  TO: 'Norte',
+  AL: 'Nordeste',
+  BA: 'Nordeste',
+  CE: 'Nordeste',
+  MA: 'Nordeste',
+  PB: 'Nordeste',
+  PE: 'Nordeste',
+  PI: 'Nordeste',
+  RN: 'Nordeste',
+  SE: 'Nordeste',
+  DF: 'Centro-Oeste',
+  GO: 'Centro-Oeste',
+  MT: 'Centro-Oeste',
+  MS: 'Centro-Oeste',
+  ES: 'Sudeste',
+  MG: 'Sudeste',
+  RJ: 'Sudeste',
+  SP: 'Sudeste',
+  PR: 'Sul',
+  RS: 'Sul',
+  SC: 'Sul',
+}
+
+export function regiaoDaUf(uf: string): RegiaoBr | null {
+  const key = uf.trim().toUpperCase()
+  return UF_PARA_REGIAO[key] ?? null
+}
+
+/** Distância em km (Haversine). */
+export function distanciaKm(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const R = 6371
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
 /** Pontos no mapa: motorista ativo + veículo + origem do transportador. */
 export function montarPontosFrota(
   motoristas: Motorista[],
@@ -143,6 +203,8 @@ export function montarPontosFrota(
 
     const { grupo, emoji } = classificarIconeVeiculo(v.tipo)
     const av = avaliacaoDoMotorista(m)
+    const cidade = (t.origem_cidade || t.cidade || '').trim()
+    const uf = (t.origem_uf || t.uf || '').trim().toUpperCase()
     pontos.push({
       id: `${m.id}-${v.id}`,
       motoristaId: m.id,
@@ -166,6 +228,9 @@ export function montarPontosFrota(
       disponivel: t.disponivel_mapa !== false,
       icone: grupo,
       emoji,
+      cidade,
+      uf,
+      raioKm: Number(t.raio_km) || 0,
     })
   }
 

@@ -76,6 +76,120 @@
   background: #f8fafc;
 }
 
+.mapa-frota__search {
+  flex-shrink: 0;
+  padding: 10px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #fff;
+}
+
+.mapa-frota__input,
+.mapa-frota__field select {
+  width: 100%;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #0f172a;
+  background: #fff;
+  outline: none;
+}
+
+.mapa-frota__input:focus,
+.mapa-frota__field select:focus {
+  border-color: #0f172a;
+  box-shadow: 0 0 0 2px rgb(15 23 42 / 0.12);
+}
+
+.mapa-frota__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #64748b;
+}
+
+.mapa-frota__field select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.mapa-frota__tipos-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #64748b;
+}
+
+.mapa-frota__tipos-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 140px;
+  overflow: auto;
+}
+
+.mapa-frota__tipo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #d0d7de;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #fff;
+  cursor: pointer;
+  font: inherit;
+  color: #334155;
+}
+
+.mapa-frota__tipo-chip em {
+  font-style: normal;
+  font-size: 0.65rem;
+  font-weight: 700;
+  max-width: 88px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapa-frota__tipo-chip.is-on {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #fff;
+}
+
+.mapa-frota__clear {
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 7px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+}
+
+.mapa-frota__clear:hover {
+  background: #e2e8f0;
+}
+
+.mapa-frota__result {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
 .mapa-frota__cats-title {
   margin: 0 0 8px;
   font-size: 0.72rem;
@@ -94,17 +208,28 @@
   gap: 2px;
 }
 
-.mapa-frota__cats-list li {
+.mapa-frota__cats-row {
+  width: 100%;
   display: grid;
   grid-template-columns: 28px 1fr auto;
   align-items: center;
   gap: 8px;
   padding: 5px 6px;
   border-radius: 8px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
 }
 
-.mapa-frota__cats-list li:hover {
+.mapa-frota__cats-row:hover {
   background: #fff;
+}
+
+.mapa-frota__cats-list li {
+  display: block;
 }
 
 .mapa-frota__cats-ico {
