@@ -474,7 +474,10 @@ export function CadastroTransportadorPage() {
       setError(result.error ?? 'Falha no cadastro.')
       return
     }
-    setInfo(result.mensagem ?? 'Cadastro enviado.')
+    setInfo(
+      result.mensagem ??
+        'Cadastro enviado. Aguarde aprovação para acessar o sistema. Fique atento ao seu e-mail para possíveis correções de cadastro.',
+    )
     setStep('ok')
   }
 
@@ -1125,9 +1128,11 @@ export function CadastroTransportadorPage() {
 
         {step === 'ok' && (
           <div className="cadastro-publico__ok">
-            <p className="portal-login__ok">{info}</p>
-            <p className="portal-login__hint">
+            <p className="portal-login__ok">
               Cadastro enviado. Aguarde aprovação para acessar o sistema.
+            </p>
+            <p className="portal-login__hint">
+              Fique atento ao seu e-mail para possíveis correções de cadastro.
             </p>
             <Link to="/login" className="portal-login__submit" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
               Ir para o login

@@ -213,7 +213,7 @@ export function cadastrarTransportadorLocal(
     transportador,
     documentos,
     mensagem:
-      'Cadastro enviado. Aguarde aprovação para acessar o sistema. (Modo local: só aparece neste navegador até subir Supabase + Render.)',
+      'Cadastro enviado. Aguarde aprovação para acessar o sistema. Fique atento ao seu e-mail para possíveis correções de cadastro. (Modo local: só aparece neste navegador até subir Supabase + Render.)',
   }
 }
 
@@ -580,7 +580,8 @@ export async function cadastrarTransportadorRemoto(
     modo: 'supabase',
     transportador,
     documentos,
-    mensagem: 'Cadastro enviado. Aguarde aprovação para acessar o sistema.',
+    mensagem:
+      'Cadastro enviado. Aguarde aprovação para acessar o sistema. Fique atento ao seu e-mail para possíveis correções de cadastro.',
   }
 }
 
