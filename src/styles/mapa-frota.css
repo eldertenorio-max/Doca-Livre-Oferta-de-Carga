@@ -65,12 +65,79 @@
   border: 1px solid #e2e8f0;
   border-radius: 14px;
   background: #fff;
+  display: flex;
+  flex-direction: column;
 }
 
-.mapa-frota__lista ul {
+.mapa-frota__cats {
+  flex-shrink: 0;
+  padding: 10px 10px 8px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.mapa-frota__cats-title {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.mapa-frota__cats-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mapa-frota__cats-list li {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: 8px;
+}
+
+.mapa-frota__cats-list li:hover {
+  background: #fff;
+}
+
+.mapa-frota__cats-ico {
+  font-size: 1.15rem;
+  line-height: 1;
+  text-align: center;
+}
+
+.mapa-frota__cats-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #334155;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapa-frota__cats-qtd {
+  min-width: 1.5rem;
+  text-align: right;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.mapa-frota__motoristas {
   list-style: none;
   margin: 0;
   padding: 6px;
+  flex: 1;
+  min-height: 0;
 }
 
 .mapa-frota__empty {

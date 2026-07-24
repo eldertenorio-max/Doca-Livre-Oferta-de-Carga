@@ -200,6 +200,19 @@ export function MapaFrotaPage() {
   const nDisp = pontos.filter((p) => p.disponivel).length
   const nIndisp = pontos.length - nDisp
 
+  const contagemPorCategoria = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const item of LEGENDA_FROTA) map.set(item.grupo, 0)
+    for (const p of pontos) {
+      if (!p.disponivel) continue
+      map.set(p.icone, (map.get(p.icone) ?? 0) + 1)
+    }
+    return LEGENDA_FROTA.map((item) => ({
+      ...item,
+      qtd: map.get(item.grupo) ?? 0,
+    }))
+  }, [pontos])
+
   return (
     <div className="mapa-frota animate-fade-up">
       <header className="mapa-frota__head">
@@ -232,13 +245,28 @@ export function MapaFrotaPage() {
 
       <div className="mapa-frota__layout">
         <aside className="mapa-frota__lista">
+          <div className="mapa-frota__cats" aria-label="Quantidade disponível por categoria">
+            <p className="mapa-frota__cats-title">Disponíveis no mapa</p>
+            <ul className="mapa-frota__cats-list">
+              {contagemPorCategoria.map((item) => (
+                <li key={item.grupo}>
+                  <span className="mapa-frota__cats-ico" aria-hidden>
+                    {item.emoji}
+                  </span>
+                  <span className="mapa-frota__cats-label">{item.label}</span>
+                  <strong className="mapa-frota__cats-qtd">{item.qtd}</strong>
+                </li>
+              ))}
+            </ul>
+          </div>
+
           {filtrados.length === 0 ? (
             <p className="mapa-frota__empty">
               Nenhum ponto para exibir. Cadastre origem (coordenadas) no transportador, vincule
               motorista ao veículo e marque como disponível.
             </p>
           ) : (
-            <ul>
+            <ul className="mapa-frota__motoristas">
               {filtrados.map((p) => (
                 <li key={p.id}>
                   <button
@@ -271,13 +299,6 @@ export function MapaFrotaPage() {
         </aside>
         <div className="mapa-frota__map-wrap">
           <div ref={mapEl} className="mapa-frota__map" />
-          <div className="mapa-frota__legend" aria-label="Categorias de veículo">
-            {LEGENDA_FROTA.map((item) => (
-              <span key={item.grupo}>
-                {item.emoji} {item.label}
-              </span>
-            ))}
-          </div>
         </div>
       </div>
     </div>
