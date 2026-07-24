@@ -393,6 +393,11 @@
 .frota-pin-wrap {
   background: transparent !important;
   border: 0 !important;
+  pointer-events: auto !important;
+}
+
+.leaflet-marker-icon.frota-pin-wrap {
+  cursor: pointer;
 }
 
 .frota-bubble {
@@ -408,6 +413,7 @@
   white-space: nowrap;
   cursor: pointer;
   transform: translateY(-2px);
+  pointer-events: none; /* clique vai para o marker Leaflet */
 }
 
 .frota-bubble::after {

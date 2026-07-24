@@ -103,18 +103,10 @@ function makeIcon(p: PontoFrota) {
   return L.divIcon({
     className: 'frota-pin-wrap',
     html: markerHtml(p),
-    iconSize: [110, 44],
-    iconAnchor: [55, 44],
-    popupAnchor: [0, 4],
+    iconSize: [120, 52],
+    iconAnchor: [60, 52],
+    popupAnchor: [0, 6],
   })
-}
-
-function colocarPinNoTopo(map: L.Map, latlng: L.LatLngExpression, zoom: number) {
-  const size = map.getSize()
-  const pt = map.project(latlng, zoom)
-  const targetY = Math.max(48, Math.min(size.y * 0.12, 90))
-  const center = map.unproject(L.point(pt.x, pt.y + size.y / 2 - targetY), zoom)
-  map.setView(center, zoom, { animate: true })
 }
 
 function encaixarPopupNoMapa(map: L.Map, popup: L.Popup) {
@@ -137,7 +129,7 @@ function encaixarPopupNoMapa(map: L.Map, popup: L.Popup) {
   if (er2.top < cr.top + pad) dy -= cr.top + pad - er2.top
   if (er2.right > cr.right - pad) dx += er2.right - (cr.right - pad)
   if (er2.left < cr.left + pad) dx -= cr.left + pad - er2.left
-  if (dx || dy) map.panBy([dx, dy], { animate: true, duration: 0.2 })
+  if (dx || dy) map.panBy([dx, dy], { animate: false })
 }
 
 export function MapaFrotaPage() {
@@ -147,8 +139,12 @@ export function MapaFrotaPage() {
   const layerRef = useRef<L.LayerGroup | null>(null)
   const raioLayerRef = useRef<L.Circle | null>(null)
   const markersRef = useRef<Map<string, L.Marker>>(new Map())
+  /** Evita que pan/rebuild feche o popup e limpe a seleção na hora de abrir. */
+  const ignorarFecharPopupRef = useRef(false)
   const [filtro, setFiltro] = useState<'todos' | 'disponiveis' | 'indisponiveis'>('disponiveis')
   const [selecionado, setSelecionado] = useState<string | null>(null)
+  const selecionadoRef = useRef<string | null>(null)
+  selecionadoRef.current = selecionado
   const [busca, setBusca] = useState('')
   const [cidade, setCidade] = useState('')
   const [uf, setUf] = useState('')
@@ -316,7 +312,12 @@ export function MapaFrotaPage() {
 
     const bounds: L.LatLngExpression[] = []
     for (const p of filtrados) {
-      const m = L.marker([p.lat, p.lng], { icon: makeIcon(p) })
+      const m = L.marker([p.lat, p.lng], {
+        icon: makeIcon(p),
+        riseOnHover: true,
+        keyboard: true,
+        title: p.motoristaNome,
+      })
       m.bindPopup(popupHtml(p), {
         className: 'frota-leaflet-popup frota-leaflet-popup--below',
         maxWidth: 320,
@@ -324,17 +325,52 @@ export function MapaFrotaPage() {
         offset: L.point(0, 8),
         autoPan: false,
         closeButton: true,
+        closeOnClick: true,
       })
-      m.on('click', () => setSelecionado(p.id))
+      m.on('click', (e) => {
+        L.DomEvent.stopPropagation(e.originalEvent)
+        ignorarFecharPopupRef.current = true
+        setSelecionado(p.id)
+        m.openPopup()
+        const popup = m.getPopup()
+        if (popup) {
+          window.requestAnimationFrame(() => {
+            encaixarPopupNoMapa(map, popup)
+            window.setTimeout(() => {
+              ignorarFecharPopupRef.current = false
+            }, 100)
+          })
+        } else {
+          ignorarFecharPopupRef.current = false
+        }
+      })
       m.on('popupopen', (e) => {
         window.requestAnimationFrame(() => encaixarPopupNoMapa(map, e.popup))
       })
       m.on('popupclose', () => {
+        if (ignorarFecharPopupRef.current) return
         setSelecionado((cur) => (cur === p.id ? null : cur))
       })
       m.addTo(layer)
       markersRef.current.set(p.id, m)
       bounds.push([p.lat, p.lng])
+    }
+
+    // Reabre o popup se o filtro reconstruiu os markers com o mesmo id selecionado
+    const idSel = selecionadoRef.current
+    if (idSel) {
+      const keep = markersRef.current.get(idSel)
+      if (keep) {
+        ignorarFecharPopupRef.current = true
+        window.setTimeout(() => {
+          keep.openPopup()
+          const popup = keep.getPopup()
+          if (popup) encaixarPopupNoMapa(map, popup)
+          ignorarFecharPopupRef.current = false
+        }, 0)
+      } else {
+        setSelecionado(null)
+      }
     }
 
     if (raioLayerRef.current) {
@@ -353,22 +389,6 @@ export function MapaFrotaPage() {
       map.fitBounds(L.latLngBounds(bounds), { padding: [48, 48], maxZoom: 11 })
     }
   }, [filtrados, raioGeo, centroBusca])
-
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map) return
-    if (!selecionado) {
-      map.closePopup()
-      return
-    }
-    const marker = markersRef.current.get(selecionado)
-    const p = filtrados.find((x) => x.id === selecionado)
-    if (!marker || !p) return
-    const zoom = Math.max(map.getZoom(), 10)
-    colocarPinNoTopo(map, [p.lat, p.lng], zoom)
-    const t = window.setTimeout(() => marker.openPopup(), 220)
-    return () => window.clearTimeout(t)
-  }, [selecionado, filtrados])
 
   return (
     <div className="mapa-frota animate-fade-up">
