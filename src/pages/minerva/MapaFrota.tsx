@@ -94,9 +94,47 @@ function makeIcon(p: PontoFrota) {
     html: markerHtml(p),
     iconSize: [110, 44],
     iconAnchor: [55, 44],
-    // Âncora na base da bolha; o CSS --below coloca o card embaixo
     popupAnchor: [0, 4],
   })
+}
+
+/** Coloca o pin perto do topo do mapa para o card caber embaixo. */
+function colocarPinNoTopo(map: L.Map, latlng: L.LatLngExpression, zoom: number) {
+  const size = map.getSize()
+  const pt = map.project(latlng, zoom)
+  const targetY = Math.max(48, Math.min(size.y * 0.12, 90))
+  const center = map.unproject(L.point(pt.x, pt.y + size.y / 2 - targetY), zoom)
+  map.setView(center, zoom, { animate: true })
+}
+
+/** Depois que o popup abre abaixo, ajusta pan + altura para não cortar a tela. */
+function encaixarPopupNoMapa(map: L.Map, popup: L.Popup) {
+  const el = popup.getElement()
+  const container = map.getContainer()
+  if (!el) return
+
+  const pad = 14
+  const cr = container.getBoundingClientRect()
+  const er = el.getBoundingClientRect()
+  const content = el.querySelector('.leaflet-popup-content') as HTMLElement | null
+
+  // Limita altura ao espaço restante abaixo do topo do popup
+  const maxH = Math.max(160, cr.bottom - er.top - pad - 8)
+  if (content) {
+    content.style.maxHeight = `${maxH}px`
+  }
+
+  // Recalcula após limitar altura
+  const er2 = el.getBoundingClientRect()
+  let dx = 0
+  let dy = 0
+  if (er2.bottom > cr.bottom - pad) dy += er2.bottom - (cr.bottom - pad)
+  if (er2.top < cr.top + pad) dy -= cr.top + pad - er2.top
+  if (er2.right > cr.right - pad) dx += er2.right - (cr.right - pad)
+  if (er2.left < cr.left + pad) dx -= cr.left + pad - er2.left
+  if (dx || dy) {
+    map.panBy([dx, dy], { animate: true, duration: 0.2 })
+  }
 }
 
 export function MapaFrotaPage() {
@@ -157,13 +195,15 @@ export function MapaFrotaPage() {
         maxWidth: 320,
         minWidth: 260,
         offset: L.point(0, 8),
-        autoPan: true,
-        autoPanPadding: L.point(48, 48),
-        autoPanPaddingTopLeft: L.point(24, 24),
-        autoPanPaddingBottomRight: L.point(24, 72),
+        // CSS força o popup abaixo — o autoPan nativo erra o cálculo
+        autoPan: false,
         closeButton: true,
       })
       m.on('click', () => setSelecionado(p.id))
+      m.on('popupopen', (e) => {
+        const popup = e.popup
+        window.requestAnimationFrame(() => encaixarPopupNoMapa(map, popup))
+      })
       m.on('popupclose', () => {
         setSelecionado((cur) => (cur === p.id ? null : cur))
       })
@@ -190,11 +230,11 @@ export function MapaFrotaPage() {
     const p = filtrados.find((x) => x.id === selecionado)
     if (!marker || !p) return
     const zoom = Math.max(map.getZoom(), 10)
-    // Deixa o pin mais alto na tela para o popup caber embaixo
-    const pt = map.project([p.lat, p.lng], zoom)
-    const shifted = map.unproject([pt.x, pt.y - 120], zoom)
-    map.setView(shifted, zoom, { animate: true })
-    window.setTimeout(() => marker.openPopup(), 180)
+    colocarPinNoTopo(map, [p.lat, p.lng], zoom)
+    const t = window.setTimeout(() => {
+      marker.openPopup()
+    }, 220)
+    return () => window.clearTimeout(t)
   }, [selecionado, filtrados])
 
   const nDisp = pontos.filter((p) => p.disponivel).length
