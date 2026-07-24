@@ -357,10 +357,80 @@ function cancelarLancesDaCarga(lances: Lance[], cargaId: string, nowIso: string)
   )
 }
 
+/** Garante frota demo (origem + motorista + veículo) para o Mapa da Frota. */
+function ensureDemoFrotaMapa(state: DataState): DataState {
+  const seedT = structuredClone(SEED_TRANSPORTADORES)
+  const seedV = structuredClone(SEED_VEICULOS).map(normalizeVeiculo)
+  const seedM = structuredClone(SEED_MOTORISTAS).map(normalizeMotorista)
+
+  const tMap = new Map(state.transportadores.map((t) => [t.id, t]))
+  for (const s of seedT) {
+    const cur = tMap.get(s.id)
+    if (!cur) {
+      tMap.set(s.id, s)
+      continue
+    }
+    tMap.set(s.id, {
+      ...s,
+      ...cur,
+      origem_lat: cur.origem_lat ?? s.origem_lat ?? null,
+      origem_lng: cur.origem_lng ?? s.origem_lng ?? null,
+      origem_cidade: cur.origem_cidade || s.origem_cidade,
+      origem_uf: cur.origem_uf || s.origem_uf,
+      origem_endereco: cur.origem_endereco || s.origem_endereco,
+      raio_km: cur.raio_km ?? s.raio_km,
+      disponivel_mapa: cur.disponivel_mapa ?? s.disponivel_mapa,
+      situacao: cur.situacao === 'inativo' ? 'ativo' : cur.situacao,
+    })
+  }
+
+  const vMap = new Map((state.veiculos ?? []).map((v) => [v.id, v]))
+  for (const s of seedV) {
+    const cur = vMap.get(s.id)
+    if (!cur) {
+      vMap.set(s.id, s)
+      continue
+    }
+    vMap.set(s.id, {
+      ...s,
+      ...cur,
+      transportador_id: cur.transportador_id || s.transportador_id,
+      frete_minimo: cur.frete_minimo ?? s.frete_minimo,
+      situacao: cur.situacao || s.situacao,
+    })
+  }
+
+  const mMap = new Map((state.motoristas ?? []).map((m) => [m.id, m]))
+  for (const s of seedM) {
+    const cur = mMap.get(s.id)
+    if (!cur) {
+      mMap.set(s.id, s)
+      continue
+    }
+    mMap.set(s.id, {
+      ...s,
+      ...cur,
+      transportador_id: cur.transportador_id || s.transportador_id,
+      veiculo_id: cur.veiculo_id || s.veiculo_id,
+      avaliacao: cur.avaliacao ?? s.avaliacao,
+      total_avaliacoes: cur.total_avaliacoes ?? s.total_avaliacoes,
+      situacao: cur.situacao || s.situacao,
+    })
+  }
+
+  return {
+    ...state,
+    transportadores: Array.from(tMap.values()),
+    veiculos: Array.from(vMap.values()),
+    motoristas: Array.from(mMap.values()),
+  }
+}
+
 /** Garante grupos com demos t1/t2; não reabre cargas automaticamente. */
 function ensureDemoOfertasVisiveis(state: DataState): DataState {
+  const withFrota = ensureDemoFrotaMapa(state)
   const DEMO_TIDS = ['t1', 't2']
-  let grupos = state.grupos.map((g) => {
+  let grupos = withFrota.grupos.map((g) => {
     if (g.situacao === 'inativo') return g
     const ids = g.transportador_ids ?? []
     const missing = DEMO_TIDS.filter((id) => !ids.includes(id))
@@ -371,11 +441,11 @@ function ensureDemoOfertasVisiveis(state: DataState): DataState {
     grupos = structuredClone(SEED_GRUPOS)
   }
 
-  let cargas = normalizeCargasNegociacao(state.cargas, grupos)
-  let lances = cancelarLancesForaDaRodada(cargas, state.lances)
+  let cargas = normalizeCargasNegociacao(withFrota.cargas, grupos)
+  let lances = cancelarLancesForaDaRodada(cargas, withFrota.lances)
   cargas = alinharStatusComLances(cargas, lances)
 
-  let transportadores = state.transportadores
+  let transportadores = withFrota.transportadores
   for (const tid of DEMO_TIDS) {
     const t = transportadores.find((x) => x.id === tid)
     if (t && t.situacao === 'inativo') {
@@ -385,7 +455,15 @@ function ensureDemoOfertasVisiveis(state: DataState): DataState {
     }
   }
 
-  return { ...state, cargas, lances, grupos, transportadores }
+  return {
+    ...withFrota,
+    cargas,
+    lances,
+    grupos,
+    transportadores,
+    veiculos: withFrota.veiculos,
+    motoristas: withFrota.motoristas,
+  }
 }
 
 function wipeKanbanFields<T extends DataState>(state: T): T {
@@ -562,7 +640,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (fp === lastSyncFpRef.current) return
       applyingRemoteRef.current = true
       setState((prev) => {
-        const next = applySyncSlice(prev, payload.slice)
+        const next = ensureDemoFrotaMapa(applySyncSlice(prev, payload.slice))
         stateRef.current = next
         lastSyncFpRef.current = sliceFingerprint(pickSyncSlice(next))
         return next
@@ -644,16 +722,38 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const byId = new Map(prev.transportadores.map((t) => [t.id, t]))
       for (const t of remote.transportadores) {
         const local = byId.get(t.id)
-        // Remoto manda na situacao/dados cadastrais; preserva pontuação local se mais recente
-        byId.set(t.id, local ? { ...local, ...t, pontuacao: t.pontuacao ?? local.pontuacao } : t)
+        // Remoto manda nos dados cadastrais; preserva origem/mapa locais se o remoto vier vazio
+        byId.set(
+          t.id,
+          local
+            ? {
+                ...local,
+                ...t,
+                pontuacao: t.pontuacao ?? local.pontuacao,
+                origem_lat: t.origem_lat ?? local.origem_lat ?? null,
+                origem_lng: t.origem_lng ?? local.origem_lng ?? null,
+                origem_cidade: t.origem_cidade || local.origem_cidade,
+                origem_uf: t.origem_uf || local.origem_uf,
+                origem_endereco: t.origem_endereco || local.origem_endereco,
+                origem_numero: t.origem_numero || local.origem_numero,
+                origem_bairro: t.origem_bairro || local.origem_bairro,
+                origem_cep: t.origem_cep || local.origem_cep,
+                raio_km: t.raio_km ?? local.raio_km,
+                disponivel_mapa:
+                  t.disponivel_mapa === false || t.disponivel_mapa === true
+                    ? t.disponivel_mapa
+                    : local.disponivel_mapa,
+              }
+            : t,
+        )
       }
       const docsById = new Map((prev.documentos ?? []).map((d) => [d.id, d]))
       for (const d of remote.documentos) docsById.set(d.id, d)
-      const next = {
+      const next = ensureDemoFrotaMapa({
         ...prev,
         transportadores: Array.from(byId.values()),
         documentos: Array.from(docsById.values()),
-      }
+      })
       stateRef.current = next
       return next
     })

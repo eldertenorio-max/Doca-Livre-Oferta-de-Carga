@@ -169,5 +169,19 @@ export function montarPontosFrota(
     })
   }
 
-  return pontos
+  // Espalha pins que caem no mesmo ponto (vários motoristas na mesma origem)
+  const contagem = new Map<string, number>()
+  return pontos.map((p) => {
+    const key = `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`
+    const i = contagem.get(key) ?? 0
+    contagem.set(key, i + 1)
+    if (i === 0) return p
+    const ang = (i * 2.2) % (Math.PI * 2)
+    const d = 0.012 * i
+    return {
+      ...p,
+      lat: p.lat + Math.cos(ang) * d,
+      lng: p.lng + Math.sin(ang) * d,
+    }
+  })
 }
