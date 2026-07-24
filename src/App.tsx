@@ -19,6 +19,7 @@ import { PortalConfigPage } from './pages/minerva/PortalConfig'
 import { KanbanTransportador } from './pages/transportador/KanbanTransportador'
 import { PainelTransportadorPage } from './pages/transportador/Painel'
 import { MapaFrotaPage } from './pages/minerva/MapaFrota'
+import { PwaInstallBanner } from './components/PwaInstallBanner'
 import { isLocalSuperUser } from './lib/superUsers'
 import type { UserRole } from './types'
 
@@ -53,7 +54,9 @@ export default function App() {
   }
 
   return (
-    <Routes>
+    <>
+      <PwaInstallBanner />
+      <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/cadastro-transportador" element={<CadastroTransportadorPage />} />
       <Route
@@ -194,5 +197,6 @@ export default function App() {
       </Route>
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
+    </>
   )
 }

@@ -1,0 +1,99 @@
+.pwa-install {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 12000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #0f172a;
+  color: #f8fafc;
+  box-shadow: 0 12px 40px rgb(15 23 42 / 0.35);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+}
+
+.pwa-install__logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.pwa-install__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.pwa-install__text strong {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.pwa-install__text span {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  line-height: 1.35;
+}
+
+.pwa-install__text em {
+  font-style: normal;
+  font-weight: 700;
+  color: #fff;
+}
+
+.pwa-install__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.pwa-install__btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: #facc15;
+  color: #0f172a;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.pwa-install__btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.pwa-install__close {
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.pwa-install__close:hover {
+  color: #e2e8f0;
+}
+
+@media (min-width: 900px) {
+  .pwa-install {
+    left: auto;
+    right: 20px;
+    bottom: 20px;
+    max-width: 380px;
+  }
+}
