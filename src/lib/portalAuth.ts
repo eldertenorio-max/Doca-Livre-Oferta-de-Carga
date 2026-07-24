@@ -14,8 +14,31 @@ import {
 import type { PerfilOperacional, UserRole } from '../types'
 
 const USERS_KEY = 'doca-livre-oferta-users-v2'
+/** Chaves antigas — migra contas criadas antes da troca de versão. */
+const USERS_KEY_LEGACY = [
+  'doca-livre-oferta-users-v1',
+  'doca-livre-portal-users-v1',
+]
 const OTP_KEY = 'doca-livre-oferta-otp-v1'
 const PERMS_KEY = 'doca-livre-oferta-perms-v1'
+
+/** Super Usuários padrão (sempre presentes no portal). */
+export const SUPER_ACCOUNTS_SEED = [
+  {
+    id: 'u-diego',
+    usuario: 'diego',
+    email: 'diego@docalivre.com',
+    password: 'diego123',
+    nome: 'Diego Isidoro',
+  },
+  {
+    id: 'u-elder',
+    usuario: 'elder',
+    email: 'elder@docalivre.com',
+    password: 'elder123',
+    nome: 'Elder',
+  },
+] as const
 
 export type PortalAccount = {
   id: string
@@ -67,19 +90,43 @@ export const DEMO_TRANSPORTADORES = [
 /** @deprecated use DEMO_TRANSPORTADORES[0] */
 export const DEMO_TRANSPORTADOR = DEMO_TRANSPORTADORES[0]
 
-export function loadPortalAccounts(): PortalAccount[] {
+function readStoredAccounts(): PortalAccount[] | null {
   try {
     const raw = localStorage.getItem(USERS_KEY)
     if (raw) {
       const parsed = JSON.parse(raw) as PortalAccount[]
-      // Só Super + transportadores (demos / cadastro público). Sem equipe Minerva/embarcador.
-      let list = parsed.filter((u) => !isContaEquipeMinerva(u))
-      list = ensureDemoTransportadores(list)
-      savePortalAccounts(list)
-      return list
+      if (Array.isArray(parsed)) return parsed
+    }
+    for (const key of USERS_KEY_LEGACY) {
+      const legacy = localStorage.getItem(key)
+      if (!legacy) continue
+      const parsed = JSON.parse(legacy) as PortalAccount[]
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Migra para a chave atual para não “sumir” conta criada (ex.: Elder)
+        localStorage.setItem(USERS_KEY, legacy)
+        return parsed
+      }
     }
   } catch {
     /* ignore */
+  }
+  return null
+}
+
+function normalizePortalList(parsed: PortalAccount[]): PortalAccount[] {
+  // Só Super + transportadores (demos / cadastro público). Sem equipe Minerva/embarcador.
+  let list = parsed.filter((u) => u && !isContaEquipeMinerva(u))
+  list = ensureSuperUsers(list)
+  list = ensureDemoTransportadores(list)
+  return list
+}
+
+export function loadPortalAccounts(): PortalAccount[] {
+  const stored = readStoredAccounts()
+  if (stored) {
+    const list = normalizePortalList(stored)
+    savePortalAccounts(list)
+    return list
   }
   return seedAccounts()
 }
@@ -115,6 +162,82 @@ function demoTransportadorAccount(
   }
 }
 
+function accountBlob(u: PortalAccount) {
+  return `${u.usuario || ''} ${u.email || ''} ${u.nome || ''}`
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+function isDiegoAccount(u: PortalAccount) {
+  return accountBlob(u).includes('diego')
+}
+
+function isElderAccount(u: PortalAccount) {
+  return accountBlob(u).includes('elder')
+}
+
+function superSeedAccount(
+  d: (typeof SUPER_ACCOUNTS_SEED)[number],
+): PortalAccount {
+  return {
+    id: d.id,
+    usuario: d.usuario,
+    email: d.email,
+    password: d.password,
+    nome: d.nome,
+    role: 'super',
+    transportador_id: null,
+    nivel: 'super',
+    perfil_operacional: 'administrador',
+    ativo: true,
+    created_at: new Date().toISOString(),
+  }
+}
+
+/** Garante Diego e Elder na lista (não sobrescreve senha/login já editados). */
+function ensureSuperUsers(list: PortalAccount[]): PortalAccount[] {
+  let next = [...list]
+  const matchers: Array<{
+    seed: (typeof SUPER_ACCOUNTS_SEED)[number]
+    match: (u: PortalAccount) => boolean
+  }> = [
+    { seed: SUPER_ACCOUNTS_SEED[0], match: isDiegoAccount },
+    { seed: SUPER_ACCOUNTS_SEED[1], match: isElderAccount },
+  ]
+
+  for (const { seed, match } of matchers) {
+    const base = superSeedAccount(seed)
+    const idx = next.findIndex(
+      (u) =>
+        match(u) ||
+        u.id === base.id ||
+        u.email.toLowerCase() === base.email ||
+        u.usuario.toLowerCase() === base.usuario,
+    )
+    if (idx < 0) {
+      next = [base, ...next]
+      continue
+    }
+    const cur = next[idx]
+    next[idx] = {
+      ...base,
+      ...cur,
+      id: cur.id || base.id,
+      role: 'super',
+      nivel: 'super',
+      transportador_id: null,
+      ativo: cur.ativo ?? true,
+      password: cur.password || base.password,
+      nome: cur.nome?.trim() || base.nome,
+      usuario: cur.usuario?.trim() || base.usuario,
+      email: cur.email?.trim() || base.email,
+      created_at: cur.created_at || base.created_at,
+    }
+  }
+  return next
+}
+
 /** Garante que as contas demo de transportador existam e estejam ativas. */
 function ensureDemoTransportadores(list: PortalAccount[]): PortalAccount[] {
   let next = [...list]
@@ -146,9 +269,53 @@ function ensureDemoTransportadores(list: PortalAccount[]): PortalAccount[] {
 }
 
 function seedAccounts(): PortalAccount[] {
-  const seed = DEMO_TRANSPORTADORES.map((d) => demoTransportadorAccount(d))
+  const seed = normalizePortalList([])
   savePortalAccounts(seed)
   return seed
+}
+
+/** Cria conta no portal e persiste de imediato (retorna lista atualizada). */
+export function createPortalAccount(input: {
+  usuario: string
+  email: string
+  password: string
+  nome?: string
+  role?: PortalAccount['role']
+  transportador_id?: string | null
+}): { ok: true; account: PortalAccount; list: PortalAccount[] } | { ok: false; erro: string } {
+  const usuario = input.usuario.trim()
+  const email = input.email.trim().toLowerCase()
+  const password = input.password
+  if (usuario.length < 2) return { ok: false, erro: 'Login inválido.' }
+  if (!email.includes('@')) return { ok: false, erro: 'E-mail inválido.' }
+  if (password.length < 4) return { ok: false, erro: 'Senha deve ter ao menos 4 caracteres.' }
+
+  const users = loadPortalAccounts()
+  if (users.some((u) => u.usuario.toLowerCase() === usuario.toLowerCase())) {
+    return { ok: false, erro: 'Já existe uma conta com esse login.' }
+  }
+  if (users.some((u) => u.email.toLowerCase() === email)) {
+    return { ok: false, erro: 'Já existe uma conta com esse e-mail.' }
+  }
+
+  const isSuper =
+    input.role === 'super' || isLocalSuperUser(usuario) || isLocalSuperUser(email)
+  const account: PortalAccount = {
+    id: uid(),
+    usuario,
+    email,
+    password,
+    nome: (input.nome || usuario).trim() || usuario,
+    role: isSuper ? 'super' : input.role === 'transportador' ? 'transportador' : 'transportador',
+    transportador_id: isSuper ? null : (input.transportador_id ?? null),
+    nivel: isSuper ? 'super' : 'operador',
+    perfil_operacional: isSuper ? 'administrador' : undefined,
+    ativo: true,
+    created_at: new Date().toISOString(),
+  }
+  const list = normalizePortalList([...users, account])
+  savePortalAccounts(list)
+  return { ok: true, account, list }
 }
 
 export function savePortalAccounts(list: PortalAccount[]) {
@@ -267,23 +434,19 @@ export async function portalCadastroConcluir(input: {
         'Cadastro de equipe (embarcador) foi desativado. Use o cadastro de transportadora ou acesse como Super Usuário (Diego/Elder).',
     }
   }
-  const account: PortalAccount = {
-    id: uid(),
+  const created = createPortalAccount({
     usuario,
     email,
     password: input.senha,
     nome: usuario,
     role: 'super',
-    nivel: 'super',
-    ativo: true,
-    created_at: new Date().toISOString(),
-  }
-  savePortalAccounts([...users, account])
+  })
+  if (!created.ok) return { ok: false, erro: created.erro }
   localStorage.removeItem(OTP_KEY)
 
   return {
     ok: true,
-    usuario,
+    usuario: created.account.usuario,
     mensagem: 'Super Usuário criado. Faça login.',
   }
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
 import {
+  createPortalAccount,
   loadPortalAccounts,
   savePortalAccounts,
   loadPermissoesMap,
@@ -38,6 +39,28 @@ export function PortalConfigPage() {
   const [perms, setPerms] = useState<Record<string, OfertaPermissao>>(() => loadPermissoesMap())
   const [selectedUser, setSelectedUser] = useState('')
   const [msg, setMsg] = useState('')
+
+  // Recarrega do storage ao abrir a aba Usuários (conta criada no login / outra aba)
+  useEffect(() => {
+    if (tab !== 'usuarios') return
+    setAccounts(loadPortalAccounts())
+  }, [tab])
+
+  useEffect(() => {
+    function onStorage(e: StorageEvent) {
+      if (!e.key || !e.key.includes('oferta-users')) return
+      setAccounts(loadPortalAccounts())
+    }
+    function onFocus() {
+      setAccounts(loadPortalAccounts())
+    }
+    window.addEventListener('storage', onStorage)
+    window.addEventListener('focus', onFocus)
+    return () => {
+      window.removeEventListener('storage', onStorage)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [])
 
   const isSuper =
     Boolean(user?.is_superuser) ||
@@ -204,30 +227,37 @@ export function PortalConfigPage() {
   function novaConta() {
     const usuario = window.prompt('Login (usuário):')?.trim()
     if (!usuario) return
-    if (accounts.some((a) => a.usuario.toLowerCase() === usuario.toLowerCase())) {
-      setMsg('Já existe uma conta com esse login.')
-      return
-    }
     const email =
-      window.prompt('E-mail:', `${usuario.toLowerCase()}@docalivre.com`)?.trim().toLowerCase() ||
-      `${usuario.toLowerCase()}@docalivre.com`
+      window.prompt('E-mail:', `${usuario.toLowerCase().replace(/\s+/g, '')}@docalivre.com`)
+        ?.trim()
+        .toLowerCase() || `${usuario.toLowerCase().replace(/\s+/g, '')}@docalivre.com`
     const password = window.prompt('Senha inicial:', '1234') || '1234'
-    const conta: PortalAccount = {
-      id: `u-${Math.random().toString(36).slice(2, 10)}`,
+    const roleDefault =
+      isLocalSuperUser(usuario) || isLocalSuperUser(email) ? 'super' : 'transportador'
+    const roleAsk = window.prompt(
+      'Perfil (super ou transportador):',
+      roleDefault,
+    )
+      ?.trim()
+      .toLowerCase()
+    const role =
+      roleAsk === 'super' || roleAsk === 'transportador' ? roleAsk : roleDefault
+    const created = createPortalAccount({
       usuario,
       email,
       password,
       nome: usuario,
-      role: 'transportador',
-      transportador_id: null,
-      nivel: 'operador',
-      ativo: true,
-      created_at: new Date().toISOString(),
+      role,
+    })
+    if (!created.ok) {
+      setMsg(created.erro)
+      setAccounts(loadPortalAccounts())
+      return
     }
-    const next = [conta, ...accounts]
-    setAccounts(next)
-    savePortalAccounts(next)
-    setMsg(`Conta “${usuario}” criada.`)
+    setAccounts(created.list)
+    setMsg(
+      `Conta “${created.account.usuario}” criada${created.account.role === 'super' ? ' (Super)' : ''}.`,
+    )
   }
 
   const selectedPerm = selectedUser ? perms[selectedUser] : null
