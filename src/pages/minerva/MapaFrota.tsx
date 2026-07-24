@@ -3,7 +3,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useData } from '../../context/DataContext'
 import { formatCurrency } from '../../lib/businessRules'
-import { labelFreteCurto, montarPontosFrota, type PontoFrota } from '../../lib/mapaFrota'
+import { labelFreteCurto, LEGENDA_FROTA, montarPontosFrota, type PontoFrota } from '../../lib/mapaFrota'
 import '../../styles/mapa-frota.css'
 
 function markerHtml(p: PontoFrota): string {
@@ -181,11 +181,12 @@ export function MapaFrotaPage() {
         </aside>
         <div className="mapa-frota__map-wrap">
           <div ref={mapEl} className="mapa-frota__map" />
-          <div className="mapa-frota__legend" aria-hidden>
-            <span>🚐 Van</span>
-            <span>🚛 Carreta</span>
-            <span>🛻 Truck</span>
-            <span>🚚 Bitrem</span>
+          <div className="mapa-frota__legend" aria-label="Categorias de veículo">
+            {LEGENDA_FROTA.map((item) => (
+              <span key={item.grupo}>
+                {item.emoji} {item.label}
+              </span>
+            ))}
           </div>
         </div>
       </div>

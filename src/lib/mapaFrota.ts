@@ -1,7 +1,24 @@
 import type { Motorista, Transportador, Veiculo } from '../types'
 import { formatCurrency } from './businessRules'
 
-export type FrotaIconeGrupo = 'van' | 'carreta' | 'bitrem' | 'truck' | 'leve' | 'outros'
+/** Grupos de ícone no mapa — alinhados aos tipos de cadastro. */
+export type FrotaIconeGrupo =
+  | 'van'
+  | 'fiorino'
+  | 'utilitario'
+  | 'passeio'
+  | 'hr'
+  | 'vuc'
+  | 'leve'
+  | 'toco'
+  | 'truck'
+  | 'bitruck'
+  | 'carreta'
+  | 'carreta_ls'
+  | 'vanderleia'
+  | 'bitrem'
+  | 'rodotrem'
+  | 'outros'
 
 export type PontoFrota = {
   id: string
@@ -20,13 +37,43 @@ export type PontoFrota = {
   emoji: string
 }
 
+export const LEGENDA_FROTA: { grupo: FrotaIconeGrupo; emoji: string; label: string }[] = [
+  { grupo: 'van', emoji: '🚐', label: 'Van / Furgão' },
+  { grupo: 'fiorino', emoji: '🛻', label: 'Fiorino' },
+  { grupo: 'utilitario', emoji: '🚙', label: 'Utilitário' },
+  { grupo: 'passeio', emoji: '🚗', label: 'Carro Passeio' },
+  { grupo: 'hr', emoji: '📦', label: 'HR' },
+  { grupo: 'vuc', emoji: '🚐', label: 'VUC' },
+  { grupo: 'leve', emoji: '🚚', label: '3/4 Leve' },
+  { grupo: 'toco', emoji: '🚛', label: 'Toco' },
+  { grupo: 'truck', emoji: '🛻', label: 'Truck' },
+  { grupo: 'bitruck', emoji: '🚚', label: 'Bitruck' },
+  { grupo: 'carreta', emoji: '🚛', label: 'Carreta' },
+  { grupo: 'carreta_ls', emoji: '🚛', label: 'Carreta LS' },
+  { grupo: 'vanderleia', emoji: '🚛', label: 'Vanderleia' },
+  { grupo: 'bitrem', emoji: '🚚', label: 'Bitrem' },
+  { grupo: 'rodotrem', emoji: '🚂', label: 'Rodotrem' },
+]
+
 export function classificarIconeVeiculo(tipo: string): { grupo: FrotaIconeGrupo; emoji: string } {
   const t = tipo.toLowerCase()
-  if (/van|furg|fiorino|utilit/.test(t)) return { grupo: 'van', emoji: '🚐' }
-  if (/carreta|vanderleia/.test(t)) return { grupo: 'carreta', emoji: '🚛' }
-  if (/bitrem|rodotrem/.test(t)) return { grupo: 'bitrem', emoji: '🚚' }
-  if (/truck|toco|bitruck/.test(t)) return { grupo: 'truck', emoji: '🛻' }
-  if (/hr|vuc|3\/4|passeio/.test(t)) return { grupo: 'leve', emoji: '🚐' }
+
+  if (/fiorino/.test(t)) return { grupo: 'fiorino', emoji: '🛻' }
+  if (/utilit/.test(t)) return { grupo: 'utilitario', emoji: '🚙' }
+  if (/passeio/.test(t)) return { grupo: 'passeio', emoji: '🚗' }
+  if (/\bhr\b/.test(t) || t === 'hr') return { grupo: 'hr', emoji: '📦' }
+  if (/vuc/.test(t)) return { grupo: 'vuc', emoji: '🚐' }
+  if (/van|furg/.test(t)) return { grupo: 'van', emoji: '🚐' }
+  if (/3\/4|caminh[aã]o leve/.test(t)) return { grupo: 'leve', emoji: '🚚' }
+  if (/bitruck/.test(t)) return { grupo: 'bitruck', emoji: '🚚' }
+  if (/\btoco\b/.test(t)) return { grupo: 'toco', emoji: '🚛' }
+  if (/\btruck\b/.test(t)) return { grupo: 'truck', emoji: '🛻' }
+  if (/carreta\s*ls|ls\b/.test(t)) return { grupo: 'carreta_ls', emoji: '🚛' }
+  if (/vanderleia/.test(t)) return { grupo: 'vanderleia', emoji: '🚛' }
+  if (/carreta/.test(t)) return { grupo: 'carreta', emoji: '🚛' }
+  if (/rodotrem/.test(t)) return { grupo: 'rodotrem', emoji: '🚂' }
+  if (/bitrem/.test(t)) return { grupo: 'bitrem', emoji: '🚚' }
+
   return { grupo: 'outros', emoji: '🚛' }
 }
 
