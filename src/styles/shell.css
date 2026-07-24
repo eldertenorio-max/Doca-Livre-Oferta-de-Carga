@@ -737,24 +737,53 @@ a.sidebar-section:first-of-type {
   .main-panel {
     padding: 8px 8px 16px;
     overflow-x: hidden;
+    width: 100%;
+    max-width: 100%;
   }
 
-  /* Sidebar: rail estreito; expandido vira overlay */
-  .sidebar.sidebar--wide,
+  /* Sidebar mobile: fechada some do fluxo; aberta vira gaveta com backdrop */
+  .sidebar:not(.sidebar--pinned) {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0 !important;
+    min-width: 0;
+    padding: 0 !important;
+    border: 0;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 0;
+    box-shadow: none;
+  }
+
   .sidebar.sidebar--pinned,
-  .sidebar.sidebar--flyout {
+  .sidebar.sidebar--wide.sidebar--pinned {
     position: absolute;
     left: 0;
     top: 0;
     bottom: 0;
     height: 100%;
-    width: min(280px, calc(100vw - 48px));
+    width: min(280px, calc(100vw - 48px)) !important;
+    padding: 20px 16px 10px !important;
+    opacity: 1;
+    pointer-events: auto;
     z-index: 90;
     box-shadow: 8px 0 28px rgb(0 0 0 / 0.28);
+    border-right: 1px solid var(--sidebar-border);
+  }
+
+  /* Hover/flyout desligado no mobile — só abre pelo botão */
+  .sidebar.sidebar--flyout:not(.sidebar--pinned) {
+    width: 0 !important;
+    padding: 0 !important;
+    opacity: 0;
+    pointer-events: none;
+    box-shadow: none;
   }
 
   .sidebar-rail {
-    width: var(--sidebar-w-collapsed);
+    display: none;
   }
 
   .app-workspace-backdrop {

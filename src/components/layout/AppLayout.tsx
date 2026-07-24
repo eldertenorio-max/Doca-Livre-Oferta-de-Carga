@@ -149,9 +149,12 @@ export function AppLayout() {
   /** Fixado expandido pelos 3 riscos; senão só ícones e hover abre temporário */
   const [sidebarPinned, setSidebarPinned] = useState(false)
   const [sidebarHover, setSidebarHover] = useState(false)
+  const [isNarrow, setIsNarrow] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 900px)').matches : false,
+  )
   const hoverTimerRef = useRef<number | null>(null)
   const hoverLockedUntilRef = useRef(0)
-  const sidebarWide = sidebarPinned || sidebarHover
+  const sidebarWide = sidebarPinned || (!isNarrow && sidebarHover)
   const [clock, setClock] = useState(() => formatClock(new Date()))
   const [notifOpen, setNotifOpen] = useState(false)
   const [chatCargaId, setChatCargaId] = useState<string | null>(null)
@@ -198,6 +201,25 @@ export function AppLayout() {
       return true
     })
   }
+
+  function closeSidebarMobile() {
+    hoverLockedUntilRef.current = Date.now() + 400
+    clearHoverTimer()
+    setSidebarHover(false)
+    setSidebarPinned(false)
+  }
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 900px)')
+    function sync() {
+      const narrow = mq.matches
+      setIsNarrow(narrow)
+      if (narrow) setSidebarHover(false)
+    }
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
 
   useEffect(() => () => clearHoverTimer(), [])
 
@@ -439,14 +461,15 @@ export function AppLayout() {
       </header>
 
       <div className="app-workspace">
-        {/* Reserva a coluna de ícones enquanto o menu flutua no hover */}
-        {sidebarHover && !sidebarPinned && <div className="sidebar-rail" aria-hidden />}
-        {sidebarPinned && (
+        {sidebarHover && !sidebarPinned && !isNarrow && (
+          <div className="sidebar-rail" aria-hidden />
+        )}
+        {sidebarPinned && isNarrow && (
           <button
             type="button"
             className="app-workspace-backdrop"
             aria-label="Fechar menu"
-            onClick={() => toggleSidebarPin()}
+            onClick={closeSidebarMobile}
           />
         )}
         <aside
@@ -476,12 +499,7 @@ export function AppLayout() {
                 end={item.end}
                 title={!sidebarWide ? item.label : undefined}
                 onClick={() => {
-                  if (sidebarPinned && isNarrowViewport()) {
-                    hoverLockedUntilRef.current = Date.now() + 400
-                    clearHoverTimer()
-                    setSidebarHover(false)
-                    setSidebarPinned(false)
-                  }
+                  if (isNarrow) closeSidebarMobile()
                 }}
                 className={({ isActive }) =>
                   [
