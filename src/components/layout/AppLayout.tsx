@@ -4,6 +4,7 @@ import { useData } from '../../context/DataContext'
 import { BRAND_EMBARCADOR_LABEL, LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { ProductMark } from '../ProductMark'
 import { ChatModal } from '../carga/ChatModal'
+import { DisponibilidadeMapaFlag } from '../transportador/DisponibilidadeMapaFlag'
 import { canOpenModulo, moduloFromPath } from '../../lib/portalModules'
 import { PERFIL_OPERACIONAL_LABEL } from '../../lib/perfisOperacionais'
 import { isLocalSuperUser } from '../../lib/superUsers'
@@ -231,6 +232,11 @@ export function AppLayout() {
     isLocalSuperUser(user?.usuario ?? '') ||
     isLocalSuperUser(user?.email ?? '')
 
+  const topbarTransportadorId =
+    actingTransportadorId ||
+    (user?.role === 'transportador' ? user.transportador_id : null) ||
+    null
+
   const minhasNotifs = useMemo(() => {
     if (!user) return []
     const tid = actingTransportadorId || user.transportador_id
@@ -328,6 +334,10 @@ export function AppLayout() {
         </div>
 
         <div className="app-topbar-right">
+          {topbarTransportadorId ? (
+            <DisponibilidadeMapaFlag transportadorId={topbarTransportadorId} variant="topbar" />
+          ) : null}
+
           <div className="app-topbar-notif-wrap" ref={notifWrapRef}>
             <button
               type="button"

@@ -231,6 +231,92 @@
   background: #eceef0;
 }
 
+.app-topbar-disp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.app-topbar-disp-toggle {
+  display: inline-flex;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #d0d7de;
+}
+
+.app-topbar-disp-btn {
+  border: 0;
+  padding: 7px 10px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  background: #f8fafc;
+  color: #64748b;
+  white-space: nowrap;
+  line-height: 1.1;
+}
+
+.app-topbar-disp-btn--ok.is-on {
+  background: #22c55e;
+  color: #fff;
+}
+
+.app-topbar-disp-btn--off.is-on {
+  background: #ef4444;
+  color: #fff;
+}
+
+.app-topbar-disp-help {
+  position: relative;
+  display: inline-flex;
+}
+
+.app-topbar-disp-info {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #fff;
+  color: #475569;
+  cursor: help;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.app-topbar-disp-info:hover,
+.app-topbar-disp-info:focus-visible {
+  background: #eceef0;
+  color: #0f172a;
+}
+
+.app-topbar-disp-tip {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(280px, 72vw);
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  box-shadow: 0 10px 28px rgb(15 23 42 / 0.28);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 60;
+}
+
+.app-topbar-disp-help:hover .app-topbar-disp-tip,
+.app-topbar-disp-help:focus-within .app-topbar-disp-tip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .app-topbar-notif-wrap {
   position: relative;
 }
@@ -583,6 +669,16 @@ a.sidebar-section:first-of-type {
   .app-topbar-refresh {
     width: 34px;
     height: 34px;
+  }
+
+  .app-topbar-disp-btn {
+    padding: 6px 8px;
+    font-size: 0.65rem;
+  }
+
+  .app-topbar-disp-info {
+    width: 26px;
+    height: 26px;
   }
 
   .app-topbar-logout {
