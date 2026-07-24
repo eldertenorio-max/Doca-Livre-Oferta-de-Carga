@@ -150,7 +150,7 @@ export function TransportadoresPage() {
     setMode('ficha')
   }
 
-  function confirmarExclusao(t: Transportador) {
+  async function confirmarExclusao(t: Transportador) {
     const v = vinculosTransportador(t.id)
     const linhas = [
       `Excluir a transportadora "${t.nome_fantasia}"?`,
@@ -176,10 +176,12 @@ export function TransportadoresPage() {
     ].filter((x) => x !== null)
 
     if (!window.confirm(linhas.join('\n'))) return
-    const res = excluirTransportador(t.id)
+    const res = await excluirTransportador(t.id)
     if (!res.ok) {
       window.alert(res.error ?? 'Falha ao excluir')
+      return
     }
+    if (res.error) window.alert(res.error)
   }
 
   const ficha = fichaId ? transportadores.find((t) => t.id === fichaId) : null

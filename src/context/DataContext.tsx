@@ -127,6 +127,8 @@ interface DataState {
   chatLeituras: Record<string, string>
   /** Rascunhos excluídos (tombstones p/ sync) */
   cargas_excluidas: string[]
+  /** Transportadoras excluídas (tombstones p/ sync e seeds) */
+  transportadores_excluidos: string[]
 }
 
 interface AuthState {
@@ -183,7 +185,7 @@ interface DataContextValue extends DataState, AuthState {
   notificarTodosGrupos: (cargaId: string) => void
   salvarGrupo: (grupo: GrupoTransportador) => void
   salvarTransportador: (t: Transportador) => void
-  excluirTransportador: (id: string) => { ok: boolean; error?: string }
+  excluirTransportador: (id: string) => Promise<{ ok: boolean; error?: string }>
   vinculosTransportador: (id: string) => {
     placas: string[]
     motoristas: string[]
@@ -268,6 +270,7 @@ function defaultState(): DataState {
     mensagens: [],
     chatLeituras: {},
     cargas_excluidas: [],
+    transportadores_excluidos: [],
   }
 }
 
@@ -394,9 +397,15 @@ function cancelarLancesDaCarga(lances: Lance[], cargaId: string, nowIso: string)
 
 /** Garante frota demo (origem + motorista + veículo) para o Mapa da Frota. */
 function ensureDemoFrotaMapa(state: DataState): DataState {
-  const seedT = structuredClone(SEED_TRANSPORTADORES)
-  const seedV = structuredClone(SEED_VEICULOS).map(normalizeVeiculo)
-  const seedM = structuredClone(SEED_MOTORISTAS).map(normalizeMotorista)
+  // Excluídas manualmente não voltam pelo seed
+  const excluidos = new Set(state.transportadores_excluidos ?? [])
+  const seedT = structuredClone(SEED_TRANSPORTADORES).filter((t) => !excluidos.has(t.id))
+  const seedV = structuredClone(SEED_VEICULOS)
+    .filter((v) => !v.transportador_id || !excluidos.has(v.transportador_id))
+    .map(normalizeVeiculo)
+  const seedM = structuredClone(SEED_MOTORISTAS)
+    .filter((m) => !m.transportador_id || !excluidos.has(m.transportador_id))
+    .map(normalizeMotorista)
 
   const tMap = new Map(state.transportadores.map((t) => [t.id, t]))
   for (const s of seedT) {
@@ -465,7 +474,8 @@ function ensureDemoFrotaMapa(state: DataState): DataState {
 /** Garante grupos com demos t1/t2; não reabre cargas automaticamente. */
 function ensureDemoOfertasVisiveis(state: DataState): DataState {
   const withFrota = ensureDemoFrotaMapa(state)
-  const DEMO_TIDS = ['t1', 't2']
+  const excluidos = new Set(withFrota.transportadores_excluidos ?? [])
+  const DEMO_TIDS = ['t1', 't2'].filter((id) => !excluidos.has(id))
   let grupos = withFrota.grupos.map((g) => {
     if (g.situacao === 'inativo') return g
     const ids = g.transportador_ids ?? []
@@ -515,6 +525,7 @@ function wipeKanbanFields<T extends DataState>(state: T): T {
     interacoes: [],
     chatLeituras: {},
     cargas_excluidas: [],
+    transportadores_excluidos: state.transportadores_excluidos ?? [],
   }
 }
 
@@ -562,6 +573,9 @@ function loadState(): DataState {
       cargas_excluidas: Array.isArray(parsed.cargas_excluidas)
         ? parsed.cargas_excluidas.filter((id): id is string => typeof id === 'string')
         : [],
+      transportadores_excluidos: Array.isArray(parsed.transportadores_excluidos)
+        ? parsed.transportadores_excluidos.filter((id): id is string => typeof id === 'string')
+        : [],
     }
     if (loaded.cargas_excluidas.length > 0) {
       const ex = new Set(loaded.cargas_excluidas)
@@ -569,6 +583,21 @@ function loadState(): DataState {
         ...loaded,
         cargas: loaded.cargas.filter((c) => !ex.has(c.id)),
         lances: loaded.lances.filter((l) => !ex.has(l.carga_id)),
+      }
+    }
+    if (loaded.transportadores_excluidos.length > 0) {
+      const tex = new Set(loaded.transportadores_excluidos)
+      loaded = {
+        ...loaded,
+        transportadores: loaded.transportadores.filter((t) => !tex.has(t.id)),
+        veiculos: loaded.veiculos.filter((v) => !tex.has(v.transportador_id ?? '')),
+        motoristas: loaded.motoristas.filter((m) => !tex.has(m.transportador_id ?? '')),
+        documentos: loaded.documentos.filter((d) => !tex.has(d.transportador_id)),
+        lances: loaded.lances.filter((l) => !tex.has(l.transportador_id)),
+        grupos: loaded.grupos.map((g) => ({
+          ...g,
+          transportador_ids: (g.transportador_ids ?? []).filter((tid) => !tex.has(tid)),
+        })),
       }
     }
     // Migração v8: zera cargas publicadas, propostas e chat do Kanban
@@ -762,8 +791,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const remote = await carregarTransportadoresDoSupabase()
     if (!remote) return
     setState((prev) => {
+      const excluidos = new Set(prev.transportadores_excluidos ?? [])
       const byId = new Map(prev.transportadores.map((t) => [t.id, t]))
       for (const t of remote.transportadores) {
+        if (excluidos.has(t.id)) continue
         const local = byId.get(t.id)
         // Remoto manda nos dados cadastrais; preserva origem/mapa locais se o remoto vier vazio
         byId.set(
@@ -791,7 +822,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         )
       }
       const docsById = new Map((prev.documentos ?? []).map((d) => [d.id, d]))
-      for (const d of remote.documentos) docsById.set(d.id, d)
+      for (const d of remote.documentos) {
+        if (excluidos.has(d.transportador_id)) continue
+        docsById.set(d.id, d)
+      }
       const next = ensureDemoFrotaMapa({
         ...prev,
         transportadores: Array.from(byId.values()),
@@ -2497,7 +2531,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   )
 
   const excluirTransportador = useCallback(
-    (id: string) => {
+    async (id: string) => {
       const t = state.transportadores.find((x) => x.id === id)
       if (!t) return { ok: false, error: 'Transportadora não encontrada.' }
 
@@ -2505,49 +2539,77 @@ export function DataProvider({ children }: { children: ReactNode }) {
       removePortalAccountsPorTransportador(id)
       removeTransportadoraDaHierarquia(id)
 
-      setState((prev) => {
-        const hist = makeHistorico(
-          'transportador_excluido',
-          `Transportadora excluída — ${t.nome_fantasia}`,
-          {
-            transportador_id: id,
-            detalhe: [
-              vinculos.placas.length ? `Placas: ${vinculos.placas.join(', ')}` : null,
-              vinculos.motoristas.length ? `Motoristas: ${vinculos.motoristas.join(', ')}` : null,
-              vinculos.documentos ? `${vinculos.documentos} documento(s)` : null,
-              vinculos.grupos.length ? `Grupos: ${vinculos.grupos.join(', ')}` : null,
-            ]
-              .filter(Boolean)
-              .join(' · '),
-          },
-          user,
-        )
-        return {
-          ...prev,
-          transportadores: prev.transportadores.filter((x) => x.id !== id),
-          veiculos: (prev.veiculos ?? []).filter((v) => v.transportador_id !== id),
-          motoristas: (prev.motoristas ?? []).filter((m) => m.transportador_id !== id),
-          documentos: (prev.documentos ?? []).filter((d) => d.transportador_id !== id),
-          lances: (prev.lances ?? []).filter((l) => l.transportador_id !== id),
-          historicoPropostas: (prev.historicoPropostas ?? []).filter(
-            (h) => h.transportador_id !== id,
-          ),
-          interacoes: (prev.interacoes ?? []).filter((i) => i.transportador_id !== id),
-          grupos: (prev.grupos ?? []).map((g) => ({
-            ...g,
-            transportador_ids: g.transportador_ids.filter((tid) => tid !== id),
-          })),
-          cargas: (prev.cargas ?? []).map((c) =>
-            c.transportador_vencedor_id === id
-              ? { ...c, transportador_vencedor_id: null }
-              : c,
-          ),
-          historico: [hist, ...prev.historico].slice(0, 2000),
+      // Apaga no Supabase; sem isso o refresh (15s) traz o cadastro de volta
+      let avisoRemoto = ''
+      if (isSupabaseConfigured && supabase) {
+        const docs = (state.documentos ?? []).filter((d) => d.transportador_id === id)
+        const paths = docs.map((d) => d.storage_path).filter((p): p is string => Boolean(p))
+        if (paths.length > 0) {
+          await supabase.storage.from('documentos-transportadores').remove(paths)
         }
-      })
-      return { ok: true }
+        await supabase.from('transportador_documentos').delete().eq('transportador_id', id)
+        await supabase.from('grupo_transportador_membros').delete().eq('transportador_id', id)
+        await supabase.from('profiles').update({ transportador_id: null }).eq('transportador_id', id)
+        const { data, error } = await supabase
+          .from('transportadores')
+          .delete()
+          .eq('id', id)
+          .select('id')
+        if (error) {
+          avisoRemoto = `Removida localmente, mas o Supabase recusou: ${error.message}`
+        } else if (!data || data.length === 0) {
+          avisoRemoto =
+            'Removida localmente, mas o Supabase não apagou nenhuma linha (falta policy de DELETE para anon). Rode supabase/rls_exclusao_transportador.sql.'
+        }
+      }
+
+      const hist = makeHistorico(
+        'transportador_excluido',
+        `Transportadora excluída — ${t.nome_fantasia}`,
+        {
+          transportador_id: id,
+          detalhe: [
+            vinculos.placas.length ? `Placas: ${vinculos.placas.join(', ')}` : null,
+            vinculos.motoristas.length ? `Motoristas: ${vinculos.motoristas.join(', ')}` : null,
+            vinculos.documentos ? `${vinculos.documentos} documento(s)` : null,
+            vinculos.grupos.length ? `Grupos: ${vinculos.grupos.join(', ')}` : null,
+          ]
+            .filter(Boolean)
+            .join(' · '),
+        },
+        user,
+      )
+      const prev = stateRef.current
+      const next: DataState = {
+        ...prev,
+        transportadores: prev.transportadores.filter((x) => x.id !== id),
+        veiculos: (prev.veiculos ?? []).filter((v) => v.transportador_id !== id),
+        motoristas: (prev.motoristas ?? []).filter((m) => m.transportador_id !== id),
+        documentos: (prev.documentos ?? []).filter((d) => d.transportador_id !== id),
+        lances: (prev.lances ?? []).filter((l) => l.transportador_id !== id),
+        historicoPropostas: (prev.historicoPropostas ?? []).filter(
+          (h) => h.transportador_id !== id,
+        ),
+        interacoes: (prev.interacoes ?? []).filter((i) => i.transportador_id !== id),
+        grupos: (prev.grupos ?? []).map((g) => ({
+          ...g,
+          transportador_ids: g.transportador_ids.filter((tid) => tid !== id),
+        })),
+        cargas: (prev.cargas ?? []).map((c) =>
+          c.transportador_vencedor_id === id ? { ...c, transportador_vencedor_id: null } : c,
+        ),
+        transportadores_excluidos: [
+          ...(prev.transportadores_excluidos ?? []).filter((x) => x !== id),
+          id,
+        ].slice(-500),
+        historico: [hist, ...prev.historico].slice(0, 2000),
+      }
+      stateRef.current = next
+      setState(next)
+      flushKanbanPush(next)
+      return avisoRemoto ? { ok: true, error: avisoRemoto } : { ok: true }
     },
-    [state.transportadores, vinculosTransportador, user],
+    [state.transportadores, state.documentos, vinculosTransportador, user, flushKanbanPush],
   )
 
   const documentosDoTransportador = useCallback(

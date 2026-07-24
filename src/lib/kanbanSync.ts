@@ -29,6 +29,8 @@ export type KanbanSyncSlice = {
   chatLeituras: Record<string, string>
   /** IDs removidos (rascunhos excluídos) — impede o merge de “ressuscitar” a carga */
   cargas_excluidas?: string[]
+  /** IDs de transportadoras excluídas — impede o merge de “ressuscitar” o cadastro */
+  transportadores_excluidos?: string[]
 }
 
 export type KanbanSyncPayload = {
@@ -69,6 +71,7 @@ export function pickSyncSlice(state: KanbanSyncSlice): KanbanSyncSlice {
     historicoPropostas: state.historicoPropostas,
     chatLeituras: state.chatLeituras ?? {},
     cargas_excluidas: state.cargas_excluidas ?? [],
+    transportadores_excluidos: state.transportadores_excluidos ?? [],
   }
 }
 
@@ -109,6 +112,13 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
     new Set([...(prev.cargas_excluidas ?? []), ...(slice.cargas_excluidas ?? [])]),
   ).slice(-500)
   const excluidas = new Set(cargasExcluidas)
+  const transportadoresExcluidos = Array.from(
+    new Set([
+      ...(prev.transportadores_excluidos ?? []),
+      ...(slice.transportadores_excluidos ?? []),
+    ]),
+  ).slice(-500)
+  const tExcluidos = new Set(transportadoresExcluidos)
 
   // Remoto vazio NÃO apaga cargas locais publicadas/rascunhos
   const cargasMerged =
@@ -128,10 +138,16 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
     cargas,
     lances,
     cargas_excluidas: cargasExcluidas,
-    grupos: slice.grupos?.length ? mergeById(prev.grupos, slice.grupos) : prev.grupos,
-    transportadores: slice.transportadores?.length
+    transportadores_excluidos: transportadoresExcluidos,
+    grupos: (slice.grupos?.length ? mergeById(prev.grupos, slice.grupos) : prev.grupos).map((g) =>
+      (g.transportador_ids ?? []).some((tid) => tExcluidos.has(tid))
+        ? { ...g, transportador_ids: g.transportador_ids.filter((tid) => !tExcluidos.has(tid)) }
+        : g,
+    ),
+    transportadores: (slice.transportadores?.length
       ? mergeById(prev.transportadores, slice.transportadores)
-      : prev.transportadores,
+      : prev.transportadores
+    ).filter((t) => !tExcluidos.has(t.id)),
     notificacoes: (() => {
       const local = prev.notificacoes ?? []
       const remote = slice.notificacoes ?? []
