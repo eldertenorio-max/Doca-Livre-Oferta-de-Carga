@@ -245,14 +245,17 @@ export function TransportadoresPage() {
   async function handleAprovar() {
     if (!revisaoId) return
     setBusy(true)
+    setError('')
     const res = await aprovarTransportador(revisaoId)
     setBusy(false)
     if (!res.ok) {
       setError(res.error ?? 'Falha ao aprovar.')
       return
     }
+    setFiltro('ativo')
     setMode('lista')
     setRevisaoId(null)
+    void refreshTransportadores()
   }
 
   async function handleRecusar() {

@@ -2493,37 +2493,87 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [flushKanbanPush],
   )
 
+  const gravarSituacaoTransportador = useCallback(
+    async (
+      id: string,
+      situacao: 'ativo' | 'recusado',
+      motivoRecusa?: string | null,
+    ): Promise<{ ok: true } | { ok: false; error: string }> => {
+      if (!isSupabaseConfigured || !supabase) return { ok: true }
+
+      const tentar = async (body: Record<string, unknown>) => {
+        const { data, error } = await supabase
+          .from('transportadores')
+          .update(body)
+          .eq('id', id)
+          .select('id, situacao')
+          .maybeSingle()
+        return { data, error }
+      }
+
+      let body: Record<string, unknown> =
+        situacao === 'ativo'
+          ? { situacao: 'ativo', motivo_recusa: null }
+          : { situacao: 'recusado', motivo_recusa: motivoRecusa ?? null }
+
+      let { data, error } = await tentar(body)
+
+      // Coluna motivo_recusa pode faltar se a migration ainda não rodou
+      if (error && /motivo_recusa|schema cache|Could not find/i.test(error.message)) {
+        body = { situacao }
+        ;({ data, error } = await tentar(body))
+      }
+
+      if (error) {
+        return {
+          ok: false,
+          error: `Falha ao gravar no banco: ${error.message}`,
+        }
+      }
+      // RLS bloqueia UPDATE do anon sem retornar erro — 0 linhas
+      if (!data) {
+        return {
+          ok: false,
+          error:
+            'A aprovação não gravou no banco (permissão RLS). No Supabase SQL Editor, execute o arquivo supabase/rls_aprovacao_cadastro.sql e tente de novo.',
+        }
+      }
+
+      await supabase
+        .from('profiles')
+        .update({ ativo: situacao === 'ativo' })
+        .eq('transportador_id', id)
+
+      return { ok: true }
+    },
+    [],
+  )
+
   const aprovarTransportador = useCallback(async (id: string) => {
-    if (isSupabaseConfigured && supabase) {
-      const { error } = await supabase
-        .from('transportadores')
-        .update({ situacao: 'ativo', motivo_recusa: null })
-        .eq('id', id)
-      if (error) return { ok: false, error: error.message }
-      await supabase.from('profiles').update({ ativo: true }).eq('transportador_id', id)
-    }
+    const remote = await gravarSituacaoTransportador(id, 'ativo')
+    if (!remote.ok) return remote
+
     setPortalAccountAtivoPorTransportador(id, true)
-    setState((prev) => {
-      const atual = prev.transportadores.find((t) => t.id === id)
-      if (atual) {
-        syncTransportadoraNaHierarquia({
-          id: atual.id,
-          nome_fantasia: atual.nome_fantasia,
-          cnpj: atual.cnpj,
-        })
-      }
-      const next = {
-        ...prev,
-        transportadores: prev.transportadores.map((t) =>
-          t.id === id ? { ...t, situacao: 'ativo' as const, motivo_recusa: undefined } : t,
-        ),
-      }
-      stateRef.current = next
-      return next
-    })
-    flushKanbanPush(stateRef.current)
+    const prev = stateRef.current
+    const atual = prev.transportadores.find((t) => t.id === id)
+    if (atual) {
+      syncTransportadoraNaHierarquia({
+        id: atual.id,
+        nome_fantasia: atual.nome_fantasia,
+        cnpj: atual.cnpj,
+      })
+    }
+    const next = {
+      ...prev,
+      transportadores: prev.transportadores.map((t) =>
+        t.id === id ? { ...t, situacao: 'ativo' as const, motivo_recusa: undefined } : t,
+      ),
+    }
+    stateRef.current = next
+    setState(next)
+    flushKanbanPush(next)
     return { ok: true }
-  }, [flushKanbanPush])
+  }, [flushKanbanPush, gravarSituacaoTransportador])
 
   const recusarTransportador = useCallback(async (id: string, motivo?: string) => {
     const motivoTxt = (motivo || '').trim()
@@ -2555,33 +2605,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return { ok: false, error: mail.erro || 'Falha ao enviar e-mail de recusa.' }
     }
 
-    if (isSupabaseConfigured && supabase) {
-      const { error } = await supabase
-        .from('transportadores')
-        .update({ situacao: 'recusado', motivo_recusa: motivoTxt })
-        .eq('id', id)
-      if (error) return { ok: false, error: error.message }
-      await supabase.from('profiles').update({ ativo: false }).eq('transportador_id', id)
-    }
+    const remote = await gravarSituacaoTransportador(id, 'recusado', motivoTxt)
+    if (!remote.ok) return remote
+
     setPortalAccountAtivoPorTransportador(id, false)
     removePortalAccountsPorTransportador(id)
     removeTransportadoraDaHierarquia(id)
-    setState((prev) => {
-      const next = {
-        ...prev,
-        transportadores: prev.transportadores.map((t) =>
-          t.id === id ? { ...t, situacao: 'recusado' as const, motivo_recusa: motivoTxt } : t,
-        ),
-      }
-      stateRef.current = next
-      return next
-    })
-    flushKanbanPush(stateRef.current)
+    const prev = stateRef.current
+    const next = {
+      ...prev,
+      transportadores: prev.transportadores.map((t) =>
+        t.id === id ? { ...t, situacao: 'recusado' as const, motivo_recusa: motivoTxt } : t,
+      ),
+    }
+    stateRef.current = next
+    setState(next)
+    flushKanbanPush(next)
     return {
       ok: true,
       mensagem: mail.mensagem || `E-mail de recusa enviado para ${emailDestino}.`,
     }
-  }, [flushKanbanPush])
+  }, [flushKanbanPush, gravarSituacaoTransportador])
 
   const salvarVeiculo = useCallback((v: Veiculo) => {
     setState((prev) => {

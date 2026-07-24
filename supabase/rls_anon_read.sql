@@ -28,3 +28,19 @@ create policy "anon select documentos" on transportador_documentos for select to
 -- Cadastro público: insert após signUp (authenticated) já coberto;
 -- permite insert de transportador pendente pelo usuário autenticado.
 -- Storage: já tem policies authenticated no schema.
+
+-- Aprovação no painel (chave anon — ver também rls_aprovacao_cadastro.sql)
+drop policy if exists "anon update transportadores" on transportadores;
+create policy "anon update transportadores"
+  on transportadores for update to anon
+  using (true) with check (true);
+
+drop policy if exists "anon update profiles" on profiles;
+create policy "anon update profiles"
+  on profiles for update to anon
+  using (true) with check (true);
+
+drop policy if exists "anon select profiles" on profiles;
+create policy "anon select profiles"
+  on profiles for select to anon
+  using (true);
