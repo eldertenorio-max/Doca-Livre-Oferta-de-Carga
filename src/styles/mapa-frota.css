@@ -445,10 +445,10 @@
 .mapa-frota__cats-row {
   width: 100%;
   display: grid;
-  grid-template-columns: 28px 1fr auto;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
-  padding: 5px 6px;
+  column-gap: 10px;
+  padding: 6px 8px;
   border-radius: 8px;
   border: 0;
   background: transparent;
@@ -467,32 +467,36 @@
 }
 
 .mapa-frota__cats-ico {
-  width: 56px;
-  height: 28px;
+  width: 64px;
+  height: 30px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
+  overflow: hidden;
   border-radius: 8px;
-  background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+  background: linear-gradient(180deg, #fff 0%, #f1f5f9 100%);
   border: 1px solid #e2e8f0;
   box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+  box-sizing: border-box;
 }
 
 .frota-veiculo-ico {
   display: inline-grid;
   place-items: center;
   line-height: 0;
+  overflow: hidden;
 }
 
 .frota-veiculo-ico svg {
-  width: 54px;
-  height: 22px;
+  width: 58px;
+  height: 24px;
   display: block;
+  max-width: 100%;
 }
 
 .frota-veiculo-ico--chip svg {
-  width: 46px;
-  height: 19px;
+  width: 42px;
+  height: 17px;
 }
 
 .frota-ficha__veiculo-ico {
@@ -502,7 +506,7 @@
 }
 
 .frota-ficha__veiculo-ico svg {
-  width: 50px;
+  width: 52px;
   height: 21px;
 }
 
@@ -514,6 +518,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  position: relative;
+  z-index: 1;
 }
 
 .mapa-frota__cats-qtd {
@@ -681,15 +687,16 @@
 }
 
 .frota-bubble__icon {
-  width: 52px;
-  height: 30px;
+  width: 58px;
+  height: 32px;
   border-radius: 10px;
   display: grid;
   place-items: center;
-  background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+  background: linear-gradient(180deg, #fff 0%, #f1f5f9 100%);
   box-shadow: inset 0 0 0 1px rgb(15 23 42 / 0.08);
   padding: 2px 4px;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .frota-bubble__icon svg {
