@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useData } from '../../context/DataContext'
 import { CadastroStatsCards } from '../../components/cadastro/CadastroStatsCards'
 import { TransportadorPainel } from '../../components/transportador/TransportadorPainel'
@@ -6,7 +6,7 @@ import { CnpjInput } from '../../components/ui/CnpjInput'
 import { formatCnpj } from '../../lib/cnpj'
 import { formatPhoneBr } from '../../lib/phoneBr'
 import { formatCurrency, formatDateTime } from '../../lib/businessRules'
-import { labelDocumento } from '../../lib/transportadorDocs'
+import { labelDocumento, isAcceptedDocFile } from '../../lib/transportadorDocs'
 import { urlDocumentoTransportador, origemCadastroDe, labelOrigemCadastro } from '../../lib/cadastroTransportador'
 import type { ClassificacaoTransportador, SituacaoTransportador, Transportador } from '../../types'
 import '../../styles/cadastro.css'
@@ -57,6 +57,8 @@ export function TransportadoresPage() {
     excluirTransportador,
     vinculosTransportador,
     documentosDoTransportador,
+    excluirDocumentoTransportador,
+    substituirDocumentoTransportador,
     aprovarTransportador,
     recusarTransportador,
     historicoDoTransportador,
@@ -79,6 +81,8 @@ export function TransportadoresPage() {
   const [motivoRecusa, setMotivoRecusa] = useState('')
   const [busy, setBusy] = useState(false)
   const [linkCopiado, setLinkCopiado] = useState(false)
+  const replaceInputRef = useRef<HTMLInputElement>(null)
+  const [replaceDocId, setReplaceDocId] = useState<string | null>(null)
 
   useEffect(() => {
     void refreshTransportadores()
@@ -570,6 +574,27 @@ export function TransportadoresPage() {
               <h2 className="form-card__title">Documentos anexados</h2>
             </header>
             <div className="form-card__body">
+              <input
+                ref={replaceInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*"
+                style={{ display: 'none' }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ''
+                  if (!file || !replaceDocId) return
+                  if (!isAcceptedDocFile(file)) {
+                    setError('Use PDF ou imagem (JPG, PNG, WEBP).')
+                    return
+                  }
+                  setBusy(true)
+                  setError('')
+                  const res = await substituirDocumentoTransportador(replaceDocId, file)
+                  setBusy(false)
+                  setReplaceDocId(null)
+                  if (!res.ok) setError(res.error || 'Falha ao substituir documento.')
+                }}
+              />
               {docsRevisao.length === 0 ? (
                 <p className="cadastro-empty">Nenhum documento anexado.</p>
               ) : (
@@ -578,28 +603,64 @@ export function TransportadoresPage() {
                     <li key={d.id}>
                       <strong>{labelDocumento(d.tipo)}</strong>
                       <span>{d.nome_arquivo}</span>
-                      <button
-                        type="button"
-                        className="cadastro-link"
-                        onClick={async () => {
-                          try {
-                            const href = await urlDocumentoTransportador(d)
-                            if (!href) {
-                              setError('Documento sem arquivo disponível.')
+                      <div className="doc-review-actions">
+                        <button
+                          type="button"
+                          className="cadastro-link"
+                          disabled={busy}
+                          onClick={async () => {
+                            try {
+                              const href = await urlDocumentoTransportador(d)
+                              if (!href) {
+                                setError('Documento sem arquivo disponível.')
+                                return
+                              }
+                              window.open(href, '_blank', 'noopener,noreferrer')
+                            } catch (err) {
+                              setError(
+                                err instanceof Error
+                                  ? err.message
+                                  : 'Não foi possível abrir o documento. Verifique o bucket no Supabase.',
+                              )
+                            }
+                          }}
+                        >
+                          Abrir
+                        </button>
+                        <button
+                          type="button"
+                          className="cadastro-link"
+                          disabled={busy}
+                          onClick={() => {
+                            setError('')
+                            setReplaceDocId(d.id)
+                            replaceInputRef.current?.click()
+                          }}
+                        >
+                          Substituir
+                        </button>
+                        <button
+                          type="button"
+                          className="cadastro-link cadastro-link--danger"
+                          disabled={busy}
+                          onClick={async () => {
+                            if (
+                              !window.confirm(
+                                `Excluir o documento "${labelDocumento(d.tipo)}"? Esta ação não pode ser desfeita.`,
+                              )
+                            ) {
                               return
                             }
-                            window.open(href, '_blank', 'noopener,noreferrer')
-                          } catch (err) {
-                            setError(
-                              err instanceof Error
-                                ? err.message
-                                : 'Não foi possível abrir o documento. Verifique o bucket no Supabase.',
-                            )
-                          }
-                        }}
-                      >
-                        Abrir
-                      </button>
+                            setBusy(true)
+                            setError('')
+                            const res = await excluirDocumentoTransportador(d.id)
+                            setBusy(false)
+                            if (!res.ok) setError(res.error || 'Falha ao excluir documento.')
+                          }}
+                        >
+                          Excluir
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>

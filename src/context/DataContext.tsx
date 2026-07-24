@@ -207,6 +207,13 @@ interface DataContextValue extends DataState, AuthState {
   transportadorById: (id: string) => Transportador | undefined
   cargasVisiveisTransportador: (transportadorId: string) => Carga[]
   documentosDoTransportador: (transportadorId: string) => TransportadorDocumento[]
+  excluirDocumentoTransportador: (
+    documentoId: string,
+  ) => Promise<{ ok: boolean; error?: string }>
+  substituirDocumentoTransportador: (
+    documentoId: string,
+    file: File,
+  ) => Promise<{ ok: boolean; error?: string }>
   historicoDoTransportador: (transportadorId: string) => HistoricoEvento[]
   rankingTransportadores: () => Transportador[]
   motoristasDoTransportador: (transportadorId: string) => Motorista[]
@@ -2368,6 +2375,97 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [state.documentos],
   )
 
+  const excluirDocumentoTransportador = useCallback(async (documentoId: string) => {
+    const doc = stateRef.current.documentos?.find((d) => d.id === documentoId)
+    if (!doc) return { ok: false, error: 'Documento não encontrado.' }
+
+    if (isSupabaseConfigured && supabase) {
+      if (doc.storage_path) {
+        await supabase.storage.from('documentos-transportadores').remove([doc.storage_path])
+      }
+      const { error } = await supabase.from('transportador_documentos').delete().eq('id', documentoId)
+      if (error) return { ok: false, error: error.message }
+    }
+
+    setState((prev) => {
+      const next = {
+        ...prev,
+        documentos: (prev.documentos ?? []).filter((d) => d.id !== documentoId),
+      }
+      stateRef.current = next
+      return next
+    })
+    flushKanbanPush(stateRef.current)
+    return { ok: true }
+  }, [flushKanbanPush])
+
+  const substituirDocumentoTransportador = useCallback(
+    async (documentoId: string, file: File) => {
+      const doc = stateRef.current.documentos?.find((d) => d.id === documentoId)
+      if (!doc) return { ok: false, error: 'Documento não encontrado.' }
+
+      const now = new Date().toISOString()
+      let url = ''
+      let storage_path = doc.storage_path
+
+      if (isSupabaseConfigured && supabase) {
+        const safeName = file.name.replace(/[^\w.\-]+/g, '_')
+        const path = `${doc.transportador_id}/${doc.tipo}-${Date.now()}-${safeName}`
+        const { error: upErr } = await supabase.storage
+          .from('documentos-transportadores')
+          .upload(path, file, { upsert: true })
+        if (upErr) return { ok: false, error: upErr.message }
+
+        if (doc.storage_path && doc.storage_path !== path) {
+          await supabase.storage.from('documentos-transportadores').remove([doc.storage_path])
+        }
+
+        const { data: pub } = supabase.storage.from('documentos-transportadores').getPublicUrl(path)
+        url = pub.publicUrl
+        storage_path = path
+
+        const { error } = await supabase
+          .from('transportador_documentos')
+          .update({
+            nome_arquivo: file.name,
+            url,
+            storage_path: path,
+          })
+          .eq('id', documentoId)
+        if (error) return { ok: false, error: error.message }
+      } else {
+        url = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(String(reader.result))
+          reader.onerror = () => reject(new Error('Falha ao ler arquivo'))
+          reader.readAsDataURL(file)
+        })
+      }
+
+      setState((prev) => {
+        const next = {
+          ...prev,
+          documentos: (prev.documentos ?? []).map((d) =>
+            d.id === documentoId
+              ? {
+                  ...d,
+                  nome_arquivo: file.name,
+                  url,
+                  storage_path,
+                  created_at: now,
+                }
+              : d,
+          ),
+        }
+        stateRef.current = next
+        return next
+      })
+      flushKanbanPush(stateRef.current)
+      return { ok: true }
+    },
+    [flushKanbanPush],
+  )
+
   const registrarCadastroTransportador = useCallback(
     async (input: CadastroTransportadorInput) => {
       const result = await submeterCadastroTransportador(input)
@@ -3025,6 +3123,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       mensagensNaoLidasDaCarga,
       marcarChatLido,
       documentosDoTransportador,
+      excluirDocumentoTransportador,
+      substituirDocumentoTransportador,
       registrarCadastroTransportador,
       refreshTransportadores,
       aprovarTransportador,
@@ -3087,6 +3187,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       mensagensNaoLidasDaCarga,
       marcarChatLido,
       documentosDoTransportador,
+      excluirDocumentoTransportador,
+      substituirDocumentoTransportador,
       registrarCadastroTransportador,
       refreshTransportadores,
       aprovarTransportador,

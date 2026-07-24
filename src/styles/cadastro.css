@@ -675,6 +675,18 @@
   flex: 1;
   color: #64748b;
   font-size: 0.85rem;
+  min-width: 120px;
+}
+
+.doc-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-left: auto;
+}
+
+.cadastro-link--danger {
+  color: #b91c1c !important;
 }
 
 /* —— Cadastro público (link) —— */
