@@ -129,10 +129,16 @@ function ensureDemoTransportadores(list: PortalAccount[]): PortalAccount[] {
     if (idx < 0) {
       next = [demo, ...next]
     } else {
+      // Preserva edições do Super (login/senha/etc.); só completa campos vazios
+      const cur = next[idx]
       next[idx] = {
-        ...next[idx],
         ...demo,
-        created_at: next[idx].created_at || demo.created_at,
+        ...cur,
+        id: cur.id || demo.id,
+        transportador_id: cur.transportador_id || demo.transportador_id,
+        role: cur.role === 'super' ? 'super' : 'transportador',
+        ativo: cur.ativo ?? true,
+        created_at: cur.created_at || demo.created_at,
       }
     }
   }

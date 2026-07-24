@@ -134,11 +134,100 @@ export function PortalConfigPage() {
     setMsg('Permissões salvas.')
   }
 
-  function updateAccount(usuario: string, patch: Partial<PortalAccount>) {
-    const next = accounts.map((a) => (a.usuario === usuario ? { ...a, ...patch } : a))
+  function updateAccount(
+    id: string,
+    patch: Partial<PortalAccount>,
+    opts?: { validateUnique?: boolean },
+  ) {
+    const next = accounts.map((a) => {
+      if (a.id !== id) return a
+      const merged = { ...a, ...patch }
+      if (patch.usuario !== undefined) merged.usuario = patch.usuario.trim()
+      if (patch.email !== undefined) merged.email = patch.email.trim().toLowerCase()
+      if (patch.password !== undefined) merged.password = patch.password
+      if (patch.nome !== undefined) merged.nome = patch.nome.trim() || merged.usuario
+      if (patch.role === 'super') {
+        merged.nivel = 'super'
+        merged.transportador_id = null
+      }
+      if (patch.role === 'transportador') {
+        merged.nivel = merged.nivel === 'super' ? 'operador' : merged.nivel || 'operador'
+      }
+      return merged
+    })
+    const edited = next.find((a) => a.id === id)
+    if (opts?.validateUnique && edited) {
+      const dupUser = next.some(
+        (a) => a.id !== id && a.usuario.toLowerCase() === edited.usuario.toLowerCase(),
+      )
+      const dupEmail = next.some(
+        (a) => a.id !== id && a.email.toLowerCase() === edited.email.toLowerCase(),
+      )
+      if (dupUser) {
+        setMsg('Já existe outra conta com esse login.')
+        setAccounts(loadPortalAccounts())
+        return
+      }
+      if (dupEmail) {
+        setMsg('Já existe outra conta com esse e-mail.')
+        setAccounts(loadPortalAccounts())
+        return
+      }
+    }
     setAccounts(next)
     savePortalAccounts(next)
+    if (edited && selectedUser && accounts.find((a) => a.id === id)?.usuario === selectedUser) {
+      setSelectedUser(edited.usuario)
+    }
     setMsg('Usuário atualizado.')
+  }
+
+  function excluirConta(a: PortalAccount) {
+    if (a.id === user.id || a.usuario === user.usuario || a.email === user.email) {
+      setMsg('Você não pode excluir a própria conta logada.')
+      return
+    }
+    if (
+      !window.confirm(
+        `Excluir a conta “${a.usuario}” (${a.email})?\nLogin e senha serão removidos. Esta ação não pode ser desfeita.`,
+      )
+    ) {
+      return
+    }
+    const next = accounts.filter((x) => x.id !== a.id)
+    setAccounts(next)
+    savePortalAccounts(next)
+    if (selectedUser === a.usuario) setSelectedUser('')
+    setMsg(`Conta “${a.usuario}” excluída.`)
+  }
+
+  function novaConta() {
+    const usuario = window.prompt('Login (usuário):')?.trim()
+    if (!usuario) return
+    if (accounts.some((a) => a.usuario.toLowerCase() === usuario.toLowerCase())) {
+      setMsg('Já existe uma conta com esse login.')
+      return
+    }
+    const email =
+      window.prompt('E-mail:', `${usuario.toLowerCase()}@docalivre.com`)?.trim().toLowerCase() ||
+      `${usuario.toLowerCase()}@docalivre.com`
+    const password = window.prompt('Senha inicial:', '1234') || '1234'
+    const conta: PortalAccount = {
+      id: `u-${Math.random().toString(36).slice(2, 10)}`,
+      usuario,
+      email,
+      password,
+      nome: usuario,
+      role: 'transportador',
+      transportador_id: null,
+      nivel: 'operador',
+      ativo: true,
+      created_at: new Date().toISOString(),
+    }
+    const next = [conta, ...accounts]
+    setAccounts(next)
+    savePortalAccounts(next)
+    setMsg(`Conta “${usuario}” criada.`)
   }
 
   const selectedPerm = selectedUser ? perms[selectedUser] : null
@@ -289,18 +378,28 @@ export function PortalConfigPage() {
 
       {tab === 'usuarios' && (
         <section className="form-card form-card--green">
-          <header className="form-card__head">
+          <header className="form-card__head" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <h2 className="form-card__title">Contas do portal</h2>
+            <button type="button" className="cadastro-btn cadastro-btn--save" onClick={novaConta}>
+              + Nova conta
+            </button>
           </header>
           <div className="form-card__body">
-            <div className="cadastro-table-wrap">
+            <p className="portal-login__hint" style={{ marginBottom: 12 }}>
+              Super Usuário vê login e senha de todas as contas, pode alterar qualquer campo e
+              excluir (exceto a própria sessão).
+            </p>
+            <div className="cadastro-table-wrap" style={{ overflowX: 'auto' }}>
               <table className="cadastro-table">
                 <thead>
                   <tr>
-                    <th>Usuário</th>
+                    <th>Nome</th>
+                    <th>Login</th>
+                    <th>Senha</th>
                     <th>E-mail</th>
                     <th>Perfil</th>
-                    <th>Situação</th>
+                    <th>Transportadora</th>
+                    <th>Ativo</th>
                     <th>Ações</th>
                   </tr>
                 </thead>
@@ -310,43 +409,118 @@ export function PortalConfigPage() {
                       isLocalSuperUser(a.usuario) ||
                       isLocalSuperUser(a.email) ||
                       a.role === 'super'
+                    const isSelf =
+                      a.id === user.id ||
+                      a.usuario === user.usuario ||
+                      a.email.toLowerCase() === (user.email || '').toLowerCase()
                     return (
-                      <tr key={a.id}>
+                      <tr key={a.id} style={superU ? { background: '#f8fafc' } : undefined}>
                         <td>
-                          <strong>{a.usuario}</strong>
+                          <input
+                            className="cadastro-input"
+                            style={{ minWidth: 120 }}
+                            value={a.nome || ''}
+                            onChange={(e) => updateAccount(a.id, { nome: e.target.value })}
+                          />
                           {superU && (
                             <span
                               className="badge-situacao badge-situacao--ativo"
-                              style={{ marginLeft: 8 }}
+                              style={{ marginLeft: 6 }}
                             >
                               Super
                             </span>
                           )}
                         </td>
-                        <td>{a.email}</td>
-                        <td>{superU ? 'super' : 'transportador'}</td>
                         <td>
-                          {superU
-                            ? 'Ativo'
-                            : a.ativo
-                              ? 'Ativo'
-                              : 'Aguarda aprovação (Transportadoras)'}
+                          <input
+                            className="cadastro-input"
+                            style={{ minWidth: 110 }}
+                            value={a.usuario}
+                            onChange={(e) => updateAccount(a.id, { usuario: e.target.value })}
+                            onBlur={(e) =>
+                              updateAccount(a.id, { usuario: e.target.value }, { validateUnique: true })
+                            }
+                            autoComplete="off"
+                          />
                         </td>
                         <td>
-                          {superU ? (
-                            '—'
-                          ) : (
-                            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                              <input
-                                type="checkbox"
-                                checked={a.ativo}
-                                onChange={(e) =>
-                                  updateAccount(a.usuario, { ativo: e.target.checked })
-                                }
-                              />
-                              Ativo
-                            </label>
-                          )}
+                          <input
+                            className="cadastro-input"
+                            style={{ minWidth: 110 }}
+                            type="text"
+                            value={a.password}
+                            onChange={(e) => updateAccount(a.id, { password: e.target.value })}
+                            autoComplete="off"
+                          />
+                        </td>
+                        <td>
+                          <input
+                            className="cadastro-input"
+                            style={{ minWidth: 160 }}
+                            type="email"
+                            value={a.email}
+                            onChange={(e) => updateAccount(a.id, { email: e.target.value })}
+                            onBlur={(e) =>
+                              updateAccount(a.id, { email: e.target.value }, { validateUnique: true })
+                            }
+                            autoComplete="off"
+                          />
+                        </td>
+                        <td>
+                          <select
+                            className="cadastro-input"
+                            value={a.role === 'super' || superU ? 'super' : 'transportador'}
+                            onChange={(e) =>
+                              updateAccount(a.id, {
+                                role: e.target.value as PortalAccount['role'],
+                              })
+                            }
+                          >
+                            <option value="super">super</option>
+                            <option value="transportador">transportador</option>
+                          </select>
+                        </td>
+                        <td>
+                          <select
+                            className="cadastro-input"
+                            style={{ minWidth: 140 }}
+                            disabled={a.role === 'super' || superU}
+                            value={a.transportador_id || ''}
+                            onChange={(e) =>
+                              updateAccount(a.id, {
+                                transportador_id: e.target.value || null,
+                              })
+                            }
+                          >
+                            <option value="">—</option>
+                            {transportadores.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.nome_fantasia}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                            <input
+                              type="checkbox"
+                              checked={a.ativo}
+                              onChange={(e) => updateAccount(a.id, { ativo: e.target.checked })}
+                            />
+                            Ativo
+                          </label>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="cadastro-link"
+                            style={{ color: '#b91c1c' }}
+                            disabled={isSelf}
+                            title={isSelf ? 'Não é possível excluir a própria conta' : 'Excluir conta'}
+                            onClick={() => excluirConta(a)}
+                          >
+                            Excluir
+                          </button>
                         </td>
                       </tr>
                     )
@@ -355,9 +529,8 @@ export function PortalConfigPage() {
               </table>
             </div>
             <p className="portal-login__hint" style={{ marginTop: 12 }}>
-              Contas do portal: Super Usuários (Diego/Elder) e transportadores (demos + cadastro
-              público). Equipe embarcador/Minerva foi removida — o painel operacional é só dos
-              Supers.
+              Contas do portal: Super Usuários e transportadores (demos + cadastro público). Alterações
+              de login/senha valem no próximo login.
             </p>
           </div>
         </section>
