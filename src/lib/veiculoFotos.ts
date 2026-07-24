@@ -35,7 +35,7 @@ export const FOTOS_VEICULO_ROTEIRO: FotoVeiculoItem[] = [
   {
     slot: 'interior',
     numero: 5,
-    titulo: 'Foto 5 — Parte de dentro',
+    titulo: 'Foto 5 — Parte interna da carroceria',
     descricao: 'Assoalho do baú ou da carroceria vazio.',
   },
 ]
