@@ -3,6 +3,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useData } from '../../context/DataContext'
 import { formatCurrency } from '../../lib/businessRules'
+import { geocodificarConsulta } from '../../lib/geocodeEndereco'
 import {
   distanciaKm,
   iniciaisNome,
@@ -18,6 +19,8 @@ import {
 import '../../styles/mapa-frota.css'
 
 const RAIOS_KM = [50, 100, 150, 200, 300, 500] as const
+
+type OrigemRaio = { lat: number; lng: number; label: string }
 
 function escapeHtml(s: string) {
   return s
@@ -132,9 +135,11 @@ export function MapaFrotaPage() {
   const mapRef = useRef<L.Map | null>(null)
   const layerRef = useRef<L.LayerGroup | null>(null)
   const raioLayerRef = useRef<L.Circle | null>(null)
+  const origemMarkerRef = useRef<L.Marker | null>(null)
   const markersRef = useRef<Map<string, L.Marker>>(new Map())
   /** Evita que pan/rebuild feche o popup e limpe a seleção na hora de abrir. */
   const ignorarFecharPopupRef = useRef(false)
+  const clicarOrigemRef = useRef(false)
   const [filtro, setFiltro] = useState<'todos' | 'disponiveis' | 'indisponiveis'>('disponiveis')
   const [selecionado, setSelecionado] = useState<string | null>(null)
   const selecionadoRef = useRef<string | null>(null)
@@ -146,8 +151,16 @@ export function MapaFrotaPage() {
   const [uf, setUf] = useState('')
   const [regiao, setRegiao] = useState<'' | RegiaoBr>('')
   const [raioMin, setRaioMin] = useState<number | ''>('')
-  const [raioGeo, setRaioGeo] = useState<number | ''>('')
+  const [raioGeo, setRaioGeo] = useState<number | ''>(100)
+  const [origemRaio, setOrigemRaio] = useState<OrigemRaio | null>(null)
+  const [clicarOrigem, setClicarOrigem] = useState(false)
+  const [enderecoOrigem, setEnderecoOrigem] = useState('')
+  const [coordLat, setCoordLat] = useState('')
+  const [coordLng, setCoordLng] = useState('')
+  const [geoBusy, setGeoBusy] = useState(false)
+  const [geoErro, setGeoErro] = useState('')
   const [tipos, setTipos] = useState<FrotaIconeGrupo[]>([])
+  clicarOrigemRef.current = clicarOrigem
 
   const chaveFiltro = useMemo(
     () =>
@@ -160,8 +173,11 @@ export function MapaFrotaPage() {
         raioMin,
         raioGeo,
         tipos,
+        origem: origemRaio
+          ? { lat: origemRaio.lat.toFixed(5), lng: origemRaio.lng.toFixed(5) }
+          : null,
       }),
-    [filtro, busca, cidade, uf, regiao, raioMin, raioGeo, tipos],
+    [filtro, busca, cidade, uf, regiao, raioMin, raioGeo, tipos, origemRaio],
   )
 
   const pontos = useMemo(
@@ -181,20 +197,6 @@ export function MapaFrotaPage() {
     return Array.from(set).sort()
   }, [pontos])
 
-  const centroBusca = useMemo(() => {
-    if (!cidade && !uf && !regiao) return null
-    const base = pontos.filter((p) => {
-      if (cidade && p.cidade.toLowerCase() !== cidade.toLowerCase()) return false
-      if (uf && p.uf !== uf) return false
-      if (regiao && regiaoDaUf(p.uf) !== regiao) return false
-      return true
-    })
-    if (base.length === 0) return null
-    const lat = base.reduce((s, p) => s + p.lat, 0) / base.length
-    const lng = base.reduce((s, p) => s + p.lng, 0) / base.length
-    return { lat, lng }
-  }, [pontos, cidade, uf, regiao])
-
   const filtradosSemTipo = useMemo(() => {
     const q = busca.trim().toLowerCase()
     return pontos.filter((p) => {
@@ -204,8 +206,8 @@ export function MapaFrotaPage() {
       if (uf && p.uf !== uf) return false
       if (regiao && regiaoDaUf(p.uf) !== regiao) return false
       if (raioMin !== '' && !(p.raioKm >= raioMin)) return false
-      if (raioGeo !== '' && centroBusca) {
-        if (distanciaKm(centroBusca.lat, centroBusca.lng, p.lat, p.lng) > raioGeo) return false
+      if (raioGeo !== '' && origemRaio) {
+        if (distanciaKm(origemRaio.lat, origemRaio.lng, p.lat, p.lng) > raioGeo) return false
       }
       if (q) {
         const blob = [
@@ -222,7 +224,7 @@ export function MapaFrotaPage() {
       }
       return true
     })
-  }, [pontos, filtro, cidade, uf, regiao, raioMin, raioGeo, busca, centroBusca])
+  }, [pontos, filtro, cidade, uf, regiao, raioMin, raioGeo, busca, origemRaio])
 
   const filtrados = useMemo(() => {
     if (tipos.length === 0) return filtradosSemTipo
@@ -250,8 +252,44 @@ export function MapaFrotaPage() {
     Boolean(uf) ||
     Boolean(regiao) ||
     raioMin !== '' ||
-    raioGeo !== '' ||
+    Boolean(origemRaio) ||
     tipos.length > 0
+
+  function definirOrigem(lat: number, lng: number, label: string) {
+    setOrigemRaio({ lat, lng, label })
+    setCoordLat(lat.toFixed(5))
+    setCoordLng(lng.toFixed(5))
+    setGeoErro('')
+    setClicarOrigem(false)
+    if (raioGeo === '') setRaioGeo(100)
+  }
+
+  async function localizarPorEndereco() {
+    setGeoBusy(true)
+    setGeoErro('')
+    const res = await geocodificarConsulta(enderecoOrigem)
+    setGeoBusy(false)
+    if (!res.ok) {
+      setGeoErro(res.erro)
+      return
+    }
+    definirOrigem(res.coords.lat, res.coords.lng, res.display || enderecoOrigem.trim())
+  }
+
+  function localizarPorCoordenadas() {
+    setGeoErro('')
+    const lat = Number(String(coordLat).replace(',', '.'))
+    const lng = Number(String(coordLng).replace(',', '.'))
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      setGeoErro('Informe latitude e longitude válidas.')
+      return
+    }
+    if (lat < -35 || lat > 6 || lng < -75 || lng > -30) {
+      setGeoErro('Coordenadas fora do Brasil. Confira lat/lng.')
+      return
+    }
+    definirOrigem(lat, lng, `${lat.toFixed(5)}, ${lng.toFixed(5)}`)
+  }
 
   function limparFiltros() {
     setBusca('')
@@ -259,7 +297,13 @@ export function MapaFrotaPage() {
     setUf('')
     setRegiao('')
     setRaioMin('')
-    setRaioGeo('')
+    setRaioGeo(100)
+    setOrigemRaio(null)
+    setClicarOrigem(false)
+    setEnderecoOrigem('')
+    setCoordLat('')
+    setCoordLng('')
+    setGeoErro('')
     setTipos([])
   }
 
@@ -287,6 +331,23 @@ export function MapaFrotaPage() {
     }).addTo(map)
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
+
+    map.on('click', (e) => {
+      if (!clicarOrigemRef.current) return
+      L.DomEvent.stopPropagation(e.originalEvent)
+      const { lat, lng } = e.latlng
+      setOrigemRaio({
+        lat,
+        lng,
+        label: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+      })
+      setCoordLat(lat.toFixed(5))
+      setCoordLng(lng.toFixed(5))
+      setGeoErro('')
+      setClicarOrigem(false)
+      setRaioGeo((r) => (r === '' ? 100 : r))
+    })
+
     const t = window.setTimeout(() => map.invalidateSize(), 80)
     return () => {
       window.clearTimeout(t)
@@ -294,9 +355,16 @@ export function MapaFrotaPage() {
       mapRef.current = null
       layerRef.current = null
       raioLayerRef.current = null
+      origemMarkerRef.current = null
       markersRef.current.clear()
     }
   }, [])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    map.getContainer().style.cursor = clicarOrigem ? 'crosshair' : ''
+  }, [clicarOrigem])
 
   useEffect(() => {
     const map = mapRef.current
@@ -306,7 +374,6 @@ export function MapaFrotaPage() {
     const filtrosMudaram = chaveFiltroAnteriorRef.current !== chaveFiltro
     chaveFiltroAnteriorRef.current = chaveFiltro
 
-    // Preserva popup aberto durante rebuild
     const idAberto = selecionadoRef.current
     if (idAberto) ignorarFecharPopupRef.current = true
 
@@ -317,16 +384,36 @@ export function MapaFrotaPage() {
       map.removeLayer(raioLayerRef.current)
       raioLayerRef.current = null
     }
-    if (raioGeo !== '' && centroBusca) {
-      const circle = L.circle([centroBusca.lat, centroBusca.lng], {
-        radius: raioGeo * 1000,
-        color: '#0f172a',
-        weight: 1.5,
-        fillColor: '#38bdf8',
-        fillOpacity: 0.12,
+    if (origemMarkerRef.current) {
+      map.removeLayer(origemMarkerRef.current)
+      origemMarkerRef.current = null
+    }
+
+    if (origemRaio) {
+      const origemIcon = L.divIcon({
+        className: 'frota-origem-wrap',
+        html: `<div class="frota-origem-pin" title="Origem da busca">◎</div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+      })
+      const om = L.marker([origemRaio.lat, origemRaio.lng], {
+        icon: origemIcon,
+        zIndexOffset: 800,
         interactive: false,
       }).addTo(map)
-      raioLayerRef.current = circle
+      origemMarkerRef.current = om
+
+      if (raioGeo !== '') {
+        const circle = L.circle([origemRaio.lat, origemRaio.lng], {
+          radius: raioGeo * 1000,
+          color: '#0f172a',
+          weight: 1.5,
+          fillColor: '#38bdf8',
+          fillOpacity: 0.12,
+          interactive: false,
+        }).addTo(map)
+        raioLayerRef.current = circle
+      }
     }
 
     const bounds: L.LatLngExpression[] = []
@@ -347,6 +434,7 @@ export function MapaFrotaPage() {
         closeOnClick: true,
       })
       m.on('click', (e) => {
+        if (clicarOrigemRef.current) return
         L.DomEvent.stopPropagation(e.originalEvent)
         ignorarFecharPopupRef.current = true
         setSelecionado(p.id)
@@ -390,7 +478,6 @@ export function MapaFrotaPage() {
       }
     }
 
-    // Só enquadra na 1ª carga ou quando o usuário muda filtros — não reseta pan/zoom livre
     const deveEnquadrar = filtrosMudaram || !enquadrouInicialRef.current
     if (deveEnquadrar) {
       if (raioLayerRef.current) {
@@ -404,6 +491,9 @@ export function MapaFrotaPage() {
           map.fitBounds(b, { padding: [40, 40], maxZoom: 10 })
         }
         enquadrouInicialRef.current = true
+      } else if (origemRaio) {
+        map.setView([origemRaio.lat, origemRaio.lng], 10)
+        enquadrouInicialRef.current = true
       } else if (bounds.length === 1) {
         map.setView(bounds[0], 10)
         enquadrouInicialRef.current = true
@@ -412,7 +502,7 @@ export function MapaFrotaPage() {
         enquadrouInicialRef.current = true
       }
     }
-  }, [filtrados, raioGeo, centroBusca, chaveFiltro])
+  }, [filtrados, raioGeo, origemRaio, chaveFiltro])
 
   return (
     <div className="mapa-frota animate-fade-up">
@@ -521,26 +611,112 @@ export function MapaFrotaPage() {
               </select>
             </label>
 
-            <label className="mapa-frota__field">
-              <span>Busca em raio no mapa</span>
-              <select
-                value={raioGeo === '' ? '' : String(raioGeo)}
-                onChange={(e) => setRaioGeo(e.target.value ? Number(e.target.value) : '')}
-                disabled={!cidade && !uf && !regiao}
-                title={
-                  !cidade && !uf && !regiao
-                    ? 'Selecione cidade, UF ou região para usar o raio no mapa'
-                    : undefined
-                }
+            <div className="mapa-frota__raio-box">
+              <p className="mapa-frota__cats-title">Busca em raio no mapa</p>
+              <p className="mapa-frota__cats-hint">
+                Defina a origem (clique, endereço ou coordenada) e o raio em km.
+              </p>
+
+              <button
+                type="button"
+                className={`mapa-frota__origem-btn${clicarOrigem ? ' is-on' : ''}`}
+                aria-pressed={clicarOrigem}
+                onClick={() => setClicarOrigem((v) => !v)}
               >
-                <option value="">Desligado</option>
-                {RAIOS_KM.map((r) => (
-                  <option key={r} value={r}>
-                    Até {r} km do filtro
-                  </option>
-                ))}
-              </select>
-            </label>
+                {clicarOrigem ? 'Clique no mapa agora…' : 'Definir origem no mapa'}
+              </button>
+
+              <label className="mapa-frota__field">
+                <span>Endereço</span>
+                <div className="mapa-frota__row">
+                  <input
+                    className="mapa-frota__input"
+                    type="text"
+                    placeholder="Rua, cidade, CEP…"
+                    value={enderecoOrigem}
+                    onChange={(e) => setEnderecoOrigem(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        void localizarPorEndereco()
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="mapa-frota__mini-btn"
+                    disabled={geoBusy || !enderecoOrigem.trim()}
+                    onClick={() => void localizarPorEndereco()}
+                  >
+                    {geoBusy ? '…' : 'OK'}
+                  </button>
+                </div>
+              </label>
+
+              <label className="mapa-frota__field">
+                <span>Coordenadas</span>
+                <div className="mapa-frota__row">
+                  <input
+                    className="mapa-frota__input"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="Lat"
+                    value={coordLat}
+                    onChange={(e) => setCoordLat(e.target.value)}
+                  />
+                  <input
+                    className="mapa-frota__input"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="Lng"
+                    value={coordLng}
+                    onChange={(e) => setCoordLng(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="mapa-frota__mini-btn"
+                    onClick={localizarPorCoordenadas}
+                  >
+                    OK
+                  </button>
+                </div>
+              </label>
+
+              {origemRaio && (
+                <p className="mapa-frota__origem-ok">
+                  Origem: {origemRaio.label}
+                  <button
+                    type="button"
+                    className="mapa-frota__link-clear"
+                    onClick={() => {
+                      setOrigemRaio(null)
+                      setClicarOrigem(false)
+                    }}
+                  >
+                    limpar
+                  </button>
+                </p>
+              )}
+
+              {geoErro && <p className="mapa-frota__geo-erro">{geoErro}</p>}
+
+              <label className="mapa-frota__field">
+                <span>Raio a partir da origem</span>
+                <select
+                  value={raioGeo === '' ? '' : String(raioGeo)}
+                  onChange={(e) => setRaioGeo(e.target.value ? Number(e.target.value) : '')}
+                  disabled={!origemRaio}
+                  title={!origemRaio ? 'Defina a origem primeiro' : undefined}
+                >
+                  <option value="">Desligado</option>
+                  {RAIOS_KM.map((r) => (
+                    <option key={r} value={r}>
+                      Até {r} km
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
 
             <div className="mapa-frota__tipos">
               <span className="mapa-frota__tipos-label">Tipos de veículo</span>
@@ -612,6 +788,11 @@ export function MapaFrotaPage() {
           )}
         </aside>
         <div className="mapa-frota__map-wrap">
+          {clicarOrigem && (
+            <div className="mapa-frota__map-banner" role="status">
+              Clique no mapa para definir a origem da busca em raio
+            </div>
+          )}
           <div ref={mapEl} className="mapa-frota__map" />
         </div>
       </div>

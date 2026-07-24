@@ -138,3 +138,36 @@ export async function geocodificarEndereco(
 
   return { ok: false, erro: lastErro }
 }
+
+/**
+ * Geocodifica texto livre (rua, cidade, CEP, etc.) via Nominatim.
+ */
+export async function geocodificarConsulta(
+  consulta: string,
+): Promise<{ ok: true; coords: Coordenadas; display?: string } | { ok: false; erro: string }> {
+  const q = consulta.trim()
+  if (q.length < 3) return { ok: false, erro: 'Digite um endereço ou lugar.' }
+
+  try {
+    const url = new URL('https://nominatim.openstreetmap.org/search')
+    url.searchParams.set('format', 'json')
+    url.searchParams.set('limit', '1')
+    url.searchParams.set('countrycodes', 'br')
+    url.searchParams.set('q', q.includes('Brasil') ? q : `${q}, Brasil`)
+
+    const res = await fetch(url.toString(), {
+      headers: { Accept: 'application/json' },
+    })
+    if (!res.ok) return { ok: false, erro: 'Falha ao consultar o endereço.' }
+    const rows = (await res.json()) as Array<{ lat?: string; lon?: string; display_name?: string }>
+    const hit = rows[0]
+    const lat = hit?.lat != null ? Number(hit.lat) : NaN
+    const lng = hit?.lon != null ? Number(hit.lon) : NaN
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return { ok: false, erro: 'Endereço não encontrado.' }
+    }
+    return { ok: true, coords: { lat, lng }, display: hit.display_name }
+  } catch {
+    return { ok: false, erro: 'Não foi possível obter as coordenadas.' }
+  }
+}
