@@ -467,14 +467,15 @@
 }
 
 .mapa-frota__cats-ico {
-  width: 42px;
-  height: 22px;
+  width: 56px;
+  height: 28px;
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  border-radius: 6px;
-  background: #f8fafc;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
   border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
 }
 
 .frota-veiculo-ico {
@@ -484,14 +485,14 @@
 }
 
 .frota-veiculo-ico svg {
-  width: 40px;
-  height: 20px;
+  width: 54px;
+  height: 22px;
   display: block;
 }
 
 .frota-veiculo-ico--chip svg {
-  width: 32px;
-  height: 16px;
+  width: 46px;
+  height: 19px;
 }
 
 .frota-ficha__veiculo-ico {
@@ -501,8 +502,8 @@
 }
 
 .frota-ficha__veiculo-ico svg {
-  width: 36px;
-  height: 18px;
+  width: 50px;
+  height: 21px;
 }
 
 .mapa-frota__cats-label {
@@ -680,14 +681,14 @@
 }
 
 .frota-bubble__icon {
-  width: 40px;
-  height: 28px;
-  border-radius: 8px;
+  width: 52px;
+  height: 30px;
+  border-radius: 10px;
   display: grid;
   place-items: center;
-  background: #f8fafc;
+  background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
   box-shadow: inset 0 0 0 1px rgb(15 23 42 / 0.08);
-  padding: 2px 3px;
+  padding: 2px 4px;
   box-sizing: border-box;
 }
 
