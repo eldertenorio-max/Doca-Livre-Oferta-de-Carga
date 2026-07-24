@@ -1,23 +1,9 @@
 import type { Motorista, Transportador, Veiculo } from '../types'
+import { frotaIconeHtml, type FrotaIconeGrupo } from './frotaIcones'
+
+export type { FrotaIconeGrupo }
 
 /** Grupos de ícone no mapa — alinhados aos tipos de cadastro. */
-export type FrotaIconeGrupo =
-  | 'van'
-  | 'fiorino'
-  | 'utilitario'
-  | 'passeio'
-  | 'hr'
-  | 'vuc'
-  | 'leve'
-  | 'toco'
-  | 'truck'
-  | 'bitruck'
-  | 'carreta'
-  | 'carreta_ls'
-  | 'vanderleia'
-  | 'bitrem'
-  | 'rodotrem'
-  | 'outros'
 
 export type PontoFrota = {
   id: string
@@ -54,18 +40,18 @@ const EMOJI_POR_GRUPO: Record<FrotaIconeGrupo, string> = {
   fiorino: '🛻',
   utilitario: '🚙',
   passeio: '🚗',
-  hr: '📦',
-  vuc: '🚎',
+  hr: '🚐',
+  vuc: '🚚',
   leve: '🚚',
   toco: '🚛',
-  truck: '🚜',
-  bitruck: '🏗️',
-  carreta: '🛞',
-  carreta_ls: '🛢️',
-  vanderleia: '🧱',
-  bitrem: '⛓️',
-  rodotrem: '🚂',
-  outros: '❔',
+  truck: '🚛',
+  bitruck: '🚛',
+  carreta: '🚛',
+  carreta_ls: '🚛',
+  vanderleia: '🚛',
+  bitrem: '🚛',
+  rodotrem: '🚛',
+  outros: '🚚',
 }
 
 export const LEGENDA_FROTA: { grupo: FrotaIconeGrupo; emoji: string; label: string }[] = [
@@ -108,6 +94,8 @@ export function classificarIconeVeiculo(tipo: string): { grupo: FrotaIconeGrupo;
 
   return { grupo, emoji: EMOJI_POR_GRUPO[grupo] }
 }
+
+export { frotaIconeHtml }
 
 /** Valor curto no pin, estilo “R$ 3.500”. */
 export function labelFretePin(valor: number): string {

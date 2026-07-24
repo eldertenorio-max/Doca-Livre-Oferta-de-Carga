@@ -467,9 +467,39 @@
 }
 
 .mapa-frota__cats-ico {
-  font-size: 1.15rem;
-  line-height: 1;
-  text-align: center;
+  width: 36px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.frota-veiculo-ico {
+  display: inline-grid;
+  place-items: center;
+  line-height: 0;
+}
+
+.frota-veiculo-ico svg {
+  width: 36px;
+  height: 22px;
+  display: block;
+}
+
+.frota-veiculo-ico--chip svg {
+  width: 28px;
+  height: 17px;
+}
+
+.frota-ficha__veiculo-ico {
+  display: inline-grid;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.frota-ficha__veiculo-ico svg {
+  width: 32px;
+  height: 20px;
 }
 
 .mapa-frota__cats-label {
@@ -647,22 +677,29 @@
 }
 
 .frota-bubble__icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
+  width: 34px;
+  height: 26px;
+  border-radius: 8px;
   display: grid;
   place-items: center;
-  font-size: 16px;
   background: #ec4899;
   box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.35);
+  padding: 2px;
+  box-sizing: border-box;
+}
+
+.frota-bubble__icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .frota-bubble--ok .frota-bubble__icon {
-  background: #16a34a;
+  background: #dcfce7;
 }
 
 .frota-bubble--off .frota-bubble__icon {
-  background: #ef4444;
+  background: #fee2e2;
 }
 
 .frota-bubble__price {

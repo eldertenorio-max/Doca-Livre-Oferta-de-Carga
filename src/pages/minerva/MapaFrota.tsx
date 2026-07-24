@@ -6,6 +6,7 @@ import { formatCurrency } from '../../lib/businessRules'
 import { geocodificarConsulta } from '../../lib/geocodeEndereco'
 import {
   distanciaKm,
+  frotaIconeHtml,
   iniciaisNome,
   labelFretePin,
   LEGENDA_FROTA,
@@ -17,6 +18,7 @@ import {
   type PontoFrota,
   type RegiaoBr,
 } from '../../lib/mapaFrota'
+import { frotaIconeSvgRaw } from '../../lib/frotaIcones'
 import '../../styles/cadastro.css'
 import '../../styles/mapa-frota.css'
 
@@ -52,7 +54,7 @@ function markerHtml(p: PontoFrota): string {
   const status = p.disponivel ? 'ok' : 'off'
   return `
     <div class="frota-bubble frota-bubble--${status}" title="${escapeHtml(p.motoristaNome)}">
-      <span class="frota-bubble__icon" aria-hidden="true">${p.emoji}</span>
+      ${frotaIconeHtml(p.icone, 'frota-bubble__icon')}
       <span class="frota-bubble__price">${frete}</span>
     </div>
   `
@@ -103,7 +105,7 @@ function popupHtml(p: PontoFrota): string {
         <div><dt>CNH</dt><dd>${escapeHtml(cnh)}</dd></div>
         <div>
           <dt>Veículo</dt>
-          <dd><span class="frota-ficha__veiculo"><span aria-hidden>${p.emoji}</span>${escapeHtml(p.tipoVeiculo)}</span></dd>
+          <dd><span class="frota-ficha__veiculo">${frotaIconeHtml(p.icone, 'frota-ficha__veiculo-ico')}${escapeHtml(p.tipoVeiculo)}</span></dd>
         </div>
         <div><dt>Placa</dt><dd>${escapeHtml(p.placa)}</dd></div>
         <div><dt>Marca / modelo</dt><dd>${escapeHtml(marcaModelo)}</dd></div>
@@ -854,7 +856,11 @@ export function MapaFrotaPage() {
                       title={item.label}
                       onClick={() => toggleTipo(item.grupo)}
                     >
-                      <span aria-hidden>{item.emoji}</span>
+                      <span
+                        aria-hidden
+                        className="frota-veiculo-ico frota-veiculo-ico--chip"
+                        dangerouslySetInnerHTML={{ __html: frotaIconeSvgRaw(item.grupo) }}
+                      />
                       <em>{item.label}</em>
                     </button>
                   )
@@ -893,9 +899,11 @@ export function MapaFrotaPage() {
                           : `Mostrar só ${item.label} no mapa`
                       }
                     >
-                      <span className="mapa-frota__cats-ico" aria-hidden>
-                        {item.emoji}
-                      </span>
+                      <span
+                        className="mapa-frota__cats-ico frota-veiculo-ico"
+                        aria-hidden
+                        dangerouslySetInnerHTML={{ __html: frotaIconeSvgRaw(item.grupo) }}
+                      />
                       <span className="mapa-frota__cats-label">{item.label}</span>
                       <strong className="mapa-frota__cats-qtd">{item.qtd}</strong>
                     </button>
