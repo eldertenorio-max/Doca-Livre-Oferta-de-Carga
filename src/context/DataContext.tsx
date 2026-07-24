@@ -291,6 +291,10 @@ function pushNotif(
   list: NotificacaoInApp[],
   n: Omit<NotificacaoInApp, 'id' | 'lida' | 'created_at'> & { lida?: boolean },
 ): NotificacaoInApp[] {
+  if (n.chave) {
+    const existe = list.some((x) => x.chave === n.chave)
+    if (existe) return list
+  }
   const agora = new Date().toISOString()
   return [
     {
@@ -302,6 +306,23 @@ function pushNotif(
     },
     ...list,
   ].slice(0, 300)
+}
+
+function notifCadastroPendente(t: {
+  id: string
+  nome_fantasia: string
+  cnpj?: string
+}): Omit<NotificacaoInApp, 'id' | 'lida' | 'created_at'> {
+  const cnpj = (t.cnpj || '').trim()
+  return {
+    role: 'minerva',
+    titulo: 'Cadastro pendente de aprovação',
+    mensagem: cnpj
+      ? `${t.nome_fantasia} (${cnpj}) aguarda revisão na fila de transportadoras.`
+      : `${t.nome_fantasia} aguarda revisão na fila de transportadoras.`,
+    href: '/minerva/transportadores?filtro=pendentes',
+    chave: `cadastro-pendente:${t.id}`,
+  }
 }
 
 /** Notificação destinada ao usuário atual (não marca lida a do outro lado do chat). */
@@ -790,9 +811,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const refreshTransportadores = useCallback(async () => {
     const remote = await carregarTransportadoresDoSupabase()
     if (!remote) return
+    let pushSlice: typeof stateRef.current | null = null
     setState((prev) => {
       const excluidos = new Set(prev.transportadores_excluidos ?? [])
       const byId = new Map(prev.transportadores.map((t) => [t.id, t]))
+      let notificacoes = prev.notificacoes
+      let notifNova = false
       for (const t of remote.transportadores) {
         if (excluidos.has(t.id)) continue
         const local = byId.get(t.id)
@@ -820,6 +844,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
               }
             : t,
         )
+        if (t.situacao === 'pendente') {
+          const before = notificacoes
+          notificacoes = pushNotif(notificacoes, notifCadastroPendente(t))
+          if (notificacoes !== before) notifNova = true
+        }
       }
       const docsById = new Map((prev.documentos ?? []).map((d) => [d.id, d]))
       for (const d of remote.documentos) {
@@ -830,11 +859,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
         ...prev,
         transportadores: Array.from(byId.values()),
         documentos: Array.from(docsById.values()),
+        notificacoes,
       })
       stateRef.current = next
+      if (notifNova) pushSlice = next
       return next
     })
-  }, [])
+    if (pushSlice) flushKanbanPush(pushSlice)
+  }, [flushKanbanPush])
 
   // Hidrata cadastros pendentes/aprovados direto da tabela (não depende só do kanban_sync)
   useEffect(() => {
@@ -2714,13 +2746,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const result = await submeterCadastroTransportador(input)
       if (!result.ok) return { ok: false, error: result.erro }
       setState((prev) => {
+        let notificacoes = prev.notificacoes
+        if (result.transportador.situacao === 'pendente') {
+          notificacoes = pushNotif(notificacoes, notifCadastroPendente(result.transportador))
+        }
         const next = {
           ...prev,
-          transportadores: [...prev.transportadores.filter((t) => t.id !== result.transportador.id), result.transportador],
+          transportadores: [
+            ...prev.transportadores.filter((t) => t.id !== result.transportador.id),
+            result.transportador,
+          ],
           documentos: [
             ...(prev.documentos ?? []).filter((d) => d.transportador_id !== result.transportador.id),
             ...result.documentos,
           ],
+          notificacoes,
         }
         stateRef.current = next
         return next
@@ -2811,6 +2851,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       transportadores: prev.transportadores.map((t) =>
         t.id === id ? { ...t, situacao: 'ativo' as const, motivo_recusa: undefined } : t,
       ),
+      notificacoes: (prev.notificacoes ?? []).map((n) =>
+        n.chave === `cadastro-pendente:${id}` ? { ...n, lida: true } : n,
+      ),
     }
     stateRef.current = next
     setState(next)
@@ -2859,6 +2902,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       ...prev,
       transportadores: prev.transportadores.map((t) =>
         t.id === id ? { ...t, situacao: 'recusado' as const, motivo_recusa: motivoTxt } : t,
+      ),
+      notificacoes: (prev.notificacoes ?? []).map((n) =>
+        n.chave === `cadastro-pendente:${id}` ? { ...n, lida: true } : n,
       ),
     }
     stateRef.current = next

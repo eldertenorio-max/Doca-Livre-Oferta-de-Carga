@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
 import { CadastroStatsCards } from '../../components/cadastro/CadastroStatsCards'
 import { TransportadorPainel } from '../../components/transportador/TransportadorPainel'
@@ -77,6 +78,7 @@ export function TransportadoresPage() {
   const [search, setSearch] = useState('')
   const [filtro, setFiltro] = useState<FilterSit>('todos')
   const [filtroOrigem, setFiltroOrigem] = useState<FilterOrigem>('todos')
+  const [searchParams] = useSearchParams()
   const [error, setError] = useState('')
   const [motivoRecusa, setMotivoRecusa] = useState('')
   const [busy, setBusy] = useState(false)
@@ -87,6 +89,15 @@ export function TransportadoresPage() {
   useEffect(() => {
     void refreshTransportadores()
   }, [refreshTransportadores])
+
+  // Sininho → /minerva/transportadores?filtro=pendentes
+  useEffect(() => {
+    const f = searchParams.get('filtro')
+    if (f === 'pendentes' || f === 'ativos' || f === 'recusados' || f === 'inativos' || f === 'todos') {
+      setFiltro(f)
+      setMode('lista')
+    }
+  }, [searchParams])
 
   const linkCadastroPublico =
     typeof window !== 'undefined'

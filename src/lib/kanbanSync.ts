@@ -154,9 +154,26 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
       const merged = mergeById(local, remote).filter(
         (n) => !n.carga_id || !excluidas.has(n.carga_id),
       )
+      // Dedupe por chave estável (ex.: cadastro-pendente:id)
+      const seenChave = new Set<string>()
+      const deduped: typeof merged = []
+      for (const n of merged) {
+        if (n.chave) {
+          if (seenChave.has(n.chave)) continue
+          seenChave.add(n.chave)
+        }
+        deduped.push(n)
+      }
       // Uma vez lida localmente, não “desler” por sync antigo
       const localLidas = new Set(local.filter((n) => n.lida).map((n) => n.id))
-      return merged.map((n) => (localLidas.has(n.id) ? { ...n, lida: true } : n))
+      const localLidasChave = new Set(
+        local.filter((n) => n.lida && n.chave).map((n) => n.chave as string),
+      )
+      return deduped.map((n) =>
+        localLidas.has(n.id) || (n.chave && localLidasChave.has(n.chave))
+          ? { ...n, lida: true }
+          : n,
+      )
     })(),
     mensagens: mergeById(prev.mensagens ?? [], slice.mensagens ?? []).filter(
       (m) => !excluidas.has(m.carga_id),

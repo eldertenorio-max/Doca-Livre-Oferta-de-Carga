@@ -367,6 +367,11 @@ export function AppLayout() {
                         className={`app-topbar-notif-item${n.lida ? '' : ' app-topbar-notif-item--unread'}`}
                         onClick={() => {
                           if (!n.lida) marcarNotificacaoLida(n.id)
+                          if (n.href) {
+                            setNotifOpen(false)
+                            navigate(n.href)
+                            return
+                          }
                           if (n.carga_id) {
                             const c = (cargas ?? []).find((x) => x.id === n.carga_id)
                             if (c) {
@@ -378,7 +383,9 @@ export function AppLayout() {
                       >
                         <strong>{n.titulo}</strong>
                         <span>{n.mensagem}</span>
-                        {n.carga_id ? (
+                        {n.href ? (
+                          <span className="app-topbar-notif-action">Abrir fila</span>
+                        ) : n.carga_id ? (
                           <span className="app-topbar-notif-action">Abrir chat</span>
                         ) : null}
                       </button>
