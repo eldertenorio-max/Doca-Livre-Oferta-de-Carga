@@ -241,69 +241,51 @@
   padding-right: 2px;
 }
 
-.frota-ficha {
-  background: #fff;
-  padding: 4px 2px 2px;
-  max-height: min(70vh, 480px);
-  overflow: auto;
-}
-
-.frota-ficha--popup {
-  min-width: 260px;
-}
-
-/* Popup Leaflet ancorado ao ponto */
-.frota-popup .leaflet-popup-content-wrapper {
+/* Popup Leaflet ancorado no pin */
+.frota-leaflet-popup .leaflet-popup-content-wrapper {
   border-radius: 16px;
   border: 1px solid #e2e8f0;
   box-shadow: 0 16px 40px rgb(15 23 42 / 0.18);
   padding: 0;
+  overflow: hidden;
 }
 
-.frota-popup .leaflet-popup-content {
+.frota-leaflet-popup .leaflet-popup-content {
   margin: 12px 14px 14px;
-  width: auto !important;
-  min-width: 260px;
+  min-width: 240px;
+  max-height: min(420px, 55vh);
+  overflow: auto;
 }
 
-.frota-popup .leaflet-popup-tip {
-  box-shadow: 0 2px 8px rgb(15 23 42 / 0.12);
+.frota-leaflet-popup .leaflet-popup-tip {
+  box-shadow: none;
 }
 
-.frota-popup .leaflet-popup-close-button {
-  top: 10px !important;
-  right: 10px !important;
-  width: 28px !important;
-  height: 28px !important;
-  font-size: 20px !important;
-  color: #334155 !important;
-  background: #f1f5f9;
+.frota-leaflet-popup a.leaflet-popup-close-button {
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
   border-radius: 8px;
-  padding: 0 !important;
+  background: #f1f5f9;
+  color: #334155 !important;
+  font-size: 18px;
+  font-weight: 700;
   display: grid;
   place-items: center;
+  padding: 0;
+  line-height: 1;
 }
 
-.frota-ficha__close {
-  position: absolute;
-  top: 8px;
-  right: 10px;
-  width: 32px;
-  height: 32px;
-  border: 0;
-  border-radius: 8px;
-  background: #f1f5f9;
-  color: #334155;
-  font-size: 1.25rem;
-  line-height: 1;
-  cursor: pointer;
+.frota-popup {
+  padding-right: 18px;
 }
 
 .frota-ficha__hero {
   display: flex;
   gap: 12px;
   align-items: flex-start;
-  padding-right: 28px;
+  padding-right: 12px;
   margin-bottom: 14px;
 }
 

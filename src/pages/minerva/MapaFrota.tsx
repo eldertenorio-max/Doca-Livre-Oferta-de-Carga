@@ -27,7 +27,9 @@ function starsHtml(nota: number): string {
     const on = i < full || (i === full && half)
     return `<span class="${on ? 'is-on' : ''}">★</span>`
   }).join('')
-  return `<span class="frota-stars">${stars}<em>${nota.toFixed(1).replace('.', ',')}</em></span>`
+  return `<span class="frota-stars" aria-label="${nota} de 5 estrelas">${stars}<em>${nota
+    .toFixed(1)
+    .replace('.', ',')}</em></span>`
 }
 
 function markerHtml(p: PontoFrota): string {
@@ -41,72 +43,46 @@ function markerHtml(p: PontoFrota): string {
   `
 }
 
-/** Ficha do motorista ancorada ao ponto no mapa. */
-function fichaPopupHtml(p: PontoFrota): string {
-  const foto = p.motoristaFoto
-    ? `<img src="${escapeHtml(p.motoristaFoto)}" alt="" class="frota-ficha__foto" />`
-    : `<span class="frota-ficha__avatar" aria-hidden>${escapeHtml(iniciaisNome(p.motoristaNome))}</span>`
+function popupHtml(p: PontoFrota): string {
   const status = p.disponivel ? 'ok' : 'off'
   const statusLabel = p.disponivel ? 'Disponível para carregar' : 'Indisponível'
   const avaliacoes =
-    p.totalAvaliacoes > 0
-      ? `${p.totalAvaliacoes} avaliação(ões)`
-      : 'Sem avaliações ainda'
+    p.totalAvaliacoes > 0 ? `${p.totalAvaliacoes} avaliação(ões)` : 'Sem avaliações ainda'
+  const avatar = p.motoristaFoto
+    ? `<img src="${escapeHtml(p.motoristaFoto)}" alt="" class="frota-ficha__foto" />`
+    : `<span class="frota-ficha__avatar" aria-hidden>${escapeHtml(iniciaisNome(p.motoristaNome))}</span>`
+  const marcaModelo =
+    [p.veiculoMarca, p.veiculoModelo].filter(Boolean).join(' ') || '—'
   const cnh = [
     p.motoristaCnh || '—',
     p.motoristaCategoriaCnh ? `Cat. ${p.motoristaCategoriaCnh}` : '',
   ]
     .filter(Boolean)
     .join(' · ')
-  const marcaModelo =
-    [p.veiculoMarca, p.veiculoModelo].filter(Boolean).join(' ') || '—'
   const frete = p.freteMinimo > 0 ? formatCurrency(p.freteMinimo) : '—'
 
   return `
-    <div class="frota-ficha frota-ficha--popup" role="dialog" aria-label="Motorista ${escapeHtml(p.motoristaNome)}">
+    <div class="frota-popup">
       <div class="frota-ficha__hero">
-        ${foto}
+        ${avatar}
         <div class="frota-ficha__hero-text">
           <h2>${escapeHtml(p.motoristaNome)}</h2>
           ${starsHtml(p.avaliacao)}
-          <p class="frota-ficha__avaliacoes">${avaliacoes}</p>
+          <p class="frota-ficha__avaliacoes">${escapeHtml(avaliacoes)}</p>
           <span class="frota-ficha__status frota-ficha__status--${status}">${statusLabel}</span>
         </div>
       </div>
       <dl class="frota-ficha__dl">
-        <div>
-          <dt>Transportadora</dt>
-          <dd>${escapeHtml(p.transportadorNome)}</dd>
-        </div>
-        <div>
-          <dt>Telefone</dt>
-          <dd>${escapeHtml(p.motoristaTelefone || '—')}</dd>
-        </div>
-        <div>
-          <dt>CNH</dt>
-          <dd>${escapeHtml(cnh)}</dd>
-        </div>
+        <div><dt>Transportadora</dt><dd>${escapeHtml(p.transportadorNome)}</dd></div>
+        <div><dt>Telefone</dt><dd>${escapeHtml(p.motoristaTelefone || '—')}</dd></div>
+        <div><dt>CNH</dt><dd>${escapeHtml(cnh)}</dd></div>
         <div>
           <dt>Veículo</dt>
-          <dd>
-            <span class="frota-ficha__veiculo">
-              <span aria-hidden>${p.emoji}</span>
-              ${escapeHtml(p.tipoVeiculo)}
-            </span>
-          </dd>
+          <dd><span class="frota-ficha__veiculo"><span aria-hidden>${p.emoji}</span>${escapeHtml(p.tipoVeiculo)}</span></dd>
         </div>
-        <div>
-          <dt>Placa</dt>
-          <dd>${escapeHtml(p.placa)}</dd>
-        </div>
-        <div>
-          <dt>Marca / modelo</dt>
-          <dd>${escapeHtml(marcaModelo)}</dd>
-        </div>
-        <div>
-          <dt>Frete mínimo</dt>
-          <dd class="frota-ficha__frete">${escapeHtml(frete)}</dd>
-        </div>
+        <div><dt>Placa</dt><dd>${escapeHtml(p.placa)}</dd></div>
+        <div><dt>Marca / modelo</dt><dd>${escapeHtml(marcaModelo)}</dd></div>
+        <div><dt>Frete mínimo</dt><dd class="frota-ficha__frete">${escapeHtml(frete)}</dd></div>
       </dl>
     </div>
   `
@@ -128,11 +104,8 @@ export function MapaFrotaPage() {
   const mapRef = useRef<L.Map | null>(null)
   const layerRef = useRef<L.LayerGroup | null>(null)
   const markersRef = useRef<Map<string, L.Marker>>(new Map())
-  const rebuildingRef = useRef(false)
-  const selecionadoRef = useRef<string | null>(null)
   const [filtro, setFiltro] = useState<'todos' | 'disponiveis' | 'indisponiveis'>('disponiveis')
   const [selecionado, setSelecionado] = useState<string | null>(null)
-  selecionadoRef.current = selecionado
 
   const pontos = useMemo(
     () => montarPontosFrota(motoristas, veiculos, transportadores),
@@ -172,25 +145,23 @@ export function MapaFrotaPage() {
     const map = mapRef.current
     const layer = layerRef.current
     if (!map || !layer) return
-    rebuildingRef.current = true
     layer.clearLayers()
     markersRef.current.clear()
 
     const bounds: L.LatLngExpression[] = []
     for (const p of filtrados) {
       const m = L.marker([p.lat, p.lng], { icon: makeIcon(p) })
-      m.bindPopup(fichaPopupHtml(p), {
-        className: 'frota-popup',
-        maxWidth: 340,
-        minWidth: 280,
-        closeButton: true,
+      m.bindPopup(popupHtml(p), {
+        className: 'frota-leaflet-popup',
+        maxWidth: 320,
+        minWidth: 260,
+        offset: L.point(0, -6),
         autoPan: true,
-        autoPanPadding: [48, 48],
-        offset: L.point(0, -4),
+        autoPanPadding: L.point(36, 36),
+        closeButton: true,
       })
       m.on('click', () => setSelecionado(p.id))
       m.on('popupclose', () => {
-        if (rebuildingRef.current) return
         setSelecionado((cur) => (cur === p.id ? null : cur))
       })
       m.addTo(layer)
@@ -203,28 +174,20 @@ export function MapaFrotaPage() {
     } else if (bounds.length > 1) {
       map.fitBounds(L.latLngBounds(bounds), { padding: [48, 48], maxZoom: 11 })
     }
-
-    rebuildingRef.current = false
-    const still = selecionado ? markersRef.current.get(selecionado) : null
-    if (still) still.openPopup()
-    else if (selecionado) setSelecionado(null)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- só reconstrói ao mudar a lista filtrada
   }, [filtrados])
 
   useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
     if (!selecionado) {
-      markersRef.current.forEach((m) => {
-        if (m.isPopupOpen()) m.closePopup()
-      })
+      map.closePopup()
       return
     }
-    const p = filtrados.find((x) => x.id === selecionado)
     const marker = markersRef.current.get(selecionado)
-    if (!p || !marker || !mapRef.current) return
-    mapRef.current.setView([p.lat, p.lng], Math.max(mapRef.current.getZoom(), 10), {
-      animate: true,
-    })
-    if (!marker.isPopupOpen()) marker.openPopup()
+    const p = filtrados.find((x) => x.id === selecionado)
+    if (!marker || !p) return
+    map.setView([p.lat, p.lng], Math.max(map.getZoom(), 10), { animate: true })
+    marker.openPopup()
   }, [selecionado, filtrados])
 
   const nDisp = pontos.filter((p) => p.disponivel).length
@@ -236,7 +199,8 @@ export function MapaFrotaPage() {
         <div>
           <h1 className="mapa-frota__title">Mapa da Frota</h1>
           <p className="mapa-frota__sub">
-            Clique no ponto para ver os dados do motorista ao lado da bolha.
+            Bolhas com ícone do veículo e frete mínimo. Clique no ponto para ver o motorista ao
+            lado.
           </p>
         </div>
         <div className="mapa-frota__filtros">
