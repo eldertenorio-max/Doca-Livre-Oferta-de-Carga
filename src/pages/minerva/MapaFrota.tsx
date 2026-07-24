@@ -3,28 +3,142 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useData } from '../../context/DataContext'
 import { formatCurrency } from '../../lib/businessRules'
-import { labelFreteCurto, LEGENDA_FROTA, montarPontosFrota, type PontoFrota } from '../../lib/mapaFrota'
+import {
+  iniciaisNome,
+  labelFretePin,
+  LEGENDA_FROTA,
+  montarPontosFrota,
+  type PontoFrota,
+} from '../../lib/mapaFrota'
 import '../../styles/mapa-frota.css'
 
 function markerHtml(p: PontoFrota): string {
-  const frete = labelFreteCurto(p.freteMinimo)
+  const frete = labelFretePin(p.freteMinimo)
   const status = p.disponivel ? 'ok' : 'off'
   return `
-    <div class="frota-pin frota-pin--${status} frota-pin--${p.icone}" title="${p.motoristaNome}">
-      <span class="frota-pin__frete">${frete}</span>
-      <span class="frota-pin__icon" aria-hidden="true">${p.emoji}</span>
+    <div class="frota-bubble frota-bubble--${status}" title="${escapeHtml(p.motoristaNome)}">
+      <span class="frota-bubble__icon" aria-hidden="true">${p.emoji}</span>
+      <span class="frota-bubble__price">${frete}</span>
     </div>
   `
+}
+
+function escapeHtml(s: string) {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
 }
 
 function makeIcon(p: PontoFrota) {
   return L.divIcon({
     className: 'frota-pin-wrap',
     html: markerHtml(p),
-    iconSize: [96, 48],
-    iconAnchor: [48, 44],
+    iconSize: [110, 44],
+    iconAnchor: [55, 44],
     popupAnchor: [0, -40],
   })
+}
+
+function Stars({ nota }: { nota: number }) {
+  const full = Math.floor(nota)
+  const half = nota - full >= 0.4
+  return (
+    <span className="frota-stars" aria-label={`${nota} de 5 estrelas`}>
+      {Array.from({ length: 5 }, (_, i) => {
+        const filled = i < full || (i === full && half)
+        return (
+          <span key={i} className={filled ? 'is-on' : ''}>
+            ★
+          </span>
+        )
+      })}
+      <em>{nota.toFixed(1).replace('.', ',')}</em>
+    </span>
+  )
+}
+
+function FichaMotorista({
+  ponto,
+  onClose,
+}: {
+  ponto: PontoFrota
+  onClose: () => void
+}) {
+  return (
+    <aside className="frota-ficha" role="dialog" aria-label={`Motorista ${ponto.motoristaNome}`}>
+      <button type="button" className="frota-ficha__close" onClick={onClose} aria-label="Fechar">
+        ×
+      </button>
+      <div className="frota-ficha__hero">
+        {ponto.motoristaFoto ? (
+          <img src={ponto.motoristaFoto} alt="" className="frota-ficha__foto" />
+        ) : (
+          <span className="frota-ficha__avatar" aria-hidden>
+            {iniciaisNome(ponto.motoristaNome)}
+          </span>
+        )}
+        <div className="frota-ficha__hero-text">
+          <h2>{ponto.motoristaNome}</h2>
+          <Stars nota={ponto.avaliacao} />
+          <p className="frota-ficha__avaliacoes">
+            {ponto.totalAvaliacoes > 0
+              ? `${ponto.totalAvaliacoes} avaliação(ões)`
+              : 'Sem avaliações ainda'}
+          </p>
+          <span
+            className={`frota-ficha__status frota-ficha__status--${ponto.disponivel ? 'ok' : 'off'}`}
+          >
+            {ponto.disponivel ? 'Disponível para carregar' : 'Indisponível'}
+          </span>
+        </div>
+      </div>
+
+      <dl className="frota-ficha__dl">
+        <div>
+          <dt>Transportadora</dt>
+          <dd>{ponto.transportadorNome}</dd>
+        </div>
+        <div>
+          <dt>Telefone</dt>
+          <dd>{ponto.motoristaTelefone || '—'}</dd>
+        </div>
+        <div>
+          <dt>CNH</dt>
+          <dd>
+            {ponto.motoristaCnh || '—'}
+            {ponto.motoristaCategoriaCnh ? ` · Cat. ${ponto.motoristaCategoriaCnh}` : ''}
+          </dd>
+        </div>
+        <div>
+          <dt>Veículo</dt>
+          <dd>
+            <span className="frota-ficha__veiculo">
+              <span aria-hidden>{ponto.emoji}</span>
+              {ponto.tipoVeiculo}
+            </span>
+          </dd>
+        </div>
+        <div>
+          <dt>Placa</dt>
+          <dd>{ponto.placa}</dd>
+        </div>
+        <div>
+          <dt>Marca / modelo</dt>
+          <dd>
+            {[ponto.veiculoMarca, ponto.veiculoModelo].filter(Boolean).join(' ') || '—'}
+          </dd>
+        </div>
+        <div>
+          <dt>Frete mínimo</dt>
+          <dd className="frota-ficha__frete">
+            {ponto.freteMinimo > 0 ? formatCurrency(ponto.freteMinimo) : '—'}
+          </dd>
+        </div>
+      </dl>
+    </aside>
+  )
 }
 
 export function MapaFrotaPage() {
@@ -32,6 +146,7 @@ export function MapaFrotaPage() {
   const mapEl = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const layerRef = useRef<L.LayerGroup | null>(null)
+  const markersRef = useRef<Map<string, L.Marker>>(new Map())
   const [filtro, setFiltro] = useState<'todos' | 'disponiveis' | 'indisponiveis'>('disponiveis')
   const [selecionado, setSelecionado] = useState<string | null>(null)
 
@@ -45,6 +160,8 @@ export function MapaFrotaPage() {
     if (filtro === 'indisponiveis') return pontos.filter((p) => !p.disponivel)
     return pontos
   }, [pontos, filtro])
+
+  const pontoAberto = selecionado ? filtrados.find((p) => p.id === selecionado) ?? null : null
 
   useEffect(() => {
     if (!mapEl.current || mapRef.current) return
@@ -65,6 +182,7 @@ export function MapaFrotaPage() {
       map.remove()
       mapRef.current = null
       layerRef.current = null
+      markersRef.current.clear()
     }
   }, [])
 
@@ -73,21 +191,14 @@ export function MapaFrotaPage() {
     const layer = layerRef.current
     if (!map || !layer) return
     layer.clearLayers()
+    markersRef.current.clear()
 
     const bounds: L.LatLngExpression[] = []
     for (const p of filtrados) {
       const m = L.marker([p.lat, p.lng], { icon: makeIcon(p) })
-      m.bindPopup(
-        `<strong>${p.motoristaNome}</strong><br/>
-         ${p.transportadorNome}<br/>
-         ${p.tipoVeiculo} · ${p.placa}<br/>
-         Frete mín.: <strong>${p.freteMinimo > 0 ? formatCurrency(p.freteMinimo) : '—'}</strong><br/>
-         <span style="color:${p.disponivel ? '#166534' : '#991b1b'}">${
-           p.disponivel ? 'Disponível para carregar' : 'Indisponível'
-         }</span>`,
-      )
       m.on('click', () => setSelecionado(p.id))
       m.addTo(layer)
+      markersRef.current.set(p.id, m)
       bounds.push([p.lat, p.lng])
     }
 
@@ -102,7 +213,7 @@ export function MapaFrotaPage() {
     if (!selecionado) return
     const p = filtrados.find((x) => x.id === selecionado)
     if (!p || !mapRef.current) return
-    mapRef.current.setView([p.lat, p.lng], Math.max(mapRef.current.getZoom(), 9), {
+    mapRef.current.setView([p.lat, p.lng], Math.max(mapRef.current.getZoom(), 10), {
       animate: true,
     })
   }, [selecionado, filtrados])
@@ -116,8 +227,8 @@ export function MapaFrotaPage() {
         <div>
           <h1 className="mapa-frota__title">Mapa da Frota</h1>
           <p className="mapa-frota__sub">
-            Motoristas na origem cadastrada · ícone por tipo de veículo · frete mínimo ao lado do
-            ponto.
+            Bolhas com ícone do veículo e frete mínimo. Clique para ver motorista, veículo e
+            avaliação.
           </p>
         </div>
         <div className="mapa-frota__filtros">
@@ -165,7 +276,7 @@ export function MapaFrotaPage() {
                         {p.tipoVeiculo} · {p.placa}
                       </span>
                       <span className="mapa-frota__item-meta">
-                        {p.transportadorNome} ·{' '}
+                        ★ {p.avaliacao.toFixed(1).replace('.', ',')} ·{' '}
                         {p.freteMinimo > 0 ? formatCurrency(p.freteMinimo) : 'sem frete mín.'}
                       </span>
                     </span>
@@ -181,6 +292,9 @@ export function MapaFrotaPage() {
         </aside>
         <div className="mapa-frota__map-wrap">
           <div ref={mapEl} className="mapa-frota__map" />
+          {pontoAberto && (
+            <FichaMotorista ponto={pontoAberto} onClose={() => setSelecionado(null)} />
+          )}
           <div className="mapa-frota__legend" aria-label="Categorias de veículo">
             {LEGENDA_FROTA.map((item) => (
               <span key={item.grupo}>

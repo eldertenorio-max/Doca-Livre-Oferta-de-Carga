@@ -169,6 +169,12 @@ export interface Motorista {
   categoria_cnh?: string
   validade_cnh?: string
   telefone?: string
+  /** Foto do motorista (URL ou data URL). */
+  foto_url?: string
+  /** Avaliação média (0–5). */
+  avaliacao?: number
+  /** Quantidade de avaliações. */
+  total_avaliacoes?: number
   situacao: 'ativo' | 'inativo'
   created_at: string
 }
