@@ -103,7 +103,7 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
   // Só bloqueia digitação se frete já fechado ou suspensa — prazo é validado no envio
   const bloqueado = jaFechada || suspensa
 
-  function submitValor(num: number) {
+  function submitValor(num: number, opts?: { aceitarOferta?: boolean }) {
     if (Number.isNaN(num)) {
       setError('Valor inválido')
       return
@@ -128,7 +128,7 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
       setError(`Lance máximo: ${formatCurrency(live!.frete_maximo)}`)
       return
     }
-    const res = enviarLance(live!.id, num)
+    const res = enviarLance(live!.id, num, opts)
     if (!res.ok) {
       setError(res.error ?? 'Erro ao enviar lance')
       return
@@ -143,7 +143,10 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
   function handleAccept() {
     const aceito = roundMoney(freteRef)
     setValor(formatMoneyInput(aceito))
-    submitValor(aceito)
+    // Em Oferta, “Aceitar oferta” fecha o frete; em Leilão só registra o lance no valor da oferta
+    submitValor(aceito, {
+      aceitarOferta: live!.modo_publicacao === 'oferta',
+    })
   }
 
   return (
@@ -169,7 +172,7 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
             )}
             <Detail
               label="Modo"
-              value={live.modo_publicacao === 'oferta' ? 'Oferta (1ª menor fecha)' : 'Leilão'}
+              value={live.modo_publicacao === 'oferta' ? 'Oferta' : 'Leilão'}
             />
             <Detail label="Prioridade" value={live.prioridade ?? '—'} />
             {meuLance && (
@@ -182,6 +185,19 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
             )}
           </div>
         </div>
+
+        {meuLance &&
+          live.frete_oferta != null &&
+          Math.abs(roundMoney(live.frete_oferta) - roundMoney(meuLance.valor)) > 0.009 && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-950">
+              <p className="font-bold">Contra-proposta do embarcador</p>
+              <p className="mt-0.5 text-xs">
+                Valor sugerido: <strong>{formatCurrency(roundMoney(live.frete_oferta))}</strong>
+                {' · '}seu lance atual: {formatCurrency(roundMoney(meuLance.valor))}. Use “Aceitar
+                oferta” ou envie um novo lance pelo card.
+              </p>
+            </div>
+          )}
 
         {histMeu.length > 0 && (
           <div className="rounded-lg border border-ink/10 p-3 text-xs">
@@ -224,8 +240,9 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
 
         {live.modo_publicacao === 'oferta' && (
           <p className="text-xs text-ink-muted">
-            Modo Oferta: aceitar o frete oferta ou enviar lance até esse valor fecha o frete.
-            Após enviar, o valor não pode ser alterado.
+            Modo Oferta: “Enviar lance” vai para Propostas e aguarda o embarcador. “Aceitar oferta”
+            fecha o frete no valor da oferta ({formatCurrency(freteRef)}). Após enviar, o valor não
+            pode ser alterado.
           </p>
         )}
         {live.modo_publicacao === 'leilao' && (

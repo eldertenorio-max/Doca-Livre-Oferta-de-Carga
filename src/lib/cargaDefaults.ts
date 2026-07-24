@@ -5,6 +5,7 @@ export function normalizeCarga(c: Carga): Carga {
     ...c,
     grupo_ids: Array.isArray(c.grupo_ids) ? c.grupo_ids : [],
     grupos_notificados: Array.isArray(c.grupos_notificados) ? c.grupos_notificados : [],
+    recusado_por_ids: Array.isArray(c.recusado_por_ids) ? c.recusado_por_ids : [],
     frete_minimo: c.frete_minimo ?? null,
     frete_maximo: c.frete_maximo ?? null,
     pausado_em: c.pausado_em ?? null,
@@ -71,6 +72,7 @@ export function resetNegociacaoFields(_c?: Carga): Partial<Carga> {
     motivo_cancelamento: null,
     visualizacoes: 0,
     recusas: 0,
+    recusado_por_ids: [],
   }
 }
 

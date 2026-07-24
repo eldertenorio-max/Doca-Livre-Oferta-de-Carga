@@ -106,7 +106,7 @@ export default function App() {
         <Route
           path="/minerva/mapa-frota"
           element={
-            <Protected role={['minerva', 'super', 'transportador']}>
+            <Protected role={['minerva', 'super']}>
               <MapaFrotaPage />
             </Protected>
           }

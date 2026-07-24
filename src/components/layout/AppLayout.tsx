@@ -118,7 +118,6 @@ const minervaLinks: NavItem[] = [
 const transportadorLinks: NavItem[] = [
   { to: '/transportador/painel', label: 'Painel', icon: <IconChart /> },
   { to: '/transportador', label: 'Kanban Ofertas', icon: <IconGrid />, end: true },
-  { to: '/minerva/mapa-frota', label: 'Mapa da Frota', icon: <IconMap /> },
   { to: '/transportador/veiculos', label: 'Meus Veículos', icon: <IconTruck /> },
   { to: '/transportador/motoristas', label: 'Meus Motoristas', icon: <IconUsers /> },
 ]
@@ -243,17 +242,23 @@ export function AppLayout() {
     return (notificacoes ?? [])
       .filter((n) => {
         // Super vê tudo (inclui chat do embarcador e do transportador)
-        if (isSuper) return true
-        if (n.user_id && n.user_id === user.id) return true
-        if (n.transportador_id && tid && n.transportador_id === tid) return true
-        if (n.role === 'todos') return true
-        if (n.role === 'minerva' && (user.role === 'minerva' || user.role === 'super')) return true
-        if (n.role === 'transportador' && user.role === 'transportador' && !n.transportador_id) {
-          return true
+        if (isSuper && !actingTransportadorId) return true
+        // Destino explícito por usuário
+        if (n.user_id) return n.user_id === user.id
+        // Destino explícito por transportadora
+        if (n.transportador_id) {
+          return Boolean(tid && n.transportador_id === tid)
         }
-        if (n.role && n.role === user.role) return true
+        if (n.role === 'todos') return true
+        if (n.role === 'minerva') {
+          if (actingTransportadorId) return false
+          return user.role === 'minerva' || user.role === 'super' || Boolean(user.is_superuser)
+        }
+        if (n.role === 'transportador') {
+          return user.role === 'transportador' || Boolean(actingTransportadorId)
+        }
         if (!n.user_id && !n.transportador_id && !n.role) {
-          return user.role === 'minerva' || user.is_superuser
+          return user.role === 'minerva' || Boolean(user.is_superuser)
         }
         return false
       })

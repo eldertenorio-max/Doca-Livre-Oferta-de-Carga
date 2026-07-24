@@ -531,17 +531,29 @@ export function PublishPanel({
       setError('Informe um valor válido para a contra-proposta.')
       return
     }
+    const tNome =
+      transportadorById(
+        lances.find((l) => l.id === contraLanceId)?.transportador_id ?? '',
+      )?.nome_fantasia ?? 'transportador'
+    const okConfirm = window.confirm(
+      `Enviar contra-proposta de ${formatCurrency(num)} para ${tNome}?`,
+    )
+    if (!okConfirm) return
+
     setError('')
     const res = enviarContraProposta(contraLanceId, num)
     if (!res.ok) {
       setError(res.error ?? 'Falha na contra-proposta')
       return
     }
-    setInfo(
-      `Contra-proposta de ${formatCurrency(num)} enviada. O transportador vê no chat e nas notificações.`,
-    )
     setContraLanceId(null)
     setContraValor('')
+    setInfo(
+      `Contra-proposta de ${formatCurrency(num)} enviada para ${tNome}. O transportador vê no card (frete oferta) e nas notificações.`,
+    )
+    window.alert(
+      `Contra-proposta enviada com sucesso.\n\nValor: ${formatCurrency(num)}\nPara: ${tNome}\n\nO transportador recebe no card da carga e nas notificações (não pelo chat).`,
+    )
   }
 
   function handleAguardarMelhores() {
@@ -1075,7 +1087,7 @@ export function PublishPanel({
                       type="button"
                       disabled={!canEdit}
                       onClick={() => setModoOverride('oferta')}
-                      title="1ª menor oferta fecha o frete"
+                      title="Proposta única; o embarcador aceita ou o transportador pode Aceitar oferta"
                       className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${
                         modo === 'oferta'
                           ? 'bg-brand text-white'
@@ -1136,6 +1148,16 @@ export function PublishPanel({
                 <p className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
                   Dados da negociação
                 </p>
+              {error && (
+                <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800">
+                  {error}
+                </p>
+              )}
+              {info && (
+                <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">
+                  {info}
+                </p>
+              )}
               {carga.status === 'canceladas' && (
                 <p className="rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-800">
                   Publicação cancelada
@@ -1165,7 +1187,7 @@ export function PublishPanel({
                   label="Modo"
                   value={
                     carga.modo_publicacao === 'oferta'
-                      ? 'Oferta — 1º lance menor fecha'
+                      ? 'Oferta — proposta única (embarcador aceita)'
                       : 'Leilão — melhor ao fim / aceite manual'
                   }
                 />
@@ -1440,6 +1462,21 @@ export function PublishPanel({
                             </div>
                           </div>
 
+                          {(() => {
+                            const contra = histPropostas.find(
+                              (h) =>
+                                h.lance_id === l.id &&
+                                h.valor_anterior != null &&
+                                Math.abs(h.valor_novo - (carga.frete_oferta ?? -1)) < 0.02,
+                            )
+                            if (!contra) return null
+                            return (
+                              <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] font-semibold text-amber-950">
+                                Contra-proposta enviada: {formatCurrency(contra.valor_novo)}
+                              </p>
+                            )
+                          })()}
+
                           {canEdit && l.status === 'ativo' && !carga.transportador_vencedor_id && (
                             <div className="relative z-10 grid grid-cols-3 gap-1.5">
                               <button
@@ -1572,7 +1609,8 @@ export function PublishPanel({
       >
         <div className="space-y-3">
           <p className="text-sm text-ink-muted">
-            Informe o valor sugerido ao transportador. Ele recebe no chat e nas notificações.
+            Informe o valor sugerido. O transportador recebe no card (frete oferta) e nas
+            notificações — não pelo chat.
           </p>
           {contraLanceId && (
             <p className="rounded-lg bg-sand-light/70 px-3 py-2 text-xs text-ink">

@@ -30,7 +30,7 @@ export const OFERTA_MODULOS_CATALOGO: { id: OfertaModuloId; label: string; role?
   { id: 'transportadoras', label: 'Transportadoras', role: 'minerva' },
   { id: 'veiculos', label: 'Veículos', role: 'ambos' },
   { id: 'motoristas', label: 'Motoristas', role: 'ambos' },
-  { id: 'mapa_frota', label: 'Mapa da Frota', role: 'ambos' },
+  { id: 'mapa_frota', label: 'Mapa da Frota', role: 'minerva' },
   { id: 'grupos', label: 'Grupos', role: 'minerva' },
   { id: 'indicadores', label: 'Indicadores', role: 'minerva' },
   { id: 'configuracoes', label: 'Configurações de Oferta', role: 'minerva' },
@@ -62,7 +62,6 @@ export const DEFAULT_PERMISSAO_TRANSPORTADOR: OfertaPermissao = {
     kanban_transportador: 'editar',
     veiculos: 'editar',
     motoristas: 'editar',
-    mapa_frota: 'visualizar',
   },
 }
 

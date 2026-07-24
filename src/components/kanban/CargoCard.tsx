@@ -325,7 +325,12 @@ interface CargoCardProps {
   /** Excluir rascunho não publicado (Minerva) */
   onDelete?: () => void
   bidValue?: number | null
+  /** Ordem de chegada da proposta (1 = primeiro a ofertar). */
   bidPosition?: number | null
+  /** Total de propostas ativas na carga (para exibir N°/total). */
+  bidCount?: number | null
+  /** True se o lance atual é o de menor valor. */
+  bidMelhor?: boolean
   ofertasCount?: number
 }
 
@@ -341,6 +346,8 @@ export function CargoCard({
   onDelete,
   bidValue,
   bidPosition,
+  bidCount,
+  bidMelhor,
   ofertasCount,
 }: CargoCardProps) {
   const { tick, mensagensNaoLidasDaCarga } = useData()
@@ -422,13 +429,28 @@ export function CargoCard({
         </div>
         <div className="flex shrink-0 flex-col items-center gap-1">
           <TrafficLight prioridade={carga.prioridade} />
-          {bidPosition != null && (
+          {bidPosition != null && bidPosition > 0 && (
             <span
-              className="text-[22px] font-black leading-none tabular-nums text-[#e84752]"
-              title={`Sua oferta está em ${bidPosition}º lugar (menor valor)`}
-              aria-label={`Posição da oferta: ${bidPosition}º`}
+              className={`text-[22px] font-black leading-none tabular-nums ${
+                bidMelhor ? 'text-[#2f9e6a]' : 'text-[#e84752]'
+              }`}
+              title={
+                bidCount != null && bidCount > 1
+                  ? `Você foi o ${bidPosition}º a enviar proposta (${bidCount} no total)${
+                      bidMelhor ? ' · melhor valor agora' : ''
+                    }`
+                  : `Você foi o ${bidPosition}º a enviar proposta`
+              }
+              aria-label={
+                bidCount != null && bidCount > 1
+                  ? `Ordem da proposta: ${bidPosition}º de ${bidCount}`
+                  : `Ordem da proposta: ${bidPosition}º`
+              }
             >
               {bidPosition}°
+              {bidCount != null && bidCount > 1 && (
+                <span className="text-[11px] font-bold text-ink-muted">/{bidCount}</span>
+              )}
             </span>
           )}
         </div>

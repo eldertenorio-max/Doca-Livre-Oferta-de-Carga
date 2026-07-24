@@ -251,6 +251,8 @@ export interface Carga {
   publicado_por?: string | null
   visualizacoes: number
   recusas: number
+  /** Transportadores que recusaram esta oferta (some do Kanban deles). */
+  recusado_por_ids?: string[]
   observacao?: string
   motivo_cancelamento?: string | null
   created_at: string

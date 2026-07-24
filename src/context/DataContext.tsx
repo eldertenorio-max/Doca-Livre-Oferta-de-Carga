@@ -142,7 +142,11 @@ interface DataContextValue extends DataState, AuthState {
   config: ConfigNegocio
   salvarConfig: (cfg: ConfigNegocio) => void
   publicarCarga: (payload: PublishPayload) => { ok: boolean; error?: string }
-  enviarLance: (cargaId: string, valor: number) => { ok: boolean; error?: string }
+  enviarLance: (
+    cargaId: string,
+    valor: number,
+    opts?: { aceitarOferta?: boolean },
+  ) => { ok: boolean; error?: string }
   aceitarLance: (lanceId: string) => { ok: boolean; error?: string }
   rejeitarLance: (lanceId: string) => { ok: boolean; error?: string }
   encerrarComMelhorLance: (cargaId: string) => { ok: boolean; error?: string }
@@ -166,7 +170,9 @@ interface DataContextValue extends DataState, AuthState {
     targetColumn: string,
   ) => { ok: boolean; error?: string; needsPublish?: boolean }
   recusarCargaMinerva: (cargaId: string) => void
-  recusarCargaTransportador: (cargaId: string) => void
+  recusarCargaTransportador: (
+    cargaId: string,
+  ) => { ok: boolean; error?: string }
   alocarComposicao: (
     cargaId: string,
     placa: string,
@@ -295,6 +301,35 @@ function pushNotif(
   ].slice(0, 300)
 }
 
+/** Notificação destinada ao usuário atual (não marca lida a do outro lado do chat). */
+function notifDestinadaAoUsuario(
+  n: NotificacaoInApp,
+  user: Profile,
+  actingTransportadorId: string | null,
+): boolean {
+  const tid = actingTransportadorId || user.transportador_id || null
+  if (n.user_id) return n.user_id === user.id
+  if (n.transportador_id) return Boolean(tid && n.transportador_id === tid)
+  if (n.role === 'todos') return true
+  if (n.role === 'minerva') {
+    // Embarcador: só se não estiver “vendo como” transportador
+    if (actingTransportadorId) return false
+    return user.role === 'minerva' || user.role === 'super' || Boolean(user.is_superuser)
+  }
+  if (n.role === 'transportador') {
+    if (n.transportador_id) return Boolean(tid && n.transportador_id === tid)
+    return user.role === 'transportador' || Boolean(actingTransportadorId)
+  }
+  if (!n.user_id && !n.transportador_id && !n.role) {
+    return user.role === 'minerva' || Boolean(user.is_superuser)
+  }
+  return false
+}
+
+function isNotifChat(n: NotificacaoInApp): boolean {
+  return (n.titulo ?? '').toLowerCase().includes('mensagem')
+}
+
 function normalizeCargasNegociacao(
   cargas: Carga[],
   grupos: GrupoTransportador[],
@@ -412,6 +447,7 @@ function ensureDemoFrotaMapa(state: DataState): DataState {
       ...cur,
       transportador_id: cur.transportador_id || s.transportador_id,
       veiculo_id: cur.veiculo_id || s.veiculo_id,
+      foto_url: cur.foto_url || s.foto_url,
       avaliacao: cur.avaliacao ?? s.avaliacao,
       total_avaliacoes: cur.total_avaliacoes ?? s.total_avaliacoes,
       situacao: cur.situacao || s.situacao,
@@ -1232,7 +1268,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const enviarLance = useCallback(
-    (cargaId: string, valor: number) => {
+    (cargaId: string, valor: number, opts?: { aceitarOferta?: boolean }) => {
       const tid = actingTransportadorId || userRef.current?.transportador_id
       if (!tid) return { ok: false, error: 'Usuário sem transportador' }
 
@@ -1306,8 +1342,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const agora = new Date().toISOString()
       const base = stateRef.current
 
-      // Modo Oferta: lance ≤ frete oferta fecha (inclui “Aceitar oferta”)
-      if (cargaOk.modo_publicacao === 'oferta' && valor <= freteRef + 0.009) {
+      // Modo Oferta: só “Aceitar oferta” fecha na hora. “Enviar lance” vai para Propostas
+      // e aguarda o embarcador (ou outro fechamento).
+      if (
+        cargaOk.modo_publicacao === 'oferta' &&
+        opts?.aceitarOferta &&
+        valor <= freteRef + 0.009
+      ) {
         const lance: Lance = {
           id: uid('lance'),
           carga_id: cargaId,
@@ -1663,19 +1704,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         error: `Carga não está em negociação (status: ${carga.status})`,
       }
     }
-    const tNome =
-      prev.transportadores.find((t) => t.id === lance.transportador_id)?.nome_fantasia ??
-      'Transportador'
     const now = new Date().toISOString()
-    const msg: ChatMensagem = {
-      id: uid('msg'),
-      carga_id: carga.id,
-      autor_id: userNow?.id ?? 'embarcador',
-      autor_nome: userNow?.nome ?? 'Embarcador',
-      autor_role: userNow?.role ?? 'minerva',
-      texto: `Contra-proposta para ${tNome}: R$ ${valorRound.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (sua oferta era R$ ${lance.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}).`,
-      created_at: now,
-    }
     const histProp: HistoricoProposta = {
       id: uid('hp'),
       carga_id: carga.id,
@@ -1697,7 +1726,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
             }
           : c,
       ),
-      mensagens: [...(prev.mensagens ?? []), msg],
       historicoPropostas: [histProp, ...(prev.historicoPropostas ?? [])].slice(0, 3000),
       historico: [
         makeHistorico(
@@ -1716,7 +1744,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         role: 'transportador',
         transportador_id: lance.transportador_id,
         titulo: 'Contra-proposta recebida',
-        mensagem: `Carga ${carga.numero}: embarcador sugere R$ ${valorRound.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}. Responda com um novo lance.`,
+        mensagem: `Carga ${carga.numero}: embarcador sugere R$ ${valorRound.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}. Veja o frete oferta no card e responda com um novo lance.`,
         carga_id: carga.id,
       }),
     }
@@ -2038,6 +2066,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 publicado_em: nowIso,
                 expira_em: new Date(now + prazo * 60_000).toISOString(),
                 grupos_notificados: [...grupoIds],
+                recusado_por_ids: [],
                 updated_at: nowIso,
               }
             : c,
@@ -2238,21 +2267,72 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const recusarCargaTransportador = useCallback(
     (cargaId: string) => {
-      const tid = actingTransportadorId || user?.transportador_id
-      if (!tid) return
-      setState((prev) => {
-        const transportadores = prev.transportadores.map((t) => {
+      const tid = actingTransportadorId || userRef.current?.transportador_id
+      if (!tid) return { ok: false as const, error: 'Usuário sem transportador' }
+
+      const prev = stateRef.current
+      const carga = prev.cargas.find((c) => c.id === cargaId)
+      if (!carga) return { ok: false as const, error: 'Carga não encontrada' }
+      if (carga.transportador_vencedor_id) {
+        return { ok: false as const, error: 'Frete já fechado — não é possível recusar' }
+      }
+      if (!['negociando', 'propostas', 'suspensas'].includes(carga.status)) {
+        return { ok: false as const, error: 'Carga não está aberta para recusa' }
+      }
+
+      const jaRecusou = (carga.recusado_por_ids ?? []).includes(tid)
+      if (jaRecusou) return { ok: true as const }
+
+      const agora = new Date().toISOString()
+      const userNow = userRef.current
+      const next: DataState = {
+        ...prev,
+        cargas: prev.cargas.map((c) => {
+          if (c.id !== cargaId) return c
+          const ids = [...(c.recusado_por_ids ?? [])]
+          if (!ids.includes(tid)) ids.push(tid)
+          return {
+            ...c,
+            recusado_por_ids: ids,
+            recusas: (c.recusas ?? 0) + 1,
+            updated_at: agora,
+          }
+        }),
+        lances: prev.lances.map((l) =>
+          l.carga_id === cargaId && l.transportador_id === tid && l.status === 'ativo'
+            ? { ...l, status: 'cancelado' as const, updated_at: agora }
+            : l,
+        ),
+        transportadores: prev.transportadores.map((t) => {
           if (t.id !== tid) return t
           const pontuacao = t.pontuacao + PONTOS_ADERENCIA.recusada
           return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
-        })
-        const cargas = prev.cargas.map((c) =>
-          c.id === cargaId ? { ...c, recusas: c.recusas + 1 } : c,
-        )
-        return { ...prev, transportadores, cargas }
-      })
+        }),
+        historico: [
+          makeHistorico(
+            'frete_recusado',
+            `Oferta recusada pelo transportador — ${carga.numero}`,
+            {
+              carga_id: cargaId,
+              transportador_id: tid,
+            },
+            userNow,
+          ),
+          ...prev.historico,
+        ].slice(0, 2000),
+        notificacoes: pushNotif(prev.notificacoes, {
+          role: 'minerva',
+          titulo: 'Oferta recusada',
+          mensagem: `Um transportador recusou a carga ${carga.numero}.`,
+          carga_id: cargaId,
+        }),
+      }
+      stateRef.current = next
+      setState(next)
+      flushKanbanPush(next)
+      return { ok: true as const }
     },
-    [user, actingTransportadorId],
+    [actingTransportadorId, flushKanbanPush],
   )
 
   const alocarComposicao = useCallback(
@@ -2974,17 +3054,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const marcarTodasNotificacoesLidas = useCallback(() => {
     const agora = new Date().toISOString()
+    const userNow = userRef.current
+    const acting = actingTransportadorId
     setState((prev) => {
       const next = {
         ...prev,
-        notificacoes: prev.notificacoes.map((n) =>
-          n.lida ? n : { ...n, lida: true, updated_at: agora },
-        ),
+        notificacoes: prev.notificacoes.map((n) => {
+          if (n.lida) return n
+          if (userNow && !notifDestinadaAoUsuario(n, userNow, acting)) {
+            // Super sem “ver como” marca tudo
+            if (!(userNow.is_superuser || userNow.role === 'super') || acting) return n
+          }
+          return { ...n, lida: true, updated_at: agora }
+        }),
       }
       stateRef.current = next
+      flushKanbanPush(next)
       return next
     })
-  }, [])
+  }, [actingTransportadorId, flushKanbanPush])
 
   const mensagensDaCarga = useCallback(
     (cargaId: string) =>
@@ -3019,7 +3107,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
 
       const preview = limpo.length > 80 ? `${limpo.slice(0, 77)}…` : limpo
-      // Transportador (ou Super “Ver como”) → avisa embarcador; senão → avisa transportadores
+      // Transportador (ou Super/Minerva “Ver como”) → avisa embarcador; senão → avisa transportadores
       const enviandoComoTransportador =
         userNow.role === 'transportador' || Boolean(actingTransportadorId)
 
@@ -3085,9 +3173,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
       stateRef.current = next
       setState(next)
+      flushKanbanPush(next)
       return { ok: true }
     },
-    [actingTransportadorId],
+    [actingTransportadorId, flushKanbanPush],
   )
 
   const mensagensNaoLidasDaCarga = useCallback(
@@ -3107,26 +3196,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [state.mensagens, state.chatLeituras],
   )
 
-  const marcarChatLido = useCallback((cargaId: string) => {
-    const userNow = userRef.current
-    if (!userNow) return
-    const agora = new Date().toISOString()
-    const prev = stateRef.current
-    const leituraKey = `${userNow.id}:${cargaId}`
-    const next = {
-      ...prev,
-      chatLeituras: { ...(prev.chatLeituras ?? {}), [leituraKey]: agora },
-      notificacoes: prev.notificacoes.map((n) =>
-        n.carga_id === cargaId &&
-        !n.lida &&
-        n.titulo.toLowerCase().includes('mensagem')
-          ? { ...n, lida: true, updated_at: agora }
-          : n,
-      ),
-    }
-    stateRef.current = next
-    setState(next)
-  }, [])
+  const marcarChatLido = useCallback(
+    (cargaId: string) => {
+      const userNow = userRef.current
+      if (!userNow) return
+      const agora = new Date().toISOString()
+      const prev = stateRef.current
+      const leituraKey = `${userNow.id}:${cargaId}`
+      const acting = actingTransportadorId
+      const next = {
+        ...prev,
+        chatLeituras: { ...(prev.chatLeituras ?? {}), [leituraKey]: agora },
+        notificacoes: prev.notificacoes.map((n) => {
+          if (n.carga_id !== cargaId || n.lida || !isNotifChat(n)) return n
+          // Não apagar a notificação do outro lado só porque eu enviei/abri o chat
+          if (!notifDestinadaAoUsuario(n, userNow, acting)) return n
+          return { ...n, lida: true, updated_at: agora }
+        }),
+      }
+      stateRef.current = next
+      setState(next)
+      flushKanbanPush(next)
+    },
+    [actingTransportadorId, flushKanbanPush],
+  )
 
   const transportadorById = useCallback(
     (id: string) => state.transportadores.find((t) => t.id === id),
@@ -3148,6 +3241,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
           if (c.transportador_vencedor_id !== transportadorId) return false
           return !['canceladas'].includes(c.status)
         }
+
+        // Recusou esta oferta: some do Kanban
+        if ((c.recusado_por_ids ?? []).includes(transportadorId)) return false
 
         // Já participou na rodada atual — continua vendo enquanto a negociação existir
         const temLanceProprio = state.lances.some(

@@ -118,6 +118,54 @@ export function avaliacaoDoMotorista(m: Pick<Motorista, 'id' | 'avaliacao' | 'to
   return { nota, total }
 }
 
+export type AvaliacaoItem = {
+  id: string
+  nota: number
+  texto: string
+  autor: string
+  data: string
+}
+
+const COMENTARIOS_DEMO = [
+  'Motorista pontual e cuidadoso com a carga.',
+  'Boa comunicação durante toda a viagem.',
+  'Veículo em ótimo estado e entrega no prazo.',
+  'Atendimento profissional, recomendo.',
+  'Chegou um pouco atrasado, mas avisou com antecedência.',
+  'Excelente experiência, voltaria a contratar.',
+  'Documentação em dia e manobra segura.',
+  'Frete justo e motorista prestativo.',
+]
+
+/** Lista de avaliações para exibição (demo estável por motorista). */
+export function listarAvaliacoesDemo(
+  motoristaId: string,
+  notaMedia: number,
+  total: number,
+): AvaliacaoItem[] {
+  const n = Math.min(12, Math.max(0, total || 0))
+  if (n === 0) return []
+  let h = 0
+  for (const c of motoristaId) h = (h * 33 + c.charCodeAt(0)) >>> 0
+  const autores = ['Embarcador SP', 'Logística ABC', 'CD Campinas', 'Ops Santos', 'Cliente RJ']
+  const out: AvaliacaoItem[] = []
+  for (let i = 0; i < n; i++) {
+    const seed = (h + i * 17) >>> 0
+    const delta = ((seed % 7) - 3) / 10
+    const nota = Math.min(5, Math.max(1, Math.round((notaMedia + delta) * 10) / 10))
+    const dia = 1 + (seed % 28)
+    const mes = 1 + (seed % 12)
+    out.push({
+      id: `${motoristaId}-av-${i}`,
+      nota,
+      texto: COMENTARIOS_DEMO[seed % COMENTARIOS_DEMO.length],
+      autor: autores[seed % autores.length],
+      data: `${String(dia).padStart(2, '0')}/${String(mes).padStart(2, '0')}/2026`,
+    })
+  }
+  return out
+}
+
 export function iniciaisNome(nome: string): string {
   const parts = nome.trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return '?'

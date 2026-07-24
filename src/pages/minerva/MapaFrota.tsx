@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useData } from '../../context/DataContext'
@@ -9,6 +9,7 @@ import {
   iniciaisNome,
   labelFretePin,
   LEGENDA_FROTA,
+  listarAvaliacoesDemo,
   montarPontosFrota,
   REGIOES_BR,
   regiaoDaUf,
@@ -16,9 +17,13 @@ import {
   type PontoFrota,
   type RegiaoBr,
 } from '../../lib/mapaFrota'
+import '../../styles/cadastro.css'
 import '../../styles/mapa-frota.css'
 
 const RAIOS_KM = [50, 100, 150, 200, 300, 500] as const
+const RAIO_GEO_MIN_KM = 10
+const RAIO_GEO_MAX_KM = 500
+const RAIO_GEO_DEFAULT_KM = 100
 
 type OrigemRaio = { lat: number; lng: number; label: string }
 
@@ -59,8 +64,12 @@ function popupHtml(p: PontoFrota): string {
   const avaliacoes =
     p.totalAvaliacoes > 0 ? `${p.totalAvaliacoes} avaliação(ões)` : 'Sem avaliações ainda'
   const avatar = p.motoristaFoto
-    ? `<img src="${escapeHtml(p.motoristaFoto)}" alt="" class="frota-ficha__foto" />`
-    : `<span class="frota-ficha__avatar" aria-hidden>${escapeHtml(iniciaisNome(p.motoristaNome))}</span>`
+    ? `<button type="button" class="frota-ficha__foto-btn js-frota-foto" title="Ver foto de perfil" aria-label="Ver foto de perfil">
+         <img src="${escapeHtml(p.motoristaFoto)}" alt="" class="frota-ficha__foto" />
+       </button>`
+    : `<button type="button" class="frota-ficha__foto-btn js-frota-foto" title="Ver perfil" aria-label="Ver perfil">
+         <span class="frota-ficha__avatar" aria-hidden>${escapeHtml(iniciaisNome(p.motoristaNome))}</span>
+       </button>`
   const marcaModelo =
     [p.veiculoMarca, p.veiculoModelo].filter(Boolean).join(' ') || '—'
   const cnh = [
@@ -80,7 +89,9 @@ function popupHtml(p: PontoFrota): string {
         <div class="frota-ficha__hero-text">
           <h2>${escapeHtml(p.motoristaNome)}</h2>
           ${starsHtml(p.avaliacao)}
-          <p class="frota-ficha__avaliacoes">${escapeHtml(avaliacoes)}</p>
+          <button type="button" class="frota-ficha__avaliacoes-btn js-frota-avaliacoes" title="Ver avaliações">
+            ${escapeHtml(avaliacoes)}
+          </button>
           <span class="frota-ficha__status frota-ficha__status--${status}">${statusLabel}</span>
         </div>
       </div>
@@ -100,6 +111,25 @@ function popupHtml(p: PontoFrota): string {
       </dl>
     </div>
   `
+}
+
+function ligarAcoesPopup(
+  popupEl: HTMLElement | undefined,
+  p: PontoFrota,
+  onFoto: (p: PontoFrota) => void,
+  onAvaliacoes: (p: PontoFrota) => void,
+) {
+  if (!popupEl) return
+  popupEl.querySelector('.js-frota-foto')?.addEventListener('click', (ev) => {
+    ev.preventDefault()
+    ev.stopPropagation()
+    onFoto(p)
+  })
+  popupEl.querySelector('.js-frota-avaliacoes')?.addEventListener('click', (ev) => {
+    ev.preventDefault()
+    ev.stopPropagation()
+    onAvaliacoes(p)
+  })
 }
 
 function makeIcon(p: PontoFrota) {
@@ -151,7 +181,8 @@ export function MapaFrotaPage() {
   const [uf, setUf] = useState('')
   const [regiao, setRegiao] = useState<'' | RegiaoBr>('')
   const [raioMin, setRaioMin] = useState<number | ''>('')
-  const [raioGeo, setRaioGeo] = useState<number | ''>(100)
+  const [raioGeo, setRaioGeo] = useState(RAIO_GEO_DEFAULT_KM)
+  const [raioGeoAtivo, setRaioGeoAtivo] = useState(true)
   const [origemRaio, setOrigemRaio] = useState<OrigemRaio | null>(null)
   const [clicarOrigem, setClicarOrigem] = useState(false)
   const [enderecoOrigem, setEnderecoOrigem] = useState('')
@@ -160,6 +191,19 @@ export function MapaFrotaPage() {
   const [geoBusy, setGeoBusy] = useState(false)
   const [geoErro, setGeoErro] = useState('')
   const [tipos, setTipos] = useState<FrotaIconeGrupo[]>([])
+  const [modalFoto, setModalFoto] = useState<PontoFrota | null>(null)
+  const [modalAvaliacoes, setModalAvaliacoes] = useState<PontoFrota | null>(null)
+  const [pesquisaAberta, setPesquisaAberta] = useState(() => {
+    try {
+      return sessionStorage.getItem('doca-livre-mapa-frota-pesquisa') !== '0'
+    } catch {
+      return true
+    }
+  })
+  const abrirFotoRef = useRef<(p: PontoFrota) => void>(() => {})
+  const abrirAvaliacoesRef = useRef<(p: PontoFrota) => void>(() => {})
+  abrirFotoRef.current = (p) => setModalFoto(p)
+  abrirAvaliacoesRef.current = (p) => setModalAvaliacoes(p)
   clicarOrigemRef.current = clicarOrigem
 
   const chaveFiltro = useMemo(
@@ -172,12 +216,13 @@ export function MapaFrotaPage() {
         regiao,
         raioMin,
         raioGeo,
+        raioGeoAtivo,
         tipos,
         origem: origemRaio
           ? { lat: origemRaio.lat.toFixed(5), lng: origemRaio.lng.toFixed(5) }
           : null,
       }),
-    [filtro, busca, cidade, uf, regiao, raioMin, raioGeo, tipos, origemRaio],
+    [filtro, busca, cidade, uf, regiao, raioMin, raioGeo, raioGeoAtivo, tipos, origemRaio],
   )
 
   const pontos = useMemo(
@@ -206,7 +251,7 @@ export function MapaFrotaPage() {
       if (uf && p.uf !== uf) return false
       if (regiao && regiaoDaUf(p.uf) !== regiao) return false
       if (raioMin !== '' && !(p.raioKm >= raioMin)) return false
-      if (raioGeo !== '' && origemRaio) {
+      if (raioGeoAtivo && origemRaio) {
         if (distanciaKm(origemRaio.lat, origemRaio.lng, p.lat, p.lng) > raioGeo) return false
       }
       if (q) {
@@ -224,7 +269,7 @@ export function MapaFrotaPage() {
       }
       return true
     })
-  }, [pontos, filtro, cidade, uf, regiao, raioMin, raioGeo, busca, origemRaio])
+  }, [pontos, filtro, cidade, uf, regiao, raioMin, raioGeo, raioGeoAtivo, busca, origemRaio])
 
   const filtrados = useMemo(() => {
     if (tipos.length === 0) return filtradosSemTipo
@@ -261,7 +306,7 @@ export function MapaFrotaPage() {
     setCoordLng(lng.toFixed(5))
     setGeoErro('')
     setClicarOrigem(false)
-    if (raioGeo === '') setRaioGeo(100)
+    setRaioGeoAtivo(true)
   }
 
   async function localizarPorEndereco() {
@@ -297,7 +342,8 @@ export function MapaFrotaPage() {
     setUf('')
     setRegiao('')
     setRaioMin('')
-    setRaioGeo(100)
+    setRaioGeo(RAIO_GEO_DEFAULT_KM)
+    setRaioGeoAtivo(true)
     setOrigemRaio(null)
     setClicarOrigem(false)
     setEnderecoOrigem('')
@@ -345,7 +391,7 @@ export function MapaFrotaPage() {
       setCoordLng(lng.toFixed(5))
       setGeoErro('')
       setClicarOrigem(false)
-      setRaioGeo((r) => (r === '' ? 100 : r))
+      setRaioGeoAtivo(true)
     })
 
     const t = window.setTimeout(() => map.invalidateSize(), 80)
@@ -403,7 +449,7 @@ export function MapaFrotaPage() {
       }).addTo(map)
       origemMarkerRef.current = om
 
-      if (raioGeo !== '') {
+      if (raioGeoAtivo) {
         const circle = L.circle([origemRaio.lat, origemRaio.lng], {
           radius: raioGeo * 1000,
           color: '#0f172a',
@@ -452,6 +498,13 @@ export function MapaFrotaPage() {
         }
       })
       m.on('popupopen', (e) => {
+        const el = e.popup.getElement() ?? undefined
+        ligarAcoesPopup(
+          el,
+          p,
+          (pt) => abrirFotoRef.current(pt),
+          (pt) => abrirAvaliacoesRef.current(pt),
+        )
         window.requestAnimationFrame(() => encaixarPopupNoMapa(map, e.popup))
       })
       m.on('popupclose', () => {
@@ -502,7 +555,7 @@ export function MapaFrotaPage() {
         enquadrouInicialRef.current = true
       }
     }
-  }, [filtrados, raioGeo, origemRaio, chaveFiltro])
+  }, [filtrados, raioGeo, raioGeoAtivo, origemRaio, chaveFiltro])
 
   return (
     <div className="mapa-frota animate-fade-up">
@@ -535,8 +588,44 @@ export function MapaFrotaPage() {
 
       <div className="mapa-frota__layout">
         <aside className="mapa-frota__lista">
-          <div className="mapa-frota__search">
-            <p className="mapa-frota__cats-title">Pesquisar</p>
+          <div className={`mapa-frota__search${pesquisaAberta ? '' : ' is-collapsed'}`}>
+            <button
+              type="button"
+              className="mapa-frota__search-toggle"
+              aria-expanded={pesquisaAberta}
+              onClick={() => {
+                setPesquisaAberta((aberta) => {
+                  const next = !aberta
+                  try {
+                    sessionStorage.setItem('doca-livre-mapa-frota-pesquisa', next ? '1' : '0')
+                  } catch {
+                    /* ignore */
+                  }
+                  return next
+                })
+              }}
+            >
+              <span className="mapa-frota__cats-title">Pesquisar</span>
+              {filtrosAtivos && (
+                <span className="mapa-frota__search-badge" title="Filtros ativos">
+                  filtros
+                </span>
+              )}
+              {!pesquisaAberta && (
+                <span className="mapa-frota__search-resumo">
+                  {filtrados.length} ponto{filtrados.length === 1 ? '' : 's'}
+                </span>
+              )}
+              <span
+                className={`mapa-frota__search-chevron${pesquisaAberta ? ' is-open' : ''}`}
+                aria-hidden
+              >
+                ▾
+              </span>
+            </button>
+
+            {pesquisaAberta && (
+              <div className="mapa-frota__search-body">
             <input
               className="mapa-frota__input"
               type="search"
@@ -700,22 +789,55 @@ export function MapaFrotaPage() {
 
               {geoErro && <p className="mapa-frota__geo-erro">{geoErro}</p>}
 
-              <label className="mapa-frota__field">
-                <span>Raio a partir da origem</span>
-                <select
-                  value={raioGeo === '' ? '' : String(raioGeo)}
-                  onChange={(e) => setRaioGeo(e.target.value ? Number(e.target.value) : '')}
-                  disabled={!origemRaio}
-                  title={!origemRaio ? 'Defina a origem primeiro' : undefined}
-                >
-                  <option value="">Desligado</option>
-                  {RAIOS_KM.map((r) => (
-                    <option key={r} value={r}>
-                      Até {r} km
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div
+                className={`mapa-frota__raio-slider raio-pesquisa${!origemRaio ? ' is-disabled' : ''}`}
+              >
+                <div className="mapa-frota__raio-slider-head">
+                  <span>Raio a partir da origem</span>
+                  <button
+                    type="button"
+                    className="mapa-frota__link-clear"
+                    disabled={!origemRaio}
+                    onClick={() => setRaioGeoAtivo((v) => !v)}
+                  >
+                    {raioGeoAtivo ? 'desligar' : 'ligar'}
+                  </button>
+                </div>
+                <p className="raio-pesquisa__hint">
+                  {!origemRaio
+                    ? 'Defina a origem primeiro para aplicar o raio no mapa.'
+                    : raioGeoAtivo
+                      ? 'Arraste para filtrar os pontos dentro da distância.'
+                      : 'Raio desligado — todos os pontos dos outros filtros aparecem.'}
+                </p>
+                <div className="raio-pesquisa__value">
+                  <strong>{raioGeo}</strong>
+                  <span>km</span>
+                </div>
+                <input
+                  type="range"
+                  className="raio-pesquisa__slider"
+                  min={RAIO_GEO_MIN_KM}
+                  max={RAIO_GEO_MAX_KM}
+                  step={5}
+                  value={raioGeo}
+                  disabled={!origemRaio || !raioGeoAtivo}
+                  onChange={(e) => {
+                    setRaioGeo(Number(e.target.value))
+                    setRaioGeoAtivo(true)
+                  }}
+                  aria-label="Raio a partir da origem em quilômetros"
+                  style={
+                    {
+                      '--raio-pct': `${((raioGeo - RAIO_GEO_MIN_KM) / (RAIO_GEO_MAX_KM - RAIO_GEO_MIN_KM)) * 100}%`,
+                    } as CSSProperties
+                  }
+                />
+                <div className="raio-pesquisa__scale">
+                  <span>{RAIO_GEO_MIN_KM} km</span>
+                  <span>{RAIO_GEO_MAX_KM} km</span>
+                </div>
+              </div>
             </div>
 
             <div className="mapa-frota__tipos">
@@ -748,6 +870,8 @@ export function MapaFrotaPage() {
             <p className="mapa-frota__result">
               {filtrados.length} ponto{filtrados.length === 1 ? '' : 's'} no mapa
             </p>
+              </div>
+            )}
           </div>
 
           <div className="mapa-frota__cats" aria-label="Quantidade disponível por categoria">
@@ -796,6 +920,99 @@ export function MapaFrotaPage() {
           <div ref={mapEl} className="mapa-frota__map" />
         </div>
       </div>
+
+      {modalFoto && (
+        <div
+          className="frota-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Foto de ${modalFoto.motoristaNome}`}
+          onClick={() => setModalFoto(null)}
+        >
+          <div className="frota-modal__panel frota-modal__panel--foto" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="frota-modal__close"
+              aria-label="Fechar"
+              onClick={() => setModalFoto(null)}
+            >
+              ×
+            </button>
+            <p className="frota-modal__nome">{modalFoto.motoristaNome}</p>
+            {modalFoto.motoristaFoto ? (
+              <img
+                src={modalFoto.motoristaFoto}
+                alt={`Foto de ${modalFoto.motoristaNome}`}
+                className="frota-modal__img"
+              />
+            ) : (
+              <div className="frota-modal__avatar-lg" aria-hidden>
+                {iniciaisNome(modalFoto.motoristaNome)}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {modalAvaliacoes && (
+        <div
+          className="frota-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Avaliações de ${modalAvaliacoes.motoristaNome}`}
+          onClick={() => setModalAvaliacoes(null)}
+        >
+          <div className="frota-modal__panel" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="frota-modal__close"
+              aria-label="Fechar"
+              onClick={() => setModalAvaliacoes(null)}
+            >
+              ×
+            </button>
+            <h2 className="frota-modal__title">Avaliações</h2>
+            <p className="frota-modal__sub">
+              {modalAvaliacoes.motoristaNome}
+              {modalAvaliacoes.avaliacao > 0
+                ? ` · ${modalAvaliacoes.avaliacao.toFixed(1).replace('.', ',')} ★`
+                : ''}
+              {modalAvaliacoes.totalAvaliacoes > 0
+                ? ` · ${modalAvaliacoes.totalAvaliacoes} no total`
+                : ''}
+            </p>
+            <ul className="frota-avaliacoes-list">
+              {listarAvaliacoesDemo(
+                modalAvaliacoes.motoristaId,
+                modalAvaliacoes.avaliacao,
+                modalAvaliacoes.totalAvaliacoes,
+              ).map((av) => (
+                <li key={av.id} className="frota-avaliacoes-list__item">
+                  <div className="frota-avaliacoes-list__head">
+                    <strong>{av.autor}</strong>
+                    <span>{av.data}</span>
+                  </div>
+                  <div
+                    className="frota-avaliacoes-list__stars"
+                    aria-label={`${av.nota} de 5`}
+                  >
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <span key={i} className={i < Math.round(av.nota) ? 'is-on' : ''}>
+                        ★
+                      </span>
+                    ))}
+                    <em>{av.nota.toFixed(1).replace('.', ',')}</em>
+                  </div>
+                  <p>{av.texto}</p>
+                </li>
+              ))}
+              {modalAvaliacoes.totalAvaliacoes === 0 && (
+                <li className="frota-avaliacoes-list__empty">Ainda sem avaliações.</li>
+              )}
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

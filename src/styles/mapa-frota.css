@@ -86,6 +86,79 @@
   background: #fff;
 }
 
+.mapa-frota__search.is-collapsed {
+  padding-bottom: 8px;
+}
+
+.mapa-frota__search-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.mapa-frota__search-toggle .mapa-frota__cats-title {
+  margin: 0;
+}
+
+.mapa-frota__search-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.mapa-frota__search-resumo {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.mapa-frota__search-chevron {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #0f172a;
+  font-size: 0.85rem;
+  line-height: 1;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.mapa-frota__search-toggle:hover .mapa-frota__search-chevron {
+  background: #e2e8f0;
+}
+
+.mapa-frota__search-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.mapa-frota__search-toggle .mapa-frota__search-resumo + .mapa-frota__search-chevron {
+  margin-left: 0;
+}
+
+.mapa-frota__search-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .mapa-frota__input,
 .mapa-frota__field select {
   width: 100%;
@@ -198,6 +271,36 @@
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   background: #f8fafc;
+}
+
+.mapa-frota__raio-slider {
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
+.mapa-frota__raio-slider.is-disabled {
+  opacity: 0.55;
+}
+
+.mapa-frota__raio-slider-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+}
+
+.mapa-frota__raio-slider .raio-pesquisa__value strong {
+  font-size: 1.35rem;
+}
+
+.mapa-frota__raio-slider .raio-pesquisa__hint {
+  margin-bottom: 8px;
 }
 
 .mapa-frota__origem-btn {
@@ -644,6 +747,31 @@
   border: 3px solid #f9db00;
 }
 
+.frota-ficha__foto-btn {
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 50%;
+  line-height: 0;
+  flex-shrink: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.frota-ficha__foto-btn:hover,
+.frota-ficha__foto-btn:focus-visible {
+  transform: scale(1.04);
+  box-shadow: 0 0 0 3px rgba(249, 219, 0, 0.45);
+  outline: none;
+}
+
+.frota-ficha__foto-btn .frota-ficha__foto,
+.frota-ficha__foto-btn .frota-ficha__avatar {
+  display: block;
+}
+
 .frota-ficha__avatar {
   display: grid;
   place-items: center;
@@ -660,10 +788,28 @@
   color: #0f172a;
 }
 
-.frota-ficha__avaliacoes {
+.frota-ficha__avaliacoes,
+.frota-ficha__avaliacoes-btn {
   margin: 2px 0 8px;
   font-size: 0.75rem;
   color: #64748b;
+}
+
+.frota-ficha__avaliacoes-btn {
+  display: inline;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-align: left;
+}
+
+.frota-ficha__avaliacoes-btn:hover,
+.frota-ficha__avaliacoes-btn:focus-visible {
+  color: #0f172a;
+  outline: none;
 }
 
 .frota-stars {
@@ -801,6 +947,165 @@
 .disponivel-flag__btn--off.is-on {
   background: #ef4444;
   color: #fff;
+}
+
+.frota-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.frota-modal__panel {
+  position: relative;
+  width: min(420px, 100%);
+  max-height: min(80vh, 640px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 16px;
+  padding: 22px 20px 18px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+}
+
+.frota-modal__panel--foto {
+  width: min(360px, 100%);
+  text-align: center;
+  overflow: visible;
+}
+
+.frota-modal__close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #0f172a;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.frota-modal__close:hover {
+  background: #e2e8f0;
+}
+
+.frota-modal__title {
+  margin: 0 28px 4px 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.frota-modal__sub,
+.frota-modal__nome {
+  margin: 0 28px 14px 0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.frota-modal__nome {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.frota-modal__img {
+  width: 100%;
+  max-width: 280px;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 4px solid #f9db00;
+  display: block;
+  margin: 0 auto;
+}
+
+.frota-modal__avatar-lg {
+  width: min(280px, 70vw);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  border-radius: 50%;
+  border: 4px solid #f9db00;
+  background: #0f172a;
+  color: #f9db00;
+  display: grid;
+  place-items: center;
+  font-size: clamp(2.5rem, 12vw, 4rem);
+  font-weight: 800;
+}
+
+.frota-avaliacoes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.frota-avaliacoes-list__item {
+  padding: 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.frota-avaliacoes-list__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 0.82rem;
+}
+
+.frota-avaliacoes-list__head strong {
+  color: #0f172a;
+}
+
+.frota-avaliacoes-list__head span {
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.frota-avaliacoes-list__stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+}
+
+.frota-avaliacoes-list__stars .is-on {
+  color: #eab308;
+}
+
+.frota-avaliacoes-list__stars em {
+  margin-left: 6px;
+  font-style: normal;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.frota-avaliacoes-list__item p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.frota-avaliacoes-list__empty {
+  padding: 18px 8px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.9rem;
 }
 
 @media (max-width: 900px) {

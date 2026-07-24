@@ -219,20 +219,29 @@ export function KanbanTransportador() {
                 return colunaTransportador(c, tid, temMeu) === col.key
               })
               .map((c) => {
-                const ativos = lancesDaCarga(c.id)
-                  .filter((l) => ['ativo', 'vencedor'].includes(l.status))
-                  .sort(
-                    (a, b) =>
-                      a.valor - b.valor ||
-                      new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-                  )
+                const ativos = lancesDaCarga(c.id).filter((l) =>
+                  ['ativo', 'vencedor'].includes(l.status),
+                )
+                // Ordem de chegada (quem ofertou primeiro = 1°)
+                const porChegada = [...ativos].sort(
+                  (a, b) =>
+                    new Date(a.created_at).getTime() - new Date(b.created_at).getTime() ||
+                    a.id.localeCompare(b.id),
+                )
+                // Ranking por valor (menor vence) — só para destacar se é a melhor
+                const porValor = [...ativos].sort(
+                  (a, b) =>
+                    a.valor - b.valor ||
+                    new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+                )
                 const meuLance =
-                  ativos.find((l) => l.transportador_id === tid) ??
-                  null
+                  ativos.find((l) => l.transportador_id === tid) ?? null
                 const pos =
                   meuLance && col.key !== 'nova_carga'
-                    ? ativos.findIndex((l) => l.id === meuLance.id) + 1
+                    ? porChegada.findIndex((l) => l.id === meuLance.id) + 1
                     : null
+                const melhor =
+                  Boolean(meuLance) && porValor[0]?.id === meuLance?.id
 
                 return {
                   id: c.id,
@@ -244,6 +253,8 @@ export function KanbanTransportador() {
                         meuLance?.valor ?? (col.key !== 'nova_carga' ? c.frete_fechado : null)
                       }
                       bidPosition={pos && pos > 0 ? pos : null}
+                      bidCount={ativos.length > 0 ? ativos.length : null}
+                      bidMelhor={melhor}
                       onSelect={() => {
                         if (col.key === 'nova_carga' || col.key === 'propostas') setBidCarga(c)
                         else if (col.key === 'confirmadas') setAllocCarga(c)
@@ -255,9 +266,15 @@ export function KanbanTransportador() {
                           : undefined
                       }
                       onRefuse={
-                        col.key === 'nova_carga'
+                        col.key === 'nova_carga' || col.key === 'propostas'
                           ? () => {
-                              if (tid) recusarCargaTransportador(c.id)
+                              if (!tid) return
+                              const ok = window.confirm(
+                                `Recusar a carga ${c.numero}? Ela sairá do seu Kanban.`,
+                              )
+                              if (!ok) return
+                              const res = recusarCargaTransportador(c.id)
+                              if (!res.ok) window.alert(res.error ?? 'Não foi possível recusar.')
                             }
                           : undefined
                       }
