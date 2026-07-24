@@ -365,8 +365,8 @@ export function CadastroTransportadorPage() {
   function nextFromContato(e: FormEvent) {
     e.preventDefault()
     setError('')
-    if (!empresa.contato_nome.trim() || !empresa.telefone.trim()) {
-      setError('Preencha nome do responsável e telefone.')
+    if (!empresa.contato_nome.trim() || !empresa.contato_telefone.trim()) {
+      setError('Preencha nome do responsável e Celular / WhatsApp.')
       return
     }
     setStep(3)
@@ -842,7 +842,7 @@ export function CadastroTransportadorPage() {
                       autoComplete="name"
                     />
                   </Field>
-                  <Field label="Telefone" required>
+                  <Field label="Telefone">
                     <input
                       type="tel"
                       value={empresa.telefone}
@@ -852,7 +852,7 @@ export function CadastroTransportadorPage() {
                       autoComplete="tel"
                     />
                   </Field>
-                  <Field label="Celular / WhatsApp">
+                  <Field label="Celular / WhatsApp" required>
                     <input
                       type="tel"
                       value={empresa.contato_telefone}
@@ -860,6 +860,7 @@ export function CadastroTransportadorPage() {
                       placeholder="(00) 00000-0000"
                       inputMode="tel"
                       autoComplete="tel-national"
+                      required
                     />
                   </Field>
                   <Field label="E-mail da empresa">
