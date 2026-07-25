@@ -482,14 +482,28 @@ export async function cadastrarTransportadorRemoto(
     const ext =
       input.logo.file?.type?.split('/')[1]?.replace('jpeg', 'jpg') ||
       (input.logo.nome_arquivo.match(/\.(jpe?g|png|webp)$/i)?.[1] ?? 'jpg')
-    const path = `${tRow.id}/logo.${ext}`
     const blob = input.logo.file ?? (await (await fetch(input.logo.data_url)).blob())
-    const { error: logoErr } = await supabase.storage
-      .from('documentos-transportadores')
-      .upload(path, blob, { upsert: true, contentType: blob.type || 'image/jpeg' })
-    if (!logoErr) {
-      const { data: pub } = supabase.storage.from('documentos-transportadores').getPublicUrl(path)
-      const logoUrl = pub.publicUrl
+    const tentativas: Array<{ bucket: string; path: string }> = [
+      { bucket: 'documentos-transportadores', path: `${tRow.id}/logo.${ext}` },
+      { bucket: 'veiculos-fotos', path: `logos/${tRow.id}/logo.${ext}` },
+    ]
+    let logoUrl: string | null = null
+    for (const t of tentativas) {
+      const { error: logoErr } = await supabase.storage
+        .from(t.bucket)
+        .upload(t.path, blob, { upsert: true, contentType: blob.type || 'image/jpeg' })
+      if (logoErr) {
+        console.warn('[cadastro] falha ao subir logo em', t.bucket, logoErr.message)
+        continue
+      }
+      const { data: pub } = supabase.storage.from(t.bucket).getPublicUrl(t.path)
+      logoUrl = pub.publicUrl
+      break
+    }
+    if (!logoUrl && input.logo.data_url.startsWith('data:')) {
+      logoUrl = input.logo.data_url
+    }
+    if (logoUrl) {
       const logoUp = await upsertTransportadorComFallback(
         'update',
         { logo_url: logoUrl },
@@ -497,8 +511,6 @@ export async function cadastrarTransportadorRemoto(
       )
       if (logoUp.ok) tRow = logoUp.row
       else tRow = { ...tRow, logo_url: logoUrl }
-    } else {
-      console.warn('[cadastro] falha ao subir logo:', logoErr.message)
     }
   }
 
@@ -626,11 +638,19 @@ export async function atualizarLogoTransportadorRemoto(
 ): Promise<{ ok: true; logo_url: string | null } | { ok: false; erro: string }> {
   if (!transportadorId) return { ok: false, erro: 'Transportador inválido.' }
 
+  const limparStorage = async () => {
+    if (!isSupabaseConfigured || !supabase) return
+    const exts = ['jpg', 'jpeg', 'png', 'webp']
+    const pathsDocs = exts.map((ext) => `${transportadorId}/logo.${ext}`)
+    const pathsFotos = exts.map((ext) => `logos/${transportadorId}/logo.${ext}`)
+    await supabase.storage.from('documentos-transportadores').remove(pathsDocs)
+    await supabase.storage.from('veiculos-fotos').remove(pathsFotos)
+  }
+
   // Remover
   if (!file) {
     if (isSupabaseConfigured && supabase) {
-      const paths = ['jpg', 'jpeg', 'png', 'webp'].map((ext) => `${transportadorId}/logo.${ext}`)
-      await supabase.storage.from('documentos-transportadores').remove(paths)
+      await limparStorage()
       const up = await upsertTransportadorComFallback('update', { logo_url: null }, transportadorId)
       if (!up.ok) return { ok: false, erro: up.erro }
     }
@@ -656,15 +676,45 @@ export async function atualizarLogoTransportadorRemoto(
     return { ok: true, logo_url: dataUrl }
   }
 
-  const path = `${transportadorId}/logo.${ext}`
-  const { error: upErr } = await supabase.storage
-    .from('documentos-transportadores')
-    .upload(path, file, { upsert: true, contentType: file.type || 'image/jpeg' })
-  if (upErr) return { ok: false, erro: `Falha no upload: ${upErr.message}` }
+  // 1) Tenta bucket de documentos; 2) se RLS bloquear (portal = anon), usa veiculos-fotos
+  const tentativas: Array<{ bucket: string; path: string }> = [
+    { bucket: 'documentos-transportadores', path: `${transportadorId}/logo.${ext}` },
+    { bucket: 'veiculos-fotos', path: `logos/${transportadorId}/logo.${ext}` },
+  ]
 
-  const { data: pub } = supabase.storage.from('documentos-transportadores').getPublicUrl(path)
-  // Cache-bust para o navegador trocar a imagem na hora
-  const logoUrl = `${pub.publicUrl}${pub.publicUrl.includes('?') ? '&' : '?'}v=${Date.now()}`
+  let logoUrl: string | null = null
+  let ultimoErro = ''
+  for (const t of tentativas) {
+    const { error: upErr } = await supabase.storage
+      .from(t.bucket)
+      .upload(t.path, file, { upsert: true, contentType: file.type || 'image/jpeg' })
+    if (upErr) {
+      ultimoErro = upErr.message
+      continue
+    }
+    const { data: pub } = supabase.storage.from(t.bucket).getPublicUrl(t.path)
+    logoUrl = `${pub.publicUrl}${pub.publicUrl.includes('?') ? '&' : '?'}v=${Date.now()}`
+    break
+  }
+
+  // Último recurso: grava data URL no banco (mapa/login ainda funcionam)
+  if (!logoUrl) {
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result))
+        reader.onerror = () => reject(new Error('Falha ao ler imagem'))
+        reader.readAsDataURL(file)
+      })
+      logoUrl = dataUrl
+      console.warn('[logo] storage falhou, salvando data URL:', ultimoErro)
+    } catch {
+      return {
+        ok: false,
+        erro: `Falha no upload da logo: ${ultimoErro || 'sem permissão no Storage'}. Rode supabase/transportador_logo.sql no SQL Editor.`,
+      }
+    }
+  }
 
   const logoUp = await upsertTransportadorComFallback(
     'update',

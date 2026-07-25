@@ -2730,12 +2730,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
         ...atual,
         logo_url: result.logo_url || undefined,
       }
-      setState((prev) => ({
-        ...prev,
-        transportadores: prev.transportadores.map((t) =>
-          t.id === transportadorId ? next : t,
-        ),
-      }))
+      setState((prev) => {
+        const nextState = {
+          ...prev,
+          transportadores: prev.transportadores.map((t) =>
+            t.id === transportadorId ? next : t,
+          ),
+        }
+        stateRef.current = nextState
+        return nextState
+      })
       return { ok: true }
     },
     [],

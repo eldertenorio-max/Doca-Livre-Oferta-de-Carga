@@ -144,12 +144,13 @@ function popupHtml(p: PontoFrota): string {
   const statusLabel = p.disponivel ? 'Disponível para carregar' : 'Indisponível'
   const avaliacoes =
     p.totalAvaliacoes > 0 ? `${p.totalAvaliacoes} avaliação(ões)` : 'Sem avaliações ainda'
+  const avatarNome = p.transportadorNome || p.motoristaNome
   const avatar = p.motoristaFoto
-    ? `<button type="button" class="frota-ficha__foto-btn js-frota-foto" title="Ver foto de perfil" aria-label="Ver foto de perfil">
+    ? `<button type="button" class="frota-ficha__foto-btn js-frota-foto" title="Ver foto / logo" aria-label="Ver foto / logo">
          <img src="${escapeHtml(p.motoristaFoto)}" alt="" class="frota-ficha__foto" />
        </button>`
-    : `<button type="button" class="frota-ficha__foto-btn js-frota-foto" title="Ver perfil" aria-label="Ver perfil">
-         <span class="frota-ficha__avatar" aria-hidden>${escapeHtml(iniciaisNome(p.motoristaNome))}</span>
+    : `<button type="button" class="frota-ficha__foto-btn js-frota-foto" title="Sem logo — envie na edição da transportadora" aria-label="Sem logo">
+         <span class="frota-ficha__avatar" aria-hidden>${escapeHtml(iniciaisNome(avatarNome))}</span>
        </button>`
   const marcaModelo =
     [p.veiculoMarca, p.veiculoModelo].filter(Boolean).join(' ') || '—'
