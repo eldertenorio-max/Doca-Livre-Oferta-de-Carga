@@ -9,6 +9,75 @@
   overflow: hidden;
 }
 
+.app-foto-aviso {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: #fffbeb;
+  border-bottom: 1px solid #fde68a;
+  color: #78350f;
+}
+
+.app-foto-aviso__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.app-foto-aviso__body strong {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.app-foto-aviso__body span {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: #92400e;
+}
+
+.app-foto-aviso__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.app-foto-aviso__btn {
+  border: 0;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 650;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.app-foto-aviso__btn:hover {
+  background: #1e293b;
+}
+
+.app-foto-aviso__fechar {
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  background: #fff;
+  color: #92400e;
+  font-size: 0.78rem;
+  font-weight: 650;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.app-foto-aviso__fechar:hover {
+  background: #fef3c7;
+}
+
 .app-workspace {
   position: relative;
   flex: 1;

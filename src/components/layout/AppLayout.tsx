@@ -167,6 +167,7 @@ export function AppLayout() {
   const [avatarErro, setAvatarErro] = useState('')
   const avatarWrapRef = useRef<HTMLDivElement>(null)
   const avatarFileRef = useRef<HTMLInputElement>(null)
+  const [fotoAvisoVisivel, setFotoAvisoVisivel] = useState(false)
 
   function clearHoverTimer() {
     if (hoverTimerRef.current != null) {
@@ -287,6 +288,39 @@ export function AppLayout() {
 
   const podeEditarLogo = Boolean(topbarTransportadorId)
 
+  // Aviso de foto/logo de perfil — aparece para todos até fechar ou até enviar a imagem
+  useEffect(() => {
+    if (!user) {
+      setFotoAvisoVisivel(false)
+      return
+    }
+    try {
+      const key = `doca-aviso-foto-perfil:${user.id || user.usuario || 'u'}`
+      if (sessionStorage.getItem(key) === '1') {
+        setFotoAvisoVisivel(false)
+        return
+      }
+    } catch {
+      /* ignore */
+    }
+    // Se já tem foto (transportador), não precisa do aviso
+    if (avatarFotoUrl) {
+      setFotoAvisoVisivel(false)
+      return
+    }
+    setFotoAvisoVisivel(true)
+  }, [user, avatarFotoUrl])
+
+  function dispensarAvisoFoto() {
+    setFotoAvisoVisivel(false)
+    try {
+      const key = `doca-aviso-foto-perfil:${user?.id || user?.usuario || 'u'}`
+      sessionStorage.setItem(key, '1')
+    } catch {
+      /* ignore */
+    }
+  }
+
   async function onEscolherLogo(file: File | null) {
     if (!topbarTransportadorId || !file) return
     if (!isAcceptedImageFile(file)) {
@@ -306,6 +340,7 @@ export function AppLayout() {
       return
     }
     setAvatarMenuOpen(false)
+    dispensarAvisoFoto()
   }
 
   async function onRemoverLogo() {
@@ -602,6 +637,41 @@ export function AppLayout() {
           </button>
         </div>
       </header>
+
+      {fotoAvisoVisivel ? (
+        <div className="app-foto-aviso" role="status">
+          <div className="app-foto-aviso__body">
+            <strong>Foto de perfil</strong>
+            <span>
+              {podeEditarLogo
+                ? 'Adicione a logo da empresa ou uma foto sua: clique no avatar no canto superior direito. Ela aparece no seu perfil após o login.'
+                : 'Transportadores podem adicionar logo ou foto no avatar (canto superior direito) ou na edição da transportadora. A imagem vira o perfil no login.'}
+            </span>
+          </div>
+          <div className="app-foto-aviso__actions">
+            {podeEditarLogo ? (
+              <button
+                type="button"
+                className="app-foto-aviso__btn"
+                onClick={() => {
+                  setAvatarErro('')
+                  setAvatarMenuOpen(true)
+                }}
+              >
+                Adicionar agora
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="app-foto-aviso__fechar"
+              aria-label="Fechar aviso"
+              onClick={dispensarAvisoFoto}
+            >
+              Entendi
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="app-workspace">
         {sidebarHover && !sidebarPinned && !isNarrow && (
