@@ -34,7 +34,7 @@ export const SUPER_ACCOUNTS_SEED = [
     id: 'u-diego',
     usuario: 'diego',
     email: 'diego@docalivre.com',
-    password: 'diego123',
+    password: 'Diegodi2026',
     nome: 'Diego Isidoro',
   },
   {
@@ -66,7 +66,7 @@ const SUPER_LOGIN_ALIASES: Record<string, string[]> = {
 
 /** Senhas alternativas aceitas (capitalização / legado). */
 const SUPER_PASSWORD_ALIASES: Record<string, string[]> = {
-  'u-diego': ['diego123'],
+  'u-diego': ['Diegodi2026', 'diegodi2026', 'diego123'],
   'u-elder': ['DocaLivre@2026', 'Docalivre@2026', 'docalivre@2026', 'elder123'],
 }
 
@@ -396,7 +396,7 @@ function ensureSuperUsers(list: PortalAccount[]): PortalAccount[] {
     {
       seed: SUPER_ACCOUNTS_SEED[0],
       match: isDiegoAccount,
-      legacyPasswords: [],
+      legacyPasswords: ['diego123'],
       legacyEmails: [],
     },
     {
