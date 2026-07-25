@@ -93,6 +93,11 @@ export function LoginPage() {
     setError('')
     setInfo('')
     setLoading(true)
+    try {
+      await syncPortalAccounts()
+    } catch {
+      /* login local continua mesmo se o sync falhar */
+    }
     const res = login(usuario.trim(), senha)
     setLoading(false)
     if (!res.ok) {

@@ -35,11 +35,23 @@ export const SUPER_ACCOUNTS_SEED = [
   {
     id: 'u-elder',
     usuario: 'elder',
-    email: 'elder@docalivre.com',
-    password: 'elder123',
+    email: 'elder.tenorio@docalivre.com.br',
+    password: 'DocaLivre@2026',
     nome: 'Elder',
   },
 ] as const
+
+/** Logins/e-mails antigos ainda aceitos no login (migração). */
+const SUPER_LOGIN_ALIASES: Record<string, string[]> = {
+  diego: ['diego', 'diego@docalivre.com', 'diego.isidoro', 'diegoisidoro'],
+  elder: [
+    'elder',
+    'elder@docalivre.com',
+    'elder.tenorio@docalivre.com.br',
+    'elder.tenorio',
+    'eldertenorio',
+  ],
+}
 
 export type PortalAccount = {
   id: string
@@ -202,19 +214,32 @@ function ensureSuperUsers(list: PortalAccount[]): PortalAccount[] {
   const matchers: Array<{
     seed: (typeof SUPER_ACCOUNTS_SEED)[number]
     match: (u: PortalAccount) => boolean
+    legacyPasswords: string[]
+    legacyEmails: string[]
   }> = [
-    { seed: SUPER_ACCOUNTS_SEED[0], match: isDiegoAccount },
-    { seed: SUPER_ACCOUNTS_SEED[1], match: isElderAccount },
+    {
+      seed: SUPER_ACCOUNTS_SEED[0],
+      match: isDiegoAccount,
+      legacyPasswords: [],
+      legacyEmails: [],
+    },
+    {
+      seed: SUPER_ACCOUNTS_SEED[1],
+      match: isElderAccount,
+      legacyPasswords: ['elder123'],
+      legacyEmails: ['elder@docalivre.com'],
+    },
   ]
 
-  for (const { seed, match } of matchers) {
+  for (const { seed, match, legacyPasswords, legacyEmails } of matchers) {
     const base = superSeedAccount(seed)
     const idx = next.findIndex(
       (u) =>
         match(u) ||
         u.id === base.id ||
         u.email.toLowerCase() === base.email ||
-        u.usuario.toLowerCase() === base.usuario,
+        u.usuario.toLowerCase() === base.usuario ||
+        legacyEmails.includes(u.email.toLowerCase()),
     )
     if (idx < 0) {
       next = [base, ...next]
@@ -222,6 +247,11 @@ function ensureSuperUsers(list: PortalAccount[]): PortalAccount[] {
     }
     const cur = next[idx]
     const role = cur.role === 'transportador' ? 'transportador' : 'super'
+    const emailAtual = (cur.email || '').trim().toLowerCase()
+    const senhaAtual = cur.password || ''
+    const migrarEmail = !emailAtual || legacyEmails.includes(emailAtual)
+    const migrarSenha =
+      !senhaAtual || legacyPasswords.includes(senhaAtual)
     next[idx] = {
       ...base,
       ...cur,
@@ -231,10 +261,10 @@ function ensureSuperUsers(list: PortalAccount[]): PortalAccount[] {
       nivel: role === 'super' ? 'super' : cur.nivel === 'super' ? 'operador' : cur.nivel || 'operador',
       transportador_id: role === 'super' ? null : (cur.transportador_id ?? null),
       ativo: cur.ativo ?? true,
-      password: cur.password || base.password,
+      password: migrarSenha ? base.password : senhaAtual,
       nome: cur.nome?.trim() || base.nome,
       usuario: cur.usuario?.trim() || base.usuario,
-      email: cur.email?.trim() || base.email,
+      email: migrarEmail ? base.email : emailAtual,
       created_at: cur.created_at || base.created_at,
     }
   }
@@ -350,12 +380,27 @@ type RemotePortalAccount = {
   created_at: string
 }
 
+function mergePassword(localPass: string, remotePass: string): string {
+  const local = (localPass || '').trim()
+  const remote = (remotePass || '').trim()
+  if (!remote) return local
+  if (!local) return remote
+  if (local === remote) return local
+  const legacy = new Set(['elder123', 'diego123', '1234'])
+  // Remoto ainda legado e local já atualizada → mantém a edição local
+  if (legacy.has(remote) && !legacy.has(local)) return local
+  // Local legado e remoto atualizado → puxa a do servidor
+  if (legacy.has(local) && !legacy.has(remote)) return remote
+  // Empate: prioriza local (painel neste aparelho) e o push replica depois
+  return local
+}
+
 function fromRemoteAccount(row: RemotePortalAccount, local?: PortalAccount): PortalAccount {
   return {
     id: row.id,
     usuario: row.usuario,
     email: row.email,
-    password: row.senha_hash || local?.password || '',
+    password: mergePassword(local?.password || '', row.senha_hash || ''),
     nome: row.nome,
     role: row.role,
     nivel: row.nivel,
@@ -715,21 +760,18 @@ export async function portalCadastroConcluir(input: {
   }
 }
 
-export function portalLoginLocal(
-  identificador: string,
-  senha: string,
-):
-  | {
-      ok: true
-      account: PortalAccount
-      isSuperuser: boolean
-      permissoes: OfertaPermissao
-    }
-  | { ok: false; erro: string } {
+function seedForAccount(account: PortalAccount) {
+  if (isDiegoAccount(account) || account.id === 'u-diego') return SUPER_ACCOUNTS_SEED[0]
+  if (isElderAccount(account) || account.id === 'u-elder') return SUPER_ACCOUNTS_SEED[1]
+  return null
+}
+
+function findAccountByIdentificador(users: PortalAccount[], identificador: string) {
   const id = identificador.trim().toLowerCase()
   const idAscii = id.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  const users = loadPortalAccounts()
-  const account = users.find((u) => {
+  const idLocal = (idAscii.split('@')[0] || '').trim()
+
+  const direct = users.find((u) => {
     const usuario = u.usuario.toLowerCase()
     const email = u.email.toLowerCase()
     const nome = (u.nome || '').toLowerCase()
@@ -741,9 +783,81 @@ export function portalLoginLocal(
       nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '') === idAscii
     )
   })
-  if (!account || account.password !== senha) {
+  if (direct) return direct
+
+  // Aceita aliases históricos dos Super Usuários (ex.: elder@… → conta Elder)
+  for (const [who, aliases] of Object.entries(SUPER_LOGIN_ALIASES)) {
+    const hit = aliases.some(
+      (alias) => alias === id || alias === idAscii || alias === idLocal,
+    )
+    if (!hit) continue
+    const match = who === 'diego' ? isDiegoAccount : isElderAccount
+    const found = users.find(
+      (u) => match(u) || u.id === (who === 'diego' ? 'u-diego' : 'u-elder'),
+    )
+    if (found) return found
+  }
+
+  if (isLocalSuperUser(id)) {
+    if (idLocal.startsWith('diego') || id.includes('diego')) {
+      return users.find((u) => isDiegoAccount(u) || u.id === 'u-diego')
+    }
+    if (idLocal.startsWith('elder') || id.includes('elder')) {
+      return users.find((u) => isElderAccount(u) || u.id === 'u-elder')
+    }
+  }
+  return undefined
+}
+
+function senhaConfere(account: PortalAccount, senha: string) {
+  if (account.password === senha) return true
+  const seed = seedForAccount(account)
+  if (seed && seed.password === senha) return true
+  // Senha antiga do Elder ainda válida durante a migração
+  if (seedForAccount(account) === SUPER_ACCOUNTS_SEED[1] && senha === 'elder123') return true
+  return false
+}
+
+export function portalLoginLocal(
+  identificador: string,
+  senha: string,
+):
+  | {
+      ok: true
+      account: PortalAccount
+      isSuperuser: boolean
+      permissoes: OfertaPermissao
+    }
+  | { ok: false; erro: string } {
+  const users = loadPortalAccounts()
+  let account = findAccountByIdentificador(users, identificador)
+  if (!account || !senhaConfere(account, senha)) {
     return { ok: false, erro: 'Usuário ou senha incorretos.' }
   }
+
+  // Se entrou com a senha/e-mail atuais do seed, sincroniza a conta local
+  const seed = seedForAccount(account)
+  if (seed && (account.password !== seed.password || account.email !== seed.email)) {
+    if (senha === seed.password || !account.password) {
+      const next = users.map((u) =>
+        u.id === account!.id
+          ? {
+              ...u,
+              password: seed.password,
+              email: u.email?.includes('@') ? u.email : seed.email,
+              // Se ainda está no e-mail antigo do Elder, atualiza
+              ...(isElderAccount(u) &&
+              (u.email || '').toLowerCase() === 'elder@docalivre.com'
+                ? { email: seed.email }
+                : {}),
+            }
+          : u,
+      )
+      savePortalAccounts(next)
+      account = next.find((u) => u.id === account!.id) ?? account
+    }
+  }
+
   if (!account.ativo) {
     return {
       ok: false,
