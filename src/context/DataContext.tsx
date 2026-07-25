@@ -3068,6 +3068,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
         .update({ ativo: situacao === 'ativo' })
         .eq('transportador_id', id)
 
+      // Fonte da verdade do login do portal: usuarios.ativo
+      // Sem isto, o transportador continua vendo "aguardando aprovação".
+      await supabase
+        .from('usuarios')
+        .update({ ativo: situacao === 'ativo', updated_at: new Date().toISOString() })
+        .eq('transportador_id', id)
+
       return { ok: true }
     },
     [],
