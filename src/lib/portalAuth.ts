@@ -98,6 +98,57 @@ let accountsCache: PortalAccount[] | null = null
 /** OTP só em memória (dev fallback). */
 let otpMemory: OtpRecord | null = null
 
+/**
+ * Contas excluídas por um Super. Guardadas por 7 dias para que um aparelho
+ * com cache antigo (ou aba aberta há horas) não recrie a conta no banco.
+ */
+const TOMBSTONES_KEY = 'doca-livre-oferta-contas-excluidas-v1'
+const TOMBSTONE_TTL_MS = 7 * 24 * 60 * 60_000
+
+type Tombstone = { chave: string; at: number }
+
+function loadTombstones(): Tombstone[] {
+  try {
+    const raw = localStorage.getItem(TOMBSTONES_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as Tombstone[]
+    if (!Array.isArray(parsed)) return []
+    const limite = Date.now() - TOMBSTONE_TTL_MS
+    return parsed.filter((t) => t && typeof t.chave === 'string' && t.at > limite)
+  } catch {
+    return []
+  }
+}
+
+function chavesDaConta(u: { usuario?: string; email?: string }): string[] {
+  const out: string[] = []
+  const usuario = (u.usuario || '').trim().toLowerCase()
+  const email = (u.email || '').trim().toLowerCase()
+  if (usuario) out.push(`login:${usuario}`)
+  if (email) out.push(`email:${email}`)
+  return out
+}
+
+function registrarExclusao(u: { usuario?: string; email?: string }) {
+  const atuais = loadTombstones()
+  const at = Date.now()
+  for (const chave of chavesDaConta(u)) {
+    if (!atuais.some((t) => t.chave === chave)) atuais.push({ chave, at })
+  }
+  try {
+    localStorage.setItem(TOMBSTONES_KEY, JSON.stringify(atuais))
+  } catch {
+    /* ignore */
+  }
+}
+
+function foiExcluida(u: { usuario?: string; email?: string }): boolean {
+  const chaves = chavesDaConta(u)
+  if (chaves.length === 0) return false
+  const set = new Set(loadTombstones().map((t) => t.chave))
+  return chaves.some((c) => set.has(c))
+}
+
 function uid() {
   return `u-${Math.random().toString(36).slice(2, 10)}`
 }
@@ -151,12 +202,12 @@ function clearLegacyAccountKeys() {
 
 function normalizePortalList(parsed: PortalAccount[]): PortalAccount[] {
   // Só Super + transportadores (demos / cadastro público). Sem equipe Minerva/embarcador.
-  let list = parsed.filter((u) => u && !isContaEquipeMinerva(u))
+  let list = parsed.filter((u) => u && !isContaEquipeMinerva(u) && !foiExcluida(u))
   list = sanitizePortalAccounts(list)
   list = ensureSuperUsers(list)
   list = ensureDemoTransportadores(list)
   list = sanitizePortalAccounts(list)
-  return list
+  return list.filter((u) => !foiExcluida(u))
 }
 
 export function loadPortalAccounts(): PortalAccount[] {
@@ -447,6 +498,9 @@ function ensureSuperUsers(list: PortalAccount[]): PortalAccount[] {
 
 /** Garante que as contas demo de transportador existam e estejam ativas. */
 function ensureDemoTransportadores(list: PortalAccount[]): PortalAccount[] {
+  // Com Supabase ativo o banco é a fonte da verdade: recriar demos aqui fazia
+  // contas excluídas (santos / novaera) voltarem em todo carregamento.
+  if (isSupabaseConfigured) return list
   let next = [...list]
   for (const d of DEMO_TRANSPORTADORES) {
     const demo = demoTransportadorAccount(d)
@@ -478,7 +532,8 @@ function ensureDemoTransportadores(list: PortalAccount[]): PortalAccount[] {
 function seedAccounts(): PortalAccount[] {
   const seed = normalizePortalList([])
   accountsCache = seed
-  void persistPortalAccountsRemote(seed)
+  // Sem Supabase o seed é a própria base local; com banco, quem manda é o banco.
+  if (!isSupabaseConfigured) void persistPortalAccountsRemote(seed)
   return seed
 }
 
@@ -645,6 +700,7 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
     }
 
     for (const account of list) {
+      if (foiExcluida(account)) continue
       let ativo = account.ativo
       if (
         !ativo &&
@@ -680,13 +736,10 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
         await supabase.from('usuarios').update(row).eq('id', found.id)
         continue
       }
-      // INSERT só para contas realmente novas (criadas nesta sessão) ou recém-criadas.
-      // Conta antiga que não está no banco = excluída por um Super; NÃO recriar
+      // INSERT só para contas criadas nesta sessão (painel / cadastro público).
+      // Conta que não está no banco = excluída por um Super; NÃO recriar
       // (era isso que fazia usuários excluídos "voltarem").
-      const criadaAgora =
-        contasNovasDaSessao.has(account.id) ||
-        Date.now() - new Date(account.created_at || 0).getTime() < 10 * 60_000
-      if (criadaAgora) {
+      if (contasNovasDaSessao.has(account.id)) {
         await supabase.from('usuarios').insert(row)
       }
     }
@@ -762,6 +815,18 @@ export async function syncPortalAccounts(): Promise<PortalAccount[]> {
     const remoteRows = ((data ?? []) as RemotePortalAccount[]).filter(
       (row) => row.role === 'super' || row.role === 'transportador',
     )
+
+    // Conta excluída que reapareceu (aparelho com versão antiga do app): apaga de novo.
+    const ressuscitadas = remoteRows.filter((row) => foiExcluida(row))
+    if (ressuscitadas.length > 0) {
+      await supabase
+        .from('usuarios')
+        .delete()
+        .in(
+          'id',
+          ressuscitadas.map((row) => row.id),
+        )
+    }
 
     // Se o banco já tem contas, ele é a fonte da verdade.
     // Não reincorpore contas que só existem no cache: outro Super pode tê-las
@@ -889,19 +954,34 @@ export function vincularContasAosTransportadores(
 export async function removePortalAccountRemote(
   account: PortalAccount,
 ): Promise<{ ok: true } | { ok: false; erro: string }> {
+  // Registra antes de tudo: mesmo se o banco falhar, nenhum aparelho recria a conta.
+  registrarExclusao(account)
+  if (accountsCache) {
+    accountsCache = accountsCache.filter((u) => !foiExcluida(u))
+  }
   if (!isSupabaseConfigured || !supabase) return { ok: true }
 
   try {
-    // Busca pelo login/e-mail porque o id local pode não ser o UUID da tabela.
+    const usuario = account.usuario.trim()
+    const email = account.email.trim().toLowerCase()
+
+    // Busca pelo login/e-mail (sem diferenciar maiúsculas) porque o id local
+    // pode não ser o UUID da tabela e o e-mail pode estar salvo capitalizado.
+    const filtros: string[] = []
+    if (usuario) filtros.push(`usuario.ilike."${usuario.replace(/["%,]/g, '')}"`)
+    if (email) filtros.push(`email.ilike."${email.replace(/["%,]/g, '')}"`)
     const { data: rows, error: selectError } = await supabase
       .from('usuarios')
       .select('id')
-      .or(`usuario.eq.${account.usuario},email.eq.${account.email}`)
+      .or(filtros.join(','))
     if (selectError) return { ok: false, erro: selectError.message }
 
     const ids = (rows ?? [])
       .map((row) => (row as { id?: string }).id)
       .filter((id): id is string => Boolean(id))
+    if (account.id && validUuid(account.id) && !ids.includes(account.id)) {
+      ids.push(account.id)
+    }
     if (ids.length > 0) {
       const { data: deleted, error: deleteError } = await supabase
         .from('usuarios')
@@ -918,13 +998,16 @@ export async function removePortalAccountRemote(
     }
 
     // Um cadastro público em profiles não deve recriar a conta no próximo refresh.
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({ ativo: false })
-      .eq('email', account.email.trim().toLowerCase())
-    if (profileError) return { ok: false, erro: profileError.message }
+    if (email) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ ativo: false })
+        .ilike('email', email)
+      if (profileError) return { ok: false, erro: profileError.message }
+    }
 
     void broadcastPortalAccountsChanged('delete')
+    void notifyPortalAccountsListeners()
     return { ok: true }
   } catch {
     return { ok: false, erro: 'Não foi possível concluir a exclusão no servidor.' }
@@ -1052,7 +1135,7 @@ export function subscribePortalAccounts(
     // Backup caso Realtime não esteja habilitado na tabela
     portalAccountsPollId = window.setInterval(() => {
       void notifyPortalAccountsListeners()
-    }, 8_000)
+    }, 4_000)
   }
 
   void notifyPortalAccountsListeners()
@@ -1454,7 +1537,7 @@ export async function healPortalLoginAtivo(identificador: string): Promise<void>
     byId.set(u.id, {
       id: u.id,
       email: u.email,
-      transportador_id: u.transportador_id,
+      transportador_id: u.transportador_id ?? null,
     })
   }
   for (const row of (remotosInativos ?? []) as Cand[]) {
