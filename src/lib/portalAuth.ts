@@ -209,9 +209,13 @@ function accountBlob(u: PortalAccount) {
  * Conta canônica do Super Diego — NÃO pega outros supers/gmail com “diego” no nome.
  */
 function isDiegoAccount(u: PortalAccount) {
-  if (u.id === 'u-diego') return true
   const usuario = normId(u.usuario)
   const email = normId(u.email)
+  // E-mail de transportadora nunca é Diego
+  if (email.includes('ultrafrio') || usuario.includes('ultrafrio') || accountBlob(u).includes('ultrafrio')) {
+    return false
+  }
+  if (u.id === 'u-diego') return true
   if (email === 'diego@docalivre.com' || usuario === 'diego') return true
   if (SUPER_LOGIN_ALIASES.diego.includes(usuario) || SUPER_LOGIN_ALIASES.diego.includes(email)) {
     return true
@@ -223,10 +227,13 @@ function isDiegoAccount(u: PortalAccount) {
  * Conta canônica do Super Elder — NÃO pega Ultrafrio (elder.tenorio@ultrafriolog…).
  */
 function isElderAccount(u: PortalAccount) {
-  if (u.id === 'u-elder') return true
   const usuario = normId(u.usuario)
   const email = normId(u.email)
-  if (email.includes('ultrafrio') || usuario.includes('ultrafrio')) return false
+  // Transportadora Ultrafrio nunca é a conta Super Elder
+  if (email.includes('ultrafrio') || usuario.includes('ultrafrio') || accountBlob(u).includes('ultrafrio')) {
+    return false
+  }
+  if (u.id === 'u-elder') return true
   if (email === 'elder@docalivre.com' || email === 'elder.tenorio@docalivre.com.br') return true
   if (usuario === 'elder') return true
   if (SUPER_LOGIN_ALIASES.elder.includes(usuario) || SUPER_LOGIN_ALIASES.elder.includes(email)) {
@@ -338,12 +345,26 @@ function sanitizePortalAccounts(list: PortalAccount[]): PortalAccount[] {
       const base = slugLogin(usuario) || 'doca'
       password = `${base}123`
     }
+    // Super só Diego/Elder (Doca Livre). E-mail externo (ex.: Ultrafrio) nunca vira Super.
+    let role = u.role
+    const isCanonSuper = isDiegoAccount({ ...u, usuario, email }) || isElderAccount({ ...u, usuario, email })
+    const emailDoca =
+      email.endsWith('@docalivre.com') || email.endsWith('@docalivre.com.br')
+    if (role === 'super' && !isCanonSuper && !emailDoca) {
+      role = 'transportador'
+    }
+    if (email.includes('ultrafrio') || usuario.includes('ultrafrio')) {
+      role = 'transportador'
+    }
     return {
       ...u,
       usuario,
       email,
       password,
       nome: (u.nome || '').trim() || usuario,
+      role,
+      nivel: role === 'super' ? 'super' : u.nivel === 'super' ? 'operador' : u.nivel || 'operador',
+      transportador_id: role === 'super' ? null : (u.transportador_id ?? null),
       ativo: u.ativo ?? true,
     }
   })
@@ -471,8 +492,11 @@ export function createPortalAccount(input: {
     return { ok: false, erro: 'Já existe uma conta com esse e-mail.' }
   }
 
+  // Perfil explícito do painel manda; heurística só quando role não veio
   const isSuper =
-    input.role === 'super' || isLocalSuperUser(usuario) || isLocalSuperUser(email)
+    input.role === 'transportador'
+      ? false
+      : input.role === 'super' || isLocalSuperUser(usuario) || isLocalSuperUser(email)
   const account: PortalAccount = {
     id: uid(),
     usuario,
@@ -989,43 +1013,67 @@ function findAccountsByIdentificador(users: PortalAccount[], identificador: stri
   const idCompact = id.replace(/\s+/g, '')
   const idLocal = (id.split('@')[0] || '').trim()
   const hits: PortalAccount[] = []
+  const hitIds = new Set<string>()
+  const exactHitIds = new Set<string>()
+
+  const pushHit = (u: PortalAccount, exact: boolean) => {
+    if (hitIds.has(u.id)) {
+      if (exact) exactHitIds.add(u.id)
+      return
+    }
+    hitIds.add(u.id)
+    hits.push(u)
+    if (exact) exactHitIds.add(u.id)
+  }
 
   for (const u of users) {
-    const ids = identificadoresDaConta(u)
-    if (ids.includes(id) || ids.includes(idCompact) || (idLocal && ids.includes(idLocal) && id.includes('@'))) {
-      hits.push(u)
+    const emailN = normId(u.email)
+    const userN = normId(u.usuario)
+    const userCompact = userN.replace(/\s+/g, '')
+    // Match exato de e-mail / login — prioridade absoluta
+    if (emailN === id || userN === id || userCompact === idCompact) {
+      pushHit(u, true)
       continue
     }
-    // Match exato de e-mail mesmo com espaços no login salvo
-    if (normId(u.email) === id || normId(u.usuario) === id) {
-      hits.push(u)
+    const ids = identificadoresDaConta(u)
+    if (ids.includes(id) || ids.includes(idCompact)) {
+      pushHit(u, false)
+      continue
+    }
+    // Só usa parte local do e-mail quando o usuário digitou e-mail completo
+    if (id.includes('@') && idLocal && ids.includes(idLocal)) {
+      pushHit(u, false)
     }
   }
 
-  // Aliases dos Super Usuários
-  for (const [who, aliases] of Object.entries(SUPER_LOGIN_ALIASES)) {
-    const hit = aliases.some(
-      (alias) => alias === id || alias === idCompact || alias === idLocal,
-    )
-    if (!hit) continue
-    const match = who === 'diego' ? isDiegoAccount : isElderAccount
-    const seedId = who === 'diego' ? 'u-diego' : 'u-elder'
-    for (const u of users) {
-      if ((match(u) || u.id === seedId) && !hits.some((h) => h.id === u.id)) {
-        hits.push(u)
+  // Aliases dos Super: só se ninguém bateu de forma exata (evita Ultrafrio → Elder)
+  const temMatchExato = exactHitIds.size > 0
+  if (!temMatchExato) {
+    for (const [who, aliases] of Object.entries(SUPER_LOGIN_ALIASES)) {
+      const hit = aliases.some(
+        (alias) => alias === id || alias === idCompact || alias === idLocal,
+      )
+      if (!hit) continue
+      const match = who === 'diego' ? isDiegoAccount : isElderAccount
+      const seedId = who === 'diego' ? 'u-diego' : 'u-elder'
+      for (const u of users) {
+        if (match(u) || u.id === seedId) pushHit(u, false)
       }
     }
   }
 
-  // Ordena: e-mail exato > login exato > ativo com senha > demais
+  // Ordena: e-mail/login exato >> transportador com match >> Super por alias
   hits.sort((a, b) => {
     const score = (u: PortalAccount) => {
       let s = 0
-      if (normId(u.email) === id) s += 50
-      if (normId(u.usuario) === id || normId(u.usuario).replace(/\s+/g, '') === idCompact) s += 40
+      if (normId(u.email) === id) s += 100
+      if (normId(u.usuario) === id || normId(u.usuario).replace(/\s+/g, '') === idCompact) s += 90
+      if (exactHitIds.has(u.id)) s += 40
+      if (u.role === 'transportador') s += 15
       if (u.ativo) s += 10
       if ((u.password || '').length >= 4) s += 8
-      if (u.role === 'super') s += 5
+      // Super por alias perde para transportador com mesmo login parcial
+      if (u.role === 'super' && !exactHitIds.has(u.id)) s -= 10
       return s
     }
     return score(b) - score(a)
@@ -1113,6 +1161,7 @@ export function portalLoginLocal(
       erro: 'Esta conta está sem senha. Peça ao Super Usuário para definir uma senha no painel.',
     }
   }
+  // Fonte da verdade: role salva na Configuração do Portal
   const isSuperuser = account.role === 'super'
   if (!isSuperuser && account.role !== 'transportador') {
     return {
@@ -1131,9 +1180,18 @@ export function portalLoginLocal(
   }
   return {
     ok: true,
-    account,
+    account: {
+      ...account,
+      // Garante sessão alinhada ao perfil do portal (nunca promove por heurística)
+      role: isSuperuser ? 'super' : 'transportador',
+      nivel: isSuperuser ? 'super' : account.nivel === 'super' ? 'operador' : account.nivel || 'operador',
+      transportador_id: isSuperuser ? null : (account.transportador_id ?? null),
+    },
     isSuperuser,
-    permissoes: getPermissaoUsuario(account),
+    permissoes: getPermissaoUsuario({
+      ...account,
+      role: isSuperuser ? 'super' : 'transportador',
+    }),
   }
 }
 

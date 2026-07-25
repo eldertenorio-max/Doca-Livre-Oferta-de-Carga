@@ -72,7 +72,6 @@ import {
   type CadastroTransportadorInput,
 } from '../lib/cadastroTransportador'
 import { portalEmailRecusaCadastro } from '../lib/portalApi'
-import { isLocalSuperUser } from '../lib/superUsers'
 import {
   removeTransportadoraDaHierarquia,
   syncTransportadoraNaHierarquia,
@@ -1127,33 +1126,33 @@ export function DataProvider({ children }: { children: ReactNode }) {
     let { account, isSuperuser, permissoes } = result
 
     // Garante vínculo conta ↔ transportadora (ex.: Ultrafrio sem transportador_id)
-    if (account.role === 'transportador' && !account.transportador_id) {
+    if (account.role === 'transportador') {
       const linked = vincularContasAosTransportadores(
         loadPortalAccounts(),
         stateRef.current.transportadores ?? [],
       )
       const found = linked.find((a) => a.id === account.id)
-      if (found?.transportador_id) {
+      if (found && found.transportador_id !== account.transportador_id) {
         savePortalAccounts(linked)
         account = found
       }
+      isSuperuser = false
+    } else {
+      isSuperuser = account.role === 'super'
     }
 
-    const role =
-      isSuperuser || account.role === 'super'
-        ? ('super' as const)
-        : ('transportador' as const)
+    const role = isSuperuser ? ('super' as const) : ('transportador' as const)
     setUser({
       id: account.id,
       email: account.email,
       nome: account.nome,
       usuario: account.usuario,
       role,
-      transportador_id: account.transportador_id ?? null,
+      transportador_id: isSuperuser ? null : (account.transportador_id ?? null),
       empresa_org_id: account.empresa_org_id ?? null,
       is_superuser: isSuperuser,
       perfil_operacional: account.perfil_operacional ?? null,
-      permissoes_modulos: permissoes.modulos,
+      permissoes_modulos: isSuperuser ? null : permissoes.modulos,
     })
     return { ok: true }
   }, [])
@@ -1180,22 +1179,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
           a.email.toLowerCase() === (prev.email || '').toLowerCase(),
       )
       if (!account) return prev
-      const isSuperuser =
-        Boolean(prev.is_superuser) ||
-        isLocalSuperUser(account.usuario) ||
-        isLocalSuperUser(account.email)
+      // Perfil da Configuração do Portal é a fonte da verdade
+      const isSuperuser = account.role === 'super'
       const perms = getPermissaoUsuario(account)
       const transportador_id =
-        account.transportador_id !== undefined && account.transportador_id !== null
-          ? account.transportador_id
-          : (prev.transportador_id ?? null)
-      const role = isSuperuser
-        ? prev.role === 'transportador'
-          ? prev.role
-          : ('super' as const)
-        : account.role === 'transportador'
-          ? ('transportador' as const)
-          : ('super' as const)
+        account.role === 'transportador'
+          ? (account.transportador_id ?? prev.transportador_id ?? null)
+          : null
+      const role = isSuperuser ? ('super' as const) : ('transportador' as const)
       if (
         prev.transportador_id === transportador_id &&
         prev.is_superuser === isSuperuser &&

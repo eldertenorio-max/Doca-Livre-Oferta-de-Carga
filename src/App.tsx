@@ -21,18 +21,14 @@ import { PainelTransportadorPage } from './pages/transportador/Painel'
 import { MapaFrotaPage } from './pages/minerva/MapaFrota'
 import { PwaInstallBanner } from './components/PwaInstallBanner'
 import { PushEnableBanner } from './components/PushEnableBanner'
-import { isLocalSuperUser } from './lib/superUsers'
+import { isSuperSession } from './lib/superUsers'
 import type { UserRole } from './types'
 
 function Protected({ role, children }: { role?: UserRole | UserRole[]; children: React.ReactNode }) {
   const { user } = useData()
   if (!user) return <Navigate to="/login" replace />
-  // Diego / Elder (e role super) passam em qualquer rota autenticada
-  const isSuper =
-    Boolean(user.is_superuser) ||
-    user.role === 'super' ||
-    isLocalSuperUser(user.usuario ?? '') ||
-    isLocalSuperUser(user.email ?? '')
+  // Perfil da Configuração do Portal manda: transportador nunca passa como Super
+  const isSuper = isSuperSession(user)
   if (isSuper) return children
   if (role) {
     const roles = Array.isArray(role) ? role : [role]

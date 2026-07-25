@@ -6,7 +6,7 @@ import { ProductMark } from '../ProductMark'
 import { ChatModal } from '../carga/ChatModal'
 import { DisponibilidadeMapaFlag } from '../transportador/DisponibilidadeMapaFlag'
 import { canOpenModulo, moduloFromPath } from '../../lib/portalModules'
-import { isLocalSuperUser } from '../../lib/superUsers'
+import { isSuperSession } from '../../lib/superUsers'
 import '../../styles/shell.css'
 
 type NavItem = {
@@ -246,11 +246,7 @@ export function AppLayout() {
     [chatCargaId, cargas],
   )
 
-  const isSuper =
-    Boolean(user?.is_superuser) ||
-    user?.role === 'super' ||
-    isLocalSuperUser(user?.usuario ?? '') ||
-    isLocalSuperUser(user?.email ?? '')
+  const isSuper = isSuperSession(user)
 
   const topbarTransportadorId =
     actingTransportadorId ||

@@ -28,7 +28,7 @@ import {
   upsertOrgNo,
   type OrgNo,
 } from '../../lib/orgHierarchy'
-import { isLocalSuperUser } from '../../lib/superUsers'
+import { isLocalSuperUser, isSuperSession } from '../../lib/superUsers'
 import '../../styles/cadastro.css'
 
 type Tab = 'hierarquia' | 'permissoes' | 'usuarios'
@@ -70,10 +70,7 @@ export function PortalConfigPage() {
     }
   }, [])
 
-  const isSuper =
-    Boolean(user?.is_superuser) ||
-    isLocalSuperUser(user?.usuario ?? '') ||
-    isLocalSuperUser(user?.email ?? '')
+  const isSuper = isSuperSession(user)
 
   // Ao abrir Hierarquia (ou mudar cadastro), sincroniza transportadoras na árvore
   useEffect(() => {
@@ -83,13 +80,7 @@ export function PortalConfigPage() {
   }, [tab, transportadores])
 
   const editableUsers = useMemo(
-    () =>
-      accounts.filter(
-        (a) =>
-          a.role === 'transportador' &&
-          !isLocalSuperUser(a.usuario) &&
-          !isLocalSuperUser(a.email),
-      ),
+    () => accounts.filter((a) => a.role === 'transportador'),
     [accounts],
   )
 

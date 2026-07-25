@@ -5,7 +5,7 @@ import { CargoCard } from '../../components/kanban/CargoCard'
 import { KanbanBoard } from '../../components/kanban/KanbanBoard'
 import { AllocateModal, BidModal } from '../../components/carga/BidModal'
 import { DEMO_TRANSPORTADOR } from '../../lib/portalAuth'
-import { isLocalSuperUser } from '../../lib/superUsers'
+import { isSuperSession } from '../../lib/superUsers'
 import {
   colunaTransportador,
   meuLanceAtivoNaRodada,
@@ -69,11 +69,7 @@ export function KanbanTransportador() {
     effectiveTransportadorId,
   } = useData()
 
-  const isSuper =
-    Boolean(user?.is_superuser) ||
-    user?.role === 'super' ||
-    isLocalSuperUser(user?.usuario ?? '') ||
-    isLocalSuperUser(user?.email ?? '')
+  const isSuper = isSuperSession(user)
 
   /** Super (e embarcador sem vínculo) escolhem qual Kanban ver. */
   const canPickTransportador = isSuper || !user?.transportador_id

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { TransportadorPainel } from '../../components/transportador/TransportadorPainel'
 import { useData } from '../../context/DataContext'
 import { DEMO_TRANSPORTADOR } from '../../lib/portalAuth'
-import { isLocalSuperUser } from '../../lib/superUsers'
+import { isSuperSession } from '../../lib/superUsers'
 
 export function PainelTransportadorPage() {
   const {
@@ -12,11 +12,7 @@ export function PainelTransportadorPage() {
     effectiveTransportadorId,
   } = useData()
 
-  const isSuper =
-    Boolean(user?.is_superuser) ||
-    user?.role === 'super' ||
-    isLocalSuperUser(user?.usuario ?? '') ||
-    isLocalSuperUser(user?.email ?? '')
+  const isSuper = isSuperSession(user)
 
   const canPick = isSuper || !user?.transportador_id
 

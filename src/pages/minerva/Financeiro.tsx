@@ -13,7 +13,7 @@ import {
   setStatusPagamento,
   type StatusPagamentoFrete,
 } from '../../lib/financeiroPagamentos'
-import { isLocalSuperUser } from '../../lib/superUsers'
+import { isSuperSession } from '../../lib/superUsers'
 import type { Carga } from '../../types'
 import '../../styles/cadastro.css'
 
@@ -62,11 +62,7 @@ export function FinanceiroPage() {
   const [q, setQ] = useState('')
   const [selectedTid, setSelectedTid] = useState<string | null>(null)
 
-  const isSuper =
-    Boolean(user?.is_superuser) ||
-    user?.role === 'super' ||
-    isLocalSuperUser(user?.usuario ?? '') ||
-    isLocalSuperUser(user?.email ?? '')
+  const isSuper = isSuperSession(user)
 
   function aplicarPeriodo(p: PeriodoRapido) {
     setPeriodo(p)
