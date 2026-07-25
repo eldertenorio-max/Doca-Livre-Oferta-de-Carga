@@ -9,6 +9,7 @@ import { formatPhoneBr } from '../../lib/phoneBr'
 import { formatCurrency, formatDateTime } from '../../lib/businessRules'
 import { labelDocumento, isAcceptedDocFile } from '../../lib/transportadorDocs'
 import { urlDocumentoTransportador, origemCadastroDe, labelOrigemCadastro } from '../../lib/cadastroTransportador'
+import { isAcceptedImageFile, fileToDataUrl } from '../../lib/veiculoFotos'
 import type { ClassificacaoTransportador, SituacaoTransportador, Transportador } from '../../types'
 import '../../styles/cadastro.css'
 
@@ -55,6 +56,7 @@ export function TransportadoresPage() {
   const {
     transportadores,
     salvarTransportador,
+    atualizarLogoTransportador,
     excluirTransportador,
     vinculosTransportador,
     documentosDoTransportador,
@@ -85,6 +87,11 @@ export function TransportadoresPage() {
   const [linkCopiado, setLinkCopiado] = useState(false)
   const replaceInputRef = useRef<HTMLInputElement>(null)
   const [replaceDocId, setReplaceDocId] = useState<string | null>(null)
+  /** Logo/foto do perfil no formulário (arquivo novo + preview). */
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [logoRemovida, setLogoRemovida] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     void refreshTransportadores()
@@ -138,6 +145,9 @@ export function TransportadoresPage() {
     setEditingId(null)
     setForm(emptyForm())
     setError('')
+    setLogoFile(null)
+    setLogoPreview(null)
+    setLogoRemovida(false)
     setMode('form')
   }
 
@@ -145,6 +155,9 @@ export function TransportadoresPage() {
     setEditingId(t.id)
     setForm({ ...t, cnpj: formatCnpj(t.cnpj || '') })
     setError('')
+    setLogoFile(null)
+    setLogoPreview(t.logo_url ?? null)
+    setLogoRemovida(false)
     setMode('form')
   }
 
@@ -210,13 +223,14 @@ export function TransportadoresPage() {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
-  function save() {
+  async function save() {
     if (!form.razao_social?.trim() || !form.nome_fantasia?.trim() || !form.cnpj?.trim()) {
       setError('Preencha Razão Social, Nome Fantasia e CNPJ.')
       return
     }
+    const id = editingId ?? `t-${Math.random().toString(36).slice(2, 8)}`
     const t: Transportador = {
-      id: editingId ?? `t-${Math.random().toString(36).slice(2, 8)}`,
+      id,
       razao_social: form.razao_social!.trim(),
       nome_fantasia: form.nome_fantasia!.trim(),
       cnpj: formatCnpj(form.cnpj ?? ''),
@@ -249,9 +263,24 @@ export function TransportadoresPage() {
       email: form.email,
       contato_nome: form.contato_nome,
       contato_telefone: form.contato_telefone,
+      logo_url: logoRemovida ? undefined : (logoPreview ?? form.logo_url),
       created_at: form.created_at ?? new Date().toISOString(),
     }
     salvarTransportador(t)
+
+    // Persiste a logo/foto (Storage + banco) — vira o avatar no login.
+    if (logoFile || logoRemovida) {
+      setBusy(true)
+      const res = await atualizarLogoTransportador(id, logoRemovida ? null : logoFile)
+      setBusy(false)
+      if (!res.ok) {
+        setError(res.error ?? 'Dados salvos, mas a logo não pôde ser enviada.')
+        return
+      }
+    }
+
+    setLogoFile(null)
+    setLogoRemovida(false)
     setMode('lista')
   }
 
@@ -931,6 +960,94 @@ export function TransportadoresPage() {
         {editingId ? 'Editar Transportadora' : 'Cadastro de Transportadora'}
       </h1>
 
+      <section className="form-card form-card--blue" style={{ marginBottom: 16 }}>
+        <header className="form-card__head">
+          <h2 className="form-card__title">Logo / foto de perfil</h2>
+        </header>
+        <div className="form-card__body">
+          <input
+            ref={logoInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              e.target.value = ''
+              if (!file) return
+              if (!isAcceptedImageFile(file)) {
+                setError('Use JPG, PNG ou WEBP para a logo/foto.')
+                return
+              }
+              if (file.size > 4 * 1024 * 1024) {
+                setError('A imagem deve ter no máximo 4 MB.')
+                return
+              }
+              setError('')
+              setLogoFile(file)
+              setLogoRemovida(false)
+              void fileToDataUrl(file).then(setLogoPreview)
+            }}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            <div
+              style={{
+                width: 84,
+                height: 84,
+                borderRadius: '50%',
+                overflow: 'hidden',
+                border: '2px solid #f9db00',
+                background: '#eef1f4',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              {logoPreview ? (
+                <img
+                  src={logoPreview}
+                  alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <span style={{ fontSize: 12, color: '#64748b' }}>Sem foto</span>
+              )}
+            </div>
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <p style={{ margin: '0 0 8px', fontSize: 13, color: '#64748b' }}>
+                A imagem enviada aqui vira o avatar do transportador quando ele fizer login.
+                Use a logo da empresa ou uma foto do responsável (JPG, PNG ou WEBP, até 4 MB).
+              </p>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="cadastro-btn cadastro-btn--ghost"
+                  disabled={busy}
+                  onClick={() => logoInputRef.current?.click()}
+                >
+                  {logoPreview ? 'Trocar imagem' : 'Escolher imagem'}
+                </button>
+                {logoPreview && (
+                  <button
+                    type="button"
+                    className="cadastro-btn cadastro-btn--ghost"
+                    style={{ color: '#b91c1c' }}
+                    disabled={busy}
+                    onClick={() => {
+                      setLogoFile(null)
+                      setLogoPreview(null)
+                      setLogoRemovida(true)
+                    }}
+                  >
+                    Remover
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <div className="cadastro-grid" style={{ gap: 16 }}>
         <section className="form-card form-card--blue">
           <header className="form-card__head">
@@ -1145,8 +1262,13 @@ export function TransportadoresPage() {
       {error && <p style={{ color: '#dc2626', marginTop: 12, textAlign: 'center' }}>{error}</p>}
 
       <div className="cadastro-actions">
-        <button type="button" className="cadastro-btn cadastro-btn--save" onClick={save}>
-          Salvar Transportadora
+        <button
+          type="button"
+          className="cadastro-btn cadastro-btn--save"
+          disabled={busy}
+          onClick={() => void save()}
+        >
+          {busy ? 'Salvando…' : 'Salvar Transportadora'}
         </button>
       </div>
     </div>
