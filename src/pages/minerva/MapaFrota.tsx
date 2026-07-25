@@ -899,8 +899,16 @@ export function MapaFrotaPage() {
           </div>
 
           <div className="mapa-frota__cats" aria-label="Quantidade disponível por categoria">
-            <p className="mapa-frota__cats-title">Disponíveis no mapa</p>
-            <p className="mapa-frota__cats-hint">Clique para ver só esse tipo no mapa</p>
+            <div className="mapa-frota__cats-head">
+              <p className="mapa-frota__cats-title">Disponíveis no mapa</p>
+              <p className="mapa-frota__cats-hint">
+                {tipos.length === 1
+                  ? `Mostrando só ${
+                      LEGENDA_FROTA.find((i) => i.grupo === tipos[0])?.label ?? 'este tipo'
+                    } — clique de novo para ver todos`
+                  : 'Clique para ver só esse tipo no mapa'}
+              </p>
+            </div>
             <ul className="mapa-frota__cats-list">
               {contagemPorCategoria.map((item) => {
                 const ativo = tipos.length === 1 && tipos[0] === item.grupo
@@ -909,7 +917,10 @@ export function MapaFrotaPage() {
                     <button
                       type="button"
                       className={`mapa-frota__cats-row${ativo ? ' is-on' : ''}`}
-                      onClick={() => filtrarSoTipo(item.grupo)}
+                      onClick={(e) => {
+                        e.currentTarget.blur()
+                        filtrarSoTipo(item.grupo)
+                      }}
                       aria-pressed={ativo}
                       title={
                         ativo

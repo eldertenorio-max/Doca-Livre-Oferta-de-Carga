@@ -76,6 +76,16 @@
   background: #f8fafc;
 }
 
+.mapa-frota__cats-head {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  margin: -10px -10px 0;
+  padding: 10px 10px 6px;
+  background: #f8fafc;
+  border-bottom: 1px solid transparent;
+}
+
 .mapa-frota__search {
   flex-shrink: 0;
   padding: 10px;
@@ -1322,7 +1332,11 @@
   }
 
   .mapa-frota__lista {
-    max-height: 220px;
+    max-height: min(42vh, 320px);
+  }
+
+  .mapa-frota__cats-head {
+    box-shadow: 0 1px 0 #e2e8f0;
   }
 
   .mapa-frota__map {
