@@ -149,6 +149,21 @@ function foiExcluida(u: { usuario?: string; email?: string }): boolean {
   return chaves.some((c) => set.has(c))
 }
 
+/**
+ * Conta de demonstração gerada automaticamente por versões antigas do app:
+ * login/e-mail no padrão "empresa2@docalivre.com" (nome + número). Nunca foram
+ * logins reais e ficavam reaparecendo. Super (diego/elder) e e-mails de empresa
+ * de verdade não batem neste padrão.
+ */
+function isContaDemoGerada(u: { usuario?: string; email?: string; role?: string }): boolean {
+  if (u.role === 'super') return false
+  const email = (u.email || '').trim().toLowerCase()
+  const usuario = (u.usuario || '').trim().toLowerCase()
+  const padrao = /^[a-z]+\d+@docalivre\.com$/
+  const padraoLogin = /^[a-z]+\d+$/
+  return padrao.test(email) && padraoLogin.test(usuario)
+}
+
 function uid() {
   return `u-${Math.random().toString(36).slice(2, 10)}`
 }
@@ -202,12 +217,14 @@ function clearLegacyAccountKeys() {
 
 function normalizePortalList(parsed: PortalAccount[]): PortalAccount[] {
   // Só Super + transportadores (demos / cadastro público). Sem equipe Minerva/embarcador.
-  let list = parsed.filter((u) => u && !isContaEquipeMinerva(u) && !foiExcluida(u))
+  let list = parsed.filter(
+    (u) => u && !isContaEquipeMinerva(u) && !foiExcluida(u) && !isContaDemoGerada(u),
+  )
   list = sanitizePortalAccounts(list)
   list = ensureSuperUsers(list)
   list = ensureDemoTransportadores(list)
   list = sanitizePortalAccounts(list)
-  return list.filter((u) => !foiExcluida(u))
+  return list.filter((u) => !foiExcluida(u) && !isContaDemoGerada(u))
 }
 
 export function loadPortalAccounts(): PortalAccount[] {
@@ -700,7 +717,7 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
     }
 
     for (const account of list) {
-      if (foiExcluida(account)) continue
+      if (foiExcluida(account) || isContaDemoGerada(account)) continue
       let ativo = account.ativo
       if (
         !ativo &&
@@ -812,21 +829,22 @@ export async function syncPortalAccounts(): Promise<PortalAccount[]> {
       .order('created_at', { ascending: true })
     if (error) return local
 
-    const remoteRows = ((data ?? []) as RemotePortalAccount[]).filter(
+    const remoteRowsAll = ((data ?? []) as RemotePortalAccount[]).filter(
       (row) => row.role === 'super' || row.role === 'transportador',
     )
 
+    // Contas de demonstração geradas automaticamente por versões antigas do app
+    // (padrão "nomedaempresa2@docalivre.com"). Nunca foram logins reais — remove.
+    const lixoDemo = remoteRowsAll.filter((row) => isContaDemoGerada(row))
     // Conta excluída que reapareceu (aparelho com versão antiga do app): apaga de novo.
-    const ressuscitadas = remoteRows.filter((row) => foiExcluida(row))
-    if (ressuscitadas.length > 0) {
-      await supabase
-        .from('usuarios')
-        .delete()
-        .in(
-          'id',
-          ressuscitadas.map((row) => row.id),
-        )
+    const ressuscitadas = remoteRowsAll.filter((row) => foiExcluida(row))
+    const paraRemover = [...new Set([...lixoDemo, ...ressuscitadas].map((r) => r.id))]
+    if (paraRemover.length > 0) {
+      await supabase.from('usuarios').delete().in('id', paraRemover)
     }
+
+    const removidos = new Set(paraRemover)
+    const remoteRows = remoteRowsAll.filter((row) => !removidos.has(row.id))
 
     // Se o banco já tem contas, ele é a fonte da verdade.
     // Não reincorpore contas que só existem no cache: outro Super pode tê-las
