@@ -107,8 +107,10 @@ function clusterMarkerHtml(pontos: PontoFrota[]): string {
   `
 }
 
-/** Espalha pins em círculo (pixels → lat/lng) a partir do centro. */
-/** Abre pins sobrepostos lado a lado (horizontal), bem próximos. */
+/**
+ * Abre pins sobrepostos lado a lado em pixels de tela.
+ * gapX/gapY maiores que o bubble (~120×52) para não sobrepor em nenhum zoom.
+ */
 function posicoesSpiderfy(
   map: L.Map,
   center: L.LatLngExpression,
@@ -116,16 +118,17 @@ function posicoesSpiderfy(
 ): L.LatLng[] {
   if (count <= 1) return [L.latLng(center)]
   const origin = map.latLngToLayerPoint(center)
-  // Largura aproximada do bubble + folga mínima entre pins
-  const gapX = 78
-  const gapY = 54
-  // Até 4: uma fileira horizontal; acima disso, 2 fileiras
-  const cols = count <= 4 ? count : Math.ceil(count / 2)
+  // iconSize do pin é 120×52 — centro a centro precisa passar disso + folga
+  const gapX = 138
+  const gapY = 72
+  // Até 3: uma fileira; 4–6: duas; acima: três
+  const cols =
+    count <= 3 ? count : count <= 6 ? Math.ceil(count / 2) : Math.ceil(count / 3)
   const rows = Math.ceil(count / cols)
   const totalW = (cols - 1) * gapX
   const totalH = (rows - 1) * gapY
-  // Sobe um pouco para o botão × do centro ficar visível abaixo
-  const baseY = origin.y - 18 - totalH / 2
+  // Sobe o bloco para o × do hub ficar livre abaixo
+  const baseY = origin.y - 36 - totalH / 2
 
   return Array.from({ length: count }, (_, i) => {
     const col = i % cols
@@ -289,6 +292,8 @@ export function MapaFrotaPage() {
   const [expandedCluster, setExpandedCluster] = useState<string | null>(null)
   const expandedClusterRef = useRef<string | null>(null)
   expandedClusterRef.current = expandedCluster
+  /** Força recalcular o leque em pixels a cada zoom/pan (evita colar). */
+  const [spiderTick, setSpiderTick] = useState(0)
   /** Evita que pan/rebuild feche o popup e limpe a seleção na hora de abrir. */
   const ignorarFecharPopupRef = useRef(false)
   const clicarOrigemRef = useRef(false)
@@ -520,9 +525,18 @@ export function MapaFrotaPage() {
       if (expandedClusterRef.current) setExpandedCluster(null)
     })
 
+    // Mantém o espaçamento em pixels ao zoomar com o leque aberto
+    const onViewChange = () => {
+      if (expandedClusterRef.current) setSpiderTick((n) => n + 1)
+    }
+    map.on('zoomend', onViewChange)
+    map.on('moveend', onViewChange)
+
     const t = window.setTimeout(() => map.invalidateSize(), 80)
     return () => {
       window.clearTimeout(t)
+      map.off('zoomend', onViewChange)
+      map.off('moveend', onViewChange)
       map.remove()
       mapRef.current = null
       layerRef.current = null
@@ -862,7 +876,7 @@ export function MapaFrotaPage() {
         enquadrouInicialRef.current = true
       }
     }
-  }, [filtrados, raioGeo, raioGeoAtivo, origemRaio, chaveFiltro, expandedCluster])
+  }, [filtrados, raioGeo, raioGeoAtivo, origemRaio, chaveFiltro, expandedCluster, spiderTick])
 
   return (
     <div className="mapa-frota animate-fade-up">
