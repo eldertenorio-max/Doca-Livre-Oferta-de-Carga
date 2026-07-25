@@ -503,7 +503,7 @@ export function PortalConfigPage() {
               Transportador), depois em <strong>Salvar</strong>. Exclusão só da própria sessão é
               bloqueada.
             </p>
-            <div className="cadastro-table-wrap" style={{ overflowX: 'auto' }}>
+            <div className="cadastro-table-wrap cadastro-table-wrap--scroll">
               <table className="cadastro-table">
                 <thead>
                   <tr>

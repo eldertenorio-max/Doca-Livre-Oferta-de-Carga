@@ -131,9 +131,16 @@
   box-shadow: 0 4px 16px rgb(15 23 42 / 0.04);
 }
 
+.cadastro-table-wrap--scroll {
+  overflow: auto;
+  max-height: min(68vh, 620px);
+  -webkit-overflow-scrolling: touch;
+}
+
 .cadastro-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 0.9rem;
 }
 
@@ -146,6 +153,12 @@
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
+}
+
+.cadastro-table-wrap--scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .cadastro-table td {
