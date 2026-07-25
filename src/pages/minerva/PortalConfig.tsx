@@ -53,9 +53,15 @@ export function PortalConfigPage() {
   // Ao abrir Usuários: junta contas do Supabase e garante login de cada transportadora
   useEffect(() => {
     if (tab !== 'usuarios') return
-    void syncPortalAccounts().then(setAccounts)
+    const atualizar = () => {
+      void syncPortalAccounts().then(setAccounts)
+    }
+    atualizar()
     void ensureContasTransportadores(transportadoresRef.current ?? []).then(setAccounts)
     void hydratePermissoesMap().then(setPerms)
+    // Mantém os painéis dos Supers consistentes sem precisar recarregar a página.
+    const intervalId = window.setInterval(atualizar, 3_000)
+    return () => window.clearInterval(intervalId)
   }, [tab])
 
   useEffect(() => {

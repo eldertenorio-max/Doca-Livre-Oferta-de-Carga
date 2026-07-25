@@ -704,33 +704,13 @@ export async function syncPortalAccounts(): Promise<PortalAccount[]> {
       (row) => row.role === 'super' || row.role === 'transportador',
     )
 
-    // Se o banco já tem contas, ele é a fonte da verdade
-    let merged: PortalAccount[] =
+    // Se o banco já tem contas, ele é a fonte da verdade.
+    // Não reincorpore contas que só existem no cache: outro Super pode tê-las
+    // excluído e o cache antigo acabaria recriando-as no próximo persist.
+    const merged: PortalAccount[] =
       remoteRows.length > 0
         ? remoteRows.map((row) => fromRemoteAccount(row))
         : [...local]
-
-    if (remoteRows.length > 0) {
-      for (const account of local) {
-        const existe = merged.some(
-          (item) =>
-            item.usuario.toLowerCase() === account.usuario.toLowerCase() ||
-            item.email.toLowerCase() === account.email.toLowerCase(),
-        )
-        if (!existe) merged.push(account)
-      }
-    } else {
-      for (const row of remoteRows) {
-        const idx = merged.findIndex(
-          (account) =>
-            account.usuario.toLowerCase() === row.usuario.toLowerCase() ||
-            account.email.toLowerCase() === row.email.toLowerCase(),
-        )
-        const account = fromRemoteAccount(row, idx >= 0 ? merged[idx] : undefined)
-        if (idx >= 0) merged[idx] = account
-        else merged.push(account)
-      }
-    }
 
     // Cadastros públicos: o login existe em profiles mesmo sem conta no portal
     for (const account of await accountsDeProfiles()) {
@@ -745,7 +725,8 @@ export async function syncPortalAccounts(): Promise<PortalAccount[]> {
 
     const normalized = normalizePortalList(merged)
     accountsCache = normalized
-    void persistPortalAccountsRemote(normalized)
+    // Sincronização é somente leitura. Gravar aqui permitiria que um aparelho
+    // com resposta/cache antigo recriasse uma conta excluída por outro Super.
     clearLegacyAccountKeys()
     return normalized
   } catch {
@@ -863,8 +844,18 @@ export async function removePortalAccountRemote(
       .map((row) => (row as { id?: string }).id)
       .filter((id): id is string => Boolean(id))
     if (ids.length > 0) {
-      const { error: deleteError } = await supabase.from('usuarios').delete().in('id', ids)
+      const { data: deleted, error: deleteError } = await supabase
+        .from('usuarios')
+        .delete()
+        .in('id', ids)
+        .select('id')
       if (deleteError) return { ok: false, erro: deleteError.message }
+      if (!deleted?.length) {
+        return {
+          ok: false,
+          erro: 'O banco não confirmou a exclusão (verifique a política RLS da tabela usuarios).',
+        }
+      }
     }
 
     // Um cadastro público em profiles não deve recriar a conta no próximo refresh.
