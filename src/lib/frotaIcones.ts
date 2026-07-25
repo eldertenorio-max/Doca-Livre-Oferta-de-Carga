@@ -67,12 +67,15 @@ function cavalo(x: number, top: number, w: number): string {
 }
 
 const SVG: Record<FrotaIconeGrupo, string> = {
-  // Todos com a frente à esquerda (mesmo sentido dos caminhões).
+  // Frente à esquerda (mesmo sentido dos caminhões).
+  // Passeio e van espelhados — silhueta original lia como “frente à direita”.
   passeio: svg(`
-    ${ground(44)}
-    <path d="M12 36v-2.8c0-4.2 2.2-7.6 6.8-9.4l7.2-1.5 6.8-8.4c1.2-1.5 3-2.3 5-2.3h22c2.1 0 4 .9 5.2 2.5l5.4 7.2 9.8 1.6c5.2 1.6 8.4 5.4 8.8 10.6V36z" fill="${C}"/>
-    <path d="M33.5 14.2 39.2 12h18.5l4.8 9.8H32.2z" fill="#fff"/>
-    ${wheel(30)}${wheel(88)}
+    <g transform="translate(120 0) scale(-1 1)">
+      ${ground(44)}
+      <path d="M12 36v-2.8c0-4.2 2.2-7.6 6.8-9.4l7.2-1.5 6.8-8.4c1.2-1.5 3-2.3 5-2.3h22c2.1 0 4 .9 5.2 2.5l5.4 7.2 9.8 1.6c5.2 1.6 8.4 5.4 8.8 10.6V36z" fill="${C}"/>
+      <path d="M33.5 14.2 39.2 12h18.5l4.8 9.8H32.2z" fill="#fff"/>
+      ${wheel(30)}${wheel(88)}
+    </g>
   `),
 
   utilitario: svg(`
@@ -90,10 +93,12 @@ const SVG: Record<FrotaIconeGrupo, string> = {
   `),
 
   van: svg(`
-    ${ground(46)}
-    <path d="M11 36V15.2c0-2.6 2.1-4.7 4.7-4.7h68.5c2.5 0 4.5 2 4.5 4.5V36z" fill="${C}"/>
-    <rect x="16.5" y="14.2" width="15" height="9.2" rx="1.3" fill="#fff"/>
-    ${wheel(28)}${wheel(84)}
+    <g transform="translate(120 0) scale(-1 1)">
+      ${ground(46)}
+      <path d="M11 36V15.2c0-2.6 2.1-4.7 4.7-4.7h68.5c2.5 0 4.5 2 4.5 4.5V36z" fill="${C}"/>
+      <rect x="16.5" y="14.2" width="15" height="9.2" rx="1.3" fill="#fff"/>
+      ${wheel(28)}${wheel(84)}
+    </g>
   `),
 
   hr: bauSvg(10, 12, 24, 14, 108, `${wheel(22, 5.8)}${wheel(92, 5.8)}`),
