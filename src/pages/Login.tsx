@@ -257,7 +257,7 @@ export function LoginPage() {
         ? step === 'codigo'
           ? 'Cole o código enviado para o seu e-mail'
           : step === 'dados'
-            ? 'Escolha usuário e senha. Apenas Super Usuário (Diego ou Elder).'
+            ? 'Escolha usuário e senha para o acesso de Embarcador.'
             : 'Informe o e-mail para receber o código de confirmação'
         : step === 'codigo'
           ? 'Cole o código enviado para o seu e-mail'
@@ -561,7 +561,7 @@ export function LoginPage() {
                 Quero ser transportador
               </Link>
               <button type="button" className="portal-login__link" onClick={() => goMode('cadastro')}>
-                Criar Super Usuário (Diego/Elder)
+                Cadastrar Embarcador
               </button>
               <button type="button" className="portal-login__link" onClick={() => goMode('senha')}>
                 Esqueci a senha
