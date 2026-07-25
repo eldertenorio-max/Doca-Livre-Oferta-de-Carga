@@ -179,6 +179,46 @@ function encaixarPopupNoMapa(map: L.Map, popup: L.Popup) {
   void map
 }
 
+function scrollDoPopup(map: L.Map): number {
+  const el = map.getContainer().querySelector('.leaflet-popup-content') as HTMLElement | null
+  return el?.scrollTop ?? 0
+}
+
+function restaurarScrollPopup(map: L.Map, scrollTop: number) {
+  const aplicar = () => {
+    const el = map.getContainer().querySelector('.leaflet-popup-content') as HTMLElement | null
+    if (el) el.scrollTop = scrollTop
+  }
+  aplicar()
+  window.requestAnimationFrame(aplicar)
+}
+
+/** Campos exibidos no pin/popup — evita recriar HTML se nada mudou. */
+function pontoUiKey(p: PontoFrota): string {
+  return [
+    p.id,
+    p.lat.toFixed(5),
+    p.lng.toFixed(5),
+    p.disponivel ? '1' : '0',
+    p.motoristaNome,
+    p.transportadorNome,
+    p.placa,
+    p.tipoVeiculo,
+    p.icone,
+    p.freteMinimo,
+    p.avaliacao,
+    p.totalAvaliacoes,
+    p.motoristaFoto ?? '',
+    p.motoristaTelefone ?? '',
+    p.motoristaCategoriaCnh ?? '',
+    p.veiculoMarca ?? '',
+    p.veiculoModelo ?? '',
+    p.cidade,
+    p.uf,
+    p.raioKm,
+  ].join('|')
+}
+
 export function MapaFrotaPage() {
   const { motoristas, veiculos, transportadores } = useData()
   const mapEl = useRef<HTMLDivElement>(null)
@@ -187,6 +227,7 @@ export function MapaFrotaPage() {
   const raioLayerRef = useRef<L.Circle | null>(null)
   const origemMarkerRef = useRef<L.Marker | null>(null)
   const markersRef = useRef<Map<string, L.Marker>>(new Map())
+  const markersUiRef = useRef<Map<string, string>>(new Map())
   /** Evita que pan/rebuild feche o popup e limpe a seleção na hora de abrir. */
   const ignorarFecharPopupRef = useRef(false)
   const clicarOrigemRef = useRef(false)
@@ -423,6 +464,7 @@ export function MapaFrotaPage() {
       raioLayerRef.current = null
       origemMarkerRef.current = null
       markersRef.current.clear()
+      markersUiRef.current.clear()
     }
   }, [])
 
@@ -441,10 +483,8 @@ export function MapaFrotaPage() {
     chaveFiltroAnteriorRef.current = chaveFiltro
 
     const idAberto = selecionadoRef.current
+    const scrollAberto = idAberto ? scrollDoPopup(map) : 0
     if (idAberto) ignorarFecharPopupRef.current = true
-
-    layer.clearLayers()
-    markersRef.current.clear()
 
     if (raioLayerRef.current) {
       map.removeLayer(raioLayerRef.current)
@@ -482,41 +522,20 @@ export function MapaFrotaPage() {
       }
     }
 
+    const idsVisiveis = new Set(filtrados.map((p) => p.id))
+    for (const [id, m] of markersRef.current) {
+      if (!idsVisiveis.has(id)) {
+        layer.removeLayer(m)
+        markersRef.current.delete(id)
+        markersUiRef.current.delete(id)
+      }
+    }
+
     const bounds: L.LatLngExpression[] = []
-    for (const p of filtrados) {
-      const m = L.marker([p.lat, p.lng], {
-        icon: makeIcon(p),
-        riseOnHover: true,
-        keyboard: true,
-        title: p.motoristaNome,
-      })
-      m.bindPopup(popupHtml(p), {
-        className: 'frota-leaflet-popup frota-leaflet-popup--below',
-        maxWidth: 320,
-        minWidth: 260,
-        offset: L.point(0, 8),
-        autoPan: false,
-        closeButton: true,
-        closeOnClick: true,
-      })
-      m.on('click', (e) => {
-        if (clicarOrigemRef.current) return
-        L.DomEvent.stopPropagation(e.originalEvent)
-        ignorarFecharPopupRef.current = true
-        setSelecionado(p.id)
-        m.openPopup()
-        const popup = m.getPopup()
-        if (popup) {
-          window.requestAnimationFrame(() => {
-            encaixarPopupNoMapa(map, popup)
-            window.setTimeout(() => {
-              ignorarFecharPopupRef.current = false
-            }, 100)
-          })
-        } else {
-          ignorarFecharPopupRef.current = false
-        }
-      })
+
+    function ligarPopup(m: L.Marker, p: PontoFrota) {
+      m.off('popupopen')
+      m.off('popupclose')
       m.on('popupopen', (e) => {
         const el = e.popup.getElement() ?? undefined
         ligarAcoesPopup(
@@ -531,24 +550,92 @@ export function MapaFrotaPage() {
         if (ignorarFecharPopupRef.current) return
         setSelecionado((cur) => (cur === p.id ? null : cur))
       })
-      m.addTo(layer)
-      markersRef.current.set(p.id, m)
+    }
+
+    for (const p of filtrados) {
+      const uiKey = pontoUiKey(p)
+      let m = markersRef.current.get(p.id)
+      const prevKey = markersUiRef.current.get(p.id)
+
+      if (!m) {
+        m = L.marker([p.lat, p.lng], {
+          icon: makeIcon(p),
+          riseOnHover: true,
+          keyboard: true,
+          title: p.motoristaNome,
+        })
+        m.bindPopup(popupHtml(p), {
+          className: 'frota-leaflet-popup frota-leaflet-popup--below',
+          maxWidth: 320,
+          minWidth: 260,
+          offset: L.point(0, 8),
+          autoPan: false,
+          closeButton: true,
+          closeOnClick: true,
+        })
+        m.on('click', (e) => {
+          if (clicarOrigemRef.current) return
+          L.DomEvent.stopPropagation(e.originalEvent)
+          ignorarFecharPopupRef.current = true
+          setSelecionado(p.id)
+          m!.openPopup()
+          const popup = m!.getPopup()
+          if (popup) {
+            window.requestAnimationFrame(() => {
+              encaixarPopupNoMapa(map, popup)
+              window.setTimeout(() => {
+                ignorarFecharPopupRef.current = false
+              }, 100)
+            })
+          } else {
+            ignorarFecharPopupRef.current = false
+          }
+        })
+        ligarPopup(m, p)
+        m.addTo(layer)
+        markersRef.current.set(p.id, m)
+        markersUiRef.current.set(p.id, uiKey)
+      } else if (prevKey !== uiKey) {
+        const popupAberto = m.isPopupOpen()
+        const scrollKeep = popupAberto ? scrollDoPopup(map) : 0
+        m.setLatLng([p.lat, p.lng])
+        m.setIcon(makeIcon(p))
+        m.setPopupContent(popupHtml(p))
+        ligarPopup(m, p)
+        markersUiRef.current.set(p.id, uiKey)
+        if (popupAberto) {
+          window.requestAnimationFrame(() => {
+            const popup = m!.getPopup()
+            if (popup) encaixarPopupNoMapa(map, popup)
+            restaurarScrollPopup(map, scrollKeep)
+          })
+        }
+      }
+
       bounds.push([p.lat, p.lng])
     }
 
     if (idAberto) {
       const keep = markersRef.current.get(idAberto)
       if (keep) {
-        window.setTimeout(() => {
-          keep.openPopup()
-          const popup = keep.getPopup()
-          if (popup) encaixarPopupNoMapa(map, popup)
+        if (!keep.isPopupOpen()) {
+          window.setTimeout(() => {
+            keep.openPopup()
+            const popup = keep.getPopup()
+            if (popup) encaixarPopupNoMapa(map, popup)
+            restaurarScrollPopup(map, scrollAberto)
+            ignorarFecharPopupRef.current = false
+          }, 0)
+        } else {
+          restaurarScrollPopup(map, scrollAberto)
           ignorarFecharPopupRef.current = false
-        }, 0)
+        }
       } else {
         setSelecionado(null)
         ignorarFecharPopupRef.current = false
       }
+    } else {
+      ignorarFecharPopupRef.current = false
     }
 
     const deveEnquadrar = filtrosMudaram || !enquadrouInicialRef.current
