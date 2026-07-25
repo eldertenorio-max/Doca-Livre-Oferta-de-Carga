@@ -1436,12 +1436,13 @@ export async function healPortalLoginAtivo(identificador: string): Promise<void>
   )
 
   // Também busca direto no banco (cache local pode estar desatualizado / incompleto)
+  const safe = id.replace(/[%_,()"]/g, '')
   const { data: remotosInativos } = await supabase
     .from('usuarios')
     .select('id, usuario, email, role, transportador_id, ativo')
     .eq('role', 'transportador')
     .eq('ativo', false)
-    .or(`usuario.ilike.${id},email.ilike.${id}`)
+    .or(`usuario.ilike."${safe}",email.ilike."${safe}"`)
 
   type Cand = {
     id: string
