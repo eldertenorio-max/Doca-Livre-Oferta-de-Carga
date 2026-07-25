@@ -113,36 +113,47 @@ export async function upsertVeiculoRemote(
     return { ok: true, id: v.id }
   }
   const id = isUuid(v.id) ? v.id : newVeiculoId()
+  // Nunca grava base64 na tabela — só URL (Storage) ou vazio
+  const limpo = veiculoParaSync({ ...v, id })
   const row = {
     id,
-    placa: v.placa,
-    transportador_id: v.transportador_id ?? null,
-    renavam: v.renavam ?? null,
-    condutor: v.condutor ?? null,
-    tipo: v.tipo,
-    marca: v.marca ?? null,
-    modelo: v.modelo ?? null,
-    cor: v.cor ?? null,
-    ano_fabricacao: v.ano_fabricacao ?? null,
-    ano_modelo: v.ano_modelo ?? null,
-    uf_licenciamento: v.uf_licenciamento ?? null,
-    foto_url: v.foto_url ?? null,
-    fotos: v.fotos ?? {},
-    tipo_carroceria: v.tipo_carroceria ?? null,
-    qtd_pallets: v.qtd_pallets ?? null,
-    aclimatacao: v.aclimatacao ?? null,
-    capacidade_kg: v.capacidade_kg ?? null,
-    cubagem_m3: v.cubagem_m3 ?? null,
-    eixos: v.eixos ?? null,
-    frete_minimo: v.frete_minimo ?? 0,
-    usa_manobrista: Boolean(v.usa_manobrista),
-    padiado: Boolean(v.padiado),
-    situacao: v.situacao,
-    disponivel_mapa: v.disponivel_mapa !== false,
-    updated_at: v.updated_at ?? new Date().toISOString(),
+    placa: limpo.placa,
+    transportador_id: limpo.transportador_id ?? null,
+    renavam: limpo.renavam ?? null,
+    condutor: limpo.condutor ?? null,
+    tipo: limpo.tipo || 'Outros',
+    marca: limpo.marca ?? null,
+    modelo: limpo.modelo ?? null,
+    cor: limpo.cor ?? null,
+    ano_fabricacao: limpo.ano_fabricacao ?? null,
+    ano_modelo: limpo.ano_modelo ?? null,
+    uf_licenciamento: limpo.uf_licenciamento ?? null,
+    foto_url: limpo.foto_url ?? null,
+    fotos: limpo.fotos ?? {},
+    tipo_carroceria: limpo.tipo_carroceria ?? null,
+    qtd_pallets: limpo.qtd_pallets ?? null,
+    aclimatacao: limpo.aclimatacao ?? null,
+    capacidade_kg: limpo.capacidade_kg ?? null,
+    cubagem_m3: limpo.cubagem_m3 ?? null,
+    eixos: limpo.eixos ?? null,
+    frete_minimo: limpo.frete_minimo ?? 0,
+    usa_manobrista: Boolean(limpo.usa_manobrista),
+    padiado: Boolean(limpo.padiado),
+    situacao: limpo.situacao,
+    disponivel_mapa: limpo.disponivel_mapa !== false,
+    updated_at: limpo.updated_at ?? new Date().toISOString(),
   }
   const { error } = await supabase.from('veiculos').upsert(row)
-  if (error) return { ok: false, erro: error.message }
+  if (error) {
+    // Coluna updated_at pode ainda não existir — tenta sem ela
+    if (/updated_at/i.test(error.message)) {
+      const { updated_at: _u, ...semUpdated } = row
+      const retry = await supabase.from('veiculos').upsert(semUpdated)
+      if (retry.error) return { ok: false, erro: retry.error.message }
+      return { ok: true, id }
+    }
+    return { ok: false, erro: error.message }
+  }
   return { ok: true, id }
 }
 
