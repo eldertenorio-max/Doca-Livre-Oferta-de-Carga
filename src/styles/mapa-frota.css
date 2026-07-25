@@ -748,6 +748,7 @@
   max-height: min(320px, 42dvh);
   overflow: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 /* Leaflet posiciona o card acima do tip; forçamos abaixo do pin */
