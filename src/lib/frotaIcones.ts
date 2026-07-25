@@ -87,9 +87,10 @@ const SVG: Record<FrotaIconeGrupo, string> = {
 
   fiorino: svg(`
     ${ground(44)}
-    <path d="M12 36V24.8c0-4.6 2.6-7.8 7.2-9.2l6.4-.9c2.2-3.2 5.4-4.9 9.6-4.9h4.2c1.5 0 2.8.7 3.6 1.9l4.2 5.6H100c2 0 3.2 1.6 3.2 3.6V36z" fill="${C}"/>
-    <path d="M32.6 12.2c2.2-1.4 4.6-2.1 7.6-2.1h2.4l3.8 5.4H31z" fill="#fff"/>
-    ${wheel(28)}${wheel(90)}
+    <rect x="50" y="8.5" width="56" height="27.5" rx="1.6" fill="${C}"/>
+    <path d="M11 36V25.2c0-1.3 1-2.4 2.3-2.6l9.2-1.8 6.5-8.8c.8-1.1 2.1-1.7 3.4-1.7H50V36z" fill="${C}"/>
+    <path d="M30.8 13.2 36.2 11.8h10.2v10.2H29.2z" fill="#fff"/>
+    ${wheel(26, 5.6)}${wheel(88, 5.6)}
   `),
 
   van: svg(`
