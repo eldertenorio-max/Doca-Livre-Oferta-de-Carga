@@ -499,9 +499,10 @@ export function PortalConfigPage() {
           </header>
           <div className="form-card__body">
             <p className="portal-login__hint" style={{ marginBottom: 12 }}>
-              Clique em <strong>Editar</strong> para alterar qualquer campo (incluindo perfil Super →
-              Transportador), depois em <strong>Salvar</strong>. Exclusão só da própria sessão é
-              bloqueada.
+              Clique em <strong>Editar</strong> para alterar qualquer campo, depois em{' '}
+              <strong>Salvar</strong>. Contas <strong>inativas</strong> ou <strong>sem senha</strong>{' '}
+              não entram no login. Campos em amarelo precisam de atenção (senha vazia / e-mail
+              incompleto). Duplicatas de Super (Diego/Elder) são unificadas automaticamente.
             </p>
             <div className="cadastro-table-wrap cadastro-table-wrap--scroll">
               <table className="cadastro-table">
@@ -540,8 +541,8 @@ export function PortalConfigPage() {
                         <td>
                           <input
                             className="cadastro-input"
-                            style={{ minWidth: 120 }}
                             value={row.nome || ''}
+                            title={row.nome || ''}
                             disabled={!editing}
                             onChange={(e) => patchDraft({ nome: e.target.value })}
                           />
@@ -557,8 +558,8 @@ export function PortalConfigPage() {
                         <td>
                           <input
                             className="cadastro-input"
-                            style={{ minWidth: 110 }}
                             value={row.usuario}
+                            title={row.usuario}
                             disabled={!editing}
                             onChange={(e) => patchDraft({ usuario: e.target.value })}
                             autoComplete="off"
@@ -566,10 +567,17 @@ export function PortalConfigPage() {
                         </td>
                         <td>
                           <input
-                            className="cadastro-input"
-                            style={{ minWidth: 110 }}
+                            className={`cadastro-input${
+                              !(row.password || '').trim() ? ' cadastro-input--warn' : ''
+                            }`}
                             type="text"
                             value={row.password}
+                            title={
+                              !(row.password || '').trim()
+                                ? 'Senha vazia — defina uma senha antes de ativar o login'
+                                : row.password
+                            }
+                            placeholder="definir senha"
                             disabled={!editing}
                             onChange={(e) => patchDraft({ password: e.target.value })}
                             autoComplete="off"
@@ -577,10 +585,14 @@ export function PortalConfigPage() {
                         </td>
                         <td>
                           <input
-                            className="cadastro-input"
-                            style={{ minWidth: 160 }}
+                            className={`cadastro-input${
+                              !(row.email || '').includes('@') || (row.email || '').endsWith('.')
+                                ? ' cadastro-input--warn'
+                                : ''
+                            }`}
                             type="email"
                             value={row.email}
+                            title={row.email}
                             disabled={!editing}
                             onChange={(e) => patchDraft({ email: e.target.value })}
                             autoComplete="off"

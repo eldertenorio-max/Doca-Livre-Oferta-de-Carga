@@ -139,6 +139,7 @@
 
 .cadastro-table {
   width: 100%;
+  min-width: 1100px;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 0.9rem;
@@ -159,6 +160,32 @@
   position: sticky;
   top: 0;
   z-index: 2;
+}
+
+.cadastro-table .cadastro-input {
+  min-width: 0;
+  width: 100%;
+  font-size: 0.82rem;
+  padding: 8px 10px;
+}
+
+.cadastro-table td:nth-child(1) .cadastro-input,
+.cadastro-table td:nth-child(2) .cadastro-input,
+.cadastro-table td:nth-child(3) .cadastro-input {
+  min-width: 130px;
+}
+
+.cadastro-table td:nth-child(4) .cadastro-input {
+  min-width: 220px;
+}
+
+.cadastro-table td:nth-child(6) .cadastro-input {
+  min-width: 160px;
+}
+
+.cadastro-table .cadastro-input--warn {
+  border-color: #f59e0b;
+  background: #fffbeb;
 }
 
 .cadastro-table td {
