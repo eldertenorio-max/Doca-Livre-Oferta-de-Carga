@@ -66,6 +66,12 @@ export type CadastroTransportadorInput = {
     data_url: string
     file?: File
   }>
+  /** Logo da empresa ou foto do responsável (opcional). */
+  logo?: {
+    nome_arquivo: string
+    data_url: string
+    file?: File
+  } | null
 }
 
 function uid(prefix: string) {
@@ -181,6 +187,7 @@ export function cadastrarTransportadorLocal(
     email: input.empresa.email || input.acesso.email.trim(),
     contato_nome: input.empresa.contato_nome,
     contato_telefone: input.empresa.contato_telefone,
+    logo_url: input.logo?.data_url || undefined,
     created_at: now,
   }
 
@@ -261,6 +268,7 @@ const COLUNAS_OPCIONAIS_TRANSPORTADOR = [
   'cep',
   'contato_nome',
   'contato_telefone',
+  'logo_url',
   'motivo_recusa',
 ] as const
 
@@ -469,6 +477,31 @@ export async function cadastrarTransportadorRemoto(
     return { ok: false, erro: 'Falha ao salvar transportadora.' }
   }
 
+  // Logo / foto de perfil (opcional)
+  if (input.logo?.data_url) {
+    const ext =
+      input.logo.file?.type?.split('/')[1]?.replace('jpeg', 'jpg') ||
+      (input.logo.nome_arquivo.match(/\.(jpe?g|png|webp)$/i)?.[1] ?? 'jpg')
+    const path = `${tRow.id}/logo.${ext}`
+    const blob = input.logo.file ?? (await (await fetch(input.logo.data_url)).blob())
+    const { error: logoErr } = await supabase.storage
+      .from('documentos-transportadores')
+      .upload(path, blob, { upsert: true, contentType: blob.type || 'image/jpeg' })
+    if (!logoErr) {
+      const { data: pub } = supabase.storage.from('documentos-transportadores').getPublicUrl(path)
+      const logoUrl = pub.publicUrl
+      const logoUp = await upsertTransportadorComFallback(
+        'update',
+        { logo_url: logoUrl },
+        String(tRow.id),
+      )
+      if (logoUp.ok) tRow = logoUp.row
+      else tRow = { ...tRow, logo_url: logoUrl }
+    } else {
+      console.warn('[cadastro] falha ao subir logo:', logoErr.message)
+    }
+  }
+
   await supabase
     .from('profiles')
     .update({
@@ -572,6 +605,7 @@ export async function cadastrarTransportadorRemoto(
     email: tRow.email ?? undefined,
     contato_nome: tRow.contato_nome ?? undefined,
     contato_telefone: tRow.contato_telefone ?? undefined,
+    logo_url: (tRow.logo_url as string | null) ?? undefined,
     created_at: tRow.created_at,
   }
 
@@ -660,6 +694,7 @@ function mapTransportadorRow(row: Record<string, unknown>): Transportador {
     email: (row.email as string | null) ?? undefined,
     contato_nome: (row.contato_nome as string | null) ?? undefined,
     contato_telefone: (row.contato_telefone as string | null) ?? undefined,
+    logo_url: (row.logo_url as string | null) ?? undefined,
     motivo_recusa: (row.motivo_recusa as string | null) ?? undefined,
     created_at: (row.created_at as string | null) ?? undefined,
   }

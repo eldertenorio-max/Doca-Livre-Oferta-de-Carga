@@ -310,11 +310,27 @@ export function TransportadoresPage() {
         <button type="button" className="cadastro-back" onClick={() => setMode('lista')}>
           ← Voltar para Lista
         </button>
-        <h1 className="cadastro-page-title">
-          {ficha.nome_fantasia}
-          <span style={{ marginLeft: 12, fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>
-            {ficha.classificacao} · {ficha.pontuacao} pts
-            {pos > 0 ? ` · ${pos}º` : ''}
+        <h1 className="cadastro-page-title" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {ficha.logo_url ? (
+            <img
+              src={ficha.logo_url}
+              alt=""
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: '50%',
+                objectFit: 'cover',
+                border: '2px solid #f9db00',
+                flexShrink: 0,
+              }}
+            />
+          ) : null}
+          <span>
+            {ficha.nome_fantasia}
+            <span style={{ marginLeft: 12, fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>
+              {ficha.classificacao} · {ficha.pontuacao} pts
+              {pos > 0 ? ` · ${pos}º` : ''}
+            </span>
           </span>
         </h1>
 

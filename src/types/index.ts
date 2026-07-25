@@ -112,6 +112,8 @@ export interface Transportador {
   email?: string
   contato_nome?: string
   contato_telefone?: string
+  /** Logo da empresa ou foto do responsável (aparece no perfil). */
+  logo_url?: string
   motivo_recusa?: string
   created_at?: string
 }

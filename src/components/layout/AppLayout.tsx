@@ -144,6 +144,7 @@ export function AppLayout() {
     marcarNotificacaoLida,
     marcarTodasNotificacoesLidas,
     actingTransportadorId,
+    transportadores,
   } = useData()
   const navigate = useNavigate()
   /** Fixado expandido pelos 3 riscos; senão só ícones e hover abre temporário */
@@ -252,6 +253,12 @@ export function AppLayout() {
     actingTransportadorId ||
     (user?.role === 'transportador' ? user.transportador_id : null) ||
     null
+
+  const avatarFotoUrl = useMemo(() => {
+    if (!topbarTransportadorId) return null
+    const t = (transportadores ?? []).find((x) => x.id === topbarTransportadorId)
+    return t?.logo_url?.trim() || null
+  }, [topbarTransportadorId, transportadores])
 
   const minhasNotifs = useMemo(() => {
     if (!user) return []
@@ -439,7 +446,11 @@ export function AppLayout() {
               <span>{roleLabel}</span>
             </div>
             <span className="app-topbar-avatar" aria-hidden>
-              <span className="app-topbar-avatar-iniciais">{iniciais(user?.nome ?? 'DL')}</span>
+              {avatarFotoUrl ? (
+                <img src={avatarFotoUrl} alt="" className="app-topbar-avatar-img" />
+              ) : (
+                <span className="app-topbar-avatar-iniciais">{iniciais(user?.nome ?? 'DL')}</span>
+              )}
             </span>
           </div>
 

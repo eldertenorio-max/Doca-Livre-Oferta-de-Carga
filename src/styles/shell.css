@@ -198,6 +198,13 @@
   justify-content: center;
 }
 
+.app-topbar-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .app-topbar-avatar-iniciais {
   display: flex;
   align-items: center;

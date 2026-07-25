@@ -15,6 +15,7 @@ import {
   isAcceptedDocFile,
   openLocalDocumento,
 } from '../lib/transportadorDocs'
+import { isAcceptedImageFile } from '../lib/veiculoFotos'
 import type { TipoDocumentoTransportador } from '../types'
 import { CnpjInput } from '../components/ui/CnpjInput'
 import { cnpjDigits, formatCnpj, isValidCnpj } from '../lib/cnpj'
@@ -99,6 +100,11 @@ export function CadastroTransportadorPage() {
   const ultimoCepOrigem = useRef('')
 
   const [docs, setDocs] = useState<DocState>({})
+  const [logo, setLogo] = useState<{
+    nome_arquivo: string
+    data_url: string
+    file?: File
+  } | null>(null)
   const [acesso, setAcesso] = useState({
     usuario: '',
     email: '',
@@ -468,6 +474,7 @@ export function CadastroTransportadorPage() {
           },
         ]
       }),
+      logo,
     })
     setLoading(false)
     if (!result.ok) {
@@ -538,6 +545,60 @@ export function CadastroTransportadorPage() {
                   Endereço abaixo é o da empresa (CNPJ). Sua residência fica em &quot;Cadastre sua
                   origem&quot;.
                 </p>
+
+                <div className="cadastro-logo">
+                  <div className="cadastro-logo__preview" aria-hidden>
+                    {logo ? (
+                      <img src={logo.data_url} alt="" />
+                    ) : (
+                      <span>Sem foto</span>
+                    )}
+                  </div>
+                  <div className="cadastro-logo__meta">
+                    <strong>Logo ou foto de perfil</strong>
+                    <span>
+                      Envie a logo da empresa. Se não tiver, use uma foto sua — ela aparece no
+                      perfil após o login.
+                    </span>
+                    <div className="cadastro-logo__actions">
+                      <label className="cadastro-btn cadastro-btn--ghost cadastro-logo__btn">
+                        {logo ? 'Trocar imagem' : 'Escolher imagem'}
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                          hidden
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            e.target.value = ''
+                            if (!file) return
+                            if (!isAcceptedImageFile(file)) {
+                              setError('Use JPG, PNG ou WEBP para a logo/foto.')
+                              return
+                            }
+                            if (file.size > 4 * 1024 * 1024) {
+                              setError('A imagem deve ter no máximo 4 MB.')
+                              return
+                            }
+                            setError('')
+                            void fileToDataUrl(file).then((data_url) => {
+                              setLogo({ nome_arquivo: file.name, data_url, file })
+                            })
+                          }}
+                        />
+                      </label>
+                      {logo && (
+                        <button
+                          type="button"
+                          className="cadastro-btn cadastro-btn--ghost cadastro-logo__btn cadastro-logo__btn--danger"
+                          onClick={() => setLogo(null)}
+                        >
+                          Remover
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 <div className="form-fields">
                   <Field label="CNPJ" required>
                     <CnpjInput
