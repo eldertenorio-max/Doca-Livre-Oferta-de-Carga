@@ -644,7 +644,7 @@ export function AppLayout() {
             <strong>Foto de perfil</strong>
             <span>
               {podeEditarLogo
-                ? 'Adicione a logo da empresa ou uma foto sua: clique no avatar no canto superior direito. Ela aparece no seu perfil após o login.'
+                ? 'Adicione a logo da empresa ou uma foto sua: clique no avatar no canto superior direito. Ela aparece no login do sistema, no perfil e no mapa da frota.'
                 : 'Transportadores podem adicionar logo ou foto no avatar (canto superior direito) ou na edição da transportadora. A imagem vira o perfil no login.'}
             </span>
           </div>
