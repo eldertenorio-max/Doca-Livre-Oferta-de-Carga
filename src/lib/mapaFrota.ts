@@ -252,7 +252,7 @@ export function distanciaKm(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
-/** Pontos no mapa: motorista ativo + veículo + origem do transportador. */
+/** Pontos no mapa: motorista+placa OU placa cadastrada na transportadora (sem motorista ainda). */
 export function montarPontosFrota(
   motoristas: Motorista[],
   veiculos: Veiculo[],
@@ -261,6 +261,7 @@ export function montarPontosFrota(
   const veiculoById = new Map(veiculos.map((v) => [v.id, v]))
   const transpById = new Map(transportadores.map((t) => [t.id, t]))
   const pontos: PontoFrota[] = []
+  const veiculosComMotorista = new Set<string>()
 
   for (const m of motoristas) {
     if (m.situacao !== 'ativo') continue
@@ -277,6 +278,7 @@ export function montarPontosFrota(
     const av = avaliacaoDoMotorista(m)
     const cidade = (t.origem_cidade || t.cidade || '').trim()
     const uf = (t.origem_uf || t.uf || '').trim().toUpperCase()
+    veiculosComMotorista.add(v.id)
     pontos.push({
       id: `${m.id}-${v.id}`,
       motoristaId: m.id,
@@ -306,6 +308,44 @@ export function montarPontosFrota(
     })
   }
 
-  // Pins na coordenada real — empilhados no mapa abrem (spiderfy) ao clicar
+  // Placas cadastradas na empresa ainda sem motorista vinculado
+  for (const v of veiculos) {
+    if (veiculosComMotorista.has(v.id)) continue
+    if (v.situacao !== 'ativo' || !v.transportador_id) continue
+    const t = transpById.get(v.transportador_id)
+    if (!t || t.situacao !== 'ativo') continue
+    const lat = t.origem_lat
+    const lng = t.origem_lng
+    if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) continue
+    const { grupo, emoji } = classificarIconeVeiculo(v.tipo)
+    const cidade = (t.origem_cidade || t.cidade || '').trim()
+    const uf = (t.origem_uf || t.uf || '').trim().toUpperCase()
+    const nome = (v.condutor || '').trim() || v.placa
+    pontos.push({
+      id: `veic-${v.id}`,
+      motoristaId: '',
+      motoristaNome: nome,
+      motoristaTelefone: t.telefone || t.contato_telefone,
+      avaliacao: 0,
+      totalAvaliacoes: 0,
+      transportadorId: t.id,
+      transportadorNome: t.nome_fantasia,
+      veiculoId: v.id,
+      placa: v.placa,
+      tipoVeiculo: v.tipo,
+      veiculoMarca: v.marca,
+      veiculoModelo: v.modelo,
+      freteMinimo: Number(v.frete_minimo) || 0,
+      lat,
+      lng,
+      disponivel: v.disponivel_mapa !== false,
+      icone: grupo,
+      emoji,
+      cidade,
+      uf,
+      raioKm: Number(t.raio_km) || 0,
+    })
+  }
+
   return pontos
 }

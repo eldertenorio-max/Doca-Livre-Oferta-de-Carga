@@ -62,7 +62,9 @@ import {
   getPermissaoUsuario,
   loadPortalAccounts,
   removePortalAccountsPorTransportador,
+  savePortalAccounts,
   setPortalAccountAtivoPorTransportador,
+  vincularContasAosTransportadores,
 } from '../lib/portalAuth'
 import {
   carregarTransportadoresDoSupabase,
@@ -1122,7 +1124,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const login = useCallback((identificador: string, password: string) => {
     const result = portalLoginLocal(identificador, password)
     if (!result.ok) return { ok: false, error: result.erro }
-    const { account, isSuperuser, permissoes } = result
+    let { account, isSuperuser, permissoes } = result
+
+    // Garante vínculo conta ↔ transportadora (ex.: Ultrafrio sem transportador_id)
+    if (account.role === 'transportador' && !account.transportador_id) {
+      const linked = vincularContasAosTransportadores(
+        loadPortalAccounts(),
+        stateRef.current.transportadores ?? [],
+      )
+      const found = linked.find((a) => a.id === account.id)
+      if (found?.transportador_id) {
+        savePortalAccounts(linked)
+        account = found
+      }
+    }
+
     const role =
       isSuperuser || account.role === 'super'
         ? ('super' as const)
@@ -1147,7 +1163,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const refreshPermissoes = useCallback(() => {
     setUser((prev) => {
       if (!prev) return prev
-      const accounts = loadPortalAccounts()
+      const before = loadPortalAccounts()
+      const accounts = vincularContasAosTransportadores(
+        before,
+        stateRef.current.transportadores ?? [],
+      )
+      const mudouVinculo = accounts.some((a) => {
+        const old = before.find((b) => b.id === a.id)
+        return old?.transportador_id !== a.transportador_id
+      })
+      if (mudouVinculo) savePortalAccounts(accounts)
       const account = accounts.find(
         (a) =>
           a.id === prev.id ||
@@ -1160,7 +1185,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         isLocalSuperUser(account.usuario) ||
         isLocalSuperUser(account.email)
       const perms = getPermissaoUsuario(account)
-      // Conta demo / portal sempre manda no vínculo; evita sessão antiga sem transportador_id
       const transportador_id =
         account.transportador_id !== undefined && account.transportador_id !== null
           ? account.transportador_id
@@ -3002,11 +3026,67 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setState((prev) => {
       const list = prev.veiculos ?? []
       const exists = list.some((x) => x.id === v.id)
-      return {
-        ...prev,
-        veiculos: exists ? list.map((x) => (x.id === v.id ? v : x)) : [...list, v],
+      let veiculos = exists ? list.map((x) => (x.id === v.id ? v : x)) : [...list, v]
+
+      // Vincula o motorista escolhido como Condutor à placa + transportadora
+      let motoristas = prev.motoristas ?? []
+      const nomeCondutor = (v.condutor || '').trim().toLowerCase()
+      if (nomeCondutor) {
+        const idx = motoristas.findIndex((m) => (m.nome || '').trim().toLowerCase() === nomeCondutor)
+        if (idx >= 0) {
+          const m = motoristas[idx]
+          const atualizado = {
+            ...m,
+            veiculo_id: v.id,
+            transportador_id: v.transportador_id,
+            autonomo: !v.transportador_id,
+          }
+          motoristas = motoristas.map((x, i) => {
+            if (i === idx) return atualizado
+            // Libera a placa de outros motoristas
+            if (x.veiculo_id === v.id) return { ...x, veiculo_id: null }
+            return x
+          })
+        }
       }
+
+      return { ...prev, veiculos, motoristas }
     })
+
+    // Persiste no Supabase quando o id for UUID (cadastros remotos)
+    if (
+      isSupabaseConfigured &&
+      supabase &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v.id)
+    ) {
+      void supabase.from('veiculos').upsert({
+        id: v.id,
+        placa: v.placa,
+        transportador_id: v.transportador_id,
+        renavam: v.renavam ?? null,
+        condutor: v.condutor ?? null,
+        tipo: v.tipo,
+        marca: v.marca ?? null,
+        modelo: v.modelo ?? null,
+        cor: v.cor ?? null,
+        ano_fabricacao: v.ano_fabricacao ?? null,
+        ano_modelo: v.ano_modelo ?? null,
+        uf_licenciamento: v.uf_licenciamento ?? null,
+        foto_url: v.foto_url ?? null,
+        fotos: v.fotos ?? {},
+        tipo_carroceria: v.tipo_carroceria ?? null,
+        qtd_pallets: v.qtd_pallets ?? null,
+        aclimatacao: v.aclimatacao ?? null,
+        capacidade_kg: v.capacidade_kg ?? null,
+        cubagem_m3: v.cubagem_m3 ?? null,
+        eixos: v.eixos ?? null,
+        frete_minimo: v.frete_minimo ?? 0,
+        usa_manobrista: Boolean(v.usa_manobrista),
+        padiado: Boolean(v.padiado),
+        situacao: v.situacao,
+        disponivel_mapa: v.disponivel_mapa !== false,
+      })
+    }
   }, [])
 
   const excluirVeiculo = useCallback((id: string) => {

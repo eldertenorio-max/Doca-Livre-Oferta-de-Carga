@@ -722,11 +722,12 @@ export async function ensureContasTransportadores(
   }>,
 ): Promise<PortalAccount[]> {
   const list = await syncPortalAccounts()
+  const linked = vincularContasAosTransportadores(list, transportadores)
   const comConta = new Set(
-    list.map((a) => a.transportador_id).filter((id): id is string => Boolean(id)),
+    linked.map((a) => a.transportador_id).filter((id): id is string => Boolean(id)),
   )
-  const logins = new Set(list.map((a) => a.usuario.toLowerCase()))
-  const emails = new Set(list.map((a) => a.email.toLowerCase()))
+  const logins = new Set(linked.map((a) => a.usuario.toLowerCase()))
+  const emails = new Set(linked.map((a) => a.email.toLowerCase()))
 
   const novas: PortalAccount[] = []
   for (const t of transportadores) {
@@ -758,11 +759,72 @@ export async function ensureContasTransportadores(
     })
   }
 
-  if (novas.length === 0) return list
-  const next = normalizePortalList([...list, ...novas])
-  savePortalAccountsLocal(next)
-  void persistPortalAccountsRemote(next)
+  const next = normalizePortalList([...linked, ...novas])
+  const same =
+    next.length === list.length &&
+    next.every((a, i) => {
+      const b = list[i]
+      return (
+        b &&
+        a.id === b.id &&
+        a.transportador_id === b.transportador_id &&
+        a.usuario === b.usuario &&
+        a.ativo === b.ativo
+      )
+    })
+  if (same) return list
+  savePortalAccounts(next)
   return next
+}
+
+/**
+ * Associa contas de transportador sem empresa (ou com id inválido)
+ * ao cadastro de transportadoras pelo e-mail / nome / login.
+ */
+export function vincularContasAosTransportadores(
+  accounts: PortalAccount[],
+  transportadores: Array<{
+    id: string
+    nome_fantasia?: string
+    razao_social?: string
+    email?: string
+    cnpj?: string
+  }>,
+): PortalAccount[] {
+  if (!transportadores.length) return accounts
+  const existentes = new Set(transportadores.map((t) => t.id))
+
+  return accounts.map((a) => {
+    if (a.role !== 'transportador') return a
+    if (a.transportador_id && existentes.has(a.transportador_id)) return a
+
+    const email = normId(a.email)
+    const nomeSlug = slugLogin(a.nome || '')
+    const userSlug = slugLogin(a.usuario || '')
+    const emailLocal = slugLogin((a.email || '').split('@')[0] || '')
+    const emailDomain = slugLogin((a.email || '').split('@')[1] || '')
+
+    const match = transportadores.find((t) => {
+      const tEmail = normId(t.email || '')
+      if (tEmail && email && tEmail === email) return true
+      const tNome = slugLogin(t.nome_fantasia || '')
+      const tRazao = slugLogin(t.razao_social || '')
+      if (!tNome && !tRazao) return false
+      if (nomeSlug && (nomeSlug === tNome || nomeSlug === tRazao)) return true
+      if (userSlug && (userSlug === tNome || userSlug === tRazao)) return true
+      // Domínio do e-mail contém o nome da empresa (ex.: @ultrafriolog… → ULTRAFRIO LOG)
+      if (tNome.length >= 5 && (emailDomain.includes(tNome) || tNome.includes(emailDomain.replace(/com.*$/, '').slice(0, 10)))) {
+        return true
+      }
+      if (tNome.length >= 5 && (emailLocal.includes(tNome) || nomeSlug.includes(tNome) || userSlug.includes(tNome))) {
+        return true
+      }
+      return false
+    })
+
+    if (!match) return a
+    return { ...a, transportador_id: match.id }
+  })
 }
 
 export async function removePortalAccountRemote(account: PortalAccount) {
