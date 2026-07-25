@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useData } from './context/DataContext'
 import { AppLayout } from './components/layout/AppLayout'
 import { CompanySplash } from './components/CompanySplash'
@@ -24,6 +24,12 @@ import { PushEnableBanner } from './components/PushEnableBanner'
 import { isSuperSession } from './lib/superUsers'
 import type { UserRole } from './types'
 
+function MinervaToEmbarcadorRedirect() {
+  const location = useLocation()
+  const next = location.pathname.replace(/^\/minerva/, '/embarcador') + location.search + location.hash
+  return <Navigate to={next} replace />
+}
+
 function Protected({ role, children }: { role?: UserRole | UserRole[]; children: React.ReactNode }) {
   const { user } = useData()
   if (!user) return <Navigate to="/login" replace />
@@ -33,7 +39,7 @@ function Protected({ role, children }: { role?: UserRole | UserRole[]; children:
   if (role) {
     const roles = Array.isArray(role) ? role : [role]
     if (!roles.includes(user.role)) {
-      return <Navigate to={user.role === 'transportador' ? '/transportador' : '/minerva'} replace />
+      return <Navigate to={user.role === 'transportador' ? '/transportador' : '/embarcador'} replace />
     }
   }
   return children
@@ -65,7 +71,7 @@ export default function App() {
         }
       >
         <Route
-          path="/minerva"
+          path="/embarcador"
           element={
             <Protected role={['super']}>
               <KanbanMinerva />
@@ -73,7 +79,7 @@ export default function App() {
           }
         />
         <Route
-          path="/minerva/rotas"
+          path="/embarcador/rotas"
           element={
             <Protected role={['super']}>
               <RotasPage />
@@ -81,7 +87,7 @@ export default function App() {
           }
         />
         <Route
-          path="/minerva/transportadores"
+          path="/embarcador/transportadores"
           element={
             <Protected role={['super']}>
               <TransportadoresPage />
@@ -89,7 +95,7 @@ export default function App() {
           }
         />
         <Route
-          path="/minerva/veiculos"
+          path="/embarcador/veiculos"
           element={
             <Protected role={['super', 'transportador']}>
               <VeiculosPage />
@@ -97,7 +103,7 @@ export default function App() {
           }
         />
         <Route
-          path="/minerva/motoristas"
+          path="/embarcador/motoristas"
           element={
             <Protected role={['super', 'transportador']}>
               <MotoristasPage />
@@ -105,7 +111,7 @@ export default function App() {
           }
         />
         <Route
-          path="/minerva/mapa-frota"
+          path="/embarcador/mapa-frota"
           element={
             <Protected role={['super']}>
               <MapaFrotaPage />
@@ -113,7 +119,7 @@ export default function App() {
           }
         />
         <Route
-          path="/minerva/grupos"
+          path="/embarcador/grupos"
           element={
             <Protected role={['super']}>
               <GruposPage />
@@ -121,7 +127,7 @@ export default function App() {
           }
         />
         <Route
-          path="/minerva/indicadores"
+          path="/embarcador/indicadores"
           element={
             <Protected role={['super']}>
               <IndicadoresPage />
@@ -129,7 +135,7 @@ export default function App() {
           }
         />
         <Route
-          path="/minerva/configuracoes"
+          path="/embarcador/configuracoes"
           element={
             <Protected role={['super']}>
               <ConfiguracoesPage />
@@ -137,7 +143,7 @@ export default function App() {
           }
         />
         <Route
-          path="/minerva/historico"
+          path="/embarcador/historico"
           element={
             <Protected role={['super']}>
               <HistoricoPage />
@@ -145,7 +151,7 @@ export default function App() {
           }
         />
         <Route
-          path="/minerva/financeiro"
+          path="/embarcador/financeiro"
           element={
             <Protected role={['super']}>
               <FinanceiroPage />
@@ -153,13 +159,16 @@ export default function App() {
           }
         />
         <Route
-          path="/minerva/config"
+          path="/embarcador/config"
           element={
             <Protected>
               <PortalConfigPage />
             </Protected>
           }
         />
+        {/* Links antigos /minerva/* → /embarcador/* */}
+        <Route path="/minerva/*" element={<MinervaToEmbarcadorRedirect />} />
+        <Route path="/minerva" element={<Navigate to="/embarcador" replace />} />
         <Route
           path="/transportador"
           element={

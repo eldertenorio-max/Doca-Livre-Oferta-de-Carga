@@ -101,18 +101,18 @@ function IconWallet() {
 }
 
 const minervaLinks: NavItem[] = [
-  { to: '/minerva', label: 'Kanban Cargas', icon: <IconGrid />, end: true },
-  { to: '/minerva/mapa-frota', label: 'Mapa da Frota', icon: <IconMap /> },
-  { to: '/minerva/rotas', label: 'Rotas', icon: <IconMap /> },
-  { to: '/minerva/transportadores', label: 'Transportadoras', icon: <IconUsers /> },
-  { to: '/minerva/veiculos', label: 'Veículos', icon: <IconTruck /> },
-  { to: '/minerva/motoristas', label: 'Motoristas', icon: <IconUsers /> },
-  { to: '/minerva/grupos', label: 'Grupos', icon: <IconGroups /> },
-  { to: '/minerva/indicadores', label: 'Indicadores', icon: <IconChart /> },
-  { to: '/minerva/financeiro', label: 'Financeiro', icon: <IconWallet /> },
-  { to: '/minerva/configuracoes', label: 'Configurações', icon: <IconShield /> },
-  { to: '/minerva/historico', label: 'Histórico', icon: <IconChart /> },
-  { to: '/minerva/config', label: 'Portal / Permissões', icon: <IconShield /> },
+  { to: '/embarcador', label: 'Kanban Cargas', icon: <IconGrid />, end: true },
+  { to: '/embarcador/mapa-frota', label: 'Mapa da Frota', icon: <IconMap /> },
+  { to: '/embarcador/rotas', label: 'Rotas', icon: <IconMap /> },
+  { to: '/embarcador/transportadores', label: 'Transportadoras', icon: <IconUsers /> },
+  { to: '/embarcador/veiculos', label: 'Veículos', icon: <IconTruck /> },
+  { to: '/embarcador/motoristas', label: 'Motoristas', icon: <IconUsers /> },
+  { to: '/embarcador/grupos', label: 'Grupos', icon: <IconGroups /> },
+  { to: '/embarcador/indicadores', label: 'Indicadores', icon: <IconChart /> },
+  { to: '/embarcador/financeiro', label: 'Financeiro', icon: <IconWallet /> },
+  { to: '/embarcador/configuracoes', label: 'Configurações', icon: <IconShield /> },
+  { to: '/embarcador/historico', label: 'Histórico', icon: <IconChart /> },
+  { to: '/embarcador/config', label: 'Portal / Permissões', icon: <IconShield /> },
 ]
 
 const transportadorLinks: NavItem[] = [

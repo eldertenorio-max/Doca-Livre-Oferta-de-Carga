@@ -391,7 +391,7 @@ function notifCadastroPendente(t: {
     mensagem: cnpj
       ? `${t.nome_fantasia} (${cnpj}) aguarda revisão na fila de transportadoras.`
       : `${t.nome_fantasia} aguarda revisão na fila de transportadoras.`,
-    href: '/minerva/transportadores?filtro=pendentes',
+    href: '/embarcador/transportadores?filtro=pendentes',
     chave: `cadastro-pendente:${t.id}`,
   }
 }

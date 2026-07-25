@@ -276,7 +276,7 @@ export function CadastroTransportadorPage() {
   if (user) {
     return (
       <Navigate
-        to={user.role === 'transportador' ? '/transportador' : '/minerva'}
+        to={user.role === 'transportador' ? '/transportador' : '/embarcador'}
         replace
       />
     )

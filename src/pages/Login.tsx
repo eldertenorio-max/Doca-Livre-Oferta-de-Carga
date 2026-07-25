@@ -62,7 +62,7 @@ export function LoginPage() {
     const dest =
       user.role === 'transportador'
         ? '/transportador'
-        : '/minerva'
+        : '/embarcador'
     return <Navigate to={dest} replace />
   }
 

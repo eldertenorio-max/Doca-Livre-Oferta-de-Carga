@@ -97,7 +97,7 @@ export function TransportadoresPage() {
     void refreshTransportadores()
   }, [refreshTransportadores])
 
-  // Sininho → /minerva/transportadores?filtro=pendentes
+  // Sininho → /embarcador/transportadores?filtro=pendentes
   useEffect(() => {
     const f = searchParams.get('filtro')
     if (f === 'pendentes' || f === 'ativos' || f === 'recusados' || f === 'inativos' || f === 'todos') {

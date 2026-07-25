@@ -345,7 +345,7 @@ export interface NotificacaoInApp {
   titulo: string
   mensagem: string
   carga_id?: string | null
-  /** Navegação ao clicar no sininho (ex.: /minerva/transportadores?filtro=pendentes) */
+  /** Navegação ao clicar no sininho (ex.: /embarcador/transportadores?filtro=pendentes) */
   href?: string | null
   /** Chave estável para não duplicar (ex.: cadastro-pendente:t123) */
   chave?: string | null

@@ -98,24 +98,22 @@ export function canEditModulo(
 
 /** Mapeia rota → módulo */
 export function moduloFromPath(pathname: string): OfertaModuloId | null {
-  if (pathname.startsWith('/minerva/rotas')) return 'rotas'
-  if (pathname.startsWith('/minerva/transportadores')) return 'transportadoras'
-  if (pathname.startsWith('/minerva/veiculos') || pathname.startsWith('/transportador/veiculos'))
+  const p = pathname.replace(/^\/minerva(?=\/|$)/, '/embarcador')
+  if (p.startsWith('/embarcador/rotas')) return 'rotas'
+  if (p.startsWith('/embarcador/transportadores')) return 'transportadoras'
+  if (p.startsWith('/embarcador/veiculos') || p.startsWith('/transportador/veiculos'))
     return 'veiculos'
-  if (
-    pathname.startsWith('/minerva/motoristas') ||
-    pathname.startsWith('/transportador/motoristas')
-  )
+  if (p.startsWith('/embarcador/motoristas') || p.startsWith('/transportador/motoristas'))
     return 'motoristas'
-  if (pathname.startsWith('/minerva/mapa-frota')) return 'mapa_frota'
-  if (pathname.startsWith('/minerva/grupos')) return 'grupos'
-  if (pathname.startsWith('/minerva/indicadores')) return 'indicadores'
-  if (pathname.startsWith('/minerva/configuracoes')) return 'configuracoes'
-  if (pathname.startsWith('/minerva/historico')) return 'historico'
-  if (pathname.startsWith('/minerva/hierarquia')) return 'hierarquia'
-  if (pathname.startsWith('/minerva/permissoes') || pathname.startsWith('/minerva/config'))
+  if (p.startsWith('/embarcador/mapa-frota')) return 'mapa_frota'
+  if (p.startsWith('/embarcador/grupos')) return 'grupos'
+  if (p.startsWith('/embarcador/indicadores')) return 'indicadores'
+  if (p.startsWith('/embarcador/configuracoes')) return 'configuracoes'
+  if (p.startsWith('/embarcador/historico')) return 'historico'
+  if (p.startsWith('/embarcador/hierarquia')) return 'hierarquia'
+  if (p.startsWith('/embarcador/permissoes') || p.startsWith('/embarcador/config'))
     return 'permissoes'
-  if (pathname === '/minerva' || pathname.startsWith('/minerva/')) return 'kanban'
-  if (pathname.startsWith('/transportador')) return 'kanban_transportador'
+  if (p === '/embarcador' || p.startsWith('/embarcador/')) return 'kanban'
+  if (p.startsWith('/transportador')) return 'kanban_transportador'
   return null
 }
