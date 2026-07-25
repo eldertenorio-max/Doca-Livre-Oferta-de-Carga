@@ -558,7 +558,7 @@ export function CadastroTransportadorPage() {
                     <strong>Logo ou foto de perfil</strong>
                     <span>
                       Envie a logo da empresa. Se não tiver, use uma foto sua — ela aparece no
-                      perfil após o login.
+                      login do sistema, no perfil e no mapa da frota.
                     </span>
                     <div className="cadastro-logo__actions">
                       <label className="cadastro-btn cadastro-btn--ghost cadastro-logo__btn">

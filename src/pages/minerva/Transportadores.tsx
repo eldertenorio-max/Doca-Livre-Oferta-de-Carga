@@ -1017,6 +1017,7 @@ export function TransportadoresPage() {
               <p style={{ margin: '0 0 8px', fontSize: 13, color: '#64748b' }}>
                 A imagem enviada aqui vira o avatar do transportador quando ele fizer login.
                 Use a logo da empresa ou uma foto do responsável (JPG, PNG ou WEBP, até 4 MB).
+                Ela aparece no login do sistema, no perfil e no mapa da frota.
               </p>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <button
