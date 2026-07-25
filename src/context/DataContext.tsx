@@ -3096,11 +3096,71 @@ export function DataProvider({ children }: { children: ReactNode }) {
         .eq('transportador_id', id)
 
       // Fonte da verdade do login do portal: usuarios.ativo
-      // Sem isto, o transportador continua vendo "aguardando aprovação".
-      await supabase
-        .from('usuarios')
-        .update({ ativo: situacao === 'ativo', updated_at: new Date().toISOString() })
-        .eq('transportador_id', id)
+      // Atualiza por transportador_id E por e-mail (cadastros com vínculo incompleto).
+      const liberar = situacao === 'ativo'
+      let email = (stateRef.current.transportadores.find((t) => t.id === id)?.email || '')
+        .trim()
+        .toLowerCase()
+      if (!email) {
+        const { data: tRow } = await supabase
+          .from('transportadores')
+          .select('email')
+          .eq('id', id)
+          .maybeSingle()
+        email = String((tRow as { email?: string } | null)?.email || '')
+          .trim()
+          .toLowerCase()
+      }
+
+      const marcarUsuariosAtivo = async () => {
+        const aplicar = async (filtro: {
+          column: 'transportador_id' | 'email'
+          value: string
+        }) => {
+          const base = { ativo: liberar, updated_at: new Date().toISOString() }
+          let q =
+            filtro.column === 'transportador_id'
+              ? supabase.from('usuarios').update(base).eq('transportador_id', filtro.value)
+              : supabase.from('usuarios').update(base).ilike('email', filtro.value)
+          let { data, error } = await q.select('id')
+          if (error && /updated_at/i.test(error.message)) {
+            const sem = { ativo: liberar }
+            q =
+              filtro.column === 'transportador_id'
+                ? supabase.from('usuarios').update(sem).eq('transportador_id', filtro.value)
+                : supabase.from('usuarios').update(sem).ilike('email', filtro.value)
+            ;({ data, error } = await q.select('id'))
+          }
+          return { data, error }
+        }
+
+        let { data, error } = await aplicar({ column: 'transportador_id', value: id })
+        if (error) {
+          console.warn('[aprovacao] falha ao atualizar usuarios.ativo:', error.message)
+          return false
+        }
+        if ((!data || data.length === 0) && email) {
+          ;({ data, error } = await aplicar({ column: 'email', value: email }))
+          if (error) {
+            console.warn('[aprovacao] falha ao atualizar usuarios por email:', error.message)
+            return false
+          }
+        }
+        if (!data?.length) {
+          console.warn('[aprovacao] nenhum usuario atualizado para transportador', id)
+          return false
+        }
+        return true
+      }
+
+      const okUsuarios = await marcarUsuariosAtivo()
+      if (!okUsuarios && liberar) {
+        return {
+          ok: false,
+          error:
+            'Transportadora aprovada, mas o login (usuarios.ativo) não liberou. Tente de novo ou ative a conta em Portal / Usuários.',
+        }
+      }
 
       return { ok: true }
     },

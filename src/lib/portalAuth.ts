@@ -1363,6 +1363,76 @@ export function setPortalAccountAtivoPorTransportador(
   )
 }
 
+/**
+ * Se a transportadora já está `ativo` no banco mas `usuarios.ativo` ficou false
+ * (aprovação antiga / falha silenciosa), libera o login automaticamente.
+ */
+export async function healPortalLoginAtivo(identificador: string): Promise<void> {
+  if (!isSupabaseConfigured || !supabase) return
+  const users = loadPortalAccounts()
+  const candidatos = findAccountsByIdentificador(users, identificador).filter(
+    (u) => u.role === 'transportador' && !u.ativo,
+  )
+  if (candidatos.length === 0) return
+
+  for (const account of candidatos) {
+    let situacao: string | null = null
+    let tid = account.transportador_id || null
+
+    if (tid) {
+      const { data } = await supabase
+        .from('transportadores')
+        .select('id, situacao')
+        .eq('id', tid)
+        .maybeSingle()
+      situacao = (data as { situacao?: string } | null)?.situacao ?? null
+    }
+
+    if (situacao !== 'ativo' && account.email) {
+      const { data } = await supabase
+        .from('transportadores')
+        .select('id, situacao')
+        .ilike('email', account.email.trim())
+        .maybeSingle()
+      const row = data as { id?: string; situacao?: string } | null
+      if (row?.situacao === 'ativo') {
+        situacao = 'ativo'
+        tid = row.id ?? tid
+      }
+    }
+
+    if (situacao !== 'ativo') continue
+
+    const patch = { ativo: true, updated_at: new Date().toISOString() }
+    let upd = await supabase
+      .from('usuarios')
+      .update(patch)
+      .ilike('email', account.email.trim())
+      .select('id')
+    if (upd.error && /updated_at/i.test(upd.error.message)) {
+      upd = await supabase
+        .from('usuarios')
+        .update({ ativo: true })
+        .ilike('email', account.email.trim())
+        .select('id')
+    }
+    if (tid) {
+      await supabase.from('usuarios').update({ ativo: true }).eq('transportador_id', tid)
+      setPortalAccountAtivoPorTransportador(tid, true)
+    } else {
+      const next = loadPortalAccounts().map((u) =>
+        u.id === account.id || normId(u.email) === normId(account.email)
+          ? { ...u, ativo: true }
+          : u,
+      )
+      savePortalAccounts(next)
+    }
+  }
+
+  // Recarrega cache do banco (já com ativo=true)
+  await syncPortalAccounts()
+}
+
 /** Remove contas de portal vinculadas à transportadora. */
 export function removePortalAccountsPorTransportador(transportadorId: string): void {
   const users = loadPortalAccounts()

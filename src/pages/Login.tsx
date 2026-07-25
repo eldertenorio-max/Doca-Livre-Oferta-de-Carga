@@ -12,7 +12,7 @@ import {
   portalSenhaRedefinir,
   portalSenhaVerificarCodigo,
 } from '../lib/portalApi'
-import { DEMO_TRANSPORTADORES, syncPortalAccounts } from '../lib/portalAuth'
+import { DEMO_TRANSPORTADORES, healPortalLoginAtivo, syncPortalAccounts } from '../lib/portalAuth'
 import '../styles/login.css'
 import '../styles/shell.css'
 
@@ -95,6 +95,7 @@ export function LoginPage() {
     setLoading(true)
     try {
       await syncPortalAccounts()
+      await healPortalLoginAtivo(usuario.trim())
     } catch {
       /* login local continua mesmo se o sync falhar */
     }
