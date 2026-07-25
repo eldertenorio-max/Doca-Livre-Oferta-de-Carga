@@ -619,6 +619,63 @@ export async function cadastrarTransportadorRemoto(
   }
 }
 
+/** Atualiza ou remove a logo/foto de perfil do transportador (Storage + tabela). */
+export async function atualizarLogoTransportadorRemoto(
+  transportadorId: string,
+  file: File | null,
+): Promise<{ ok: true; logo_url: string | null } | { ok: false; erro: string }> {
+  if (!transportadorId) return { ok: false, erro: 'Transportador inválido.' }
+
+  // Remover
+  if (!file) {
+    if (isSupabaseConfigured && supabase) {
+      const paths = ['jpg', 'jpeg', 'png', 'webp'].map((ext) => `${transportadorId}/logo.${ext}`)
+      await supabase.storage.from('documentos-transportadores').remove(paths)
+      const up = await upsertTransportadorComFallback('update', { logo_url: null }, transportadorId)
+      if (!up.ok) return { ok: false, erro: up.erro }
+    }
+    return { ok: true, logo_url: null }
+  }
+
+  if (file.size > 4 * 1024 * 1024) {
+    return { ok: false, erro: 'A imagem deve ter no máximo 4 MB.' }
+  }
+
+  const ext =
+    file.type?.split('/')[1]?.replace('jpeg', 'jpg') ||
+    (file.name.match(/\.(jpe?g|png|webp)$/i)?.[1] ?? 'jpg')
+
+  if (!isSupabaseConfigured || !supabase) {
+    // Fallback local: data URL
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result))
+      reader.onerror = () => reject(new Error('Falha ao ler imagem'))
+      reader.readAsDataURL(file)
+    })
+    return { ok: true, logo_url: dataUrl }
+  }
+
+  const path = `${transportadorId}/logo.${ext}`
+  const { error: upErr } = await supabase.storage
+    .from('documentos-transportadores')
+    .upload(path, file, { upsert: true, contentType: file.type || 'image/jpeg' })
+  if (upErr) return { ok: false, erro: `Falha no upload: ${upErr.message}` }
+
+  const { data: pub } = supabase.storage.from('documentos-transportadores').getPublicUrl(path)
+  // Cache-bust para o navegador trocar a imagem na hora
+  const logoUrl = `${pub.publicUrl}${pub.publicUrl.includes('?') ? '&' : '?'}v=${Date.now()}`
+
+  const logoUp = await upsertTransportadorComFallback(
+    'update',
+    { logo_url: logoUrl },
+    transportadorId,
+  )
+  if (!logoUp.ok) return { ok: false, erro: logoUp.erro }
+
+  return { ok: true, logo_url: logoUrl }
+}
+
 /** URL para abrir documento (assinada se houver path no Storage; senão usa url salva). */
 export async function urlDocumentoTransportador(
   doc: Pick<TransportadorDocumento, 'url' | 'storage_path'>,

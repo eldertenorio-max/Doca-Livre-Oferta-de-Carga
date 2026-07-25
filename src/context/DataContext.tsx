@@ -70,6 +70,7 @@ import {
   vincularContasAosTransportadores,
 } from '../lib/portalAuth'
 import {
+  atualizarLogoTransportadorRemoto,
   carregarTransportadoresDoSupabase,
   submeterCadastroTransportador,
   type CadastroTransportadorInput,
@@ -205,6 +206,11 @@ interface DataContextValue extends DataState, AuthState {
   notificarTodosGrupos: (cargaId: string) => void
   salvarGrupo: (grupo: GrupoTransportador) => void
   salvarTransportador: (t: Transportador) => void
+  /** Envia, troca ou remove logo/foto do transportador (file=null remove). */
+  atualizarLogoTransportador: (
+    transportadorId: string,
+    file: File | null,
+  ) => Promise<{ ok: boolean; error?: string }>
   excluirTransportador: (id: string) => Promise<{ ok: boolean; error?: string }>
   vinculosTransportador: (id: string) => {
     placas: string[]
@@ -2714,6 +2720,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const atualizarLogoTransportador = useCallback(
+    async (transportadorId: string, file: File | null) => {
+      const atual = stateRef.current.transportadores.find((t) => t.id === transportadorId)
+      if (!atual) return { ok: false, error: 'Transportador não encontrado.' }
+      const result = await atualizarLogoTransportadorRemoto(transportadorId, file)
+      if (!result.ok) return { ok: false, error: result.erro }
+      const next: Transportador = {
+        ...atual,
+        logo_url: result.logo_url || undefined,
+      }
+      setState((prev) => ({
+        ...prev,
+        transportadores: prev.transportadores.map((t) =>
+          t.id === transportadorId ? next : t,
+        ),
+      }))
+      return { ok: true }
+    },
+    [],
+  )
+
   const setDisponivelMapaVeiculo = useCallback(
     async (veiculoId: string, disponivel: boolean) => {
       const atual = stateRef.current.veiculos.find((x) => x.id === veiculoId)
@@ -3794,6 +3821,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       notificarTodosGrupos,
       salvarGrupo,
       salvarTransportador,
+      atualizarLogoTransportador,
       setDisponivelMapa,
       setDisponivelMapaVeiculo,
       excluirTransportador,
@@ -3860,6 +3888,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       notificarTodosGrupos,
       salvarGrupo,
       salvarTransportador,
+      atualizarLogoTransportador,
       setDisponivelMapa,
       setDisponivelMapaVeiculo,
       excluirTransportador,

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
+import { isAcceptedImageFile } from '../../lib/veiculoFotos'
 import { ProductMark } from '../ProductMark'
 import { ChatModal } from '../carga/ChatModal'
 import { DisponibilidadeMapaFlag } from '../transportador/DisponibilidadeMapaFlag'
@@ -145,6 +146,7 @@ export function AppLayout() {
     marcarTodasNotificacoesLidas,
     actingTransportadorId,
     transportadores,
+    atualizarLogoTransportador,
   } = useData()
   const navigate = useNavigate()
   /** Fixado expandido pelos 3 riscos; senão só ícones e hover abre temporário */
@@ -160,6 +162,11 @@ export function AppLayout() {
   const [notifOpen, setNotifOpen] = useState(false)
   const [chatCargaId, setChatCargaId] = useState<string | null>(null)
   const notifWrapRef = useRef<HTMLDivElement>(null)
+  const [avatarMenuOpen, setAvatarMenuOpen] = useState(false)
+  const [avatarBusy, setAvatarBusy] = useState(false)
+  const [avatarErro, setAvatarErro] = useState('')
+  const avatarWrapRef = useRef<HTMLDivElement>(null)
+  const avatarFileRef = useRef<HTMLInputElement>(null)
 
   function clearHoverTimer() {
     if (hoverTimerRef.current != null) {
@@ -242,6 +249,24 @@ export function AppLayout() {
     }
   }, [notifOpen])
 
+  useEffect(() => {
+    if (!avatarMenuOpen) return
+    function onPointerDown(e: MouseEvent) {
+      if (!avatarWrapRef.current?.contains(e.target as Node)) {
+        setAvatarMenuOpen(false)
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setAvatarMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [avatarMenuOpen])
+
   const chatCarga = useMemo(
     () => (chatCargaId ? (cargas ?? []).find((c) => c.id === chatCargaId) ?? null : null),
     [chatCargaId, cargas],
@@ -259,6 +284,42 @@ export function AppLayout() {
     const t = (transportadores ?? []).find((x) => x.id === topbarTransportadorId)
     return t?.logo_url?.trim() || null
   }, [topbarTransportadorId, transportadores])
+
+  const podeEditarLogo = Boolean(topbarTransportadorId)
+
+  async function onEscolherLogo(file: File | null) {
+    if (!topbarTransportadorId || !file) return
+    if (!isAcceptedImageFile(file)) {
+      setAvatarErro('Use JPG, PNG ou WEBP.')
+      return
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      setAvatarErro('A imagem deve ter no máximo 4 MB.')
+      return
+    }
+    setAvatarErro('')
+    setAvatarBusy(true)
+    const res = await atualizarLogoTransportador(topbarTransportadorId, file)
+    setAvatarBusy(false)
+    if (!res.ok) {
+      setAvatarErro(res.error ?? 'Falha ao salvar a logo.')
+      return
+    }
+    setAvatarMenuOpen(false)
+  }
+
+  async function onRemoverLogo() {
+    if (!topbarTransportadorId) return
+    setAvatarErro('')
+    setAvatarBusy(true)
+    const res = await atualizarLogoTransportador(topbarTransportadorId, null)
+    setAvatarBusy(false)
+    if (!res.ok) {
+      setAvatarErro(res.error ?? 'Falha ao remover a logo.')
+      return
+    }
+    setAvatarMenuOpen(false)
+  }
 
   const minhasNotifs = useMemo(() => {
     if (!user) return []
@@ -440,18 +501,93 @@ export function AppLayout() {
             <span className="app-topbar-meta-version">v1.0</span>
           </div>
 
-          <div className="app-topbar-user" role="group" aria-label="Usuário">
-            <div className="app-topbar-user-text">
-              <strong>{user?.nome ?? 'Doca Livre'}</strong>
-              <span>{roleLabel}</span>
-            </div>
-            <span className="app-topbar-avatar" aria-hidden>
-              {avatarFotoUrl ? (
-                <img src={avatarFotoUrl} alt="" className="app-topbar-avatar-img" />
-              ) : (
-                <span className="app-topbar-avatar-iniciais">{iniciais(user?.nome ?? 'DL')}</span>
-              )}
-            </span>
+          <div
+            className="app-topbar-user-wrap"
+            ref={avatarWrapRef}
+            role="group"
+            aria-label="Usuário"
+          >
+            <button
+              type="button"
+              className="app-topbar-user"
+              aria-haspopup={podeEditarLogo ? 'menu' : undefined}
+              aria-expanded={podeEditarLogo ? avatarMenuOpen : undefined}
+              title={podeEditarLogo ? 'Logo / foto de perfil' : undefined}
+              onClick={() => {
+                if (!podeEditarLogo) return
+                setAvatarErro('')
+                setAvatarMenuOpen((o) => !o)
+              }}
+            >
+              <div className="app-topbar-user-text">
+                <strong>{user?.nome ?? 'Doca Livre'}</strong>
+                <span>{roleLabel}</span>
+              </div>
+              <span className="app-topbar-avatar" aria-hidden>
+                {avatarFotoUrl ? (
+                  <img src={avatarFotoUrl} alt="" className="app-topbar-avatar-img" />
+                ) : (
+                  <span className="app-topbar-avatar-iniciais">
+                    {iniciais(user?.nome ?? 'DL')}
+                  </span>
+                )}
+              </span>
+            </button>
+
+            {podeEditarLogo && avatarMenuOpen ? (
+              <div className="app-topbar-avatar-menu" role="menu">
+                <div className="app-topbar-avatar-menu__preview" aria-hidden>
+                  {avatarFotoUrl ? (
+                    <img src={avatarFotoUrl} alt="" />
+                  ) : (
+                    <span>{iniciais(user?.nome ?? 'DL')}</span>
+                  )}
+                </div>
+                <p className="app-topbar-avatar-menu__hint">
+                  Logo da empresa ou foto sua. Aparece no perfil.
+                </p>
+                {avatarErro ? (
+                  <p className="app-topbar-avatar-menu__erro" role="alert">
+                    {avatarErro}
+                  </p>
+                ) : null}
+                <input
+                  ref={avatarFileRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                  hidden
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null
+                    e.target.value = ''
+                    void onEscolherLogo(file)
+                  }}
+                />
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="app-topbar-avatar-menu__btn"
+                  disabled={avatarBusy}
+                  onClick={() => avatarFileRef.current?.click()}
+                >
+                  {avatarBusy
+                    ? 'Salvando…'
+                    : avatarFotoUrl
+                      ? 'Trocar logo / foto'
+                      : 'Enviar logo / foto'}
+                </button>
+                {avatarFotoUrl ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="app-topbar-avatar-menu__btn app-topbar-avatar-menu__btn--danger"
+                    disabled={avatarBusy}
+                    onClick={() => void onRemoverLogo()}
+                  >
+                    Excluir imagem
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           <button
