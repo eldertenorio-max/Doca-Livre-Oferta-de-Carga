@@ -10,6 +10,7 @@ import {
   savePortalAccounts,
   loadPermissoesMap,
   savePermissoesMap,
+  subscribePortalAccounts,
   syncPortalAccounts,
   type PortalAccount,
 } from '../../lib/portalAuth'
@@ -50,18 +51,13 @@ export function PortalConfigPage() {
   const transportadoresRef = useRef(transportadores)
   transportadoresRef.current = transportadores
 
-  // Ao abrir Usuários: junta contas do Supabase e garante login de cada transportadora
+  // Ao abrir Usuários: junta contas do Supabase e atualiza em tempo real entre Supers
   useEffect(() => {
     if (tab !== 'usuarios') return
-    const atualizar = () => {
-      void syncPortalAccounts().then(setAccounts)
-    }
-    atualizar()
     void ensureContasTransportadores(transportadoresRef.current ?? []).then(setAccounts)
     void hydratePermissoesMap().then(setPerms)
-    // Mantém os painéis dos Supers consistentes sem precisar recarregar a página.
-    const intervalId = window.setInterval(atualizar, 3_000)
-    return () => window.clearInterval(intervalId)
+    const unsub = subscribePortalAccounts(setAccounts)
+    return () => unsub()
   }, [tab])
 
   useEffect(() => {

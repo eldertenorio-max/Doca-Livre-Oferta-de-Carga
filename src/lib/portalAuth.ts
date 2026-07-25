@@ -632,6 +632,7 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
         await supabase.from('usuarios').insert(row)
       }
     }
+    void broadcastPortalAccountsChanged('upsert')
   } catch {
     // O modo local continua funcionando se a tabela/política ainda não foi instalada.
   }
@@ -865,9 +866,150 @@ export async function removePortalAccountRemote(
       .eq('email', account.email.trim().toLowerCase())
     if (profileError) return { ok: false, erro: profileError.message }
 
+    void broadcastPortalAccountsChanged('delete')
     return { ok: true }
   } catch {
     return { ok: false, erro: 'Não foi possível concluir a exclusão no servidor.' }
+  }
+}
+
+const PORTAL_ACCOUNTS_CHANNEL = 'portal-usuarios-live'
+const PORTAL_ACCOUNTS_BROADCAST = 'portal_accounts_changed'
+
+let portalAccountsChannel: ReturnType<NonNullable<typeof supabase>['channel']> | null = null
+let portalAccountsListeners = new Set<(list: PortalAccount[]) => void>()
+let portalAccountsPollId: number | null = null
+let portalAccountsClientId =
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `portal-${Math.random().toString(36).slice(2)}`
+
+async function notifyPortalAccountsListeners() {
+  if (portalAccountsListeners.size === 0) return
+  const list = await syncPortalAccounts()
+  for (const cb of portalAccountsListeners) {
+    try {
+      cb(list)
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+/** Avisa outros aparelhos (Supers) que a lista de contas mudou. */
+export async function broadcastPortalAccountsChanged(
+  reason: 'delete' | 'upsert' | 'sync' = 'sync',
+) {
+  if (!isSupabaseConfigured || !supabase) return
+  const client = supabase
+  const payload = {
+    client_id: portalAccountsClientId,
+    reason,
+    at: Date.now(),
+  }
+
+  // Canal já inscrito (algum Super na tela Usuários)
+  if (portalAccountsChannel) {
+    try {
+      await portalAccountsChannel.send({
+        type: 'broadcast',
+        event: PORTAL_ACCOUNTS_BROADCAST,
+        payload,
+      })
+      return
+    } catch {
+      /* tenta canal efêmero abaixo */
+    }
+  }
+
+  const ch = client.channel(`${PORTAL_ACCOUNTS_CHANNEL}-tx-${Date.now()}`)
+  await new Promise<void>((resolve) => {
+    const t = window.setTimeout(() => resolve(), 1500)
+    ch.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        window.clearTimeout(t)
+        resolve()
+      }
+    })
+  })
+  try {
+    await ch.send({
+      type: 'broadcast',
+      event: PORTAL_ACCOUNTS_BROADCAST,
+      payload,
+    })
+  } catch {
+    /* broadcast opcional */
+  }
+  void client.removeChannel(ch)
+}
+
+/**
+ * Escuta exclusões/alterações em `usuarios` em tempo real e re-sincroniza a lista.
+ * Retorna função para cancelar a inscrição.
+ */
+export function subscribePortalAccounts(
+  onChange: (list: PortalAccount[]) => void,
+): () => void {
+  portalAccountsListeners.add(onChange)
+
+  if (!isSupabaseConfigured || !supabase) {
+    if (portalAccountsPollId == null) {
+      portalAccountsPollId = window.setInterval(() => {
+        const list = loadPortalAccounts()
+        for (const cb of portalAccountsListeners) cb(list)
+      }, 5_000)
+    }
+    onChange(loadPortalAccounts())
+    return () => {
+      portalAccountsListeners.delete(onChange)
+      if (portalAccountsListeners.size === 0 && portalAccountsPollId != null) {
+        window.clearInterval(portalAccountsPollId)
+        portalAccountsPollId = null
+      }
+    }
+  }
+
+  const client = supabase
+
+  if (!portalAccountsChannel) {
+    portalAccountsChannel = client
+      .channel(PORTAL_ACCOUNTS_CHANNEL, {
+        config: { broadcast: { self: false } },
+      })
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'usuarios' },
+        () => {
+          void notifyPortalAccountsListeners()
+        },
+      )
+      .on('broadcast', { event: PORTAL_ACCOUNTS_BROADCAST }, ({ payload }) => {
+        const p = payload as { client_id?: string } | null
+        if (p?.client_id && p.client_id === portalAccountsClientId) return
+        void notifyPortalAccountsListeners()
+      })
+      .subscribe()
+
+    // Backup caso Realtime não esteja habilitado na tabela
+    portalAccountsPollId = window.setInterval(() => {
+      void notifyPortalAccountsListeners()
+    }, 8_000)
+  }
+
+  void notifyPortalAccountsListeners()
+
+  return () => {
+    portalAccountsListeners.delete(onChange)
+    if (portalAccountsListeners.size > 0) return
+    if (portalAccountsPollId != null) {
+      window.clearInterval(portalAccountsPollId)
+      portalAccountsPollId = null
+    }
+    if (portalAccountsChannel) {
+      void client.removeChannel(portalAccountsChannel)
+      portalAccountsChannel = null
+    }
   }
 }
 
