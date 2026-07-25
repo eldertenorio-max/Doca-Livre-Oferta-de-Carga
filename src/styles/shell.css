@@ -83,6 +83,7 @@
   align-items: center;
   gap: 12px;
   min-width: 0;
+  flex-shrink: 1;
 }
 
 .app-topbar-logo {
@@ -92,11 +93,16 @@
   max-width: min(220px, 42vw);
   object-fit: contain;
   object-position: left center;
+  flex-shrink: 0;
 }
 
 .app-topbar-wms,
 .product-mark {
-  display: inline-block;
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 0.28em;
   white-space: nowrap;
   line-height: 1.05;
   font-family: 'Segoe UI', system-ui, sans-serif;
@@ -104,6 +110,11 @@
   font-weight: 800;
   letter-spacing: -0.02em;
   color: #000000;
+  flex-shrink: 0;
+}
+
+.product-mark__line {
+  display: inline;
 }
 
 .product-mark--lg {
@@ -652,16 +663,33 @@ a.sidebar-section:first-of-type {
   }
 
   .app-topbar-brand {
-    gap: 8px;
+    gap: 6px;
+    min-width: 0;
   }
 
   .app-topbar-logo {
-    height: 28px;
-    max-width: min(140px, 34vw);
+    height: 26px;
+    max-width: 72px;
   }
 
-  /* Evita sobreposição logo × ações */
+  /* Mostra "Oferta de carga" completo em 2 linhas — sem cortar */
   .app-topbar-wms,
+  .app-topbar-brand .product-mark {
+    display: inline-flex !important;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    white-space: normal;
+    font-size: 0.68rem;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    flex-shrink: 0;
+  }
+
+  .app-topbar-brand .product-mark__line {
+    display: block;
+  }
+
   .app-topbar-user-text,
   .app-topbar-meta {
     display: none !important;
@@ -801,8 +829,12 @@ a.sidebar-section:first-of-type {
 
 @media (max-width: 480px) {
   .app-topbar-logo {
-    max-width: min(112px, 28vw);
-    height: 26px;
+    max-width: 64px;
+    height: 24px;
+  }
+
+  .app-topbar-brand .product-mark {
+    font-size: 0.64rem;
   }
 
   .app-topbar-logout {

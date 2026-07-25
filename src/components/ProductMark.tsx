@@ -5,14 +5,15 @@ type Props = {
   size?: 'sm' | 'md' | 'lg'
 }
 
-/** Marca do produto: "Oferta de carga" em um único texto. */
+/** Marca do produto: "Oferta de carga" (duas linhas no mobile para não cortar). */
 export function ProductMark({ className = '', size = 'md' }: Props) {
   return (
     <strong
       className={`product-mark product-mark--${size} ${className}`.trim()}
       aria-label={BRAND_PRODUCT_LABEL}
     >
-      {BRAND_PRODUCT_LABEL}
+      <span className="product-mark__line">Oferta de</span>
+      <span className="product-mark__line">carga</span>
     </strong>
   )
 }
