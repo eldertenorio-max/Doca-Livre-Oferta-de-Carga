@@ -279,6 +279,12 @@ export function montarPontosFrota(
     const cidade = (t.origem_cidade || t.cidade || '').trim()
     const uf = (t.origem_uf || t.uf || '').trim().toUpperCase()
     veiculosComMotorista.add(v.id)
+    // Foto: motorista → logo/foto da transportadora → foto do veículo
+    const fotoPerfil =
+      (m.foto_url || '').trim() ||
+      (t.logo_url || '').trim() ||
+      (v.foto_url || v.fotos?.dianteira || '').trim() ||
+      undefined
     pontos.push({
       id: `${m.id}-${v.id}`,
       motoristaId: m.id,
@@ -286,7 +292,7 @@ export function montarPontosFrota(
       motoristaTelefone: m.telefone,
       motoristaCnh: m.cnh,
       motoristaCategoriaCnh: m.categoria_cnh,
-      motoristaFoto: m.foto_url,
+      motoristaFoto: fotoPerfil,
       avaliacao: av.nota,
       totalAvaliacoes: av.total,
       transportadorId: t.id,
@@ -321,11 +327,16 @@ export function montarPontosFrota(
     const cidade = (t.origem_cidade || t.cidade || '').trim()
     const uf = (t.origem_uf || t.uf || '').trim().toUpperCase()
     const nome = (v.condutor || '').trim() || v.placa
+    const fotoPerfil =
+      (t.logo_url || '').trim() ||
+      (v.foto_url || v.fotos?.dianteira || '').trim() ||
+      undefined
     pontos.push({
       id: `veic-${v.id}`,
       motoristaId: '',
       motoristaNome: nome,
       motoristaTelefone: t.telefone || t.contato_telefone,
+      motoristaFoto: fotoPerfil,
       avaliacao: 0,
       totalAvaliacoes: 0,
       transportadorId: t.id,
