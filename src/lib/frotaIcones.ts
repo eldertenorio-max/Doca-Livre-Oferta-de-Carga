@@ -67,34 +67,33 @@ function cavalo(x: number, top: number, w: number): string {
 }
 
 const SVG: Record<FrotaIconeGrupo, string> = {
+  // Todos com a frente à esquerda (mesmo sentido dos caminhões).
   passeio: svg(`
     ${ground(44)}
-    <path d="M13 36v-3.6c0-5.6 4-9.7 10.6-11.2l8.9-1.6c4.3-5.4 10.5-8.1 19.6-8.1 9 0 15.2 2.6 19.6 7.8l9.3 1.9c6.7 1.5 11 5.8 11 11.6V36z" fill="${C}"/>
-    <path d="M40 18.4c3.4-4.2 8-6.2 13.9-6.3v6.3z" fill="#fff"/>
-    <path d="M56.8 12.1c5.8.2 10.2 2.2 13.5 6.3H56.8z" fill="#fff"/>
-    ${wheel(33)}${wheel(87)}
+    <path d="M12 36v-2.8c0-4.2 2.2-7.6 6.8-9.4l7.2-1.5 6.8-8.4c1.2-1.5 3-2.3 5-2.3h22c2.1 0 4 .9 5.2 2.5l5.4 7.2 9.8 1.6c5.2 1.6 8.4 5.4 8.8 10.6V36z" fill="${C}"/>
+    <path d="M33.5 14.2 39.2 12h18.5l4.8 9.8H32.2z" fill="#fff"/>
+    ${wheel(30)}${wheel(88)}
   `),
 
   utilitario: svg(`
     ${ground(46)}
-    <path d="M11 36V22.7c0-1.3 1-2.3 2.3-2.3h7.4l6.7-8.2c.8-.9 1.9-1.5 3.1-1.5h11.7c1.6 0 2.9 1.3 2.9 2.9v6.8h56.4c2.1 0 3.5 1.6 3.5 3.6V36z" fill="${C}"/>
-    <path d="M31.2 13.3h10.3v7.1H25.4z" fill="#fff"/>
-    ${wheel(30)}${wheel(90)}
+    <path d="M10 36V23.2c0-1.4 1.1-2.5 2.5-2.5h6.2l7.4-8.6c.9-1 2.2-1.6 3.6-1.6h14.2c1.7 0 3.1 1.4 3.1 3.1V22h53.5c2 0 3.5 1.5 3.5 3.4V36z" fill="${C}"/>
+    <path d="M28.2 13.2h12.6v8.6H25.8z" fill="#fff"/>
+    ${wheel(28)}${wheel(92)}
   `),
 
   fiorino: svg(`
     ${ground(44)}
-    <path d="M14 36V24.4c0-4.9 2.9-8.4 7.8-9.8l7.7-1c2.3-3 5.6-4.6 10.1-4.6h3.9c1.4 0 2.7.6 3.6 1.7l4.8 5.9h44.6c2.2 0 3.5 1.7 3.5 3.9V36z" fill="${C}"/>
-    <path d="M35.8 11.6c2.4-1.5 5.1-2.2 8.5-2.2h2l4.5 5.7H33.6z" fill="#fff"/>
-    ${wheel(30)}${wheel(88)}
+    <path d="M12 36V24.8c0-4.6 2.6-7.8 7.2-9.2l6.4-.9c2.2-3.2 5.4-4.9 9.6-4.9h4.2c1.5 0 2.8.7 3.6 1.9l4.2 5.6H100c2 0 3.2 1.6 3.2 3.6V36z" fill="${C}"/>
+    <path d="M32.6 12.2c2.2-1.4 4.6-2.1 7.6-2.1h2.4l3.8 5.4H31z" fill="#fff"/>
+    ${wheel(28)}${wheel(90)}
   `),
 
   van: svg(`
     ${ground(46)}
-    <path d="M12 36V16c0-2.8 2.2-5 5-5h57.8c1.5 0 2.9.6 3.9 1.8L91.9 26c1.4 1.6 2.1 3.6 2.1 5.7V36z" fill="${C}"/>
-    <rect x="17" y="15" width="16" height="9.5" rx="1.4" fill="#fff"/>
-    <path d="M64 15h9.3l8.2 9.5H64z" fill="#fff"/>
-    ${wheel(30)}${wheel(80)}
+    <path d="M11 36V15.2c0-2.6 2.1-4.7 4.7-4.7h68.5c2.5 0 4.5 2 4.5 4.5V36z" fill="${C}"/>
+    <rect x="16.5" y="14.2" width="15" height="9.2" rx="1.3" fill="#fff"/>
+    ${wheel(28)}${wheel(84)}
   `),
 
   hr: bauSvg(10, 12, 24, 14, 108, `${wheel(22, 5.8)}${wheel(92, 5.8)}`),
