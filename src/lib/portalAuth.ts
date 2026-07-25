@@ -663,7 +663,7 @@ async function accountsDeProfiles(): Promise<PortalAccount[]> {
     created_at: string
   }>
   return rows
-    .filter((row) => row.role === 'transportador' && row.transportador_id)
+    .filter((row) => row.role === 'transportador' && row.transportador_id && row.ativo)
     .map((row) => ({
       id: row.id,
       usuario: (row.usuario || row.email.split('@')[0] || '').trim(),
@@ -734,7 +734,10 @@ function slugLogin(valor: string): string {
     .slice(0, 18)
 }
 
-/** Cria login para transportadoras aprovadas que ainda não têm conta no portal. */
+/**
+ * Sincroniza e vincula contas existentes às transportadoras.
+ * Não cria contas automaticamente: isso fazia usuários excluídos reaparecerem.
+ */
 export async function ensureContasTransportadores(
   transportadores: Array<{
     id: string
@@ -747,43 +750,7 @@ export async function ensureContasTransportadores(
 ): Promise<PortalAccount[]> {
   const list = await syncPortalAccounts()
   const linked = vincularContasAosTransportadores(list, transportadores)
-  const comConta = new Set(
-    linked.map((a) => a.transportador_id).filter((id): id is string => Boolean(id)),
-  )
-  const logins = new Set(linked.map((a) => a.usuario.toLowerCase()))
-  const emails = new Set(linked.map((a) => a.email.toLowerCase()))
-
-  const novas: PortalAccount[] = []
-  for (const t of transportadores) {
-    if (!t.id || comConta.has(t.id) || t.situacao === 'recusado') continue
-    const base =
-      slugLogin(t.nome_fantasia || t.razao_social || '') ||
-      (t.cnpj || '').replace(/\D+/g, '').slice(0, 8) ||
-      'transportador'
-    let usuario = base
-    let n = 2
-    while (logins.has(usuario)) usuario = `${base}${n++}`
-    let email = (t.email || '').trim().toLowerCase()
-    if (!email.includes('@') || emails.has(email)) email = `${usuario}@docalivre.com`
-    if (emails.has(email)) email = `${usuario}.${Date.now().toString(36)}@docalivre.com`
-
-    logins.add(usuario)
-    emails.add(email)
-    novas.push({
-      id: uid(),
-      usuario,
-      email,
-      password: `${base}123`,
-      nome: t.nome_fantasia || t.razao_social || usuario,
-      role: 'transportador',
-      transportador_id: t.id,
-      nivel: 'operador',
-      ativo: t.situacao === 'ativo',
-      created_at: new Date().toISOString(),
-    })
-  }
-
-  const next = normalizePortalList([...linked, ...novas])
+  const next = normalizePortalList(linked)
   const same =
     next.length === list.length &&
     next.every((a, i) => {
@@ -851,9 +818,38 @@ export function vincularContasAosTransportadores(
   })
 }
 
-export async function removePortalAccountRemote(account: PortalAccount) {
-  if (!isSupabaseConfigured || !supabase) return
-  await supabase.from('usuarios').delete().eq('usuario', account.usuario)
+export async function removePortalAccountRemote(
+  account: PortalAccount,
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  if (!isSupabaseConfigured || !supabase) return { ok: true }
+
+  try {
+    // Busca pelo login/e-mail porque o id local pode não ser o UUID da tabela.
+    const { data: rows, error: selectError } = await supabase
+      .from('usuarios')
+      .select('id')
+      .or(`usuario.eq.${account.usuario},email.eq.${account.email}`)
+    if (selectError) return { ok: false, erro: selectError.message }
+
+    const ids = (rows ?? [])
+      .map((row) => (row as { id?: string }).id)
+      .filter((id): id is string => Boolean(id))
+    if (ids.length > 0) {
+      const { error: deleteError } = await supabase.from('usuarios').delete().in('id', ids)
+      if (deleteError) return { ok: false, erro: deleteError.message }
+    }
+
+    // Um cadastro público em profiles não deve recriar a conta no próximo refresh.
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ ativo: false })
+      .eq('email', account.email.trim().toLowerCase())
+    if (profileError) return { ok: false, erro: profileError.message }
+
+    return { ok: true }
+  } catch {
+    return { ok: false, erro: 'Não foi possível concluir a exclusão no servidor.' }
+  }
 }
 
 export function loadPermissoesMap(): Record<string, OfertaPermissao> {

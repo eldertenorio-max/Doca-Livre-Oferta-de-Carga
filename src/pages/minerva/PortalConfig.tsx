@@ -278,9 +278,16 @@ export function PortalConfigPage() {
     })
   }
 
-  function excluirConta(a: PortalAccount) {
+  async function excluirConta(a: PortalAccount) {
     if (a.id === user.id || a.usuario === user.usuario || a.email === user.email) {
       setMsg('Você não pode excluir a própria conta logada.')
+      return
+    }
+    if (
+      a.role === 'super' &&
+      (isLocalSuperUser(a.usuario) || isLocalSuperUser(a.email))
+    ) {
+      setMsg('Diego e Elder são os Super Usuários embarcadores do sistema e não podem ser excluídos.')
       return
     }
     if (
@@ -293,9 +300,25 @@ export function PortalConfigPage() {
     const next = accounts.filter((x) => x.id !== a.id)
     setAccounts(next)
     savePortalAccounts(next)
-    void removePortalAccountRemote(a)
+    const nextPerms = { ...perms }
+    delete nextPerms[a.usuario]
+    setPerms(nextPerms)
+    savePermissoesMap(nextPerms)
     if (selectedUser === a.usuario) setSelectedUser('')
-    setMsg(`Conta “${a.usuario}” excluída.`)
+    if (editingId === a.id) {
+      setEditingId(null)
+      setDraft(null)
+    }
+    refreshPermissoes()
+
+    const remote = await removePortalAccountRemote(a)
+    if (!remote.ok) {
+      setMsg(
+        `Conta “${a.usuario}” excluída deste aparelho, mas o servidor não confirmou a exclusão: ${remote.erro}`,
+      )
+      return
+    }
+    setMsg(`Conta “${a.usuario}” excluída. Lista e acessos atualizados.`)
   }
 
   function novaConta() {
@@ -518,6 +541,9 @@ export function PortalConfigPage() {
                       a.id === user.id ||
                       a.usuario === user.usuario ||
                       a.email.toLowerCase() === (user.email || '').toLowerCase()
+                    const isCanonicalSuper =
+                      a.role === 'super' &&
+                      (isLocalSuperUser(a.usuario) || isLocalSuperUser(a.email))
                     return (
                       <tr
                         key={a.id}
@@ -600,7 +626,7 @@ export function PortalConfigPage() {
                               })
                             }
                           >
-                            <option value="super">super</option>
+                            <option value="super">super (embarcador)</option>
                             <option value="transportador">transportador</option>
                           </select>
                         </td>
@@ -671,8 +697,14 @@ export function PortalConfigPage() {
                               type="button"
                               className="cadastro-link"
                               style={{ color: '#b91c1c' }}
-                              disabled={isSelf || Boolean(editing)}
-                              title={isSelf ? 'Não é possível excluir a própria conta' : 'Excluir conta'}
+                              disabled={isSelf || isCanonicalSuper || Boolean(editing)}
+                              title={
+                                isSelf
+                                  ? 'Não é possível excluir a própria conta'
+                                  : isCanonicalSuper
+                                    ? 'Super Usuário embarcador protegido'
+                                    : 'Excluir conta'
+                              }
                               onClick={() => excluirConta(a)}
                             >
                               Excluir
