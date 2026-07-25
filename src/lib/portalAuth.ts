@@ -610,11 +610,52 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
   try {
     const { data, error } = await supabase
       .from('usuarios')
-      .select('id, usuario, email')
+      .select('id, usuario, email, ativo')
     if (error) return
 
-    const remote = (data ?? []) as Array<{ id: string; usuario: string; email: string }>
+    const remote = (data ?? []) as Array<{
+      id: string
+      usuario: string
+      email: string
+      ativo: boolean
+    }>
+
+    // Não rebaixar login de transportadora já aprovada por cache antigo de outro aparelho.
+    const tidsBloqueioSuspeito = [
+      ...new Set(
+        list
+          .filter(
+            (a) =>
+              a.role === 'transportador' &&
+              !a.ativo &&
+              validUuid(a.transportador_id),
+          )
+          .map((a) => a.transportador_id as string),
+      ),
+    ]
+    const aprovados = new Set<string>()
+    if (tidsBloqueioSuspeito.length > 0) {
+      const { data: tRows } = await supabase
+        .from('transportadores')
+        .select('id, situacao')
+        .in('id', tidsBloqueioSuspeito)
+      for (const t of (tRows ?? []) as Array<{ id: string; situacao?: string }>) {
+        if (t.situacao === 'ativo') aprovados.add(t.id)
+      }
+    }
+
     for (const account of list) {
+      let ativo = account.ativo
+      if (
+        !ativo &&
+        account.role === 'transportador' &&
+        account.transportador_id &&
+        aprovados.has(account.transportador_id)
+      ) {
+        // Transportadora aprovada: cache antigo de outro aparelho não pode bloquear o login
+        ativo = true
+      }
+
       const row = {
         usuario: account.usuario.trim(),
         email: account.email.trim().toLowerCase(),
@@ -627,7 +668,7 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
           ? account.transportador_id
           : null,
         empresa_org_id: account.empresa_org_id ?? null,
-        ativo: account.ativo,
+        ativo,
         updated_at: new Date().toISOString(),
       }
       const found = remote.find(
@@ -1386,13 +1427,76 @@ export function setPortalAccountAtivoPorTransportador(
  */
 export async function healPortalLoginAtivo(identificador: string): Promise<void> {
   if (!isSupabaseConfigured || !supabase) return
+  const id = normId(identificador)
+  if (!id) return
+
   const users = loadPortalAccounts()
-  const candidatos = findAccountsByIdentificador(users, identificador).filter(
+  const locais = findAccountsByIdentificador(users, identificador).filter(
     (u) => u.role === 'transportador' && !u.ativo,
   )
-  if (candidatos.length === 0) return
 
-  for (const account of candidatos) {
+  // Também busca direto no banco (cache local pode estar desatualizado / incompleto)
+  const { data: remotosInativos } = await supabase
+    .from('usuarios')
+    .select('id, usuario, email, role, transportador_id, ativo')
+    .eq('role', 'transportador')
+    .eq('ativo', false)
+    .or(`usuario.ilike.${id},email.ilike.${id}`)
+
+  type Cand = {
+    id: string
+    email: string
+    transportador_id: string | null
+  }
+  const byId = new Map<string, Cand>()
+  for (const u of locais) {
+    byId.set(u.id, {
+      id: u.id,
+      email: u.email,
+      transportador_id: u.transportador_id,
+    })
+  }
+  for (const row of (remotosInativos ?? []) as Cand[]) {
+    byId.set(row.id, {
+      id: row.id,
+      email: row.email || '',
+      transportador_id: row.transportador_id,
+    })
+  }
+  // Match por login compacto (Empaztransportes) quando o filtro .or do PostgREST falha
+  if (byId.size === 0) {
+    const { data: allInativos } = await supabase
+      .from('usuarios')
+      .select('id, usuario, email, transportador_id, ativo')
+      .eq('role', 'transportador')
+      .eq('ativo', false)
+    const idCompact = id.replace(/\s+/g, '')
+    for (const row of (allInativos ?? []) as Array<{
+      id: string
+      usuario?: string
+      email?: string
+      transportador_id: string | null
+    }>) {
+      const userN = normId(row.usuario || '')
+      const emailN = normId(row.email || '')
+      if (
+        userN === id ||
+        userN.replace(/\s+/g, '') === idCompact ||
+        emailN === id ||
+        emailN.split('@')[0] === id
+      ) {
+        byId.set(row.id, {
+          id: row.id,
+          email: row.email || '',
+          transportador_id: row.transportador_id,
+        })
+      }
+    }
+  }
+
+  if (byId.size === 0) return
+
+  for (const account of byId.values()) {
     let situacao: string | null = null
     let tid = account.transportador_id || null
 
@@ -1421,17 +1525,19 @@ export async function healPortalLoginAtivo(identificador: string): Promise<void>
     if (situacao !== 'ativo') continue
 
     const patch = { ativo: true, updated_at: new Date().toISOString() }
-    let upd = await supabase
-      .from('usuarios')
-      .update(patch)
-      .ilike('email', account.email.trim())
-      .select('id')
+    let upd = await supabase.from('usuarios').update(patch).eq('id', account.id).select('id')
     if (upd.error && /updated_at/i.test(upd.error.message)) {
       upd = await supabase
         .from('usuarios')
         .update({ ativo: true })
-        .ilike('email', account.email.trim())
+        .eq('id', account.id)
         .select('id')
+    }
+    if (account.email) {
+      await supabase
+        .from('usuarios')
+        .update({ ativo: true })
+        .ilike('email', account.email.trim())
     }
     if (tid) {
       await supabase.from('usuarios').update({ ativo: true }).eq('transportador_id', tid)
