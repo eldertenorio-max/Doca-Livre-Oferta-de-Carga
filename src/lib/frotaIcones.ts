@@ -84,12 +84,13 @@ const SVG: Record<FrotaIconeGrupo, string> = {
     ${wheel(28)}${wheel(92)}
   `),
 
+  // Fiorino: utilitário compacto (menor e mais curto que o furgão).
   fiorino: svg(`
-    ${ground(44)}
-    <rect x="50" y="8.5" width="56" height="27.5" rx="1.6" fill="${C}"/>
-    <path d="M11 36V25.2c0-1.3 1-2.4 2.3-2.6l9.2-1.8 6.5-8.8c.8-1.1 2.1-1.7 3.4-1.7H50V36z" fill="${C}"/>
-    <path d="M30.8 13.2 36.2 11.8h10.2v10.2H29.2z" fill="#fff"/>
-    ${wheel(26, 5.6)}${wheel(88, 5.6)}
+    ${ground(34)}
+    <rect x="52" y="14" width="40" height="22" rx="1.4" fill="${C}"/>
+    <path d="M22 36V26c0-1.1.9-2 2-2.1l6.5-1.2 4.8-6.2c.6-.8 1.6-1.3 2.6-1.3H52V36z" fill="${C}"/>
+    <path d="M36.5 17.2 40.2 16h7.2v7.8H35.2z" fill="#fff"/>
+    ${wheel(34, 4.8)}${wheel(80, 4.8)}
   `),
 
   // Furgão / Van: cabine à esquerda (mesma direção dos demais).
