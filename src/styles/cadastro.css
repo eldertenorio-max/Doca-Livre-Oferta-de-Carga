@@ -493,7 +493,13 @@
 .foto-veiculo-slot__head {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
+}
+
+.foto-veiculo-slot__title {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
 }
 
 .foto-veiculo-slot__head strong {
@@ -501,10 +507,38 @@
   color: #1d4ed8;
 }
 
-.foto-veiculo-slot__head span {
+.foto-veiculo-slot__info {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border: 0;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.foto-veiculo-slot__info:hover,
+.foto-veiculo-slot__info[aria-expanded='true'] {
+  background: #1d4ed8;
+  color: #fff;
+}
+
+.foto-veiculo-slot__dica {
   font-size: 0.78rem;
-  color: #64748b;
-  line-height: 1.3;
+  color: #334155;
+  line-height: 1.35;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 6px 8px;
 }
 
 .foto-veiculo-slot .foto-box {

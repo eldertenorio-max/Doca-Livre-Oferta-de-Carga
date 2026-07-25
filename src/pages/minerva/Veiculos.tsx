@@ -67,6 +67,7 @@ export function VeiculosPage() {
   const [freteMinimoTxt, setFreteMinimoTxt] = useState('0,00')
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
+  const [dicaFoto, setDicaFoto] = useState<FotoVeiculoSlot | null>(null)
 
   const listaVeiculos = veiculos ?? []
   const listaTransportadores = transportadores ?? []
@@ -539,8 +540,24 @@ export function VeiculosPage() {
               return (
                 <div key={item.slot} className="foto-veiculo-slot">
                   <div className="foto-veiculo-slot__head">
-                    <strong>{item.titulo}</strong>
-                    <span>{item.descricao}</span>
+                    <div className="foto-veiculo-slot__title">
+                      <strong>{item.titulo}</strong>
+                      <button
+                        type="button"
+                        className="foto-veiculo-slot__info"
+                        aria-label={`O que fotografar: ${item.titulo}`}
+                        aria-expanded={dicaFoto === item.slot}
+                        title="Ver explicação"
+                        onClick={() =>
+                          setDicaFoto((atual) => (atual === item.slot ? null : item.slot))
+                        }
+                      >
+                        ?
+                      </button>
+                    </div>
+                    {dicaFoto === item.slot && (
+                      <span className="foto-veiculo-slot__dica">{item.descricao}</span>
+                    )}
                   </div>
                   <div className="foto-box">
                     {url ? (
