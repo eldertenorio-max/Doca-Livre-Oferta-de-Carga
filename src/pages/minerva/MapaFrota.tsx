@@ -108,6 +108,7 @@ function clusterMarkerHtml(pontos: PontoFrota[]): string {
 }
 
 /** Espalha pins em círculo (pixels → lat/lng) a partir do centro. */
+/** Abre pins sobrepostos lado a lado (horizontal), bem próximos. */
 function posicoesSpiderfy(
   map: L.Map,
   center: L.LatLngExpression,
@@ -115,11 +116,23 @@ function posicoesSpiderfy(
 ): L.LatLng[] {
   if (count <= 1) return [L.latLng(center)]
   const origin = map.latLngToLayerPoint(center)
-  const radius = Math.min(110, 36 + count * 10)
+  // Largura aproximada do bubble + folga mínima entre pins
+  const gapX = 78
+  const gapY = 54
+  // Até 4: uma fileira horizontal; acima disso, 2 fileiras
+  const cols = count <= 4 ? count : Math.ceil(count / 2)
+  const rows = Math.ceil(count / cols)
+  const totalW = (cols - 1) * gapX
+  const totalH = (rows - 1) * gapY
+  // Sobe um pouco para o botão × do centro ficar visível abaixo
+  const baseY = origin.y - 18 - totalH / 2
+
   return Array.from({ length: count }, (_, i) => {
-    const ang = (Math.PI * 2 * i) / count - Math.PI / 2
-    const pt = L.point(origin.x + Math.cos(ang) * radius, origin.y + Math.sin(ang) * radius)
-    return map.layerPointToLatLng(pt)
+    const col = i % cols
+    const row = Math.floor(i / cols)
+    const x = origin.x - totalW / 2 + col * gapX
+    const y = baseY + row * gapY
+    return map.layerPointToLatLng(L.point(x, y))
   })
 }
 
