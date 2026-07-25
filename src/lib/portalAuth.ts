@@ -849,9 +849,23 @@ export async function syncPortalAccounts(): Promise<PortalAccount[]> {
     // Se o banco já tem contas, ele é a fonte da verdade.
     // Não reincorpore contas que só existem no cache: outro Super pode tê-las
     // excluído e o cache antigo acabaria recriando-as no próximo persist.
+    // Merge com o local preserva vínculos de transportadora com id local
+    // (ex.: "t1" da Santos Transportes) que o banco não armazena (coluna uuid) —
+    // sem isso o vínculo escolhido no painel "sumia" na sincronização seguinte.
+    const localPorChave = new Map<string, PortalAccount>()
+    for (const u of local) {
+      if (u.usuario) localPorChave.set(`login:${u.usuario.toLowerCase()}`, u)
+      if (u.email) localPorChave.set(`email:${u.email.toLowerCase()}`, u)
+    }
     const merged: PortalAccount[] =
       remoteRows.length > 0
-        ? remoteRows.map((row) => fromRemoteAccount(row))
+        ? remoteRows.map((row) =>
+            fromRemoteAccount(
+              row,
+              localPorChave.get(`login:${(row.usuario || '').toLowerCase()}`) ??
+                localPorChave.get(`email:${(row.email || '').toLowerCase()}`),
+            ),
+          )
         : [...local]
 
     // Cadastros públicos: o login existe em profiles mesmo sem conta no portal
