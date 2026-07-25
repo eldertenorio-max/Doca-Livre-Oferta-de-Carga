@@ -158,6 +158,7 @@ export interface Veiculo {
   padiado: boolean
   situacao: 'ativo' | 'inativo'
   created_at: string
+  updated_at?: string
 }
 
 export interface Motorista {
@@ -182,6 +183,7 @@ export interface Motorista {
   total_avaliacoes?: number
   situacao: 'ativo' | 'inativo'
   created_at: string
+  updated_at?: string
 }
 
 export interface GrupoTransportador {

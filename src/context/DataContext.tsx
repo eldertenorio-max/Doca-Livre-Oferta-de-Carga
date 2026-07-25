@@ -88,6 +88,7 @@ import {
   isUuid,
   mergeVeiculosLocalRemote,
   newVeiculoId,
+  subirFotosVeiculo,
   upsertVeiculoRemote,
 } from '../lib/veiculosSync'
 import {
@@ -144,6 +145,10 @@ interface DataState {
   cargas_excluidas: string[]
   /** Transportadoras excluídas (tombstones p/ sync e seeds) */
   transportadores_excluidos: string[]
+  /** Placas excluídas (tombstones p/ sync) */
+  veiculos_excluidos: string[]
+  /** Motoristas excluídos (tombstones p/ sync) */
+  motoristas_excluidos: string[]
 }
 
 interface AuthState {
@@ -291,6 +296,8 @@ function defaultState(): DataState {
     chatLeituras: {},
     cargas_excluidas: [],
     transportadores_excluidos: [],
+    veiculos_excluidos: [],
+    motoristas_excluidos: [],
   }
 }
 
@@ -609,6 +616,8 @@ function wipeKanbanFields<T extends DataState>(state: T): T {
     chatLeituras: {},
     cargas_excluidas: [],
     transportadores_excluidos: state.transportadores_excluidos ?? [],
+    veiculos_excluidos: state.veiculos_excluidos ?? [],
+    motoristas_excluidos: state.motoristas_excluidos ?? [],
   }
 }
 
@@ -659,6 +668,12 @@ function loadState(): DataState {
         : [],
       transportadores_excluidos: Array.isArray(parsed.transportadores_excluidos)
         ? parsed.transportadores_excluidos.filter((id): id is string => typeof id === 'string')
+        : [],
+      veiculos_excluidos: Array.isArray(parsed.veiculos_excluidos)
+        ? parsed.veiculos_excluidos.filter((id): id is string => typeof id === 'string')
+        : [],
+      motoristas_excluidos: Array.isArray(parsed.motoristas_excluidos)
+        ? parsed.motoristas_excluidos.filter((id): id is string => typeof id === 'string')
         : [],
     }
     if (loaded.cargas_excluidas.length > 0) {
@@ -908,10 +923,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
           docsById.set(d.id, d)
         }
       }
+      const vExcluidos = new Set(prev.veiculos_excluidos ?? [])
       const veiculos = remoteVeiculos
         ? mergeVeiculosLocalRemote(
             (prev.veiculos ?? []).filter((v) => !excluidos.has(v.transportador_id ?? '')),
-            remoteVeiculos.filter((v) => !excluidos.has(v.transportador_id ?? '')),
+            remoteVeiculos.filter(
+              (v) => !excluidos.has(v.transportador_id ?? '') && !vExcluidos.has(v.id),
+            ),
           )
         : prev.veiculos
       const next = ensureDemoFrotaMapa({
@@ -2849,6 +2867,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
           ...(prev.transportadores_excluidos ?? []).filter((x) => x !== id),
           id,
         ].slice(-500),
+        veiculos_excluidos: [
+          ...(prev.veiculos_excluidos ?? []),
+          ...(prev.veiculos ?? []).filter((v) => v.transportador_id === id).map((v) => v.id),
+        ].slice(-500),
+        motoristas_excluidos: [
+          ...(prev.motoristas_excluidos ?? []),
+          ...(prev.motoristas ?? []).filter((m) => m.transportador_id === id).map((m) => m.id),
+        ].slice(-500),
         historico: [hist, ...prev.historico].slice(0, 2000),
       }
       stateRef.current = next
@@ -3140,6 +3166,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       id,
       placa: (v.placa || '').trim().toUpperCase(),
       disponivel_mapa: v.disponivel_mapa !== false,
+      updated_at: new Date().toISOString(),
     }
 
     setState((prev) => {
@@ -3162,38 +3189,73 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 veiculo_id: salvo.id,
                 transportador_id: salvo.transportador_id,
                 autonomo: !salvo.transportador_id,
+                updated_at: salvo.updated_at,
               }
             }
             if (x.veiculo_id === salvo.id || (antigoId && x.veiculo_id === antigoId)) {
-              return { ...x, veiculo_id: null }
+              return { ...x, veiculo_id: null, updated_at: salvo.updated_at }
             }
             return x
           })
         }
       } else if (antigoId) {
         motoristas = motoristas.map((x) =>
-          x.veiculo_id === antigoId ? { ...x, veiculo_id: salvo.id } : x,
+          x.veiculo_id === antigoId
+            ? { ...x, veiculo_id: salvo.id, updated_at: salvo.updated_at }
+            : x,
         )
       }
 
-      return { ...prev, veiculos, motoristas }
+      // Placa recriada deixa de estar na lista de excluídos
+      const veiculos_excluidos = (prev.veiculos_excluidos ?? []).filter(
+        (x) => x !== salvo.id && x !== antigoId,
+      )
+
+      const next = { ...prev, veiculos, motoristas, veiculos_excluidos }
+      stateRef.current = next
+      // Publica agora para os demais usuários (super e transportadora vinculada)
+      flushKanbanPush(next)
+      return next
     })
 
-    void upsertVeiculoRemote(salvo).then((res) => {
+    // Fotos vão para o Storage: só a URL trafega no sync (base64 estoura o payload)
+    void subirFotosVeiculo(salvo).then(async (comUrls) => {
+      const res = await upsertVeiculoRemote(comUrls)
       if (!res.ok) console.warn('[veiculos] falha ao gravar no Supabase:', res.erro)
+      if (comUrls.fotos === salvo.fotos && comUrls.foto_url === salvo.foto_url) return
+      setState((prev) => {
+        const next = {
+          ...prev,
+          veiculos: (prev.veiculos ?? []).map((x) => (x.id === comUrls.id ? comUrls : x)),
+        }
+        stateRef.current = next
+        flushKanbanPush(next)
+        return next
+      })
     })
-  }, [])
+  }, [flushKanbanPush])
 
   const excluirVeiculo = useCallback((id: string) => {
-    setState((prev) => ({
-      ...prev,
-      veiculos: (prev.veiculos ?? []).filter((v) => v.id !== id),
-      motoristas: (prev.motoristas ?? []).map((m) =>
-        m.veiculo_id === id ? { ...m, veiculo_id: null } : m,
-      ),
-    }))
+    setState((prev) => {
+      const next = {
+        ...prev,
+        veiculos: (prev.veiculos ?? []).filter((v) => v.id !== id),
+        motoristas: (prev.motoristas ?? []).map((m) =>
+          m.veiculo_id === id
+            ? { ...m, veiculo_id: null, updated_at: new Date().toISOString() }
+            : m,
+        ),
+        veiculos_excluidos: [
+          ...(prev.veiculos_excluidos ?? []).filter((x) => x !== id),
+          id,
+        ].slice(-500),
+      }
+      stateRef.current = next
+      flushKanbanPush(next)
+      return next
+    })
     void deleteVeiculoRemote(id)
-  }, [])
+  }, [flushKanbanPush])
 
   const salvarRota = useCallback((r: Rota) => {
     setState((prev) => {
@@ -3368,7 +3430,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   )
 
   const salvarMotorista = useCallback((m: Motorista) => {
-    const normalized = normalizeMotorista(m)
+    const agora = new Date().toISOString()
+    const normalized = { ...normalizeMotorista(m), updated_at: agora }
     setState((prev) => {
       const list = prev.motoristas ?? []
       const exists = list.some((x) => x.id === normalized.id)
@@ -3379,28 +3442,47 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (normalized.veiculo_id) {
         motoristas = motoristas.map((x) =>
           x.id !== normalized.id && x.veiculo_id === normalized.veiculo_id
-            ? { ...x, veiculo_id: null }
+            ? { ...x, veiculo_id: null, updated_at: agora }
             : x,
         )
       }
+      let veiculoAtualizado: Veiculo | null = null
       const veiculos = (prev.veiculos ?? []).map((v) => {
         if (v.id !== normalized.veiculo_id) return v
-        return {
+        veiculoAtualizado = {
           ...v,
           transportador_id: normalized.autonomo ? null : normalized.transportador_id,
           condutor: normalized.nome,
+          updated_at: agora,
         }
+        return veiculoAtualizado
       })
-      return { ...prev, motoristas, veiculos }
+      const motoristas_excluidos = (prev.motoristas_excluidos ?? []).filter(
+        (x) => x !== normalized.id,
+      )
+      const next = { ...prev, motoristas, veiculos, motoristas_excluidos }
+      stateRef.current = next
+      flushKanbanPush(next)
+      if (veiculoAtualizado) void upsertVeiculoRemote(veiculoAtualizado)
+      return next
     })
-  }, [])
+  }, [flushKanbanPush])
 
   const excluirMotorista = useCallback((id: string) => {
-    setState((prev) => ({
-      ...prev,
-      motoristas: (prev.motoristas ?? []).filter((m) => m.id !== id),
-    }))
-  }, [])
+    setState((prev) => {
+      const next = {
+        ...prev,
+        motoristas: (prev.motoristas ?? []).filter((m) => m.id !== id),
+        motoristas_excluidos: [
+          ...(prev.motoristas_excluidos ?? []).filter((x) => x !== id),
+          id,
+        ].slice(-500),
+      }
+      stateRef.current = next
+      flushKanbanPush(next)
+      return next
+    })
+  }, [flushKanbanPush])
 
   const motoristasDoTransportador = useCallback(
     (transportadorId: string) =>

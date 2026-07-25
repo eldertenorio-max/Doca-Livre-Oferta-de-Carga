@@ -6,11 +6,14 @@ import type {
   HistoricoEvento,
   HistoricoProposta,
   Lance,
+  Motorista,
   NotificacaoInApp,
   Transportador,
+  Veiculo,
 } from '../types'
 import { alinharStatusComLances } from './kanbanColumns'
 import { isSupabaseConfigured, supabase } from './supabase'
+import { veiculoParaSync } from './veiculosSync'
 
 const SYNC_ROW_ID = 'main'
 const CLIENT_KEY = 'doca-livre-sync-client-id'
@@ -22,6 +25,9 @@ export type KanbanSyncSlice = {
   lances: Lance[]
   grupos: GrupoTransportador[]
   transportadores: Transportador[]
+  /** Frota replicada para todos (supers e transportadora vinculada) */
+  veiculos: Veiculo[]
+  motoristas: Motorista[]
   notificacoes: NotificacaoInApp[]
   mensagens: ChatMensagem[]
   historico: HistoricoEvento[]
@@ -31,6 +37,9 @@ export type KanbanSyncSlice = {
   cargas_excluidas?: string[]
   /** IDs de transportadoras excluídas — impede o merge de “ressuscitar” o cadastro */
   transportadores_excluidos?: string[]
+  /** Placas/motoristas removidos — impede o merge de “ressuscitar” o cadastro */
+  veiculos_excluidos?: string[]
+  motoristas_excluidos?: string[]
 }
 
 export type KanbanSyncPayload = {
@@ -65,6 +74,8 @@ export function pickSyncSlice(state: KanbanSyncSlice): KanbanSyncSlice {
     lances: state.lances,
     grupos: state.grupos,
     transportadores: state.transportadores,
+    veiculos: (state.veiculos ?? []).map(veiculoParaSync),
+    motoristas: state.motoristas ?? [],
     notificacoes: state.notificacoes,
     mensagens: state.mensagens,
     historico: state.historico,
@@ -72,6 +83,8 @@ export function pickSyncSlice(state: KanbanSyncSlice): KanbanSyncSlice {
     chatLeituras: state.chatLeituras ?? {},
     cargas_excluidas: state.cargas_excluidas ?? [],
     transportadores_excluidos: state.transportadores_excluidos ?? [],
+    veiculos_excluidos: state.veiculos_excluidos ?? [],
+    motoristas_excluidos: state.motoristas_excluidos ?? [],
   }
 }
 
@@ -104,6 +117,17 @@ function mergeById<T extends { id: string; updated_at?: string; created_at?: str
   return Array.from(map.values())
 }
 
+/**
+ * O slice não carrega base64; se o remoto vier sem uma foto que já existe aqui,
+ * mantém a local para não “apagar” o cadastro na tela de quem tirou as fotos.
+ */
+function preservarFotosLocais(locais: Veiculo[], remoto: Veiculo): Veiculo {
+  const local = locais.find((v) => v.id === remoto.id)
+  if (!local) return remoto
+  const fotos = { ...(local.fotos ?? {}), ...(remoto.fotos ?? {}) }
+  return { ...remoto, fotos, foto_url: remoto.foto_url || local.foto_url }
+}
+
 /** Mescla remoto sem apagar publicações locais mais novas. */
 export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: KanbanSyncSlice): T {
   const remoteCargas = Array.isArray(slice.cargas) ? slice.cargas : []
@@ -119,6 +143,14 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
     ]),
   ).slice(-500)
   const tExcluidos = new Set(transportadoresExcluidos)
+  const veiculosExcluidos = Array.from(
+    new Set([...(prev.veiculos_excluidos ?? []), ...(slice.veiculos_excluidos ?? [])]),
+  ).slice(-500)
+  const vExcluidos = new Set(veiculosExcluidos)
+  const motoristasExcluidos = Array.from(
+    new Set([...(prev.motoristas_excluidos ?? []), ...(slice.motoristas_excluidos ?? [])]),
+  ).slice(-500)
+  const mExcluidos = new Set(motoristasExcluidos)
 
   // Remoto vazio NÃO apaga cargas locais publicadas/rascunhos
   const cargasMerged =
@@ -139,6 +171,18 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
     lances,
     cargas_excluidas: cargasExcluidas,
     transportadores_excluidos: transportadoresExcluidos,
+    veiculos_excluidos: veiculosExcluidos,
+    motoristas_excluidos: motoristasExcluidos,
+    veiculos: mergeById(prev.veiculos ?? [], slice.veiculos ?? [])
+      .filter((v) => !vExcluidos.has(v.id))
+      .map((v) => preservarFotosLocais(prev.veiculos ?? [], v)),
+    motoristas: mergeById(prev.motoristas ?? [], slice.motoristas ?? [])
+      .filter((m) => !mExcluidos.has(m.id))
+      .map((m) => (m.veiculo_id && vExcluidos.has(m.veiculo_id) ? { ...m, veiculo_id: null } : m))
+      .map((m) => {
+        const local = (prev.motoristas ?? []).find((x) => x.id === m.id)
+        return !m.foto_url && local?.foto_url ? { ...m, foto_url: local.foto_url } : m
+      }),
     grupos: (slice.grupos?.length ? mergeById(prev.grupos, slice.grupos) : prev.grupos).map((g) =>
       (g.transportador_ids ?? []).some((tid) => tExcluidos.has(tid))
         ? { ...g, transportador_ids: g.transportador_ids.filter((tid) => !tExcluidos.has(tid)) }

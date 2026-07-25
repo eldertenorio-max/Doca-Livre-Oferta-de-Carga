@@ -60,6 +60,7 @@ export function mapVeiculoRow(row: Record<string, unknown>): Veiculo {
     padiado: Boolean(row.padiado),
     situacao: row.situacao === 'inativo' ? 'inativo' : 'ativo',
     created_at: String(row.created_at || new Date().toISOString()),
+    updated_at: (row.updated_at as string) || undefined,
   }
 }
 
@@ -107,15 +108,15 @@ export async function upsertVeiculoRemote(
   v: Veiculo,
 ): Promise<{ ok: true; id: string } | { ok: false; erro: string }> {
   if (!isSupabaseConfigured || !supabase) return { ok: true, id: v.id }
-  if (!isUuid(v.transportador_id)) {
-    // Sem empresa UUID não cabe na FK do Supabase
+  if (v.transportador_id && !isUuid(v.transportador_id)) {
+    // Empresa de demonstração (t1/t2…) não cabe na FK; replica só via kanban_sync
     return { ok: true, id: v.id }
   }
   const id = isUuid(v.id) ? v.id : newVeiculoId()
   const row = {
     id,
     placa: v.placa,
-    transportador_id: v.transportador_id,
+    transportador_id: v.transportador_id ?? null,
     renavam: v.renavam ?? null,
     condutor: v.condutor ?? null,
     tipo: v.tipo,
@@ -138,6 +139,7 @@ export async function upsertVeiculoRemote(
     padiado: Boolean(v.padiado),
     situacao: v.situacao,
     disponivel_mapa: v.disponivel_mapa !== false,
+    updated_at: v.updated_at ?? new Date().toISOString(),
   }
   const { error } = await supabase.from('veiculos').upsert(row)
   if (error) return { ok: false, erro: error.message }
@@ -147,4 +149,63 @@ export async function upsertVeiculoRemote(
 export async function deleteVeiculoRemote(id: string): Promise<void> {
   if (!isSupabaseConfigured || !supabase || !isUuid(id)) return
   await supabase.from('veiculos').delete().eq('id', id)
+}
+
+const BUCKET_FOTOS = 'veiculos-fotos'
+
+function isDataUrl(value?: string | null): boolean {
+  return typeof value === 'string' && value.startsWith('data:')
+}
+
+function dataUrlToBlob(dataUrl: string): { blob: Blob; ext: string } | null {
+  const match = /^data:([^;,]+)(;base64)?,(.*)$/s.exec(dataUrl)
+  if (!match) return null
+  const mime = match[1] || 'image/jpeg'
+  const bytes = match[2]
+    ? Uint8Array.from(atob(match[3]), (c) => c.charCodeAt(0))
+    : new TextEncoder().encode(decodeURIComponent(match[3]))
+  const ext = mime.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg'
+  return { blob: new Blob([bytes], { type: mime }), ext }
+}
+
+/**
+ * Sobe as fotos em base64 para o Storage e devolve o veículo só com URLs.
+ * Sem isso o cadastro não trafega entre usuários (payload gigante).
+ */
+export async function subirFotosVeiculo(v: Veiculo): Promise<Veiculo> {
+  if (!isSupabaseConfigured || !supabase) return v
+  const fotos = { ...(v.fotos ?? {}) } as Record<string, string | undefined>
+  const slots = Object.keys(fotos).filter((s) => isDataUrl(fotos[s]))
+  if (slots.length === 0) return v
+
+  for (const slot of slots) {
+    const parsed = dataUrlToBlob(fotos[slot] as string)
+    if (!parsed) continue
+    const path = `${v.id}/${slot}.${parsed.ext}`
+    const { error } = await supabase.storage
+      .from(BUCKET_FOTOS)
+      .upload(path, parsed.blob, { upsert: true, contentType: parsed.blob.type })
+    if (error) {
+      console.warn('[veiculos] falha ao subir foto:', slot, error.message)
+      continue
+    }
+    const { data } = supabase.storage.from(BUCKET_FOTOS).getPublicUrl(path)
+    if (data?.publicUrl) fotos[slot] = data.publicUrl
+  }
+
+  const next = { ...v, fotos: fotos as Veiculo['fotos'] }
+  if (isDataUrl(next.foto_url) && fotos.dianteira && !isDataUrl(fotos.dianteira)) {
+    next.foto_url = fotos.dianteira
+  }
+  return next
+}
+
+/** Remove base64 do que vai no sync — só URL trafega entre usuários. */
+export function veiculoParaSync(v: Veiculo): Veiculo {
+  const fotos = v.fotos ?? {}
+  const limpas = Object.fromEntries(
+    Object.entries(fotos).filter(([, url]) => !isDataUrl(url)),
+  ) as Veiculo['fotos']
+  const foto_url = isDataUrl(v.foto_url) ? undefined : v.foto_url
+  return { ...v, fotos: limpas, foto_url }
 }
