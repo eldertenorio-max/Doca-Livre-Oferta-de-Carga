@@ -59,7 +59,7 @@ const emptyForm = (): Partial<Veiculo> => ({
 })
 
 export function VeiculosPage() {
-  const { veiculos, transportadores, salvarVeiculo, excluirVeiculo, transportadorById, user } =
+  const { veiculos, transportadores, motoristas, salvarVeiculo, excluirVeiculo, transportadorById, user } =
     useData()
   const [mode, setMode] = useState<'lista' | 'form'>('lista')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -70,6 +70,7 @@ export function VeiculosPage() {
 
   const listaVeiculos = veiculos ?? []
   const listaTransportadores = transportadores ?? []
+  const listaMotoristas = motoristas ?? []
 
   const scopedVeiculos = useMemo(() => {
     if (user?.role === 'transportador' && user.transportador_id) {
@@ -84,6 +85,27 @@ export function VeiculosPage() {
     }
     return listaTransportadores
   }, [listaTransportadores, user])
+
+  /** Motoristas disponíveis para o select de condutor (todos cadastrados, escopo do usuário). */
+  const motoristasParaCondutor = useMemo(() => {
+    let list = listaMotoristas.filter((m) => (m.nome || '').trim().length > 0)
+    if (user?.role === 'transportador' && user.transportador_id) {
+      list = list.filter(
+        (m) => m.transportador_id === user.transportador_id || m.autonomo,
+      )
+    }
+    // Preferir da empresa selecionada no formulário, sem esconder os demais
+    const tid = form.transportador_id || null
+    return [...list].sort((a, b) => {
+      const aEmp = tid && a.transportador_id === tid ? 0 : 1
+      const bEmp = tid && b.transportador_id === tid ? 0 : 1
+      if (aEmp !== bEmp) return aEmp - bEmp
+      const aSit = a.situacao === 'ativo' ? 0 : 1
+      const bSit = b.situacao === 'ativo' ? 0 : 1
+      if (aSit !== bSit) return aSit - bSit
+      return a.nome.localeCompare(b.nome, 'pt-BR')
+    })
+  }, [listaMotoristas, user, form.transportador_id])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -407,11 +429,27 @@ export function VeiculosPage() {
               <input value={form.renavam ?? ''} onChange={(e) => set('renavam', e.target.value)} />
             </Field>
             <Field label="Condutor (Proprietário)">
-              <input
-                placeholder="Nome do condutor..."
+              <select
                 value={form.condutor ?? ''}
                 onChange={(e) => set('condutor', e.target.value)}
-              />
+              >
+                <option value="">Selecione o motorista...</option>
+                {form.condutor &&
+                  !motoristasParaCondutor.some((m) => m.nome === form.condutor) && (
+                    <option value={form.condutor}>{form.condutor} (atual)</option>
+                  )}
+                {motoristasParaCondutor.map((m) => (
+                  <option key={m.id} value={m.nome}>
+                    {m.nome}
+                    {m.situacao !== 'ativo' ? ' (inativo)' : ''}
+                  </option>
+                ))}
+              </select>
+              {motoristasParaCondutor.length === 0 && (
+                <p className="cadastro-empty" style={{ marginTop: 6, fontSize: '0.8rem' }}>
+                  Nenhum motorista cadastrado. Cadastre em Motoristas para listar aqui.
+                </p>
+              )}
             </Field>
             <Field label="Tipo (categoria do veículo)" required>
               <select value={form.tipo ?? ''} onChange={(e) => set('tipo', e.target.value)}>
