@@ -221,13 +221,15 @@ function ensureSuperUsers(list: PortalAccount[]): PortalAccount[] {
       continue
     }
     const cur = next[idx]
+    const role = cur.role === 'transportador' ? 'transportador' : 'super'
     next[idx] = {
       ...base,
       ...cur,
       id: cur.id || base.id,
-      role: 'super',
-      nivel: 'super',
-      transportador_id: null,
+      // Preserva perfil escolhido no painel (permite trocar super ↔ transportador)
+      role,
+      nivel: role === 'super' ? 'super' : cur.nivel === 'super' ? 'operador' : cur.nivel || 'operador',
+      transportador_id: role === 'super' ? null : (cur.transportador_id ?? null),
       ativo: cur.ativo ?? true,
       password: cur.password || base.password,
       nome: cur.nome?.trim() || base.nome,
@@ -599,7 +601,7 @@ export function savePermissoesMap(map: Record<string, OfertaPermissao>) {
 }
 
 export function getPermissaoUsuario(account: PortalAccount): OfertaPermissao {
-  if (account.role === 'super' || isLocalSuperUser(account.usuario) || isLocalSuperUser(account.email)) {
+  if (account.role === 'super') {
     return SUPER_PERMISSAO
   }
   const stored = loadPermissoesMap()[account.usuario]
@@ -748,10 +750,7 @@ export function portalLoginLocal(
       erro: 'Cadastro aguardando aprovação. Você poderá entrar após a liberação.',
     }
   }
-  const isSuperuser =
-    account.role === 'super' ||
-    isLocalSuperUser(account.usuario) ||
-    isLocalSuperUser(account.email)
+  const isSuperuser = account.role === 'super'
   // Equipe Minerva/embarcador não existe mais — só Super ou Transportador
   if (!isSuperuser && account.role !== 'transportador') {
     return {

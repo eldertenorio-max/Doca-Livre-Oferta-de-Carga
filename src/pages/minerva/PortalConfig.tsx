@@ -41,6 +41,8 @@ export function PortalConfigPage() {
   const [perms, setPerms] = useState<Record<string, OfertaPermissao>>(() => loadPermissoesMap())
   const [selectedUser, setSelectedUser] = useState('')
   const [msg, setMsg] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [draft, setDraft] = useState<PortalAccount | null>(null)
 
   const transportadoresRef = useRef(transportadores)
   transportadoresRef.current = transportadores
@@ -176,10 +178,12 @@ export function PortalConfigPage() {
       if (patch.password !== undefined) merged.password = patch.password
       if (patch.nome !== undefined) merged.nome = patch.nome.trim() || merged.usuario
       if (patch.role === 'super') {
+        merged.role = 'super'
         merged.nivel = 'super'
         merged.transportador_id = null
       }
       if (patch.role === 'transportador') {
+        merged.role = 'transportador'
         merged.nivel = merged.nivel === 'super' ? 'operador' : merged.nivel || 'operador'
       }
       return merged
@@ -195,12 +199,12 @@ export function PortalConfigPage() {
       if (dupUser) {
         setMsg('Já existe outra conta com esse login.')
         setAccounts(loadPortalAccounts())
-        return
+        return false
       }
       if (dupEmail) {
         setMsg('Já existe outra conta com esse e-mail.')
         setAccounts(loadPortalAccounts())
-        return
+        return false
       }
     }
     setAccounts(next)
@@ -209,6 +213,78 @@ export function PortalConfigPage() {
       setSelectedUser(edited.usuario)
     }
     setMsg('Usuário atualizado.')
+    return true
+  }
+
+  function iniciarEdicao(a: PortalAccount) {
+    setEditingId(a.id)
+    setDraft({ ...a })
+    setMsg('')
+  }
+
+  function cancelarEdicao() {
+    setEditingId(null)
+    setDraft(null)
+    setMsg('Edição cancelada.')
+  }
+
+  function salvarEdicao() {
+    if (!draft || !editingId) return
+    const usuario = draft.usuario.trim()
+    const email = draft.email.trim().toLowerCase()
+    const nome = (draft.nome || '').trim() || usuario
+    const password = draft.password
+    if (usuario.length < 2) {
+      setMsg('Login inválido.')
+      return
+    }
+    if (!email.includes('@')) {
+      setMsg('E-mail inválido.')
+      return
+    }
+    if (password.length < 4) {
+      setMsg('Senha deve ter ao menos 4 caracteres.')
+      return
+    }
+    if (draft.role === 'transportador' && !draft.transportador_id) {
+      setMsg('Selecione a transportadora para o perfil transportador.')
+      return
+    }
+    const ok = updateAccount(
+      editingId,
+      {
+        nome,
+        usuario,
+        email,
+        password,
+        role: draft.role === 'super' ? 'super' : 'transportador',
+        transportador_id: draft.role === 'super' ? null : draft.transportador_id || null,
+        ativo: draft.ativo,
+        nivel: draft.role === 'super' ? 'super' : 'operador',
+      },
+      { validateUnique: true },
+    )
+    if (!ok) return
+    setEditingId(null)
+    setDraft(null)
+    setMsg('Conta salva.')
+  }
+
+  function patchDraft(patch: Partial<PortalAccount>) {
+    setDraft((prev) => {
+      if (!prev) return prev
+      const next = { ...prev, ...patch }
+      if (patch.role === 'super') {
+        next.role = 'super'
+        next.nivel = 'super'
+        next.transportador_id = null
+      }
+      if (patch.role === 'transportador') {
+        next.role = 'transportador'
+        next.nivel = 'operador'
+      }
+      return next
+    })
   }
 
   function excluirConta(a: PortalAccount) {
@@ -423,8 +499,9 @@ export function PortalConfigPage() {
           </header>
           <div className="form-card__body">
             <p className="portal-login__hint" style={{ marginBottom: 12 }}>
-              Super Usuário vê login e senha de todas as contas, pode alterar qualquer campo e
-              excluir (exceto a própria sessão).
+              Clique em <strong>Editar</strong> para alterar qualquer campo (incluindo perfil Super →
+              Transportador), depois em <strong>Salvar</strong>. Exclusão só da própria sessão é
+              bloqueada.
             </p>
             <div className="cadastro-table-wrap" style={{ overflowX: 'auto' }}>
               <table className="cadastro-table">
@@ -442,24 +519,33 @@ export function PortalConfigPage() {
                 </thead>
                 <tbody>
                   {accountsSorted.map((a) => {
-                    const superU =
-                      isLocalSuperUser(a.usuario) ||
-                      isLocalSuperUser(a.email) ||
-                      a.role === 'super'
+                    const editing = editingId === a.id && draft
+                    const row = editing ? draft : a
+                    const isSuperRole = row.role === 'super'
                     const isSelf =
                       a.id === user.id ||
                       a.usuario === user.usuario ||
                       a.email.toLowerCase() === (user.email || '').toLowerCase()
                     return (
-                      <tr key={a.id} style={superU ? { background: '#f8fafc' } : undefined}>
+                      <tr
+                        key={a.id}
+                        style={
+                          editing
+                            ? { background: '#ecfdf5' }
+                            : isSuperRole
+                              ? { background: '#f8fafc' }
+                              : undefined
+                        }
+                      >
                         <td>
                           <input
                             className="cadastro-input"
                             style={{ minWidth: 120 }}
-                            value={a.nome || ''}
-                            onChange={(e) => updateAccount(a.id, { nome: e.target.value })}
+                            value={row.nome || ''}
+                            disabled={!editing}
+                            onChange={(e) => patchDraft({ nome: e.target.value })}
                           />
-                          {superU && (
+                          {isSuperRole && (
                             <span
                               className="badge-situacao badge-situacao--ativo"
                               style={{ marginLeft: 6 }}
@@ -472,11 +558,9 @@ export function PortalConfigPage() {
                           <input
                             className="cadastro-input"
                             style={{ minWidth: 110 }}
-                            value={a.usuario}
-                            onChange={(e) => updateAccount(a.id, { usuario: e.target.value })}
-                            onBlur={(e) =>
-                              updateAccount(a.id, { usuario: e.target.value }, { validateUnique: true })
-                            }
+                            value={row.usuario}
+                            disabled={!editing}
+                            onChange={(e) => patchDraft({ usuario: e.target.value })}
                             autoComplete="off"
                           />
                         </td>
@@ -485,8 +569,9 @@ export function PortalConfigPage() {
                             className="cadastro-input"
                             style={{ minWidth: 110 }}
                             type="text"
-                            value={a.password}
-                            onChange={(e) => updateAccount(a.id, { password: e.target.value })}
+                            value={row.password}
+                            disabled={!editing}
+                            onChange={(e) => patchDraft({ password: e.target.value })}
                             autoComplete="off"
                           />
                         </td>
@@ -495,20 +580,19 @@ export function PortalConfigPage() {
                             className="cadastro-input"
                             style={{ minWidth: 160 }}
                             type="email"
-                            value={a.email}
-                            onChange={(e) => updateAccount(a.id, { email: e.target.value })}
-                            onBlur={(e) =>
-                              updateAccount(a.id, { email: e.target.value }, { validateUnique: true })
-                            }
+                            value={row.email}
+                            disabled={!editing}
+                            onChange={(e) => patchDraft({ email: e.target.value })}
                             autoComplete="off"
                           />
                         </td>
                         <td>
                           <select
                             className="cadastro-input"
-                            value={a.role === 'super' || superU ? 'super' : 'transportador'}
+                            value={row.role === 'super' ? 'super' : 'transportador'}
+                            disabled={!editing}
                             onChange={(e) =>
-                              updateAccount(a.id, {
+                              patchDraft({
                                 role: e.target.value as PortalAccount['role'],
                               })
                             }
@@ -521,10 +605,10 @@ export function PortalConfigPage() {
                           <select
                             className="cadastro-input"
                             style={{ minWidth: 140 }}
-                            disabled={a.role === 'super' || superU}
-                            value={a.transportador_id || ''}
+                            disabled={!editing || row.role === 'super'}
+                            value={row.transportador_id || ''}
                             onChange={(e) =>
-                              updateAccount(a.id, {
+                              patchDraft({
                                 transportador_id: e.target.value || null,
                               })
                             }
@@ -541,23 +625,56 @@ export function PortalConfigPage() {
                           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                             <input
                               type="checkbox"
-                              checked={a.ativo}
-                              onChange={(e) => updateAccount(a.id, { ativo: e.target.checked })}
+                              checked={row.ativo}
+                              disabled={!editing}
+                              onChange={(e) => patchDraft({ ativo: e.target.checked })}
                             />
                             Ativo
                           </label>
                         </td>
                         <td>
-                          <button
-                            type="button"
-                            className="cadastro-link"
-                            style={{ color: '#b91c1c' }}
-                            disabled={isSelf}
-                            title={isSelf ? 'Não é possível excluir a própria conta' : 'Excluir conta'}
-                            onClick={() => excluirConta(a)}
-                          >
-                            Excluir
-                          </button>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                            {editing ? (
+                              <>
+                                <button
+                                  type="button"
+                                  className="cadastro-btn cadastro-btn--save"
+                                  style={{ padding: '6px 10px', fontSize: '0.78rem' }}
+                                  onClick={salvarEdicao}
+                                >
+                                  Salvar
+                                </button>
+                                <button
+                                  type="button"
+                                  className="cadastro-btn cadastro-btn--ghost"
+                                  style={{ padding: '6px 10px', fontSize: '0.78rem' }}
+                                  onClick={cancelarEdicao}
+                                >
+                                  Cancelar
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                type="button"
+                                className="cadastro-btn cadastro-btn--ghost"
+                                style={{ padding: '6px 10px', fontSize: '0.78rem' }}
+                                disabled={Boolean(editingId)}
+                                onClick={() => iniciarEdicao(a)}
+                              >
+                                Editar
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="cadastro-link"
+                              style={{ color: '#b91c1c' }}
+                              disabled={isSelf || Boolean(editing)}
+                              title={isSelf ? 'Não é possível excluir a própria conta' : 'Excluir conta'}
+                              onClick={() => excluirConta(a)}
+                            >
+                              Excluir
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -566,8 +683,8 @@ export function PortalConfigPage() {
               </table>
             </div>
             <p className="portal-login__hint" style={{ marginTop: 12 }}>
-              Contas do portal: Super Usuários e transportadores (demos + cadastro público). Alterações
-              de login/senha valem no próximo login.
+              Contas do portal: Super Usuários e transportadores. Alterações de login/senha/perfil
+              valem no próximo login.
             </p>
           </div>
         </section>
