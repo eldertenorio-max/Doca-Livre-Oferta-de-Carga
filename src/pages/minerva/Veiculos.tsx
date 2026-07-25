@@ -15,6 +15,7 @@ import {
   normalizeFotosVeiculo,
 } from '../../lib/veiculoFotos'
 import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
+import { newVeiculoId } from '../../lib/veiculosSync'
 import type { FotoVeiculoSlot, FotosVeiculo, Veiculo } from '../../types'
 import '../../styles/cadastro.css'
 
@@ -74,11 +75,31 @@ export function VeiculosPage() {
   const listaMotoristas = motoristas ?? []
 
   const scopedVeiculos = useMemo(() => {
-    if (user?.role === 'transportador' && user.transportador_id) {
-      return listaVeiculos.filter((v) => v.transportador_id === user.transportador_id)
-    }
-    return listaVeiculos
-  }, [listaVeiculos, user])
+    if (user?.role !== 'transportador' || !user.transportador_id) return listaVeiculos
+    const tid = user.transportador_id
+    const minha = listaTransportadores.find((t) => t.id === tid)
+    const meuCnpj = (minha?.cnpj || '').replace(/\D/g, '')
+    const meuNome = (minha?.nome_fantasia || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '')
+
+    return listaVeiculos.filter((v) => {
+      if (v.transportador_id === tid) return true
+      if (!v.transportador_id || !minha) return false
+      const emp = listaTransportadores.find((t) => t.id === v.transportador_id)
+      if (!emp) return false
+      const cnpj = (emp.cnpj || '').replace(/\D/g, '')
+      if (meuCnpj && cnpj && meuCnpj === cnpj) return true
+      const nome = (emp.nome_fantasia || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '')
+      return meuNome.length >= 5 && nome.length >= 5 && (meuNome.includes(nome) || nome.includes(meuNome))
+    })
+  }, [listaVeiculos, listaTransportadores, user])
 
   const scopedTransportadores = useMemo(() => {
     if (user?.role === 'transportador' && user.transportador_id) {
@@ -218,7 +239,17 @@ export function VeiculosPage() {
   }
 
   function save() {
-    const semEmpresa = form.transportador_id == null || form.transportador_id === ''
+    const isTransportador = user?.role === 'transportador'
+    // Transportador sempre grava na própria empresa (nunca autônomo / outra empresa)
+    const transportadorId = isTransportador
+      ? user?.transportador_id || null
+      : form.transportador_id == null || form.transportador_id === ''
+        ? null
+        : form.transportador_id
+    if (isTransportador && !transportadorId) {
+      setError('Sua conta não está vinculada a uma transportadora. Peça ao Super para ajustar no Portal.')
+      return
+    }
     if (!form.placa?.trim() || !form.tipo) {
       setError('Preencha Placa e Tipo (categoria) do veículo.')
       return
@@ -228,19 +259,15 @@ export function VeiculosPage() {
       setError('Informe o frete mínimo (maior que zero) para esta categoria de veículo.')
       return
     }
-    if (!semEmpresa && !form.transportador_id) {
-      setError('Selecione a empresa vinculada ou deixe em branco para veículo autônomo.')
-      return
-    }
     const fotos = normalizeFotosVeiculo(form.fotos, form.foto_url)
     if (!fotosCompletas(fotos)) {
       setError('Anexe as 5 fotos obrigatórias do veículo (roteiro completo).')
       return
     }
     const v: Veiculo = {
-      id: editingId ?? `v-${Math.random().toString(36).slice(2, 8)}`,
+      id: editingId ?? newVeiculoId(),
       placa: form.placa!.trim().toUpperCase(),
-      transportador_id: semEmpresa ? null : form.transportador_id!,
+      transportador_id: transportadorId,
       renavam: form.renavam,
       condutor: form.condutor,
       tipo: form.tipo!,
@@ -259,6 +286,7 @@ export function VeiculosPage() {
       cubagem_m3: form.cubagem_m3 != null ? Number(form.cubagem_m3) : undefined,
       eixos: form.eixos != null ? Number(form.eixos) : undefined,
       frete_minimo: roundMoney(freteMin),
+      disponivel_mapa: form.disponivel_mapa !== false,
       usa_manobrista: Boolean(form.usa_manobrista),
       padiado: Boolean(form.padiado),
       situacao: (form.situacao as 'ativo' | 'inativo') ?? 'ativo',

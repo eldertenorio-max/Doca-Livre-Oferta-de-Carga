@@ -78,6 +78,14 @@ import {
 } from '../lib/orgHierarchy'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import {
+  carregarVeiculosDoSupabase,
+  deleteVeiculoRemote,
+  isUuid,
+  mergeVeiculosLocalRemote,
+  newVeiculoId,
+  upsertVeiculoRemote,
+} from '../lib/veiculosSync'
+import {
   applySyncSlice,
   pickSyncSlice,
   pullKanbanSync,
@@ -279,6 +287,44 @@ function defaultState(): DataState {
     cargas_excluidas: [],
     transportadores_excluidos: [],
   }
+}
+
+function slugEmpresa(valor: string): string {
+  return (valor || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '')
+}
+
+/** Corrige placas apontando para id antigo da mesma empresa (CNPJ/nome). */
+function alinharVeiculosAoTransportador(
+  veiculos: Veiculo[],
+  transportadores: Transportador[],
+  transportadorId: string,
+): Veiculo[] {
+  const minha = transportadores.find((t) => t.id === transportadorId)
+  if (!minha) return veiculos
+  const meuCnpj = (minha.cnpj || '').replace(/\D/g, '')
+  const meuNome = slugEmpresa(minha.nome_fantasia || minha.razao_social || '')
+  let mudou = false
+  const next = veiculos.map((v) => {
+    if (!v.transportador_id || v.transportador_id === transportadorId) return v
+    const emp = transportadores.find((t) => t.id === v.transportador_id)
+    if (!emp) return v
+    const cnpj = (emp.cnpj || '').replace(/\D/g, '')
+    if (meuCnpj && cnpj && meuCnpj === cnpj) {
+      mudou = true
+      return { ...v, transportador_id: transportadorId }
+    }
+    const nome = slugEmpresa(emp.nome_fantasia || emp.razao_social || '')
+    if (meuNome.length >= 5 && nome.length >= 5 && (meuNome.includes(nome) || nome.includes(meuNome))) {
+      mudou = true
+      return { ...v, transportador_id: transportadorId }
+    }
+    return v
+  })
+  return mudou ? next : veiculos
 }
 
 function uid(prefix: string) {
@@ -821,55 +867,67 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const refreshTransportadores = useCallback(async () => {
     const remote = await carregarTransportadoresDoSupabase()
-    if (!remote) return
+    const remoteVeiculos = await carregarVeiculosDoSupabase()
+    if (!remote && !remoteVeiculos) return
     let pushSlice: typeof stateRef.current | null = null
     setState((prev) => {
       const excluidos = new Set(prev.transportadores_excluidos ?? [])
       const byId = new Map(prev.transportadores.map((t) => [t.id, t]))
       let notificacoes = prev.notificacoes
       let notifNova = false
-      for (const t of remote.transportadores) {
-        if (excluidos.has(t.id)) continue
-        const local = byId.get(t.id)
-        // Remoto manda nos dados cadastrais; preserva origem/mapa locais se o remoto vier vazio
-        byId.set(
-          t.id,
-          local
-            ? {
-                ...local,
-                ...t,
-                pontuacao: t.pontuacao ?? local.pontuacao,
-                origem_lat: t.origem_lat ?? local.origem_lat ?? null,
-                origem_lng: t.origem_lng ?? local.origem_lng ?? null,
-                origem_cidade: t.origem_cidade || local.origem_cidade,
-                origem_uf: t.origem_uf || local.origem_uf,
-                origem_endereco: t.origem_endereco || local.origem_endereco,
-                origem_numero: t.origem_numero || local.origem_numero,
-                origem_bairro: t.origem_bairro || local.origem_bairro,
-                origem_cep: t.origem_cep || local.origem_cep,
-                raio_km: t.raio_km ?? local.raio_km,
-                disponivel_mapa:
-                  t.disponivel_mapa === false || t.disponivel_mapa === true
-                    ? t.disponivel_mapa
-                    : local.disponivel_mapa,
-              }
-            : t,
-        )
-        if (t.situacao === 'pendente') {
-          const before = notificacoes
-          notificacoes = pushNotif(notificacoes, notifCadastroPendente(t))
-          if (notificacoes !== before) notifNova = true
+      if (remote) {
+        for (const t of remote.transportadores) {
+          if (excluidos.has(t.id)) continue
+          const local = byId.get(t.id)
+          // Remoto manda nos dados cadastrais; preserva origem/mapa locais se o remoto vier vazio
+          byId.set(
+            t.id,
+            local
+              ? {
+                  ...local,
+                  ...t,
+                  pontuacao: t.pontuacao ?? local.pontuacao,
+                  origem_lat: t.origem_lat ?? local.origem_lat ?? null,
+                  origem_lng: t.origem_lng ?? local.origem_lng ?? null,
+                  origem_cidade: t.origem_cidade || local.origem_cidade,
+                  origem_uf: t.origem_uf || local.origem_uf,
+                  origem_endereco: t.origem_endereco || local.origem_endereco,
+                  origem_numero: t.origem_numero || local.origem_numero,
+                  origem_bairro: t.origem_bairro || local.origem_bairro,
+                  origem_cep: t.origem_cep || local.origem_cep,
+                  raio_km: t.raio_km ?? local.raio_km,
+                  disponivel_mapa:
+                    t.disponivel_mapa === false || t.disponivel_mapa === true
+                      ? t.disponivel_mapa
+                      : local.disponivel_mapa,
+                }
+              : t,
+          )
+          if (t.situacao === 'pendente') {
+            const before = notificacoes
+            notificacoes = pushNotif(notificacoes, notifCadastroPendente(t))
+            if (notificacoes !== before) notifNova = true
+          }
         }
       }
       const docsById = new Map((prev.documentos ?? []).map((d) => [d.id, d]))
-      for (const d of remote.documentos) {
-        if (excluidos.has(d.transportador_id)) continue
-        docsById.set(d.id, d)
+      if (remote) {
+        for (const d of remote.documentos) {
+          if (excluidos.has(d.transportador_id)) continue
+          docsById.set(d.id, d)
+        }
       }
+      const veiculos = remoteVeiculos
+        ? mergeVeiculosLocalRemote(
+            (prev.veiculos ?? []).filter((v) => !excluidos.has(v.transportador_id ?? '')),
+            remoteVeiculos.filter((v) => !excluidos.has(v.transportador_id ?? '')),
+          )
+        : prev.veiculos
       const next = ensureDemoFrotaMapa({
         ...prev,
         transportadores: Array.from(byId.values()),
         documentos: Array.from(docsById.values()),
+        veiculos,
         notificacoes,
       })
       stateRef.current = next
@@ -877,6 +935,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return next
     })
     if (pushSlice) flushKanbanPush(pushSlice)
+
+    // Migra placas locais (id v-…) para o Supabase, para o transportador ver no outro aparelho
+    const locais = (stateRef.current.veiculos ?? []).filter(
+      (v) => isUuid(v.transportador_id) && !isUuid(v.id),
+    )
+    for (const v of locais) {
+      const res = await upsertVeiculoRemote(v)
+      if (!res.ok || res.id === v.id) continue
+      setState((prev) => {
+        const veiculos = (prev.veiculos ?? []).map((x) =>
+          x.id === v.id ? { ...x, id: res.id } : x,
+        )
+        const motoristas = (prev.motoristas ?? []).map((m) =>
+          m.veiculo_id === v.id ? { ...m, veiculo_id: res.id } : m,
+        )
+        const next = { ...prev, veiculos, motoristas }
+        stateRef.current = next
+        return next
+      })
+    }
   }, [flushKanbanPush])
 
   // Hidrata cadastros pendentes/aprovados direto da tabela (não depende só do kanban_sync)
@@ -1137,6 +1215,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
         account = found
       }
       isSuperuser = false
+      if (account.transportador_id) {
+        const alinhados = alinharVeiculosAoTransportador(
+          stateRef.current.veiculos ?? [],
+          stateRef.current.transportadores ?? [],
+          account.transportador_id,
+        )
+        if (alinhados !== stateRef.current.veiculos) {
+          setState((prev) => {
+            const next = { ...prev, veiculos: alinhados }
+            stateRef.current = next
+            return next
+          })
+        }
+      }
     } else {
       isSuperuser = account.role === 'super'
     }
@@ -1186,6 +1278,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
         account.role === 'transportador'
           ? (account.transportador_id ?? prev.transportador_id ?? null)
           : null
+      if (transportador_id) {
+        const alinhados = alinharVeiculosAoTransportador(
+          stateRef.current.veiculos ?? [],
+          stateRef.current.transportadores ?? [],
+          transportador_id,
+        )
+        if (alinhados !== stateRef.current.veiculos) {
+          setState((s) => {
+            const next = { ...s, veiculos: alinhados }
+            stateRef.current = next
+            return next
+          })
+        }
+      }
       const role = isSuperuser ? ('super' as const) : ('transportador' as const)
       if (
         prev.transportador_id === transportador_id &&
@@ -3014,77 +3120,67 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [flushKanbanPush, gravarSituacaoTransportador])
 
   const salvarVeiculo = useCallback((v: Veiculo) => {
+    // Sempre UUID para sincronizar entre Super e transportador
+    const id = isUuid(v.id) ? v.id : newVeiculoId()
+    const antigoId = v.id !== id ? v.id : null
+    const salvo: Veiculo = {
+      ...v,
+      id,
+      placa: (v.placa || '').trim().toUpperCase(),
+      disponivel_mapa: v.disponivel_mapa !== false,
+    }
+
     setState((prev) => {
-      const list = prev.veiculos ?? []
-      const exists = list.some((x) => x.id === v.id)
-      let veiculos = exists ? list.map((x) => (x.id === v.id ? v : x)) : [...list, v]
+      const list = (prev.veiculos ?? []).filter((x) => x.id !== antigoId)
+      const exists = list.some((x) => x.id === salvo.id)
+      let veiculos = exists
+        ? list.map((x) => (x.id === salvo.id ? salvo : x))
+        : [...list, salvo]
 
       // Vincula o motorista escolhido como Condutor à placa + transportadora
       let motoristas = prev.motoristas ?? []
-      const nomeCondutor = (v.condutor || '').trim().toLowerCase()
+      const nomeCondutor = (salvo.condutor || '').trim().toLowerCase()
       if (nomeCondutor) {
         const idx = motoristas.findIndex((m) => (m.nome || '').trim().toLowerCase() === nomeCondutor)
         if (idx >= 0) {
-          const m = motoristas[idx]
-          const atualizado = {
-            ...m,
-            veiculo_id: v.id,
-            transportador_id: v.transportador_id,
-            autonomo: !v.transportador_id,
-          }
           motoristas = motoristas.map((x, i) => {
-            if (i === idx) return atualizado
-            // Libera a placa de outros motoristas
-            if (x.veiculo_id === v.id) return { ...x, veiculo_id: null }
+            if (i === idx) {
+              return {
+                ...x,
+                veiculo_id: salvo.id,
+                transportador_id: salvo.transportador_id,
+                autonomo: !salvo.transportador_id,
+              }
+            }
+            if (x.veiculo_id === salvo.id || (antigoId && x.veiculo_id === antigoId)) {
+              return { ...x, veiculo_id: null }
+            }
             return x
           })
         }
+      } else if (antigoId) {
+        motoristas = motoristas.map((x) =>
+          x.veiculo_id === antigoId ? { ...x, veiculo_id: salvo.id } : x,
+        )
       }
 
       return { ...prev, veiculos, motoristas }
     })
 
-    // Persiste no Supabase quando o id for UUID (cadastros remotos)
-    if (
-      isSupabaseConfigured &&
-      supabase &&
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v.id)
-    ) {
-      void supabase.from('veiculos').upsert({
-        id: v.id,
-        placa: v.placa,
-        transportador_id: v.transportador_id,
-        renavam: v.renavam ?? null,
-        condutor: v.condutor ?? null,
-        tipo: v.tipo,
-        marca: v.marca ?? null,
-        modelo: v.modelo ?? null,
-        cor: v.cor ?? null,
-        ano_fabricacao: v.ano_fabricacao ?? null,
-        ano_modelo: v.ano_modelo ?? null,
-        uf_licenciamento: v.uf_licenciamento ?? null,
-        foto_url: v.foto_url ?? null,
-        fotos: v.fotos ?? {},
-        tipo_carroceria: v.tipo_carroceria ?? null,
-        qtd_pallets: v.qtd_pallets ?? null,
-        aclimatacao: v.aclimatacao ?? null,
-        capacidade_kg: v.capacidade_kg ?? null,
-        cubagem_m3: v.cubagem_m3 ?? null,
-        eixos: v.eixos ?? null,
-        frete_minimo: v.frete_minimo ?? 0,
-        usa_manobrista: Boolean(v.usa_manobrista),
-        padiado: Boolean(v.padiado),
-        situacao: v.situacao,
-        disponivel_mapa: v.disponivel_mapa !== false,
-      })
-    }
+    void upsertVeiculoRemote(salvo).then((res) => {
+      if (!res.ok) console.warn('[veiculos] falha ao gravar no Supabase:', res.erro)
+    })
   }, [])
 
   const excluirVeiculo = useCallback((id: string) => {
     setState((prev) => ({
       ...prev,
       veiculos: (prev.veiculos ?? []).filter((v) => v.id !== id),
+      motoristas: (prev.motoristas ?? []).map((m) =>
+        m.veiculo_id === id ? { ...m, veiculo_id: null } : m,
+      ),
     }))
+    void deleteVeiculoRemote(id)
   }, [])
 
   const salvarRota = useCallback((r: Rota) => {
