@@ -5,6 +5,8 @@ import { useData } from '../../context/DataContext'
 import { formatCurrency } from '../../lib/businessRules'
 import { geocodificarConsulta } from '../../lib/geocodeEndereco'
 import {
+  agruparPontosPorCoord,
+  chaveCoordFrota,
   distanciaKm,
   frotaIconeHtml,
   iniciaisNome,
@@ -78,6 +80,47 @@ function markerHtml(p: PontoFrota): string {
       <span class="frota-bubble__price">${frete}</span>
     </div>
   `
+}
+
+/** Pin agrupado: vários veículos na mesma coordenada. */
+function clusterMarkerHtml(pontos: PontoFrota[]): string {
+  const n = pontos.length
+  const disponiveis = pontos.filter((p) => p.disponivel)
+  const amostra = disponiveis[0] ?? pontos[0]
+  const fretes = disponiveis.map((p) => p.freteMinimo).filter((v) => v > 0)
+  const freteMin = fretes.length > 0 ? Math.min(...fretes) : amostra.freteMinimo
+  const frete = labelFretePin(freteMin)
+  const status = disponiveis.length > 0 ? 'ok' : 'off'
+  const nomes = pontos
+    .slice(0, 4)
+    .map((p) => p.placa || p.motoristaNome)
+    .join(', ')
+  const extra = n > 4 ? ` +${n - 4}` : ''
+  return `
+    <div class="frota-bubble frota-bubble--${status} frota-bubble--cluster" title="${escapeHtml(
+      `${n} veículos neste ponto: ${nomes}${extra}`,
+    )}">
+      ${frotaIconeHtml(amostra.icone, 'frota-bubble__icon')}
+      <span class="frota-bubble__price">${frete}</span>
+      <span class="frota-bubble__badge" aria-label="${n} veículos">${n}</span>
+    </div>
+  `
+}
+
+/** Espalha pins em círculo (pixels → lat/lng) a partir do centro. */
+function posicoesSpiderfy(
+  map: L.Map,
+  center: L.LatLngExpression,
+  count: number,
+): L.LatLng[] {
+  if (count <= 1) return [L.latLng(center)]
+  const origin = map.latLngToLayerPoint(center)
+  const radius = Math.min(110, 36 + count * 10)
+  return Array.from({ length: count }, (_, i) => {
+    const ang = (Math.PI * 2 * i) / count - Math.PI / 2
+    const pt = L.point(origin.x + Math.cos(ang) * radius, origin.y + Math.sin(ang) * radius)
+    return map.layerPointToLatLng(pt)
+  })
 }
 
 function popupHtml(p: PontoFrota): string {
@@ -228,6 +271,11 @@ export function MapaFrotaPage() {
   const origemMarkerRef = useRef<L.Marker | null>(null)
   const markersRef = useRef<Map<string, L.Marker>>(new Map())
   const markersUiRef = useRef<Map<string, string>>(new Map())
+  const clusterMarkersRef = useRef<Map<string, L.Marker>>(new Map())
+  const spiderLegsRef = useRef<L.LayerGroup | null>(null)
+  const [expandedCluster, setExpandedCluster] = useState<string | null>(null)
+  const expandedClusterRef = useRef<string | null>(null)
+  expandedClusterRef.current = expandedCluster
   /** Evita que pan/rebuild feche o popup e limpe a seleção na hora de abrir. */
   const ignorarFecharPopupRef = useRef(false)
   const clicarOrigemRef = useRef(false)
@@ -440,19 +488,23 @@ export function MapaFrotaPage() {
     mapRef.current = map
 
     map.on('click', (e) => {
-      if (!clicarOrigemRef.current) return
-      L.DomEvent.stopPropagation(e.originalEvent)
-      const { lat, lng } = e.latlng
-      setOrigemRaio({
-        lat,
-        lng,
-        label: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
-      })
-      setCoordLat(lat.toFixed(5))
-      setCoordLng(lng.toFixed(5))
-      setGeoErro('')
-      setClicarOrigem(false)
-      setRaioGeoAtivo(true)
+      if (clicarOrigemRef.current) {
+        L.DomEvent.stopPropagation(e.originalEvent)
+        const { lat, lng } = e.latlng
+        setOrigemRaio({
+          lat,
+          lng,
+          label: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+        })
+        setCoordLat(lat.toFixed(5))
+        setCoordLng(lng.toFixed(5))
+        setGeoErro('')
+        setClicarOrigem(false)
+        setRaioGeoAtivo(true)
+        return
+      }
+      // Clique no mapa fecha o leque de pins empilhados
+      if (expandedClusterRef.current) setExpandedCluster(null)
     })
 
     const t = window.setTimeout(() => map.invalidateSize(), 80)
@@ -465,6 +517,8 @@ export function MapaFrotaPage() {
       origemMarkerRef.current = null
       markersRef.current.clear()
       markersUiRef.current.clear()
+      clusterMarkersRef.current.clear()
+      spiderLegsRef.current = null
     }
   }, [])
 
@@ -473,6 +527,11 @@ export function MapaFrotaPage() {
     if (!map) return
     map.getContainer().style.cursor = clicarOrigem ? 'crosshair' : ''
   }, [clicarOrigem])
+
+  // Fecha o leque quando o filtro muda
+  useEffect(() => {
+    setExpandedCluster(null)
+  }, [chaveFiltro])
 
   useEffect(() => {
     const map = mapRef.current
@@ -494,6 +553,13 @@ export function MapaFrotaPage() {
       map.removeLayer(origemMarkerRef.current)
       origemMarkerRef.current = null
     }
+
+    if (!spiderLegsRef.current) {
+      spiderLegsRef.current = L.layerGroup().addTo(map)
+    } else {
+      spiderLegsRef.current.clearLayers()
+    }
+    const legs = spiderLegsRef.current
 
     if (origemRaio) {
       const origemIcon = L.divIcon({
@@ -522,15 +588,10 @@ export function MapaFrotaPage() {
       }
     }
 
-    const idsVisiveis = new Set(filtrados.map((p) => p.id))
-    for (const [id, m] of markersRef.current) {
-      if (!idsVisiveis.has(id)) {
-        layer.removeLayer(m)
-        markersRef.current.delete(id)
-        markersUiRef.current.delete(id)
-      }
-    }
-
+    const grupos = agruparPontosPorCoord(filtrados)
+    const expanded = expandedCluster
+    const idsVisiveis = new Set<string>()
+    const clusterKeysVisiveis = new Set<string>()
     const bounds: L.LatLngExpression[] = []
 
     function ligarPopup(m: L.Marker, p: PontoFrota) {
@@ -552,13 +613,13 @@ export function MapaFrotaPage() {
       })
     }
 
-    for (const p of filtrados) {
-      const uiKey = pontoUiKey(p)
+    function ensureMarker(p: PontoFrota, latlng: L.LatLngExpression): L.Marker {
+      const uiKey = `${pontoUiKey(p)}@${L.latLng(latlng).lat.toFixed(6)},${L.latLng(latlng).lng.toFixed(6)}`
       let m = markersRef.current.get(p.id)
       const prevKey = markersUiRef.current.get(p.id)
 
       if (!m) {
-        m = L.marker([p.lat, p.lng], {
+        m = L.marker(latlng, {
           icon: makeIcon(p),
           riseOnHover: true,
           keyboard: true,
@@ -595,27 +656,142 @@ export function MapaFrotaPage() {
         m.addTo(layer)
         markersRef.current.set(p.id, m)
         markersUiRef.current.set(p.id, uiKey)
-      } else if (prevKey !== uiKey) {
-        const popupAberto = m.isPopupOpen()
-        const scrollKeep = popupAberto ? scrollDoPopup(map) : 0
-        m.setLatLng([p.lat, p.lng])
-        m.setIcon(makeIcon(p))
-        m.setPopupContent(popupHtml(p))
-        ligarPopup(m, p)
-        markersUiRef.current.set(p.id, uiKey)
-        if (popupAberto) {
-          window.requestAnimationFrame(() => {
-            const popup = m!.getPopup()
-            if (popup) encaixarPopupNoMapa(map, popup)
-            restaurarScrollPopup(map, scrollKeep)
-          })
+      } else {
+        if (!layer.hasLayer(m)) m.addTo(layer)
+        if (prevKey !== uiKey) {
+          const popupAberto = m.isPopupOpen()
+          const scrollKeep = popupAberto ? scrollDoPopup(map) : 0
+          m.setLatLng(latlng)
+          m.setIcon(makeIcon(p))
+          m.setPopupContent(popupHtml(p))
+          ligarPopup(m, p)
+          markersUiRef.current.set(p.id, uiKey)
+          if (popupAberto) {
+            window.requestAnimationFrame(() => {
+              const popup = m!.getPopup()
+              if (popup) encaixarPopupNoMapa(map, popup)
+              restaurarScrollPopup(map, scrollKeep)
+            })
+          }
+        } else {
+          m.setLatLng(latlng)
         }
       }
-
-      bounds.push([p.lat, p.lng])
+      return m
     }
 
-    if (idAberto) {
+    for (const [key, pontos] of grupos) {
+      const center: L.LatLngExpression = [pontos[0].lat, pontos[0].lng]
+      bounds.push(center)
+
+      if (pontos.length === 1) {
+        idsVisiveis.add(pontos[0].id)
+        ensureMarker(pontos[0], center)
+        continue
+      }
+
+      if (expanded === key) {
+        const posicoes = posicoesSpiderfy(map, center, pontos.length)
+        pontos.forEach((p, i) => {
+          idsVisiveis.add(p.id)
+          ensureMarker(p, posicoes[i] ?? L.latLng(center))
+          L.polyline([center, posicoes[i] ?? center], {
+            color: '#64748b',
+            weight: 1.5,
+            opacity: 0.55,
+            dashArray: '4 4',
+            interactive: false,
+          }).addTo(legs)
+        })
+        // Centro clicável para fechar o leque
+        clusterKeysVisiveis.add(key)
+        let hub = clusterMarkersRef.current.get(key)
+        const hubHtml = `<div class="frota-cluster-hub" title="Fechar veículos deste ponto">×</div>`
+        if (!hub) {
+          hub = L.marker(center, {
+            icon: L.divIcon({
+              className: 'frota-cluster-hub-wrap',
+              html: hubHtml,
+              iconSize: [28, 28],
+              iconAnchor: [14, 14],
+            }),
+            zIndexOffset: 900,
+          })
+          hub.on('click', (e) => {
+            L.DomEvent.stopPropagation(e.originalEvent)
+            setExpandedCluster(null)
+          })
+          hub.addTo(layer)
+          clusterMarkersRef.current.set(key, hub)
+        } else {
+          hub.setLatLng(center)
+          hub.setIcon(
+            L.divIcon({
+              className: 'frota-cluster-hub-wrap',
+              html: hubHtml,
+              iconSize: [28, 28],
+              iconAnchor: [14, 14],
+            }),
+          )
+          if (!layer.hasLayer(hub)) hub.addTo(layer)
+        }
+        continue
+      }
+
+      // Agrupado: um pin com badge; veículos individuais ficam ocultos
+      clusterKeysVisiveis.add(key)
+      let cm = clusterMarkersRef.current.get(key)
+      const clusterIcon = L.divIcon({
+        className: 'frota-pin-wrap',
+        html: clusterMarkerHtml(pontos),
+        iconSize: [120, 52],
+        iconAnchor: [60, 52],
+      })
+      if (!cm) {
+        cm = L.marker(center, {
+          icon: clusterIcon,
+          riseOnHover: true,
+          keyboard: true,
+          title: `${pontos.length} veículos neste ponto`,
+          zIndexOffset: 400,
+        })
+        cm.on('click', (e) => {
+          if (clicarOrigemRef.current) return
+          L.DomEvent.stopPropagation(e.originalEvent)
+          setSelecionado(null)
+          setExpandedCluster(key)
+        })
+        cm.addTo(layer)
+        clusterMarkersRef.current.set(key, cm)
+      } else {
+        cm.setLatLng(center)
+        cm.setIcon(clusterIcon)
+        cm.off('click')
+        cm.on('click', (e) => {
+          if (clicarOrigemRef.current) return
+          L.DomEvent.stopPropagation(e.originalEvent)
+          setSelecionado(null)
+          setExpandedCluster(key)
+        })
+        if (!layer.hasLayer(cm)) cm.addTo(layer)
+      }
+    }
+
+    for (const [id, m] of markersRef.current) {
+      if (!idsVisiveis.has(id)) {
+        layer.removeLayer(m)
+        markersRef.current.delete(id)
+        markersUiRef.current.delete(id)
+      }
+    }
+    for (const [key, cm] of clusterMarkersRef.current) {
+      if (!clusterKeysVisiveis.has(key)) {
+        layer.removeLayer(cm)
+        clusterMarkersRef.current.delete(key)
+      }
+    }
+
+    if (idAberto && idsVisiveis.has(idAberto)) {
       const keep = markersRef.current.get(idAberto)
       if (keep) {
         if (!keep.isPopupOpen()) {
@@ -635,6 +811,17 @@ export function MapaFrotaPage() {
         ignorarFecharPopupRef.current = false
       }
     } else {
+      if (idAberto && !idsVisiveis.has(idAberto)) {
+        // Seleção está dentro de um cluster fechado — abre o leque
+        const ponto = filtrados.find((p) => p.id === idAberto)
+        if (ponto) {
+          const key = chaveCoordFrota(ponto.lat, ponto.lng)
+          const grupo = grupos.get(key)
+          if (grupo && grupo.length > 1 && expanded !== key) {
+            window.queueMicrotask(() => setExpandedCluster(key))
+          }
+        }
+      }
       ignorarFecharPopupRef.current = false
     }
 
@@ -662,7 +849,7 @@ export function MapaFrotaPage() {
         enquadrouInicialRef.current = true
       }
     }
-  }, [filtrados, raioGeo, raioGeoAtivo, origemRaio, chaveFiltro])
+  }, [filtrados, raioGeo, raioGeoAtivo, origemRaio, chaveFiltro, expandedCluster])
 
   return (
     <div className="mapa-frota animate-fade-up">

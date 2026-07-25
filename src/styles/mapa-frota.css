@@ -733,6 +733,50 @@
   padding-right: 2px;
 }
 
+.frota-bubble--cluster {
+  padding-right: 14px;
+}
+
+.frota-bubble__badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.25);
+  line-height: 1;
+}
+
+.frota-cluster-hub-wrap {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.frota-cluster-hub {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  border: 2px solid #fff;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 0.3);
+  cursor: pointer;
+  line-height: 1;
+}
+
 /* Popup Leaflet — abre EMBAIXO do pin */
 .frota-leaflet-popup .leaflet-popup-content-wrapper {
   border-radius: 16px;

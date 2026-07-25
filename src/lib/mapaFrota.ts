@@ -35,6 +35,22 @@ export type PontoFrota = {
   raioKm: number
 }
 
+/** Chave estável para agrupar pins na mesma coordenada. */
+export function chaveCoordFrota(lat: number, lng: number): string {
+  return `${lat.toFixed(5)},${lng.toFixed(5)}`
+}
+
+export function agruparPontosPorCoord(pontos: PontoFrota[]): Map<string, PontoFrota[]> {
+  const map = new Map<string, PontoFrota[]>()
+  for (const p of pontos) {
+    const key = chaveCoordFrota(p.lat, p.lng)
+    const list = map.get(key)
+    if (list) list.push(p)
+    else map.set(key, [p])
+  }
+  return map
+}
+
 const EMOJI_POR_GRUPO: Record<FrotaIconeGrupo, string> = {
   van: '🚐',
   fiorino: '🛻',
@@ -290,19 +306,6 @@ export function montarPontosFrota(
     })
   }
 
-  // Espalha pins que caem no mesmo ponto (vários motoristas na mesma origem)
-  const contagem = new Map<string, number>()
-  return pontos.map((p) => {
-    const key = `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`
-    const i = contagem.get(key) ?? 0
-    contagem.set(key, i + 1)
-    if (i === 0) return p
-    const ang = (i * 2.2) % (Math.PI * 2)
-    const d = 0.012 * i
-    return {
-      ...p,
-      lat: p.lat + Math.cos(ang) * d,
-      lng: p.lng + Math.sin(ang) * d,
-    }
-  })
+  // Pins na coordenada real — empilhados no mapa abrem (spiderfy) ao clicar
+  return pontos
 }
