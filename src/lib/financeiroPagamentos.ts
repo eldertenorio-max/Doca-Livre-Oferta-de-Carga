@@ -1,3 +1,5 @@
+import { appStoreGet, appStoreGetCached, appStoreSet, migrateLocalKeyToAppStore } from './appStore'
+
 export type StatusPagamentoFrete = 'a_pagar' | 'pago'
 
 export interface PagamentoFrete {
@@ -8,21 +10,31 @@ export interface PagamentoFrete {
   updated_at: string
 }
 
-const STORAGE_KEY = 'doca-livre-pagamentos-v1'
+const STORE_KEY = 'pagamentos_frete'
+const LEGACY_KEY = 'doca-livre-pagamentos-v1'
 
 export function loadPagamentos(): Record<string, PagamentoFrete> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return {}
-    const parsed = JSON.parse(raw) as Record<string, PagamentoFrete>
-    return parsed && typeof parsed === 'object' ? parsed : {}
-  } catch {
-    return {}
-  }
+  const cached = appStoreGetCached<Record<string, PagamentoFrete> | null>(STORE_KEY, null)
+  return cached && typeof cached === 'object' ? cached : {}
 }
 
 export function savePagamentos(map: Record<string, PagamentoFrete>) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(map))
+  void appStoreSet(STORE_KEY, map)
+}
+
+export async function hydratePagamentos(): Promise<Record<string, PagamentoFrete>> {
+  await migrateLocalKeyToAppStore(LEGACY_KEY, STORE_KEY, (raw) => {
+    try {
+      const parsed = JSON.parse(raw) as Record<string, PagamentoFrete>
+      return parsed && typeof parsed === 'object' ? parsed : null
+    } catch {
+      return null
+    }
+  })
+  const remote = await appStoreGet<Record<string, PagamentoFrete> | null>(STORE_KEY, null)
+  const next = remote && typeof remote === 'object' ? remote : {}
+  void appStoreSet(STORE_KEY, next)
+  return next
 }
 
 export function getStatusPagamento(

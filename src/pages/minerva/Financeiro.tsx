@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
 import {
@@ -9,6 +9,7 @@ import {
 import { downloadCsv } from '../../lib/exportCsv'
 import {
   getStatusPagamento,
+  hydratePagamentos,
   loadPagamentos,
   setStatusPagamento,
   type StatusPagamentoFrete,
@@ -63,6 +64,10 @@ export function FinanceiroPage() {
   const [selectedTid, setSelectedTid] = useState<string | null>(null)
 
   const isSuper = isSuperSession(user)
+
+  useEffect(() => {
+    void hydratePagamentos().then(setPagamentos)
+  }, [])
 
   function aplicarPeriodo(p: PeriodoRapido) {
     setPeriodo(p)

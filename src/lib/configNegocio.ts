@@ -1,6 +1,7 @@
 import type { ClassificacaoRota } from '../types'
+import { appStoreGet, appStoreGetCached, appStoreSet, migrateLocalKeyToAppStore } from './appStore'
 
-/** Configurações operacionais (PPT §5 / §20) — persistidas em localStorage. */
+/** Configurações operacionais (PPT §5 / §20) — persistidas no Supabase. */
 export interface ConfigNegocio {
   prazo_oferta_padrao_minutos: number
   prazo_oferta_minimo_minutos: number
@@ -40,6 +41,20 @@ export const DEFAULT_CONFIG_NEGOCIO: ConfigNegocio = {
   controle_fretes_ativo: true,
 }
 
+const STORE_KEY = 'config_negocio'
+const LEGACY_KEY = 'doca-livre-config-negocio-v1'
+
+function normalize(parsed: Partial<ConfigNegocio> | null | undefined): ConfigNegocio {
+  return {
+    ...DEFAULT_CONFIG_NEGOCIO,
+    ...(parsed ?? {}),
+    margens: {
+      ...DEFAULT_CONFIG_NEGOCIO.margens,
+      ...(parsed?.margens ?? {}),
+    },
+  }
+}
+
 export function limitesLance(
   freteOferta: number,
   cfg: ConfigNegocio,
@@ -56,28 +71,27 @@ export function limitesLance(
   return { min, max }
 }
 
-const KEY = 'doca-livre-config-negocio-v1'
-
 export function loadConfigNegocio(): ConfigNegocio {
-  try {
-    const raw = localStorage.getItem(KEY)
-    if (!raw) return structuredClone(DEFAULT_CONFIG_NEGOCIO)
-    const parsed = JSON.parse(raw) as Partial<ConfigNegocio>
-    return {
-      ...DEFAULT_CONFIG_NEGOCIO,
-      ...parsed,
-      margens: {
-        ...DEFAULT_CONFIG_NEGOCIO.margens,
-        ...(parsed.margens ?? {}),
-      },
-    }
-  } catch {
-    return structuredClone(DEFAULT_CONFIG_NEGOCIO)
-  }
+  return normalize(appStoreGetCached<Partial<ConfigNegocio> | null>(STORE_KEY, null))
 }
 
 export function saveConfigNegocio(cfg: ConfigNegocio) {
-  localStorage.setItem(KEY, JSON.stringify(cfg))
+  const next = normalize(cfg)
+  void appStoreSet(STORE_KEY, next)
+}
+
+export async function hydrateConfigNegocio(): Promise<ConfigNegocio> {
+  await migrateLocalKeyToAppStore(LEGACY_KEY, STORE_KEY, (raw) => {
+    try {
+      return normalize(JSON.parse(raw) as Partial<ConfigNegocio>)
+    } catch {
+      return null
+    }
+  })
+  const remote = await appStoreGet<Partial<ConfigNegocio> | null>(STORE_KEY, null)
+  const next = normalize(remote)
+  void appStoreSet(STORE_KEY, next)
+  return next
 }
 
 export function prazosOfertaPermitidos(cfg: ConfigNegocio): number[] {
@@ -92,4 +106,12 @@ export function prazosOfertaPermitidos(cfg: ConfigNegocio): number[] {
 
 export function prazosAlocacaoPermitidos(): number[] {
   return [10, 20, 30, 40, 50, 60, 120, 180, 240]
+}
+
+export function formatPrazoLabel(minutos: number): string {
+  if (minutos < 60) return `${minutos} min`
+  const h = Math.floor(minutos / 60)
+  const m = minutos % 60
+  if (m === 0) return `${h}h`
+  return `${h}h ${m}min`
 }

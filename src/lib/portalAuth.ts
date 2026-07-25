@@ -1,7 +1,7 @@
 /**
- * Autenticação local do Oferta de Carga (contas em localStorage).
- * Envio de e-mail OTP: use `portalApi.ts` (Edge Function + Resend, como no WMS).
- * As funções OTP abaixo são fallback de desenvolvimento.
+ * Autenticação do Oferta de Carga — fonte da verdade: Supabase (`usuarios`).
+ * Cache só em memória; sem localStorage de contas.
+ * Envio de e-mail OTP: use `portalApi.ts` (Edge Function + Resend).
  */
 
 import { isLocalSuperUser } from './superUsers'
@@ -13,15 +13,20 @@ import {
 } from './portalModules'
 import type { PerfilOperacional, UserRole } from '../types'
 import { isSupabaseConfigured, supabase } from './supabase'
+import {
+  appStoreGet,
+  appStoreGetCached,
+  appStoreSet,
+  migrateLocalKeyToAppStore,
+} from './appStore'
 
-const USERS_KEY = 'doca-livre-oferta-users-v2'
-/** Chaves antigas — migra contas criadas antes da troca de versão. */
 const USERS_KEY_LEGACY = [
+  'doca-livre-oferta-users-v2',
   'doca-livre-oferta-users-v1',
   'doca-livre-portal-users-v1',
 ]
-const OTP_KEY = 'doca-livre-oferta-otp-v1'
-const PERMS_KEY = 'doca-livre-oferta-perms-v1'
+const PERMS_STORE_KEY = 'permissoes_portal'
+const PERMS_KEY_LEGACY = 'doca-livre-oferta-perms-v1'
 
 /** Super Usuários padrão (sempre presentes no portal). */
 export const SUPER_ACCOUNTS_SEED = [
@@ -88,6 +93,11 @@ type OtpRecord = {
   expira_em: number
 }
 
+/** Cache em memória das contas (fonte: Supabase). */
+let accountsCache: PortalAccount[] | null = null
+/** OTP só em memória (dev fallback). */
+let otpMemory: OtpRecord | null = null
+
 function uid() {
   return `u-${Math.random().toString(36).slice(2, 10)}`
 }
@@ -115,27 +125,28 @@ export const DEMO_TRANSPORTADORES = [
 /** @deprecated use DEMO_TRANSPORTADORES[0] */
 export const DEMO_TRANSPORTADOR = DEMO_TRANSPORTADORES[0]
 
-function readStoredAccounts(): PortalAccount[] | null {
+function readLegacyAccountsOnce(): PortalAccount[] | null {
   try {
-    const raw = localStorage.getItem(USERS_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw) as PortalAccount[]
-      if (Array.isArray(parsed)) return parsed
-    }
     for (const key of USERS_KEY_LEGACY) {
-      const legacy = localStorage.getItem(key)
-      if (!legacy) continue
-      const parsed = JSON.parse(legacy) as PortalAccount[]
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        // Migra para a chave atual para não “sumir” conta criada (ex.: Elder)
-        localStorage.setItem(USERS_KEY, legacy)
-        return parsed
-      }
+      const raw = localStorage.getItem(key)
+      if (!raw) continue
+      const parsed = JSON.parse(raw) as PortalAccount[]
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed
     }
   } catch {
     /* ignore */
   }
   return null
+}
+
+function clearLegacyAccountKeys() {
+  for (const key of USERS_KEY_LEGACY) {
+    try {
+      localStorage.removeItem(key)
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 function normalizePortalList(parsed: PortalAccount[]): PortalAccount[] {
@@ -149,10 +160,13 @@ function normalizePortalList(parsed: PortalAccount[]): PortalAccount[] {
 }
 
 export function loadPortalAccounts(): PortalAccount[] {
-  const stored = readStoredAccounts()
-  if (stored) {
-    const list = normalizePortalList(stored)
-    savePortalAccountsLocal(list)
+  if (accountsCache) return accountsCache
+  const legacy = readLegacyAccountsOnce()
+  if (legacy) {
+    const list = normalizePortalList(legacy)
+    accountsCache = list
+    schedulePersistRemote(list)
+    clearLegacyAccountKeys()
     return list
   }
   return seedAccounts()
@@ -463,7 +477,7 @@ function ensureDemoTransportadores(list: PortalAccount[]): PortalAccount[] {
 
 function seedAccounts(): PortalAccount[] {
   const seed = normalizePortalList([])
-  savePortalAccountsLocal(seed)
+  accountsCache = seed
   void persistPortalAccountsRemote(seed)
   return seed
 }
@@ -515,8 +529,15 @@ export function createPortalAccount(input: {
   return { ok: true, account, list }
 }
 
-function savePortalAccountsLocal(list: PortalAccount[]) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(list))
+function savePortalAccountsMemory(list: PortalAccount[]) {
+  accountsCache = list
+}
+
+/** Salva em memória e no Supabase (fonte da verdade). */
+export function savePortalAccounts(list: PortalAccount[]) {
+  const normalized = normalizePortalList(list)
+  savePortalAccountsMemory(normalized)
+  schedulePersistRemote(normalized)
 }
 
 function validUuid(value?: string | null) {
@@ -546,15 +567,8 @@ type RemotePortalAccount = {
 function mergePassword(localPass: string, remotePass: string): string {
   const local = (localPass || '').trim()
   const remote = (remotePass || '').trim()
-  if (!remote) return local
-  if (!local) return remote
-  if (local === remote) return local
-  const legacy = new Set(['elder123', 'diego123', '1234'])
-  // Remoto ainda legado e local já atualizada → mantém a edição local
-  if (legacy.has(remote) && !legacy.has(local)) return local
-  // Local legado e remoto atualizado → puxa a do servidor
-  if (legacy.has(local) && !legacy.has(remote)) return remote
-  // Empate: prioriza local (painel neste aparelho) e o push replica depois
+  // Banco manda: se remoto tem senha, usa remoto
+  if (remote) return remote
   return local
 }
 
@@ -639,12 +653,6 @@ function schedulePersistRemote(list: PortalAccount[]) {
   }, 900)
 }
 
-/** Salva localmente e replica no Supabase para os demais aparelhos. */
-export function savePortalAccounts(list: PortalAccount[]) {
-  savePortalAccountsLocal(list)
-  schedulePersistRemote(list)
-}
-
 /** Logins de transportadora criados pelo cadastro público (tabela profiles). */
 async function accountsDeProfiles(): Promise<PortalAccount[]> {
   if (!isSupabaseConfigured || !supabase) return []
@@ -679,7 +687,7 @@ async function accountsDeProfiles(): Promise<PortalAccount[]> {
     .filter((account) => account.usuario.length > 0 && account.email.includes('@'))
 }
 
-/** Une as contas locais com as contas compartilhadas do Supabase. */
+/** Une as contas do cache com as contas compartilhadas do Supabase (DB manda). */
 export async function syncPortalAccounts(): Promise<PortalAccount[]> {
   const local = loadPortalAccounts()
   if (!isSupabaseConfigured || !supabase) return local
@@ -692,17 +700,36 @@ export async function syncPortalAccounts(): Promise<PortalAccount[]> {
       .order('created_at', { ascending: true })
     if (error) return local
 
-    const merged = [...local]
-    for (const row of (data ?? []) as RemotePortalAccount[]) {
-      if (row.role !== 'super' && row.role !== 'transportador') continue
-      const idx = merged.findIndex(
-        (account) =>
-          account.usuario.toLowerCase() === row.usuario.toLowerCase() ||
-          account.email.toLowerCase() === row.email.toLowerCase(),
-      )
-      const account = fromRemoteAccount(row, idx >= 0 ? merged[idx] : undefined)
-      if (idx >= 0) merged[idx] = account
-      else merged.push(account)
+    const remoteRows = ((data ?? []) as RemotePortalAccount[]).filter(
+      (row) => row.role === 'super' || row.role === 'transportador',
+    )
+
+    // Se o banco já tem contas, ele é a fonte da verdade
+    let merged: PortalAccount[] =
+      remoteRows.length > 0
+        ? remoteRows.map((row) => fromRemoteAccount(row))
+        : [...local]
+
+    if (remoteRows.length > 0) {
+      for (const account of local) {
+        const existe = merged.some(
+          (item) =>
+            item.usuario.toLowerCase() === account.usuario.toLowerCase() ||
+            item.email.toLowerCase() === account.email.toLowerCase(),
+        )
+        if (!existe) merged.push(account)
+      }
+    } else {
+      for (const row of remoteRows) {
+        const idx = merged.findIndex(
+          (account) =>
+            account.usuario.toLowerCase() === row.usuario.toLowerCase() ||
+            account.email.toLowerCase() === row.email.toLowerCase(),
+        )
+        const account = fromRemoteAccount(row, idx >= 0 ? merged[idx] : undefined)
+        if (idx >= 0) merged[idx] = account
+        else merged.push(account)
+      }
     }
 
     // Cadastros públicos: o login existe em profiles mesmo sem conta no portal
@@ -717,11 +744,12 @@ export async function syncPortalAccounts(): Promise<PortalAccount[]> {
     }
 
     const normalized = normalizePortalList(merged)
-    savePortalAccountsLocal(normalized)
+    accountsCache = normalized
     void persistPortalAccountsRemote(normalized)
+    clearLegacyAccountKeys()
     return normalized
   } catch {
-    return local
+    return loadPortalAccounts()
   }
 }
 
@@ -853,17 +881,23 @@ export async function removePortalAccountRemote(
 }
 
 export function loadPermissoesMap(): Record<string, OfertaPermissao> {
-  try {
-    const raw = localStorage.getItem(PERMS_KEY)
-    if (raw) return JSON.parse(raw) as Record<string, OfertaPermissao>
-  } catch {
-    /* ignore */
-  }
-  return {}
+  return appStoreGetCached<Record<string, OfertaPermissao>>(PERMS_STORE_KEY, {})
 }
 
 export function savePermissoesMap(map: Record<string, OfertaPermissao>) {
-  localStorage.setItem(PERMS_KEY, JSON.stringify(map))
+  void appStoreSet(PERMS_STORE_KEY, map)
+}
+
+export async function hydratePermissoesMap(): Promise<Record<string, OfertaPermissao>> {
+  await migrateLocalKeyToAppStore(PERMS_KEY_LEGACY, PERMS_STORE_KEY, (raw) => {
+    try {
+      const parsed = JSON.parse(raw) as Record<string, OfertaPermissao>
+      return parsed && typeof parsed === 'object' ? parsed : null
+    } catch {
+      return null
+    }
+  })
+  return appStoreGet<Record<string, OfertaPermissao>>(PERMS_STORE_KEY, {})
 }
 
 export function getPermissaoUsuario(account: PortalAccount): OfertaPermissao {
@@ -877,17 +911,11 @@ export function getPermissaoUsuario(account: PortalAccount): OfertaPermissao {
 }
 
 function saveOtp(rec: OtpRecord) {
-  localStorage.setItem(OTP_KEY, JSON.stringify(rec))
+  otpMemory = rec
 }
 
 function loadOtp(): OtpRecord | null {
-  try {
-    const raw = localStorage.getItem(OTP_KEY)
-    if (!raw) return null
-    return JSON.parse(raw) as OtpRecord
-  } catch {
-    return null
-  }
+  return otpMemory
 }
 
 function genCodigo() {
@@ -972,7 +1000,7 @@ export async function portalCadastroConcluir(input: {
     role: 'super',
   })
   if (!created.ok) return { ok: false, erro: created.erro }
-  localStorage.removeItem(OTP_KEY)
+  otpMemory = null
 
   return {
     ok: true,
@@ -1280,7 +1308,7 @@ export async function portalSenhaRedefinir(input: {
     if (idx < 0) return { ok: false, erro: 'Conta não encontrada.' }
     users[idx] = { ...users[idx], password: input.senha }
     savePortalAccounts(users)
-    localStorage.removeItem(OTP_KEY)
+    otpMemory = null
     return { ok: true, usuario: users[idx].usuario, mensagem: 'Senha atualizada. Faça login.' }
   } catch {
     return { ok: false, erro: 'Token inválido.' }

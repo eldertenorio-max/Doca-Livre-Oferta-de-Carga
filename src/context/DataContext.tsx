@@ -23,6 +23,7 @@ import {
   PONTOS_ADERENCIA,
 } from '../lib/businessRules'
 import {
+  hydrateConfigNegocio,
   limitesLance,
   loadConfigNegocio,
   saveConfigNegocio,
@@ -60,10 +61,12 @@ import type {
 import {
   portalLoginLocal,
   getPermissaoUsuario,
+  hydratePermissoesMap,
   loadPortalAccounts,
   removePortalAccountsPorTransportador,
   savePortalAccounts,
   setPortalAccountAtivoPorTransportador,
+  syncPortalAccounts,
   vincularContasAosTransportadores,
 } from '../lib/portalAuth'
 import {
@@ -73,9 +76,11 @@ import {
 } from '../lib/cadastroTransportador'
 import { portalEmailRecusaCadastro } from '../lib/portalApi'
 import {
+  hydrateOrgTree,
   removeTransportadoraDaHierarquia,
   syncTransportadoraNaHierarquia,
 } from '../lib/orgHierarchy'
+import { hydratePagamentos } from '../lib/financeiroPagamentos'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import {
   carregarVeiculosDoSupabase,
@@ -608,9 +613,10 @@ function wipeKanbanFields<T extends DataState>(state: T): T {
 }
 
 function loadState(): DataState {
+  // Estado inicial em memória; a fonte da verdade é o Supabase (kanban_sync + tabelas).
+  // Migração única: se ainda houver blob local, usa como base e apaga as chaves.
   const defaults = defaultState()
   try {
-    const hasV8 = Boolean(localStorage.getItem(STORAGE_KEY))
     const raw =
       localStorage.getItem(STORAGE_KEY) ??
       localStorage.getItem(STORAGE_KEY_LEGACY) ??
@@ -678,9 +684,14 @@ function loadState(): DataState {
         })),
       }
     }
-    // Migração v8: zera cargas publicadas, propostas e chat do Kanban
-    if (!hasV8) {
-      loaded = wipeKanbanFields(loaded)
+    // Apaga blob local — daqui pra frente só banco
+    try {
+      localStorage.removeItem(STORAGE_KEY)
+      localStorage.removeItem(STORAGE_KEY_LEGACY)
+      localStorage.removeItem(STORAGE_KEY_LEGACY2)
+      localStorage.removeItem(KANBAN_WIPE_KEY)
+    } catch {
+      /* ignore */
     }
     return ensureDemoOfertasVisiveis(loaded)
   } catch {
@@ -690,13 +701,22 @@ function loadState(): DataState {
 
 function loadAuth(): Profile | null {
   try {
-    const raw = localStorage.getItem(AUTH_KEY)
+    // Sessão da aba (não compartilha blob de negócio entre aparelhos)
+    const raw = sessionStorage.getItem(AUTH_KEY) ?? localStorage.getItem(AUTH_KEY)
     if (!raw) return null
     const profile = JSON.parse(raw) as Profile
     // Equipe Minerva/embarcador removida — força novo login
     if (profile.role === 'minerva' && !profile.is_superuser) {
+      sessionStorage.removeItem(AUTH_KEY)
       localStorage.removeItem(AUTH_KEY)
       return null
+    }
+    // Migra sessão antiga do localStorage → sessionStorage
+    try {
+      sessionStorage.setItem(AUTH_KEY, raw)
+      localStorage.removeItem(AUTH_KEY)
+    } catch {
+      /* ignore */
     }
     return profile
   } catch {
@@ -757,7 +777,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [user?.transportador_id, actingTransportadorId])
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    // Persistência operacional: apenas Supabase (kanban_sync + tabelas)
     scheduleKanbanPush()
   }, [state, scheduleKanbanPush])
 
@@ -829,38 +849,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       applyRemote(payload)
     })
 
-    const onStorage = (e: StorageEvent) => {
-      if (e.key !== STORAGE_KEY || !e.newValue) return
-      try {
-        const parsed = JSON.parse(e.newValue) as Partial<DataState>
-        if (!Array.isArray(parsed.cargas)) return
-        const slice = pickSyncSlice({
-          cargas: parsed.cargas,
-          lances: parsed.lances ?? [],
-          grupos: parsed.grupos ?? [],
-          transportadores: parsed.transportadores ?? [],
-          notificacoes: parsed.notificacoes ?? [],
-          mensagens: parsed.mensagens ?? [],
-          historico: parsed.historico ?? [],
-          historicoPropostas: parsed.historicoPropostas ?? [],
-          chatLeituras: parsed.chatLeituras ?? {},
-          cargas_excluidas: parsed.cargas_excluidas ?? [],
-        })
-        applyRemote({
-          slice,
-          client_id: 'tab',
-          updated_at: new Date().toISOString(),
-        })
-      } catch {
-        /* ignore */
-      }
-    }
-    window.addEventListener('storage', onStorage)
-
     return () => {
       cancelled = true
       unsub()
-      window.removeEventListener('storage', onStorage)
       if (pushTimerRef.current != null) window.clearTimeout(pushTimerRef.current)
     }
   }, [flushKanbanPush])
@@ -971,8 +962,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [config])
 
   useEffect(() => {
-    if (user) localStorage.setItem(AUTH_KEY, JSON.stringify(user))
-    else localStorage.removeItem(AUTH_KEY)
+    if (user) {
+      try {
+        sessionStorage.setItem(AUTH_KEY, JSON.stringify(user))
+        localStorage.removeItem(AUTH_KEY)
+      } catch {
+        /* ignore */
+      }
+    } else {
+      try {
+        sessionStorage.removeItem(AUTH_KEY)
+        localStorage.removeItem(AUTH_KEY)
+      } catch {
+        /* ignore */
+      }
+    }
   }, [user])
 
   const salvarConfig = useCallback((cfg: ConfigNegocio) => {
@@ -1317,9 +1321,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  // Revincula transportador_id da conta (sessões antigas / demo Santos)
+  // Revincula transportador_id da conta e hidrata store remoto
   useEffect(() => {
-    refreshPermissoes()
+    void (async () => {
+      const cfg = await hydrateConfigNegocio()
+      setConfig(cfg)
+      await hydrateOrgTree()
+      await hydratePermissoesMap()
+      await hydratePagamentos()
+      await syncPortalAccounts()
+      refreshPermissoes()
+    })()
   }, [refreshPermissoes])
 
   const publicarCarga = useCallback(

@@ -4,11 +4,13 @@ import { useData } from '../../context/DataContext'
 import {
   createPortalAccount,
   ensureContasTransportadores,
+  hydratePermissoesMap,
   loadPortalAccounts,
   removePortalAccountRemote,
   savePortalAccounts,
   loadPermissoesMap,
   savePermissoesMap,
+  syncPortalAccounts,
   type PortalAccount,
 } from '../../lib/portalAuth'
 import {
@@ -22,6 +24,7 @@ import {
   ORG_TIPO_LABEL,
   allowedOrgChildTypes,
   deleteOrgNo,
+  hydrateOrgTree,
   loadOrgTree,
   saveOrgTree,
   syncTodasTransportadorasNaHierarquia,
@@ -50,34 +53,29 @@ export function PortalConfigPage() {
   // Ao abrir Usuários: junta contas do Supabase e garante login de cada transportadora
   useEffect(() => {
     if (tab !== 'usuarios') return
-    setAccounts(loadPortalAccounts())
+    void syncPortalAccounts().then(setAccounts)
     void ensureContasTransportadores(transportadoresRef.current ?? []).then(setAccounts)
+    void hydratePermissoesMap().then(setPerms)
   }, [tab])
 
   useEffect(() => {
-    function onStorage(e: StorageEvent) {
-      if (!e.key || !e.key.includes('oferta-users')) return
-      setAccounts(loadPortalAccounts())
-    }
+    if (tab !== 'hierarquia') return
+    void hydrateOrgTree().then((remote) => {
+      const next = syncTodasTransportadorasNaHierarquia(transportadoresRef.current ?? [])
+      setTree(next.length ? next : remote)
+    })
+  }, [tab])
+
+  useEffect(() => {
     function onFocus() {
-      setAccounts(loadPortalAccounts())
+      void syncPortalAccounts().then(setAccounts)
+      void hydrateOrgTree().then(setTree)
     }
-    window.addEventListener('storage', onStorage)
     window.addEventListener('focus', onFocus)
-    return () => {
-      window.removeEventListener('storage', onStorage)
-      window.removeEventListener('focus', onFocus)
-    }
+    return () => window.removeEventListener('focus', onFocus)
   }, [])
 
   const isSuper = isSuperSession(user)
-
-  // Ao abrir Hierarquia (ou mudar cadastro), sincroniza transportadoras na árvore
-  useEffect(() => {
-    if (tab !== 'hierarquia') return
-    const next = syncTodasTransportadorasNaHierarquia(transportadores)
-    setTree(next)
-  }, [tab, transportadores])
 
   const editableUsers = useMemo(
     () => accounts.filter((a) => a.role === 'transportador'),

@@ -1,3 +1,5 @@
+import { appStoreGet, appStoreGetCached, appStoreSet, migrateLocalKeyToAppStore } from './appStore'
+
 /** Hierarquia organizacional do Oferta de Carga. */
 
 export type OrgTipo =
@@ -99,20 +101,33 @@ export const SEED_ORG_TREE: OrgNo[] = [
   },
 ]
 
-const ORG_KEY = 'doca-livre-org-v2'
+const ORG_KEY_LEGACY = 'doca-livre-org-v2'
+const STORE_KEY = 'org_tree'
 
 export function loadOrgTree(): OrgNo[] {
-  try {
-    const raw = localStorage.getItem(ORG_KEY)
-    if (raw) return JSON.parse(raw) as OrgNo[]
-  } catch {
-    /* ignore */
-  }
+  const cached = appStoreGetCached<OrgNo[] | null>(STORE_KEY, null)
+  if (cached?.length) return structuredClone(cached)
   return structuredClone(SEED_ORG_TREE)
 }
 
 export function saveOrgTree(tree: OrgNo[]) {
-  localStorage.setItem(ORG_KEY, JSON.stringify(tree))
+  void appStoreSet(STORE_KEY, tree)
+}
+
+export async function hydrateOrgTree(): Promise<OrgNo[]> {
+  await migrateLocalKeyToAppStore(ORG_KEY_LEGACY, STORE_KEY, (raw) => {
+    try {
+      const parsed = JSON.parse(raw) as OrgNo[]
+      return Array.isArray(parsed) && parsed.length ? parsed : null
+    } catch {
+      return null
+    }
+  })
+  const remote = await appStoreGet<OrgNo[] | null>(STORE_KEY, null)
+  if (remote?.length) return structuredClone(remote)
+  const seed = structuredClone(SEED_ORG_TREE)
+  void appStoreSet(STORE_KEY, seed)
+  return seed
 }
 
 export function flattenOrg(nodes: OrgNo[], acc: OrgNo[] = []): OrgNo[] {
@@ -176,7 +191,7 @@ export function findDefaultTransportadoraParentId(tree: OrgNo[]): string | null 
 }
 
 /**
- * Inclui ou atualiza o nó da transportadora na hierarquia (localStorage).
+ * Inclui ou atualiza o nó da transportadora na hierarquia (Supabase).
  * Usado ao criar/editar transportadora no cadastro ou no cadastro público.
  */
 export function syncTransportadoraNaHierarquia(t: {
