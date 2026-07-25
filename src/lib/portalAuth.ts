@@ -525,6 +525,7 @@ export function createPortalAccount(input: {
     created_at: new Date().toISOString(),
   }
   const list = normalizePortalList([...users, account])
+  marcarContaNovaParaInsert(account.id)
   savePortalAccounts(list)
   return { ok: true, account, list }
 }
@@ -591,6 +592,14 @@ function fromRemoteAccount(row: RemotePortalAccount, local?: PortalAccount): Por
 
 let ultimaListaEnviada = ''
 
+/** Contas criadas nesta sessão (podem ser INSERIDAS no banco). */
+const contasNovasDaSessao = new Set<string>()
+
+/** Marque ao criar conta nova (painel / cadastro público) para permitir INSERT. */
+export function marcarContaNovaParaInsert(id: string) {
+  contasNovasDaSessao.add(id)
+}
+
 async function persistPortalAccountsRemote(list: PortalAccount[]) {
   if (!isSupabaseConfigured || !supabase) return
   const fp = JSON.stringify(
@@ -628,7 +637,15 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
       )
       if (found) {
         await supabase.from('usuarios').update(row).eq('id', found.id)
-      } else {
+        continue
+      }
+      // INSERT só para contas realmente novas (criadas nesta sessão) ou recém-criadas.
+      // Conta antiga que não está no banco = excluída por um Super; NÃO recriar
+      // (era isso que fazia usuários excluídos "voltarem").
+      const criadaAgora =
+        contasNovasDaSessao.has(account.id) ||
+        Date.now() - new Date(account.created_at || 0).getTime() < 10 * 60_000
+      if (criadaAgora) {
         await supabase.from('usuarios').insert(row)
       }
     }
