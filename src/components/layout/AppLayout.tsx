@@ -450,6 +450,22 @@ export function AppLayout() {
             <DisponibilidadeMapaFlag transportadorId={topbarTransportadorId} variant="topbar" />
           ) : null}
 
+          {isSuper && !actingTransportadorId ? (
+            <button
+              type="button"
+              className="app-topbar-nova-carga"
+              title="Nova carga"
+              aria-label="Nova carga"
+              onClick={() => {
+                setNotifOpen(false)
+                navigate('/embarcador', { state: { novaCarga: true } })
+              }}
+            >
+              <span aria-hidden>+</span>
+              <span className="app-topbar-nova-carga__label">Nova carga</span>
+            </button>
+          ) : null}
+
           <div className="app-topbar-notif-wrap" ref={notifWrapRef}>
             <button
               type="button"

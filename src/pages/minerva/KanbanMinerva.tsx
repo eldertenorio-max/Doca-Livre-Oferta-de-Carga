@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Plus, Search } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { isCargaEphemeral, montarNovaCarga, useData } from '../../context/DataContext'
 import { CargoCard } from '../../components/kanban/CargoCard'
 import { KanbanBoard } from '../../components/kanban/KanbanBoard'
@@ -69,6 +69,7 @@ const COLUMNS: {
 
 export function KanbanMinerva() {
   const navigate = useNavigate()
+  const location = useLocation()
   const {
     cargas,
     lances,
@@ -149,6 +150,15 @@ export function KanbanMinerva() {
     setInitialTab('dados')
     setPanelOpen(true)
   }
+
+  // Topbar “+ Nova carga” navega com state.novaCarga
+  useEffect(() => {
+    const st = location.state as { novaCarga?: boolean } | null
+    if (!st?.novaCarga) return
+    openNovaCarga()
+    navigate(location.pathname, { replace: true, state: null })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao chegar com o sinal da topbar
+  }, [location.state, location.pathname, navigate])
 
   function openMapaFrota(c: Carga) {
     const params = new URLSearchParams()

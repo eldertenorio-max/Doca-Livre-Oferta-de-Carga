@@ -429,6 +429,34 @@
   background: #eceef0;
 }
 
+.app-topbar-nova-carga {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #111;
+  border-radius: 8px;
+  background: #111;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.app-topbar-nova-carga span[aria-hidden] {
+  font-size: 1.1rem;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.app-topbar-nova-carga:hover {
+  background: #222;
+}
+
 .app-topbar-disp {
   position: relative;
   display: flex;
@@ -882,6 +910,12 @@ a.sidebar-section:first-of-type {
   .app-topbar-refresh {
     width: 34px;
     height: 34px;
+  }
+
+  .app-topbar-nova-carga {
+    height: 34px;
+    padding: 0 10px;
+    font-size: 0.72rem;
   }
 
   .app-topbar-disp-btn {
