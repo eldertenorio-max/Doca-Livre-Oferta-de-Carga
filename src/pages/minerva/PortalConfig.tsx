@@ -90,12 +90,11 @@ export function PortalConfigPage() {
   }, [accounts])
 
   const contagemPortal = useMemo(() => {
-    const transportadoras = (transportadores ?? []).filter(
-      (t) => t.situacao !== 'recusado',
-    ).length
+    // Mesma fonte da tabela: contas do portal (não o cadastro de empresas).
+    const transportadoras = accounts.filter((a) => a.role === 'transportador').length
     const embarcadores = accounts.filter((a) => a.role === 'super').length
     return { transportadoras, embarcadores }
-  }, [transportadores, accounts])
+  }, [accounts])
 
   if (!user) return <Navigate to="/login" replace />
   if (!isSuper) {
@@ -524,7 +523,7 @@ export function PortalConfigPage() {
             <CadastroStatsCards
               cards={[
                 {
-                  label: 'Transportadoras cadastradas',
+                  label: 'Contas transportador',
                   value: contagemPortal.transportadoras,
                   accent: 'blue',
                 },
