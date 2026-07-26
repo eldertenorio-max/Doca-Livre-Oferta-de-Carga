@@ -42,6 +42,13 @@ export function LoginPage() {
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
+  const [salvarSessao, setSalvarSessao] = useState(() => {
+    try {
+      return localStorage.getItem('doca-livre-auth-persist') !== '0'
+    } catch {
+      return true
+    }
+  })
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'light')
@@ -101,7 +108,12 @@ export function LoginPage() {
     } catch {
       /* login local continua mesmo se o sync falhar */
     }
-    const res = login(usuario.trim(), senha)
+    try {
+      localStorage.setItem('doca-livre-auth-persist', salvarSessao ? '1' : '0')
+    } catch {
+      /* ignore */
+    }
+    const res = login(usuario.trim(), senha, { persistSession: salvarSessao })
     setLoading(false)
     if (!res.ok) {
       setError(res.error ?? 'Falha no login')
@@ -305,6 +317,15 @@ export function LoginPage() {
               onToggle={() => setVisible((v) => !v)}
               onChange={setSenha}
             />
+            <label className="portal-login__remember" htmlFor="login-salvar-sessao">
+              <input
+                id="login-salvar-sessao"
+                type="checkbox"
+                checked={salvarSessao}
+                onChange={(e) => setSalvarSessao(e.target.checked)}
+              />
+              <span>Salvar sessão neste aparelho</span>
+            </label>
             {error && <p className="portal-login__erro">{error}</p>}
             {info && <p className="portal-login__info">{info}</p>}
             <button type="submit" className="portal-login__submit" disabled={loading}>

@@ -108,6 +108,8 @@ const STORAGE_KEY = 'doca-livre-data-v8'
 const STORAGE_KEY_LEGACY = 'doca-livre-data-v7'
 const STORAGE_KEY_LEGACY2 = 'doca-livre-data-v6'
 const AUTH_KEY = 'doca-livre-auth-v1'
+/** '1' = manter login no aparelho (localStorage); senão só na aba (sessionStorage) */
+const AUTH_PERSIST_KEY = 'doca-livre-auth-persist'
 /** Uma vez: zera Kanban (cargas/lances) ao migrar para v8 */
 const KANBAN_WIPE_KEY = 'doca-livre-kanban-wipe-v8'
 
@@ -155,7 +157,11 @@ interface DataState {
 
 interface AuthState {
   user: Profile | null
-  login: (identificador: string, password: string) => { ok: boolean; error?: string }
+  login: (
+    identificador: string,
+    password: string,
+    opts?: { persistSession?: boolean },
+  ) => { ok: boolean; error?: string }
   logout: () => void
   demoUsers: AppUser[]
   refreshPermissoes: () => void
@@ -777,10 +783,50 @@ function loadState(): DataState {
   }
 }
 
+function isAuthPersistEnabled(): boolean {
+  try {
+    return localStorage.getItem(AUTH_PERSIST_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function setAuthPersistEnabled(persist: boolean) {
+  try {
+    if (persist) localStorage.setItem(AUTH_PERSIST_KEY, '1')
+    else localStorage.removeItem(AUTH_PERSIST_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
+function persistAuthProfile(user: Profile | null) {
+  try {
+    if (!user) {
+      sessionStorage.removeItem(AUTH_KEY)
+      localStorage.removeItem(AUTH_KEY)
+      return
+    }
+    const raw = JSON.stringify(user)
+    if (isAuthPersistEnabled()) {
+      localStorage.setItem(AUTH_KEY, raw)
+      sessionStorage.removeItem(AUTH_KEY)
+    } else {
+      sessionStorage.setItem(AUTH_KEY, raw)
+      localStorage.removeItem(AUTH_KEY)
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 function loadAuth(): Profile | null {
   try {
-    // Sessão da aba (não compartilha blob de negócio entre aparelhos)
-    const raw = sessionStorage.getItem(AUTH_KEY) ?? localStorage.getItem(AUTH_KEY)
+    const persist = isAuthPersistEnabled()
+    // Com “salvar sessão”: localStorage; senão: só a aba atual
+    const raw = persist
+      ? localStorage.getItem(AUTH_KEY) ?? sessionStorage.getItem(AUTH_KEY)
+      : sessionStorage.getItem(AUTH_KEY)
     if (!raw) return null
     const profile = JSON.parse(raw) as Profile
     // Equipe Minerva/embarcador removida — força novo login
@@ -789,10 +835,12 @@ function loadAuth(): Profile | null {
       localStorage.removeItem(AUTH_KEY)
       return null
     }
-    // Migra sessão antiga do localStorage → sessionStorage
+    // Alinha storage ao modo atual (persiste ou só aba)
     try {
-      sessionStorage.setItem(AUTH_KEY, raw)
-      localStorage.removeItem(AUTH_KEY)
+      if (persist) {
+        localStorage.setItem(AUTH_KEY, raw)
+        sessionStorage.removeItem(AUTH_KEY)
+      }
     } catch {
       /* ignore */
     }
@@ -1146,21 +1194,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [config])
 
   useEffect(() => {
-    if (user) {
-      try {
-        sessionStorage.setItem(AUTH_KEY, JSON.stringify(user))
-        localStorage.removeItem(AUTH_KEY)
-      } catch {
-        /* ignore */
-      }
-    } else {
-      try {
-        sessionStorage.removeItem(AUTH_KEY)
-        localStorage.removeItem(AUTH_KEY)
-      } catch {
-        /* ignore */
-      }
-    }
+    persistAuthProfile(user)
   }, [user])
 
   const salvarConfig = useCallback((cfg: ConfigNegocio) => {
@@ -1430,7 +1464,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id)
   }, [config.empate_exige_aceite_manual])
 
-  const login = useCallback((identificador: string, password: string) => {
+  const login = useCallback((
+    identificador: string,
+    password: string,
+    opts?: { persistSession?: boolean },
+  ) => {
+    if (typeof opts?.persistSession === 'boolean') {
+      setAuthPersistEnabled(opts.persistSession)
+    }
     const result = portalLoginLocal(identificador, password)
     if (!result.ok) return { ok: false, error: result.erro }
     let { account, isSuperuser, permissoes } = result

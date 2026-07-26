@@ -161,6 +161,26 @@
   color: #0f172a;
 }
 
+.portal-login__remember {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+
+.portal-login__remember input {
+  width: 18px;
+  height: 18px;
+  accent-color: #0f172a;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 .portal-login__erro {
   margin: 8px 0 0;
   color: #b91c1c;
