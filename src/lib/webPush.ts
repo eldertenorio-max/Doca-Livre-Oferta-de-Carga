@@ -82,13 +82,17 @@ export async function registrarPushSubscription(input: {
   return { ok: true }
 }
 
+/**
+ * Envia push aos aparelhos dos transportadores.
+ * Retorna quantos dispositivos receberam (útil para feedback na publicação).
+ */
 export async function enviarPushCarga(input: {
   transportadorIds: string[]
   titulo: string
   mensagem: string
   cargaId?: string
   url?: string
-}): Promise<{ ok: boolean; enviados?: number; erro?: string }> {
+}): Promise<{ ok: boolean; enviados?: number; total?: number; erro?: string }> {
   if (!isSupabaseConfigured || !supabase) {
     return { ok: false, erro: 'Supabase não configurado.' }
   }
@@ -128,7 +132,13 @@ export async function enviarPushCarga(input: {
         payload.mensagem || '',
       )
     }
-    return { ok: true, enviados }
+    return {
+      ok: true,
+      enviados,
+      total: typeof (payload as { total?: number }).total === 'number'
+        ? (payload as { total: number }).total
+        : undefined,
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Falha ao chamar web-push.'
     console.warn('[web-push]', msg)

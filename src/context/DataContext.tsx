@@ -164,7 +164,9 @@ interface DataContextValue extends DataState, AuthState {
   tick: number
   config: ConfigNegocio
   salvarConfig: (cfg: ConfigNegocio) => void
-  publicarCarga: (payload: PublishPayload) => { ok: boolean; error?: string }
+  publicarCarga: (
+    payload: PublishPayload,
+  ) => { ok: boolean; error?: string; pushEnviados?: number; pushAviso?: string }
   enviarLance: (
     cargaId: string,
     valor: number,
@@ -401,7 +403,7 @@ function tidsAtivosDosGrupos(
   return [...out]
 }
 
-function dispararPushNovaCarga(
+async function dispararPushNovaCarga(
   tids: string[],
   carga: {
     id?: string
@@ -412,15 +414,16 @@ function dispararPushNovaCarga(
     frete_tabela?: number | null
   },
   titulo = 'Nova oferta de carga',
-) {
-  if (tids.length === 0) return
-  void enviarPushCarga({
+): Promise<{ enviados: number; erro?: string }> {
+  if (tids.length === 0) return { enviados: 0 }
+  const res = await enviarPushCarga({
     transportadorIds: tids,
     titulo,
     mensagem: textoPushNovaCarga(carga),
     cargaId: carga.id,
     url: '/#/transportador',
   })
+  return { enviados: res.enviados ?? 0, erro: res.erro }
 }
 
 function notifCadastroPendente(t: {
@@ -1681,15 +1684,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setState(next)
       flushKanbanPush(next)
       // Push no celular dos transportadores dos grupos (PWA + alertas ativados)
-      dispararPushNovaCarga(tidsPush, {
-        id: payload.cargaId,
-        numero: carga?.numero,
-        origem: carga?.origem,
-        destino: carga?.destino,
-        frete_oferta: carga?.frete_oferta,
-        frete_tabela: carga?.frete_tabela,
+      // Retorno sync; o envio roda em seguida e o painel pode consultar o log
+      void dispararPushNovaCarga(
+        tidsPush,
+        {
+          id: payload.cargaId,
+          numero: carga?.numero,
+          origem: carga?.origem,
+          destino: carga?.destino,
+          frete_oferta: carga?.frete_oferta,
+          frete_tabela: carga?.frete_tabela,
+        },
+      ).then((push) => {
+        if (push.erro) {
+          console.warn('[publicarCarga] push:', push.erro)
+        } else {
+          console.info('[publicarCarga] push enviados:', push.enviados, 'tids:', tidsPush.length)
+        }
       })
-      return { ok: true }
+      return {
+        ok: true,
+        pushAviso:
+          tidsPush.length === 0
+            ? 'Nenhum transportador ativo nos grupos — push não enviado.'
+            : undefined,
+      }
     },
     [config, flushKanbanPush],
   )

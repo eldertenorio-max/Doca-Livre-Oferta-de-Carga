@@ -375,6 +375,7 @@ export function PublishPanel({
       setError(res.error ?? 'Erro ao publicar')
       return false
     }
+    if (res.pushAviso) setInfo(res.pushAviso)
     return true
   }
 
@@ -394,7 +395,9 @@ export function PublishPanel({
       return
     }
     if (doPublicar()) {
-      setInfo('Carga publicada. Os transportadores selecionados já podem negociar.')
+      setInfo(
+        'Carga publicada. Push enviado aos celulares dos transportadores com alertas ativados (PWA + “Ativar alertas”).',
+      )
     }
   }
 
@@ -405,7 +408,9 @@ export function PublishPanel({
     }
     setShowJustificativa(false)
     if (doPublicar({ motivo, obs })) {
-      setInfo('Carga publicada. Os transportadores selecionados já podem negociar.')
+      setInfo(
+        'Carga publicada. Push enviado aos celulares dos transportadores com alertas ativados (PWA + “Ativar alertas”).',
+      )
     }
   }
 
