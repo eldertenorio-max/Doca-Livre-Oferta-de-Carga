@@ -548,77 +548,72 @@ export function CargoCard({
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2">
-            {onView && (
-              <IconBtn title="Ver detalhes" tone="view" onClick={onView}>
-                <IconEye />
-              </IconBtn>
-            )}
-            {onMapaFrota && (
-              <IconBtn
-                title="Procurar motorista no mapa de frota"
-                tone="map"
-                onClick={onMapaFrota}
-              >
-                <IconMap />
-              </IconBtn>
-            )}
-            {onCalcularRota && (
-              <IconBtn
-                title="Calcular rota, pedágio e combustível"
-                tone="route"
-                onClick={onCalcularRota}
-              >
-                <IconRouteCalc />
-              </IconBtn>
-            )}
-            {onRefuse && (
-              <IconBtn title="Recusar" tone="ban" onClick={onRefuse}>
-                <IconBan />
-              </IconBtn>
-            )}
-            {onDelete && (
-              <IconBtn title="Excluir rascunho" tone="ban" onClick={onDelete}>
-                <IconTrash />
-              </IconBtn>
-            )}
-            {onBid && (
-              <IconBtn title="Fazer lance" tone="bid" onClick={onBid}>
-                <IconGavel />
-              </IconBtn>
-            )}
-            {!onBid && mode === 'minerva' && carga.status !== 'nova_carga' && (
-              <IconBtn title="Negociação / frete" tone="money" onClick={onView ?? onSelect}>
-                <IconReais />
-              </IconBtn>
-            )}
-            {!onBid && mode === 'transportador' && freteLinha != null && !onAllocate && (
-              <IconBtn title="Valor do frete" tone="money" onClick={onView}>
-                <IconReais />
-              </IconBtn>
-            )}
-          </div>
-
-          <div className="ml-auto flex items-center gap-2">
-            {showAlocar && (
-              <IconBtn title="Alocar composição" tone="truck" onClick={onAllocate}>
-                <IconTruck />
-              </IconBtn>
-            )}
-            <IconBtn
-              title={
-                chatNaoLidas > 0
-                  ? `Mensagens (${chatNaoLidas} não lida${chatNaoLidas > 1 ? 's' : ''})`
-                  : 'Mensagens'
-              }
-              tone="msg"
-              badge={chatNaoLidas}
-              onClick={() => setChatOpen(true)}
-            >
-              <IconChat />
+        <div className="cargo-card__actions">
+          {onView && (
+            <IconBtn title="Ver detalhes" tone="view" onClick={onView}>
+              <IconEye />
             </IconBtn>
-          </div>
+          )}
+          {onMapaFrota && (
+            <IconBtn
+              title="Procurar motorista no mapa de frota"
+              tone="map"
+              onClick={onMapaFrota}
+            >
+              <IconMap />
+            </IconBtn>
+          )}
+          {onCalcularRota && (
+            <IconBtn
+              title="Calcular rota, pedágio e combustível"
+              tone="route"
+              onClick={onCalcularRota}
+            >
+              <IconRouteCalc />
+            </IconBtn>
+          )}
+          {onRefuse && (
+            <IconBtn title="Recusar" tone="ban" onClick={onRefuse}>
+              <IconBan />
+            </IconBtn>
+          )}
+          {onDelete && (
+            <IconBtn title="Excluir rascunho" tone="ban" onClick={onDelete}>
+              <IconTrash />
+            </IconBtn>
+          )}
+          {onBid && (
+            <IconBtn title="Fazer lance" tone="bid" onClick={onBid}>
+              <IconGavel />
+            </IconBtn>
+          )}
+          {!onBid && mode === 'minerva' && carga.status !== 'nova_carga' && (
+            <IconBtn title="Negociação / frete" tone="money" onClick={onView ?? onSelect}>
+              <IconReais />
+            </IconBtn>
+          )}
+          {!onBid && mode === 'transportador' && freteLinha != null && !onAllocate && (
+            <IconBtn title="Valor do frete" tone="money" onClick={onView}>
+              <IconReais />
+            </IconBtn>
+          )}
+          {showAlocar && (
+            <IconBtn title="Alocar composição" tone="truck" onClick={onAllocate}>
+              <IconTruck />
+            </IconBtn>
+          )}
+          <IconBtn
+            title={
+              chatNaoLidas > 0
+                ? `Mensagens (${chatNaoLidas} não lida${chatNaoLidas > 1 ? 's' : ''})`
+                : 'Mensagens'
+            }
+            tone="msg"
+            badge={chatNaoLidas}
+            onClick={() => setChatOpen(true)}
+          >
+            <IconChat />
+          </IconBtn>
         </div>
       </div>
 

@@ -132,6 +132,17 @@ textarea {
   animation: fade-up 0.3s ease-out both;
 }
 
+.cargo-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  max-width: 100%;
+  padding: 3px 2px 1px;
+  box-sizing: border-box;
+}
+
 .cargo-semaforo {
   display: flex;
   flex-direction: column;
@@ -156,14 +167,14 @@ textarea {
 }
 
 .cargo-icon-svg {
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   display: block;
   filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.22));
 }
 .cargo-icon-svg--lg {
-  width: 34px;
-  height: 34px;
+  width: 26px;
+  height: 26px;
 }
 
 @keyframes cargo-gavel-hit {
@@ -203,9 +214,10 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
   border: 1px solid rgb(0 0 0 / 0.08);
   background: linear-gradient(180deg, #ffffff 0%, #f0f0f0 100%);
   box-shadow:
@@ -217,25 +229,27 @@ textarea {
   background: linear-gradient(180deg, #fef9c3 0%, #fde047 100%);
   border-color: rgb(202 138 4 / 0.45);
   box-shadow:
-    0 0 0 2px rgb(250 204 21 / 0.35),
+    0 0 0 1px rgb(250 204 21 / 0.35),
     0 2px 6px rgb(0 0 0 / 0.12);
 }
 .cargo-icon-badge {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
+  top: 0;
+  right: 0;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
   border-radius: 999px;
   background: #dc2626;
   color: #fff;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
-  line-height: 18px;
+  line-height: 14px;
   text-align: center;
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
   animation: cargo-badge-pop 1.4s ease-in-out infinite;
+  z-index: 1;
+  transform: translate(25%, -25%);
 }
 .cargo-icon-btn:hover {
   transform: translateY(-2px) scale(1.06);
