@@ -14,6 +14,7 @@ import { joinCarrocerias, parseCarrocerias } from '../../lib/tiposCarroceria'
 import { CarroceriaSuggestInput } from '../ui/CarroceriaSuggestInput'
 import { VeiculoSuggestInput } from '../ui/VeiculoSuggestInput'
 import { AnttFretePanel } from './AnttFretePanel'
+import { RotaMapPreview } from './RotaMapPreview'
 
 type ComplementoCarga = NonNullable<Carga['complemento']>
 
@@ -542,68 +543,75 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
           )}
         </Field>
 
-        <div className="grid gap-2.5 sm:grid-cols-2">
-          <Field label="Origem *" className="sm:col-span-2">
-            <AddressSuggestInput
-              value={origem}
-              onChange={(v) => {
-                setOrigem(v)
-                if (rotaId) setRotaId('')
-              }}
-              localSuggestions={sugOrigem}
-              minChars={2}
-              placeholder="Digite o endereço como no Google Maps"
-            />
-          </Field>
-          <Field label="Destino *">
-            <AddressSuggestInput
-              value={destino}
-              onChange={(v) => {
-                setDestino(v)
-                if (rotaId) setRotaId('')
-              }}
-              localSuggestions={sugDestino}
-              minChars={2}
-              placeholder="Digite o endereço como no Google Maps"
-            />
-          </Field>
-          <Field label="Complemento">
-            <SuggestInput
-              value={complementoTxt}
-              onChange={setComplementoTxt}
-              suggestions={sugComplemento}
-              placeholder="Sim, Não ou Ambos"
-            />
-          </Field>
-          <Field label="Classificação da rota">
-            <select
-              className={inputClass}
-              value={classificacao}
-              onChange={(e) => setClassificacao(e.target.value as ClassificacaoRota)}
-            >
-              <option value="A">Rota A</option>
-              <option value="B">Rota B</option>
-              <option value="C">Rota C</option>
-            </select>
-          </Field>
-          <Field label="Veículo *">
-            <VeiculoSuggestInput
-              value={veiculo}
-              onChange={setVeiculo}
-              placeholder="Carreta, Truck, Fiorino…"
-            />
-          </Field>
-        </div>
-        <label className="inline-flex items-center gap-2 text-xs text-ink">
-          <input
-            type="checkbox"
-            checked={salvarFavorita}
-            onChange={(e) => setSalvarFavorita(e.target.checked)}
+        <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1fr)_minmax(220px,1fr)] lg:items-stretch">
+          <div className="grid min-w-0 gap-2.5 sm:grid-cols-2">
+            <Field label="Origem *" className="sm:col-span-2">
+              <AddressSuggestInput
+                value={origem}
+                onChange={(v) => {
+                  setOrigem(v)
+                  if (rotaId) setRotaId('')
+                }}
+                localSuggestions={sugOrigem}
+                minChars={2}
+                placeholder="Digite o endereço como no Google Maps"
+              />
+            </Field>
+            <Field label="Destino *" className="sm:col-span-2">
+              <AddressSuggestInput
+                value={destino}
+                onChange={(v) => {
+                  setDestino(v)
+                  if (rotaId) setRotaId('')
+                }}
+                localSuggestions={sugDestino}
+                minChars={2}
+                placeholder="Digite o endereço como no Google Maps"
+              />
+            </Field>
+            <Field label="Complemento">
+              <SuggestInput
+                value={complementoTxt}
+                onChange={setComplementoTxt}
+                suggestions={sugComplemento}
+                placeholder="Sim, Não ou Ambos"
+              />
+            </Field>
+            <Field label="Classificação da rota">
+              <select
+                className={inputClass}
+                value={classificacao}
+                onChange={(e) => setClassificacao(e.target.value as ClassificacaoRota)}
+              >
+                <option value="A">Rota A</option>
+                <option value="B">Rota B</option>
+                <option value="C">Rota C</option>
+              </select>
+            </Field>
+            <Field label="Veículo *" className="sm:col-span-2">
+              <VeiculoSuggestInput
+                value={veiculo}
+                onChange={setVeiculo}
+                placeholder="Carreta, Truck, Fiorino…"
+              />
+            </Field>
+            <label className="inline-flex items-center gap-2 text-xs text-ink sm:col-span-2">
+              <input
+                type="checkbox"
+                checked={salvarFavorita}
+                onChange={(e) => setSalvarFavorita(e.target.checked)}
+              />
+              <span>
+                Salvar esta rota na aba <strong>Rotas</strong> para reutilizar
+              </span>
+            </label>
+          </div>
+          <RotaMapPreview
+            origem={origem}
+            destino={destino}
+            className="h-[220px] min-h-[220px] w-full lg:h-full lg:min-h-[260px]"
           />
-          <span>
-            Salvar esta rota na aba <strong>Rotas</strong> para reutilizar
-          </span>
-        </label>
+        </div>
 
         <AnttFretePanel
           origem={origem}
