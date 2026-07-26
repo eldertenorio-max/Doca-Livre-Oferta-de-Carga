@@ -15,9 +15,8 @@ import {
   normalizeFotosVeiculo,
 } from '../../lib/veiculoFotos'
 import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
-import { TIPOS_CARROCERIA } from '../../lib/tiposCarroceria'
 import { newVeiculoId } from '../../lib/veiculosSync'
-import { SuggestInput } from '../../components/ui/SuggestInput'
+import { CarroceriaSuggestInput } from '../../components/ui/CarroceriaSuggestInput'
 import type { FotoVeiculoSlot, FotosVeiculo, Veiculo } from '../../types'
 import '../../styles/cadastro.css'
 
@@ -635,10 +634,9 @@ export function VeiculosPage() {
           <div className="form-card__body">
             <div className="form-fields form-fields--photo">
               <Field label="Tipo de carroceria">
-                <SuggestInput
+                <CarroceriaSuggestInput
                   value={form.tipo_carroceria ?? ''}
                   onChange={(v) => set('tipo_carroceria', v)}
-                  suggestions={[...TIPOS_CARROCERIA]}
                   placeholder="Baú, Sider, Graneleiro…"
                 />
               </Field>

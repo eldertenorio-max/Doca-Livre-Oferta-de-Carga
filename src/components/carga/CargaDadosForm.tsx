@@ -11,7 +11,8 @@ import { Button, Field, inputClass } from '../ui/Modal'
 import { CnpjInput } from '../ui/CnpjInput'
 import { SuggestInput } from '../ui/SuggestInput'
 import { AddressSuggestInput } from '../ui/AddressSuggestInput'
-import { joinCarrocerias, parseCarrocerias, TIPOS_CARROCERIA } from '../../lib/tiposCarroceria'
+import { joinCarrocerias, parseCarrocerias } from '../../lib/tiposCarroceria'
+import { CarroceriaSuggestInput } from '../ui/CarroceriaSuggestInput'
 
 type ComplementoCarga = NonNullable<Carga['complemento']>
 
@@ -116,7 +117,6 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       pedido: outras.map((c) => c.pedido),
       tipo: outras.map((c) => c.tipo_carga),
       veiculo: outras.map((c) => c.veiculo),
-      carroceria: outras.flatMap((c) => parseCarrocerias(c.carrocerias)),
       destinatario: outras.map((c) => c.destinatario),
       cnpj: outras.map((c) => c.destinatario_cnpj),
       peso: outras.map((c) => (c.peso > 0 ? formatMoneyInput(c.peso) : '')),
@@ -176,20 +176,6 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       return filtrarSugestoes(qt, [catalog, historico.veiculo], 20)
     },
     [historico.veiculo],
-  )
-
-  const sugCarroceria = useMemo(
-    () => (q: string) => {
-      const catalog = [...TIPOS_CARROCERIA]
-      const qt = q.trim()
-      if (!qt) return catalog
-      const exact = catalog.some((t) => t.toLowerCase() === qt.toLowerCase())
-      if (exact) return catalog
-      const matched = filtrarSugestoes(qt, [catalog], 20)
-      if (matched.length === 0) return catalog
-      return filtrarSugestoes(qt, [catalog, historico.carroceria], 20)
-    },
-    [historico.carroceria],
   )
 
   const sugDestinatario = useMemo(
@@ -580,10 +566,9 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
             />
           </Field>
           <Field label="Carroceria">
-            <SuggestInput
+            <CarroceriaSuggestInput
               value={carroceriaTxt}
               onChange={setCarroceriaTxt}
-              suggestions={sugCarroceria}
               placeholder="Baú, Sider, Graneleiro…"
             />
           </Field>
