@@ -136,9 +136,14 @@ export function KanbanMinerva() {
   }
 
   function openMapaFrota(c: Carga) {
+    const params = new URLSearchParams()
     const origem = (c.origem || '').trim()
-    const qs = origem ? `?origem=${encodeURIComponent(origem)}` : ''
-    navigate(`/embarcador/mapa-frota${qs}`)
+    const veiculo = (c.veiculo || '').trim()
+    if (origem) params.set('origem', origem)
+    if (veiculo) params.set('veiculo', veiculo)
+    if (c.numero) params.set('carga', c.numero)
+    const qs = params.toString()
+    navigate(`/embarcador/mapa-frota${qs ? `?${qs}` : ''}`)
   }
 
   function showDragMsg(text: string) {

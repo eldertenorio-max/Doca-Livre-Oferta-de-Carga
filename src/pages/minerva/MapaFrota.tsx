@@ -8,6 +8,7 @@ import { geocodificarConsulta } from '../../lib/geocodeEndereco'
 import {
   agruparPontosPorCoord,
   chaveCoordFrota,
+  classificarIconeVeiculo,
   distanciaKm,
   frotaIconeHtml,
   iniciaisNome,
@@ -316,13 +317,18 @@ export function MapaFrotaPage() {
   const [clicarOrigem, setClicarOrigem] = useState(false)
   const [searchParams] = useSearchParams()
   const origemQuery = (searchParams.get('origem') || '').trim()
+  const veiculoQuery = (searchParams.get('veiculo') || '').trim()
+  const cargaQuery = (searchParams.get('carga') || '').trim()
   const origemQueryAplicadaRef = useRef('')
+  const veiculoQueryAplicadoRef = useRef('')
   const [enderecoOrigem, setEnderecoOrigem] = useState('')
   const [coordLat, setCoordLat] = useState('')
   const [coordLng, setCoordLng] = useState('')
   const [geoBusy, setGeoBusy] = useState(false)
   const [geoErro, setGeoErro] = useState('')
   const [tipos, setTipos] = useState<FrotaIconeGrupo[]>([])
+  /** Tipo vindo do anúncio do Kanban — só informa; o usuário pode mudar a categoria. */
+  const [tipoDoAnuncio, setTipoDoAnuncio] = useState<string | null>(null)
   const [modalFoto, setModalFoto] = useState<PontoFrota | null>(null)
   const [modalAvaliacoes, setModalAvaliacoes] = useState<PontoFrota | null>(null)
   const [pesquisaAberta, setPesquisaAberta] = useState(() => {
@@ -468,6 +474,24 @@ export function MapaFrotaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao mudar o query param
   }, [origemQuery])
 
+  // Vindo do Kanban: ?veiculo=… → começa mostrando só o tipo do anúncio (editável depois)
+  useEffect(() => {
+    if (!veiculoQuery || veiculoQueryAplicadoRef.current === veiculoQuery) return
+    veiculoQueryAplicadoRef.current = veiculoQuery
+    const { grupo } = classificarIconeVeiculo(veiculoQuery)
+    const label =
+      LEGENDA_FROTA.find((x) => x.grupo === grupo)?.label ?? veiculoQuery
+    setTipoDoAnuncio(label)
+    setPesquisaAberta(true)
+    if (grupo !== 'outros') {
+      setTipos([grupo])
+    } else {
+      // Tipo não mapeado: filtra pelo texto do anúncio na busca
+      setTipos([])
+      setBusca(veiculoQuery)
+    }
+  }, [veiculoQuery])
+
   function localizarPorCoordenadas() {
     setGeoErro('')
     const lat = Number(String(coordLat).replace(',', '.'))
@@ -498,6 +522,7 @@ export function MapaFrotaPage() {
     setCoordLng('')
     setGeoErro('')
     setTipos([])
+    setTipoDoAnuncio(null)
   }
 
   /** Clique na categoria: mostra só aquele tipo; clica de novo libera. */
@@ -1183,6 +1208,13 @@ export function MapaFrotaPage() {
 
             <div className="mapa-frota__tipos">
               <span className="mapa-frota__tipos-label">Tipos de veículo</span>
+              {tipoDoAnuncio && (
+                <p className="mapa-frota__cats-hint" style={{ marginTop: 4 }}>
+                  Anúncio{cargaQuery ? ` #${cargaQuery}` : ''}: <strong>{tipoDoAnuncio}</strong>
+                  {' · '}
+                  você pode marcar outras categorias abaixo.
+                </p>
+              )}
               <div className="mapa-frota__tipos-grid">
                 {LEGENDA_FROTA.map((item) => {
                   const on = tipos.includes(item.grupo)
@@ -1273,6 +1305,13 @@ export function MapaFrotaPage() {
           {clicarOrigem && (
             <div className="mapa-frota__map-banner" role="status">
               Clique no mapa para definir a origem da busca em raio
+            </div>
+          )}
+          {!clicarOrigem && tipoDoAnuncio && origemRaio && (
+            <div className="mapa-frota__map-banner" role="status">
+              Raio a partir da origem da carga
+              {cargaQuery ? ` #${cargaQuery}` : ''}: só {tipoDoAnuncio} no início — mude a
+              categoria na lista se quiser ver outros.
             </div>
           )}
           <div ref={mapEl} className="mapa-frota__map" />
