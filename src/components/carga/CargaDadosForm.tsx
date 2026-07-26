@@ -7,14 +7,15 @@ import { buscarDadosPorCnpj } from '../../lib/cnpjLookup'
 import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
 import { TIPOS_CARGA } from '../../lib/tiposCarga'
 import type { Carga, ClassificacaoRota, Rota } from '../../types'
+import { Button, Field, inputClass } from '../ui/Modal'
+import { CnpjInput } from '../ui/CnpjInput'
+import { SuggestInput } from '../ui/SuggestInput'
+import { AddressSuggestInput } from '../ui/AddressSuggestInput'
+import { joinCarrocerias, parseCarrocerias, TIPOS_CARROCERIA } from '../../lib/tiposCarroceria'
 
 type ComplementoCarga = NonNullable<Carga['complemento']>
 
-const COMPLEMENTO_OPCOES: { value: ComplementoCarga; label: string }[] = [
-  { value: 'sim', label: 'Sim' },
-  { value: 'nao', label: 'Não' },
-  { value: 'ambos', label: 'Ambos' },
-]
+const COMPLEMENTO_LABELS = ['Sim', 'Não', 'Ambos'] as const
 
 function labelComplemento(v?: Carga['complemento']) {
   if (v === 'sim') return 'Sim'
@@ -22,11 +23,14 @@ function labelComplemento(v?: Carga['complemento']) {
   if (v === 'ambos') return 'Ambos'
   return 'Ambos'
 }
-import { Button, Field, inputClass } from '../ui/Modal'
-import { CnpjInput } from '../ui/CnpjInput'
-import { SuggestInput } from '../ui/SuggestInput'
-import { AddressSuggestInput } from '../ui/AddressSuggestInput'
-import { joinCarrocerias, parseCarrocerias, TIPOS_CARROCERIA } from '../../lib/tiposCarroceria'
+
+function parseComplemento(txt: string): ComplementoCarga {
+  const n = txt.trim().toLowerCase()
+  if (n === 'sim') return 'sim'
+  if (n === 'nao' || n === 'não') return 'nao'
+  if (n === 'ambos') return 'ambos'
+  return 'ambos'
+}
 
 type Props = {
   carga: Carga
@@ -75,11 +79,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
 
   const [origem, setOrigem] = useState(carga.origem)
   const [destino, setDestino] = useState(carga.destino)
-  const [complemento, setComplemento] = useState<ComplementoCarga>(
-    carga.complemento === 'sim' || carga.complemento === 'nao' || carga.complemento === 'ambos'
-      ? carga.complemento
-      : 'ambos',
-  )
+  const [complementoTxt, setComplementoTxt] = useState(() => labelComplemento(carga.complemento))
   const [freteTabela, setFreteTabela] = useState(formatMoneyInput(carga.frete_tabela || 0))
   const [classificacao, setClassificacao] = useState<ClassificacaoRota>(
     carga.classificacao_rota ?? 'B',
@@ -230,11 +230,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
   useEffect(() => {
     setOrigem(carga.origem)
     setDestino(carga.destino)
-    setComplemento(
-      carga.complemento === 'sim' || carga.complemento === 'nao' || carga.complemento === 'ambos'
-        ? carga.complemento
-        : 'ambos',
-    )
+    setComplementoTxt(labelComplemento(carga.complemento))
     setFreteTabela(formatMoneyInput(carga.frete_tabela || 0))
     setClassificacao(carga.classificacao_rota ?? 'B')
     setSalvarFavorita(false)
@@ -393,7 +389,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       classificacao_rota: classifFinal,
       origem: origemFinal,
       destino: destinoFinal,
-      complemento,
+      complemento: parseComplemento(complementoTxt),
       frete_tabela: freteFinal,
       pedido: pedido.trim(),
       tipo_carga: tipoCarga.trim() || TIPOS_CARGA[0],
@@ -509,31 +505,14 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
               placeholder="Digite o endereço como no Google Maps"
             />
           </Field>
-          <div>
-            <p className="mb-2 text-base font-bold text-ink">Complemento</p>
-            <div className="space-y-1.5 rounded-xl border border-ink/10 bg-white px-3 py-3">
-              {COMPLEMENTO_OPCOES.map((op) => {
-                const id = `complemento-${op.value}`
-                return (
-                  <label
-                    key={op.value}
-                    htmlFor={id}
-                    className="flex cursor-pointer items-center gap-2 text-sm text-ink/80"
-                  >
-                    <input
-                      id={id}
-                      type="radio"
-                      name="complemento-carga"
-                      className="h-4 w-4 border-ink/30 text-brand focus:ring-brand/40"
-                      checked={complemento === op.value}
-                      onChange={() => setComplemento(op.value)}
-                    />
-                    <span>{op.label}</span>
-                  </label>
-                )
-              })}
-            </div>
-          </div>
+          <Field label="Complemento">
+            <SuggestInput
+              value={complementoTxt}
+              onChange={setComplementoTxt}
+              suggestions={[...COMPLEMENTO_LABELS]}
+              placeholder="Sim, Não ou Ambos"
+            />
+          </Field>
           <Field label="Frete tabela (R$) *">
             <SuggestInput
               value={freteTabela}
