@@ -79,11 +79,12 @@ export function Field({
   children: ReactNode
   className?: string
 }) {
+  // div (não label): evita focar o input ao clicar no título / área ao redor
   return (
-    <label className={`flex flex-col gap-1 text-sm ${className}`}>
+    <div className={`flex flex-col gap-1 text-sm ${className}`}>
       <span className="font-medium text-ink-muted">{label}</span>
       {children}
-    </label>
+    </div>
   )
 }
 

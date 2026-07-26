@@ -9,7 +9,7 @@ type Props = {
   placeholder?: string
   disabled?: boolean
   className?: string
-  /** Mínimo de caracteres para abrir a lista (0 = sempre com foco) */
+  /** Mínimo de caracteres para abrir a lista (0 = ao clicar/digitar) */
   minChars?: number
   onBlur?: () => void
   inputMode?: HTMLAttributes<HTMLInputElement>['inputMode']
@@ -28,6 +28,8 @@ export function SuggestInput({
 }: Props) {
   const listId = useId()
   const wrapRef = useRef<HTMLDivElement>(null)
+  /** Só abre lista após clique/toque ou digitação — nunca por foco “fantasma”. */
+  const userIntentRef = useRef(false)
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
 
@@ -59,6 +61,11 @@ export function SuggestInput({
   function pick(opt: string) {
     onChange(opt)
     setOpen(false)
+    userIntentRef.current = false
+  }
+
+  function markUserIntent() {
+    userIntentRef.current = true
   }
 
   return (
@@ -74,10 +81,10 @@ export function SuggestInput({
         aria-expanded={show}
         aria-controls={listId}
         aria-autocomplete="list"
-        onFocus={(e) => {
-          setOpen(true)
-          // Facilita trocar a opção: seleciona o texto atual
-          e.currentTarget.select()
+        onPointerDown={markUserIntent}
+        onFocus={() => {
+          if (userIntentRef.current) setOpen(true)
+          userIntentRef.current = false
         }}
         onChange={(e) => {
           onChange(e.target.value)

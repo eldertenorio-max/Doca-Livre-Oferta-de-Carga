@@ -30,6 +30,7 @@ export function VeiculoSuggestInput({
 }: Props) {
   const listId = useId()
   const wrapRef = useRef<HTMLDivElement>(null)
+  const userIntentRef = useRef(false)
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
 
@@ -99,9 +100,12 @@ export function VeiculoSuggestInput({
         aria-expanded={show}
         aria-controls={listId}
         aria-autocomplete="list"
-        onFocus={(e) => {
-          setOpen(true)
-          e.currentTarget.select()
+        onPointerDown={() => {
+          userIntentRef.current = true
+        }}
+        onFocus={() => {
+          if (userIntentRef.current) setOpen(true)
+          userIntentRef.current = false
         }}
         onChange={(e) => {
           onChange(e.target.value)

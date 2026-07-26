@@ -34,6 +34,7 @@ export function AddressSuggestInput({
   const listId = useId()
   const wrapRef = useRef<HTMLDivElement>(null)
   const reqId = useRef(0)
+  const userIntentRef = useRef(false)
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const [remote, setRemote] = useState<SugestaoEndereco[]>([])
@@ -122,7 +123,13 @@ export function AddressSuggestInput({
         aria-expanded={show}
         aria-controls={listId}
         aria-autocomplete="list"
-        onFocus={() => setOpen(true)}
+        onPointerDown={() => {
+          userIntentRef.current = true
+        }}
+        onFocus={() => {
+          if (userIntentRef.current) setOpen(true)
+          userIntentRef.current = false
+        }}
         onChange={(e) => {
           onChange(e.target.value)
           setOpen(true)
