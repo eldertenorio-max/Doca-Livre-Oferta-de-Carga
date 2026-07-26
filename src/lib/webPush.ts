@@ -107,13 +107,56 @@ export async function enviarPushCarga(input: {
         tag: input.cargaId ? `carga-${input.cargaId}` : 'nova-carga',
       },
     })
-    if (error) return { ok: false, erro: error.message }
-    const payload = (data ?? {}) as { ok?: boolean; enviados?: number; erro?: string }
-    if (payload.ok === false) return { ok: false, erro: payload.erro || 'Falha no push.' }
-    return { ok: true, enviados: payload.enviados ?? 0 }
+    if (error) {
+      console.warn('[web-push] invoke falhou:', error.message)
+      return { ok: false, erro: error.message }
+    }
+    const payload = (data ?? {}) as {
+      ok?: boolean
+      enviados?: number
+      erro?: string
+      mensagem?: string
+    }
+    if (payload.ok === false) {
+      console.warn('[web-push] edge erro:', payload.erro)
+      return { ok: false, erro: payload.erro || 'Falha no push.' }
+    }
+    const enviados = payload.enviados ?? 0
+    if (enviados === 0) {
+      console.warn(
+        '[web-push] 0 enviados — transportadores precisam ativar alertas no celular (PWA).',
+        payload.mensagem || '',
+      )
+    }
+    return { ok: true, enviados }
   } catch (e) {
-    return { ok: false, erro: e instanceof Error ? e.message : 'Falha ao chamar web-push.' }
+    const msg = e instanceof Error ? e.message : 'Falha ao chamar web-push.'
+    console.warn('[web-push]', msg)
+    return { ok: false, erro: msg }
   }
+}
+
+/** Texto curto para a barra de notificações do celular. */
+export function textoPushNovaCarga(carga: {
+  numero?: string | null
+  origem?: string | null
+  destino?: string | null
+  frete_oferta?: number | null
+  frete_tabela?: number | null
+}): string {
+  const num = (carga.numero || '').trim() || '—'
+  const origem = (carga.origem || '').trim()
+  const destino = (carga.destino || '').trim()
+  const rota =
+    origem && destino
+      ? `${origem} → ${destino}`
+      : origem || destino || ''
+  const frete = carga.frete_oferta ?? carga.frete_tabela
+  const freteTxt =
+    frete != null && Number.isFinite(frete)
+      ? ` · R$ ${frete.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : ''
+  return `Carga ${num}${rota ? ` · ${rota}` : ''}${freteTxt}`
 }
 
 /** Notificação local imediata (app aberto / mesmo aparelho) — complementa o push remoto. */

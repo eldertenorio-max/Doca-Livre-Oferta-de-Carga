@@ -101,7 +101,7 @@ import {
   subscribeKanbanSync,
 } from '../lib/kanbanSync'
 import { alinharStatusComLances } from '../lib/kanbanColumns'
-import { enviarPushCarga, notificarLocalNativa } from '../lib/webPush'
+import { enviarPushCarga, textoPushNovaCarga } from '../lib/webPush'
 
 const STORAGE_KEY = 'doca-livre-data-v8'
 const STORAGE_KEY_LEGACY = 'doca-livre-data-v7'
@@ -379,6 +379,48 @@ function pushNotif(
     },
     ...list,
   ].slice(0, 300)
+}
+
+/** IDs ativos dos grupos — usados no push mobile ao publicar. */
+function tidsAtivosDosGrupos(
+  grupos: GrupoTransportador[],
+  grupoIds: string[],
+  transportadores: Transportador[],
+): string[] {
+  const ativos = new Set(
+    transportadores.filter((t) => t.situacao !== 'inativo').map((t) => t.id),
+  )
+  const out = new Set<string>()
+  for (const g of grupos) {
+    if (g.situacao === 'inativo') continue
+    if (!grupoIds.includes(g.id)) continue
+    for (const tid of g.transportador_ids ?? []) {
+      if (ativos.has(tid)) out.add(tid)
+    }
+  }
+  return [...out]
+}
+
+function dispararPushNovaCarga(
+  tids: string[],
+  carga: {
+    id?: string
+    numero?: string | null
+    origem?: string | null
+    destino?: string | null
+    frete_oferta?: number | null
+    frete_tabela?: number | null
+  },
+  titulo = 'Nova oferta de carga',
+) {
+  if (tids.length === 0) return
+  void enviarPushCarga({
+    transportadorIds: tids,
+    titulo,
+    mensagem: textoPushNovaCarga(carga),
+    cargaId: carga.id,
+    url: '/#/transportador',
+  })
 }
 
 function notifCadastroPendente(t: {
@@ -1120,6 +1162,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const id = window.setInterval(() => {
       setTick((t) => t + 1)
+      const pushEscalonamento: Array<{
+        tids: string[]
+        carga: {
+          id: string
+          numero: string
+          origem: string
+          destino: string
+          frete_oferta: number | null
+          frete_tabela: number
+        }
+      }> = []
+
       setState((prev) => {
         let changed = false
         const now = Date.now()
@@ -1138,6 +1192,35 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
           if (now >= mid && c.grupo_ids.length > c.grupos_notificados.length) {
             changed = true
+            const ja = new Set(c.grupos_notificados)
+            const novosGrupos = c.grupo_ids.filter((gid) => !ja.has(gid))
+            const tidsNovos = tidsAtivosDosGrupos(
+              prev.grupos,
+              novosGrupos,
+              prev.transportadores,
+            )
+            if (tidsNovos.length > 0) {
+              pushEscalonamento.push({
+                tids: tidsNovos,
+                carga: {
+                  id: c.id,
+                  numero: c.numero,
+                  origem: c.origem,
+                  destino: c.destino,
+                  frete_oferta: c.frete_oferta,
+                  frete_tabela: c.frete_tabela,
+                },
+              })
+              const msg = textoPushNovaCarga(c)
+              for (const tid of tidsNovos) {
+                notificacoes = pushNotif(notificacoes, {
+                  transportador_id: tid,
+                  titulo: 'Nova oferta de carga',
+                  mensagem: msg,
+                  carga_id: c.id,
+                })
+              }
+            }
             historico = [
               makeHistorico('grupos_notificados', `Demais grupos notificados — carga ${c.numero}`, {
                 carga_id: c.id,
@@ -1331,6 +1414,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
           notificacoes,
         }
       })
+      for (const item of pushEscalonamento) {
+        dispararPushNovaCarga(item.tids, item.carga)
+      }
     }, 1000)
     return () => clearInterval(id)
   }, [config.empate_exige_aceite_manual])
@@ -1558,22 +1644,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
         actor,
       )
       const gruposNotif = escalonar ? [payload.grupoIds[0]] : [...payload.grupoIds]
-      const transportadoresNotificados = new Set<string>()
-      for (const g of prev.grupos) {
-        if (!gruposNotif.includes(g.id)) continue
-        for (const tid of g.transportador_ids ?? []) transportadoresNotificados.add(tid)
-      }
+      const tidsPush = tidsAtivosDosGrupos(
+        prev.grupos,
+        gruposNotif,
+        prev.transportadores,
+      )
+      const msgPush = textoPushNovaCarga({
+        numero: carga?.numero,
+        origem: carga?.origem,
+        destino: carga?.destino,
+        frete_oferta: carga?.frete_oferta,
+        frete_tabela: carga?.frete_tabela,
+      })
       let notificacoes = pushNotif(prev.notificacoes, {
         role: 'todos',
         titulo: 'Nova carga publicada',
-        mensagem: `Carga ${carga?.numero ?? ''} disponível para negociação.`,
+        mensagem: msgPush,
         carga_id: payload.cargaId,
       })
-      for (const tid of transportadoresNotificados) {
+      for (const tid of tidsPush) {
         notificacoes = pushNotif(notificacoes, {
           transportador_id: tid,
           titulo: 'Nova oferta de carga',
-          mensagem: `Carga ${carga?.numero ?? ''} disponível no seu Kanban.`,
+          mensagem: msgPush,
           carga_id: payload.cargaId,
         })
       }
@@ -1587,25 +1680,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
       stateRef.current = next
       setState(next)
       flushKanbanPush(next)
-      // Push nativo (barra do celular + som) para transportadores do(s) grupo(s)
-      const tids = [...transportadoresNotificados]
-      if (tids.length > 0) {
-        const titulo = 'Nova oferta de carga'
-        const mensagem = `Carga ${carga?.numero ?? ''} disponível no seu Kanban.`
-        void enviarPushCarga({
-          transportadorIds: tids,
-          titulo,
-          mensagem,
-          cargaId: payload.cargaId,
-          url: '/#/transportador',
-        })
-        void notificarLocalNativa({
-          titulo,
-          mensagem,
-          url: '/#/transportador',
-          tag: `carga-${payload.cargaId}`,
-        })
-      }
+      // Push no celular dos transportadores dos grupos (PWA + alertas ativados)
+      dispararPushNovaCarga(tidsPush, {
+        id: payload.cargaId,
+        numero: carga?.numero,
+        origem: carga?.origem,
+        destino: carga?.destino,
+        frete_oferta: carga?.frete_oferta,
+        frete_tabela: carga?.frete_tabela,
+      })
       return { ok: true }
     },
     [config, flushKanbanPush],
@@ -1619,10 +1702,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
       `Notificação manual de todos os grupos — ${carga?.numero ?? ''}`,
       { carga_id: cargaId },
     )
-    const tids = new Set<string>()
-    for (const g of prev.grupos) {
-      if (!carga?.grupo_ids.includes(g.id)) continue
-      for (const tid of g.transportador_ids ?? []) tids.add(tid)
+    const tids = tidsAtivosDosGrupos(
+      prev.grupos,
+      carga?.grupo_ids ?? [],
+      prev.transportadores,
+    )
+    let notificacoes = prev.notificacoes
+    const msg = textoPushNovaCarga({
+      numero: carga?.numero,
+      origem: carga?.origem,
+      destino: carga?.destino,
+      frete_oferta: carga?.frete_oferta,
+      frete_tabela: carga?.frete_tabela,
+    })
+    for (const tid of tids) {
+      notificacoes = pushNotif(notificacoes, {
+        transportador_id: tid,
+        titulo: 'Nova oferta de carga',
+        mensagem: msg,
+        carga_id: cargaId,
+      })
     }
     const next = {
       ...prev,
@@ -1630,19 +1729,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
         c.id === cargaId ? { ...c, grupos_notificados: [...c.grupo_ids] } : c,
       ),
       historico: [hist, ...prev.historico].slice(0, 2000),
+      notificacoes,
     }
     stateRef.current = next
     setState(next)
     flushKanbanPush(next)
-    if (tids.size > 0) {
-      void enviarPushCarga({
-        transportadorIds: [...tids],
-        titulo: 'Nova oferta de carga',
-        mensagem: `Carga ${carga?.numero ?? ''} disponível no seu Kanban.`,
-        cargaId,
-        url: '/#/transportador',
-      })
-    }
+    dispararPushNovaCarga(tids, {
+      id: cargaId,
+      numero: carga?.numero,
+      origem: carga?.origem,
+      destino: carga?.destino,
+      frete_oferta: carga?.frete_oferta,
+      frete_tabela: carga?.frete_tabela,
+    })
   }, [flushKanbanPush])
 
   const enviarLance = useCallback(
@@ -2462,18 +2561,50 @@ export function DataProvider({ children }: { children: ReactNode }) {
           ),
           ...prev.historico,
         ].slice(0, 2000),
-        notificacoes: pushNotif(prev.notificacoes, {
-          role: 'todos',
-          titulo: 'Negociação reaberta',
-          mensagem: `Carga ${carga.numero} reaberta para novas ofertas (Nova Carga).`,
-          carga_id: cargaId,
-        }),
+        notificacoes: (() => {
+          const msg = textoPushNovaCarga({
+            numero: carga.numero,
+            origem: carga.origem,
+            destino: carga.destino,
+            frete_oferta: carga.frete_oferta,
+            frete_tabela: carga.frete_tabela,
+          })
+          let list = pushNotif(prev.notificacoes, {
+            role: 'todos',
+            titulo: 'Negociação reaberta',
+            mensagem: `Carga ${carga.numero} reaberta para novas ofertas (Nova Carga).`,
+            carga_id: cargaId,
+          })
+          const tids = tidsAtivosDosGrupos(prev.grupos, grupoIds, prev.transportadores)
+          for (const tid of tids) {
+            list = pushNotif(list, {
+              transportador_id: tid,
+              titulo: 'Negociação reaberta',
+              mensagem: msg,
+              carga_id: cargaId,
+            })
+          }
+          return list
+        })(),
       }
       stateRef.current = next
       setState(next)
+      flushKanbanPush(next)
+      dispararPushNovaCarga(
+        tidsAtivosDosGrupos(prev.grupos, grupoIds, prev.transportadores),
+        {
+          id: cargaId,
+          numero: carga.numero,
+          origem: carga.origem,
+          destino: carga.destino,
+          frete_oferta: carga.frete_oferta,
+          frete_tabela: carga.frete_tabela,
+        },
+        'Negociação reaberta',
+      )
       return { ok: true }
     },
-    [config.prazo_oferta_padrao_minutos],
+    [config.prazo_oferta_padrao_minutos, flushKanbanPush],
   )
 
   const recusarCargaMinerva = useCallback((cargaId: string) => {
