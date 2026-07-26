@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Plus, Search } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useData } from '../../context/DataContext'
+import { isCargaEphemeral, montarNovaCarga, useData } from '../../context/DataContext'
 import { CargoCard } from '../../components/kanban/CargoCard'
 import { KanbanBoard } from '../../components/kanban/KanbanBoard'
 import { PublishPanel } from '../../components/carga/PublishPanel'
@@ -73,12 +73,14 @@ export function KanbanMinerva() {
     cargas,
     lances,
     lancesDaCarga,
-    criarCarga,
+    user,
     moverCargaKanban,
     forcarSincronizarKanban,
   } = useData()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Carga | null>(null)
+  /** Rascunho só na tela — ainda não foi salvo em `cargas`. */
+  const [ephemeral, setEphemeral] = useState<Carga | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const [panelSize, setPanelSize] = useState<PanelSize>(() => loadPanelSize())
   const [initialTab, setInitialTab] = useState<'dados' | 'salvas' | 'publicar'>('dados')
@@ -127,11 +129,24 @@ export function KanbanMinerva() {
   )
   const rascunhos = useMemo(() => cargas.filter(isRascunhoNaoPublicado).length, [cargas])
 
-  const liveSelected = selected ? (cargas.find((c) => c.id === selected.id) ?? null) : null
+  const liveSelected = useMemo(() => {
+    if (!selected) return null
+    if (ephemeral && selected.id === ephemeral.id) return ephemeral
+    return cargas.find((c) => c.id === selected.id) ?? selected
+  }, [selected, ephemeral, cargas])
 
   function openPanel(c: Carga, tab?: 'dados' | 'salvas' | 'publicar') {
+    setEphemeral(null)
     setSelected(c)
     setInitialTab(tab ?? (isRascunhoNaoPublicado(c) ? 'dados' : 'publicar'))
+    setPanelOpen(true)
+  }
+
+  function openNovaCarga() {
+    const draft = montarNovaCarga(undefined, user?.id ?? null, { persistir: false })
+    setEphemeral(draft)
+    setSelected(draft)
+    setInitialTab('dados')
     setPanelOpen(true)
   }
 
@@ -184,13 +199,7 @@ export function KanbanMinerva() {
                 className="w-full rounded-lg border border-ink/15 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
               />
             </div>
-            <Button
-              variant="success"
-              onClick={() => {
-                const c = criarCarga()
-                openPanel(c, 'dados')
-              }}
-            >
+            <Button variant="success" onClick={openNovaCarga}>
               <Plus size={16} /> Nova carga
             </Button>
           </div>
@@ -286,12 +295,23 @@ export function KanbanMinerva() {
           initialTab={initialTab}
           onPanelSizeChange={setPanelSize}
           onSelectCarga={(c) => {
+            setEphemeral(null)
             setSelected(c)
             setInitialTab('dados')
+          }}
+          onCargaPersistida={(c) => {
+            if (isCargaEphemeral(c)) {
+              setEphemeral(c)
+              setSelected(c)
+              return
+            }
+            setEphemeral(null)
+            setSelected(c)
           }}
           onClose={() => {
             setPanelOpen(false)
             setSelected(null)
+            setEphemeral(null)
           }}
         />
       )}

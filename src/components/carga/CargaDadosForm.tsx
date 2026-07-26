@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useData } from '../../context/DataContext'
+import { isCargaEphemeral, useData } from '../../context/DataContext'
 import { formatCurrency, formatMoneyInput, parseMoneyInput } from '../../lib/businessRules'
 import { buscarCidades, filtrarSugestoes } from '../../lib/cidadesBrasil'
 import { cnpjDigits, formatCnpj, isValidCnpj } from '../../lib/cnpj'
@@ -39,6 +39,8 @@ type Props = {
   canEdit: boolean
   onSaved?: () => void
   onGoPublish?: () => void
+  /** Chamado quando o rascunho efêmero é gravado pela 1ª vez (ou atualizado na UI). */
+  onPersisted?: (carga: Carga) => void
 }
 
 function toDateInput(iso: string) {
@@ -75,8 +77,8 @@ const SUGESTOES_OBS = [
 
 const DESTINOS_ESPECIAIS = ['Distribuição']
 
-export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) {
-  const { rotas, cargas, atualizarCarga, salvarRota } = useData()
+export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersisted }: Props) {
+  const { rotas, cargas, atualizarCarga, criarCarga, salvarRota } = useData()
   const editavel = canEdit && carga.status === 'nova_carga'
 
   const [origem, setOrigem] = useState(carga.origem)
@@ -399,7 +401,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       return
     }
 
-    const res = atualizarCarga(carga.id, {
+    const patch: Partial<Carga> = {
       rota_id: rotaIdFinal,
       classificacao_rota: classifFinal,
       origem: origemFinal,
@@ -419,7 +421,20 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       data_carregamento: fromDateInput(dataCarreg),
       previsao_entrega: fromDateInput(previsao),
       observacao: observacao.trim() || undefined,
-    })
+      numero: carga.numero,
+      created_at: carga.created_at,
+    }
+
+    if (isCargaEphemeral(carga)) {
+      const criada = criarCarga(patch)
+      if (!salvarFavorita) setInfo('Carga salva em Cargas salvas.')
+      onPersisted?.(criada)
+      onSaved?.()
+      if (irParaPublicar) onGoPublish?.()
+      return
+    }
+
+    const res = atualizarCarga(carga.id, patch)
     if (!res.ok) {
       setError(res.error ?? 'Erro ao salvar')
       return

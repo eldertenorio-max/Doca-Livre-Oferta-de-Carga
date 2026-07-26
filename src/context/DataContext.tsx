@@ -360,6 +360,87 @@ function uid(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`
 }
 
+/** Rascunho só na UI — ainda não entrou em `cargas` / sync. */
+export function isCargaEphemeral(c: Pick<Carga, 'id'> | null | undefined): boolean {
+  return Boolean(c?.id?.startsWith('draft-'))
+}
+
+/** Monta rascunho. `persistir: false` = só tela (Nova carga); `true` = id definitivo. */
+export function montarNovaCarga(
+  partial?: Partial<Carga>,
+  criadoPor?: string | null,
+  opts?: { persistir?: boolean },
+): Carga {
+  const persistir = opts?.persistir === true
+  const id = persistir
+    ? partial?.id && !isCargaEphemeral(partial)
+      ? partial.id
+      : uid('c')
+    : uid('draft')
+  const numero =
+    partial?.numero || String(128688 + Math.floor(Math.random() * 9000))
+  return {
+    id,
+    numero,
+    pedido: '',
+    ordem: `O/${69000 + Math.floor(Math.random() * 900)}-1`,
+    tipo_carga: 'Carga seca',
+    veiculo: '',
+    carrocerias: [],
+    remetente: 'DOCA LIVRE OFERTA DE CARGA',
+    remetente_cnpj: '67.620.377/0001-00',
+    origem: '',
+    destino: '',
+    complemento: undefined,
+    destinatario: '',
+    destinatario_cnpj: '',
+    peso: 0,
+    volumes: 0,
+    num_entregas: 1,
+    pallets: 0,
+    valor_mercadorias: 0,
+    frete_tabela: 0,
+    frete_oferta: null,
+    frete_minimo: null,
+    frete_maximo: null,
+    margem_percentual: null,
+    data_carregamento: new Date(Date.now() + 86400000).toISOString(),
+    previsao_entrega: new Date(Date.now() + 172800000).toISOString(),
+    rota_id: null,
+    classificacao_rota: 'B',
+    status: 'nova_carga',
+    prioridade: null,
+    modo_publicacao: null,
+    prazo_leilao_minutos: null,
+    prazo_alocacao_minutos: null,
+    publicado_em: null,
+    expira_em: null,
+    alocacao_expira_em: null,
+    pausado_em: null,
+    tempo_restante_ms: null,
+    justificativa_motivo: null,
+    justificativa_obs: null,
+    grupo_ids: [],
+    grupos_notificados: [],
+    transportador_vencedor_id: null,
+    frete_fechado: null,
+    placa: null,
+    motorista: null,
+    veiculo_id: null,
+    motorista_id: null,
+    criado_por: criadoPor ?? null,
+    visualizacoes: 0,
+    recusas: 0,
+    created_at: new Date().toISOString(),
+    ...partial,
+    id,
+    numero: partial?.numero || numero,
+    status: 'nova_carga',
+    publicado_em: null,
+    criado_por: partial?.criado_por ?? criadoPor ?? null,
+  }
+}
+
 function makeHistorico(
   tipo: TipoHistorico,
   titulo: string,
@@ -3694,65 +3775,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const criarCarga = useCallback(
     (partial?: Partial<Carga>) => {
-      const numero = String(128688 + Math.floor(Math.random() * 9000))
-      const nova: Carga = {
-        id: uid('c'),
-        numero,
-        pedido: '',
-        ordem: `O/${69000 + Math.floor(Math.random() * 900)}-1`,
-        tipo_carga: 'Carga seca',
-        veiculo: '',
-        carrocerias: [],
-        remetente: 'DOCA LIVRE OFERTA DE CARGA',
-        remetente_cnpj: '67.620.377/0001-00',
-        origem: '',
-        destino: '',
-        complemento: undefined,
-        destinatario: '',
-        destinatario_cnpj: '',
-        peso: 0,
-        volumes: 0,
-        num_entregas: 1,
-        pallets: 0,
-        valor_mercadorias: 0,
-        frete_tabela: 0,
-        frete_oferta: null,
-        frete_minimo: null,
-        frete_maximo: null,
-        margem_percentual: null,
-        data_carregamento: new Date(Date.now() + 86400000).toISOString(),
-        previsao_entrega: new Date(Date.now() + 172800000).toISOString(),
-        rota_id: null,
-        classificacao_rota: 'B',
-        status: 'nova_carga',
-        prioridade: null,
-        modo_publicacao: null,
-        prazo_leilao_minutos: null,
-        prazo_alocacao_minutos: null,
-        publicado_em: null,
-        expira_em: null,
-        alocacao_expira_em: null,
-        pausado_em: null,
-        tempo_restante_ms: null,
-        justificativa_motivo: null,
-        justificativa_obs: null,
-        grupo_ids: [],
-        grupos_notificados: [],
-        transportador_vencedor_id: null,
-        frete_fechado: null,
-        placa: null,
-        motorista: null,
-        veiculo_id: null,
-        motorista_id: null,
-        criado_por: user?.id ?? null,
-        visualizacoes: 0,
-        recusas: 0,
-        created_at: new Date().toISOString(),
-        ...partial,
-      }
+      const nova = montarNovaCarga(partial, user?.id ?? null, { persistir: true })
       setState((prev) => ({
         ...prev,
-        cargas: [...prev.cargas, nova],
+        cargas: [...prev.cargas.filter((c) => c.id !== nova.id), nova],
         historico: [
           makeHistorico('carga_criada', `Carga ${nova.numero} criada`, { carga_id: nova.id }, user),
           ...prev.historico,

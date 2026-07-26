@@ -12,7 +12,7 @@ import {
   X,
 } from 'lucide-react'
 import { normalizarTexto } from '../../lib/cidadesBrasil'
-import { useData } from '../../context/DataContext'
+import { isCargaEphemeral, useData } from '../../context/DataContext'
 import {
   MOTIVOS_PRIORIDADE_ALTA,
   calcularFreteOferta,
@@ -61,6 +61,8 @@ interface Props {
   initialTab?: PanelTab
   /** Troca a carga aberta no painel (rascunhos salvos) */
   onSelectCarga?: (carga: Carga) => void
+  /** Rascunho efêmero virou carga salva (primeiro Salvar) */
+  onCargaPersistida?: (carga: Carga) => void
   /** Notifica o layout (Kanban) para expandir até o menu lateral */
   onPanelSizeChange?: (size: PanelSize) => void
 }
@@ -84,6 +86,7 @@ export function PublishPanel({
   onClose,
   initialTab,
   onSelectCarga,
+  onCargaPersistida,
   onPanelSizeChange,
 }: Props) {
   const {
@@ -201,6 +204,15 @@ export function PublishPanel({
   const rascunhosNaoPublicados = useMemo(() => {
     return [...cargas]
       .filter(isRascunhoNaoPublicado)
+      .filter((c) => !isCargaEphemeral(c))
+      // Só lista o que já foi preenchido/salvo (evita lixo de “Nova carga” antiga)
+      .filter(
+        (c) =>
+          Boolean(c.pedido?.trim()) ||
+          Boolean(c.origem?.trim()) ||
+          Boolean(c.destino?.trim()) ||
+          c.frete_tabela > 0,
+      )
       .sort((a, b) => {
         const ta = new Date(a.updated_at || a.created_at || 0).getTime()
         const tb = new Date(b.updated_at || b.created_at || 0).getTime()
@@ -295,6 +307,22 @@ export function PublishPanel({
 
   function handleUsarFavorita(r: Rota) {
     if (!carga || !isNova) return
+    if (isCargaEphemeral(carga)) {
+      // Só preenche o formulário — grava no board ao clicar Salvar
+      onCargaPersistida?.({
+        ...carga,
+        rota_id: r.id,
+        origem: r.origem,
+        destino: r.destino,
+        frete_tabela: r.frete_tabela,
+        classificacao_rota: r.classificacao,
+        updated_at: new Date().toISOString(),
+      })
+      setError('')
+      setInfo(`Rota “${r.descricao}” aplicada. Preencha o restante e clique em Salvar.`)
+      setTab('dados')
+      return
+    }
     const res = atualizarCarga(carga.id, {
       rota_id: r.id,
       origem: r.origem,
@@ -382,6 +410,11 @@ export function PublishPanel({
   function handlePublicar() {
     setError('')
     setInfo('')
+    if (isCargaEphemeral(carga)) {
+      setError('Salve a carga na aba Dados antes de publicar.')
+      setTab('dados')
+      return
+    }
     if (grupoIds.length === 0) {
       setError('Selecione quem vai negociar: ao menos um grupo.')
       return
@@ -718,6 +751,7 @@ export function PublishPanel({
               carga={carga}
               canEdit={canEdit}
               onGoPublish={() => setTab('publicar')}
+              onPersisted={onCargaPersistida}
             />
           )}
 
@@ -734,7 +768,7 @@ export function PublishPanel({
                       )
                     </p>
                     <p className="mt-0.5 text-[11px] text-ink-muted">
-                      Rascunhos salvos — só entram em Nova Carga depois de publicar.
+                      Só aparecem cargas já salvas. Nova carga só grava ao clicar em Salvar.
                     </p>
                   </div>
                   <SectionSearch
@@ -799,7 +833,11 @@ export function PublishPanel({
                               type="button"
                               className="shrink-0 self-center rounded p-2 text-ink-muted hover:bg-red-50 hover:text-red-700"
                               title="Excluir rascunho"
-                              onClick={() => handleExcluirRascunho(c.id, c.numero)}
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleExcluirRascunho(c.id, c.numero)
+                              }}
                             >
                               <Trash2 size={14} />
                             </button>
