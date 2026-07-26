@@ -4,7 +4,6 @@ import { formatCurrency, formatMoneyInput, parseMoneyInput } from '../../lib/bus
 import { buscarCidades, filtrarSugestoes } from '../../lib/cidadesBrasil'
 import { cnpjDigits, formatCnpj, isValidCnpj } from '../../lib/cnpj'
 import { buscarDadosPorCnpj } from '../../lib/cnpjLookup'
-import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
 import { TIPOS_CARGA } from '../../lib/tiposCarga'
 import type { Carga, ClassificacaoRota, Rota } from '../../types'
 import { Button, Field, inputClass } from '../ui/Modal'
@@ -13,6 +12,7 @@ import { SuggestInput } from '../ui/SuggestInput'
 import { AddressSuggestInput } from '../ui/AddressSuggestInput'
 import { joinCarrocerias, parseCarrocerias } from '../../lib/tiposCarroceria'
 import { CarroceriaSuggestInput } from '../ui/CarroceriaSuggestInput'
+import { VeiculoSuggestInput } from '../ui/VeiculoSuggestInput'
 
 type ComplementoCarga = NonNullable<Carga['complemento']>
 
@@ -162,20 +162,6 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       return filtrarSugestoes(qt, [catalog, historico.tipo], 20)
     },
     [historico.tipo],
-  )
-
-  const sugVeiculo = useMemo(
-    () => (q: string) => {
-      const catalog = [...TIPOS_VEICULO]
-      const qt = q.trim()
-      if (!qt) return catalog
-      const exact = catalog.some((t) => t.toLowerCase() === qt.toLowerCase())
-      if (exact) return catalog
-      const matched = filtrarSugestoes(qt, [catalog], 20)
-      if (matched.length === 0) return catalog
-      return filtrarSugestoes(qt, [catalog, historico.veiculo], 20)
-    },
-    [historico.veiculo],
   )
 
   const sugDestinatario = useMemo(
@@ -558,11 +544,10 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
             />
           </Field>
           <Field label="Veículo *">
-            <SuggestInput
+            <VeiculoSuggestInput
               value={veiculo}
               onChange={setVeiculo}
-              suggestions={sugVeiculo}
-              placeholder="HR, Fiorino, Van, Carreta, Truck…"
+              placeholder="Carreta, Truck, Fiorino…"
             />
           </Field>
           <Field label="Carroceria">

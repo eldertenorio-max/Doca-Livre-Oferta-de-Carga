@@ -17,6 +17,7 @@ import {
 import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
 import { newVeiculoId } from '../../lib/veiculosSync'
 import { CarroceriaSuggestInput } from '../../components/ui/CarroceriaSuggestInput'
+import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
 import type { FotoVeiculoSlot, FotosVeiculo, Veiculo } from '../../types'
 import '../../styles/cadastro.css'
 
@@ -481,14 +482,11 @@ export function VeiculosPage() {
               )}
             </Field>
             <Field label="Tipo (categoria do veículo)" required>
-              <select value={form.tipo ?? ''} onChange={(e) => set('tipo', e.target.value)}>
-                <option value="">Selecione o Tipo...</option>
-                {TIPOS_VEICULO.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+              <VeiculoSuggestInput
+                value={form.tipo ?? ''}
+                onChange={(v) => set('tipo', v)}
+                placeholder="Carreta, Truck, Fiorino…"
+              />
             </Field>
             <Field label="Frete mínimo (R$)" required>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
