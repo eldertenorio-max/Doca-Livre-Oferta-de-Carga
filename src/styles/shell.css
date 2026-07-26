@@ -436,9 +436,9 @@
   gap: 6px;
   height: 36px;
   padding: 0 12px;
-  border: 1px solid #111;
+  border: 1px solid #2f9e6a;
   border-radius: 8px;
-  background: #111;
+  background: #2f9e6a;
   color: #fff;
   font-size: 0.78rem;
   font-weight: 800;
@@ -454,7 +454,8 @@
 }
 
 .app-topbar-nova-carga:hover {
-  background: #222;
+  background: #268556;
+  border-color: #268556;
 }
 
 .app-topbar-disp {

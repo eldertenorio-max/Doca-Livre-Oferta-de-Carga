@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { isCargaEphemeral, montarNovaCarga, useData } from '../../context/DataContext'
 import { CargoCard } from '../../components/kanban/CargoCard'
 import { KanbanBoard } from '../../components/kanban/KanbanBoard'
 import { PublishPanel } from '../../components/carga/PublishPanel'
-import { Button } from '../../components/ui/Modal'
 import {
   colunaMinerva,
   isRascunhoNaoPublicado,
@@ -199,19 +198,14 @@ export function KanbanMinerva() {
     >
       {!panelFullscreen && (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <div className="relative min-w-0 w-full flex-1 sm:min-w-[220px]">
-              <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-muted" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Pesquisar cargas..."
-                className="w-full rounded-lg border border-ink/15 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-              />
-            </div>
-            <Button variant="success" onClick={openNovaCarga}>
-              <Plus size={16} /> Nova carga
-            </Button>
+          <div className="relative w-full shrink-0">
+            <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-muted" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Pesquisar cargas..."
+              className="w-full rounded-lg border border-ink/15 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+            />
           </div>
 
           {dragMsg && (
