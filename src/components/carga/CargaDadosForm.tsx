@@ -22,15 +22,15 @@ function labelComplemento(v?: Carga['complemento']) {
   if (v === 'sim') return 'Sim'
   if (v === 'nao') return 'Não'
   if (v === 'ambos') return 'Ambos'
-  return 'Ambos'
+  return ''
 }
 
-function parseComplemento(txt: string): ComplementoCarga {
+function parseComplemento(txt: string): ComplementoCarga | undefined {
   const n = txt.trim().toLowerCase()
   if (n === 'sim') return 'sim'
   if (n === 'nao' || n === 'não') return 'nao'
   if (n === 'ambos') return 'ambos'
-  return 'ambos'
+  return undefined
 }
 
 type Props = {
@@ -405,7 +405,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
         <Row label="Pedido" value={carga.pedido || '—'} />
         <Row label="Origem" value={carga.origem || '—'} />
         <Row label="Destino" value={carga.destino || '—'} />
-        <Row label="Complemento" value={labelComplemento(carga.complemento)} />
+        <Row label="Complemento" value={labelComplemento(carga.complemento) || '—'} />
         <Row label="Tipo" value={carga.tipo_carga || '—'} />
         <Row label="Veículo" value={carga.veiculo || '—'} />
         <Row

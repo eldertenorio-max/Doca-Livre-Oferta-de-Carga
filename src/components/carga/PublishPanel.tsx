@@ -914,7 +914,9 @@ export function PublishPanel({
                 ? 'Sim'
                 : carga.complemento === 'nao'
                   ? 'Não'
-                  : 'Ambos'
+                  : carga.complemento === 'ambos'
+                    ? 'Ambos'
+                    : '—'
             }
           />
           <Detail label="Destinatário" value={carga.destinatario || '—'} />

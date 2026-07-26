@@ -3380,7 +3380,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         remetente_cnpj: '67.620.377/0001-00',
         origem: '',
         destino: '',
-        complemento: 'ambos',
+        complemento: undefined,
         destinatario: '',
         destinatario_cnpj: '',
         peso: 0,
