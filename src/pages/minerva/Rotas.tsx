@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useData } from '../../context/DataContext'
 import { MARGENS_POR_ROTA, formatCurrency } from '../../lib/businessRules'
+import { buscarCidades, filtrarSugestoes } from '../../lib/cidadesBrasil'
 import type { ClassificacaoRota, Rota } from '../../types'
 import { Button, Field, inputClass } from '../../components/ui/Modal'
+import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
 
 export function RotasPage() {
   const { rotas, salvarRota } = useData()
@@ -16,6 +18,17 @@ export function RotasPage() {
     situacao: 'ativo',
   })
   const [editingId, setEditingId] = useState<string | null>(null)
+
+  const sugOrigem = useMemo(
+    () => (q: string) =>
+      filtrarSugestoes(q, [buscarCidades(q, 10), rotas.map((r) => r.origem)], 10),
+    [rotas],
+  )
+  const sugDestino = useMemo(
+    () => (q: string) =>
+      filtrarSugestoes(q, [buscarCidades(q, 10), rotas.map((r) => r.destino)], 10),
+    [rotas],
+  )
 
   function save() {
     if (!form.descricao || !form.origem || !form.destino) return
@@ -136,17 +149,21 @@ export function RotasPage() {
             </select>
           </Field>
           <Field label="Origem">
-            <input
-              className={inputClass}
+            <AddressSuggestInput
               value={form.origem ?? ''}
-              onChange={(e) => setForm({ ...form, origem: e.target.value })}
+              onChange={(origem) => setForm({ ...form, origem })}
+              localSuggestions={sugOrigem}
+              minChars={3}
+              placeholder="Digite o endereço (ex.: Avenida Faustino)"
             />
           </Field>
           <Field label="Destino">
-            <input
-              className={inputClass}
+            <AddressSuggestInput
               value={form.destino ?? ''}
-              onChange={(e) => setForm({ ...form, destino: e.target.value })}
+              onChange={(destino) => setForm({ ...form, destino })}
+              localSuggestions={sugDestino}
+              minChars={3}
+              placeholder="Digite o endereço de destino"
             />
           </Field>
           <Field label="Frete Tabela">

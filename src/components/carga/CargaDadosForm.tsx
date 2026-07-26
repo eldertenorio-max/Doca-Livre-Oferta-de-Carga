@@ -9,6 +9,7 @@ import type { Carga, ClassificacaoRota, Rota } from '../../types'
 import { Button, Field, inputClass } from '../ui/Modal'
 import { CnpjInput } from '../ui/CnpjInput'
 import { SuggestInput } from '../ui/SuggestInput'
+import { AddressSuggestInput } from '../ui/AddressSuggestInput'
 
 type Props = {
   carga: Carga
@@ -352,7 +353,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
             Carga {carga.numero}
           </p>
           <p className="text-[11px] text-ink-muted">
-            Preencha, salve e vá para Publicar. Digite para ver sugestões.
+            Preencha, salve e vá para Publicar. Em origem/destino, digite o endereço para ver sugestões.
           </p>
         </div>
         {rotaSelecionada && (
@@ -372,21 +373,21 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
         </div>
         <div className="grid gap-2.5 sm:grid-cols-2">
           <Field label="Origem *">
-            <SuggestInput
+            <AddressSuggestInput
               value={origem}
               onChange={setOrigem}
-              suggestions={sugOrigem}
-              minChars={2}
-              placeholder="Cidade - UF (ex.: Sao)"
+              localSuggestions={sugOrigem}
+              minChars={3}
+              placeholder="Digite o endereço (ex.: Avenida Faustino)"
             />
           </Field>
           <Field label="Destino *">
-            <SuggestInput
+            <AddressSuggestInput
               value={destino}
               onChange={setDestino}
-              suggestions={sugDestino}
-              minChars={2}
-              placeholder="Cidade - UF ou Distribuição"
+              localSuggestions={sugDestino}
+              minChars={3}
+              placeholder="Digite o endereço ou Distribuição"
             />
           </Field>
           <Field label="Frete tabela (R$) *">

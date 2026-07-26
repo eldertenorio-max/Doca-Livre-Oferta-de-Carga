@@ -139,6 +139,98 @@ export async function geocodificarEndereco(
   return { ok: false, erro: lastErro }
 }
 
+export type SugestaoEndereco = {
+  label: string
+  display: string
+  lat: number
+  lng: number
+}
+
+type NominatimHit = {
+  lat?: string
+  lon?: string
+  display_name?: string
+  address?: {
+    road?: string
+    pedestrian?: string
+    suburb?: string
+    neighbourhood?: string
+    city?: string
+    town?: string
+    village?: string
+    municipality?: string
+    state?: string
+    postcode?: string
+  }
+}
+
+function formatarSugestaoNominatim(hit: NominatimHit): string {
+  const a = hit.address
+  if (!a) return (hit.display_name || '').trim()
+  const rua = (a.road || a.pedestrian || '').trim()
+  const bairro = (a.suburb || a.neighbourhood || '').trim()
+  const cidade = (a.city || a.town || a.village || a.municipality || '').trim()
+  const uf = (a.state || '')
+    .replace(/^Estado d[eoas]\s+/i, '')
+    .replace(/^State of\s+/i, '')
+    .trim()
+  // UFs longas → tenta manter só a parte útil; se vier nome do estado, usa como está
+  const partes = [rua, bairro, cidade, uf].filter(Boolean)
+  if (partes.length >= 2) return partes.join(', ')
+  return (hit.display_name || '').trim()
+}
+
+/**
+ * Sugestões de endereço (estilo Maps) via Nominatim / OpenStreetMap.
+ * Debounce no componente que chama (máx. ~1 req/s).
+ */
+export async function sugerirEnderecos(
+  consulta: string,
+  limit = 8,
+): Promise<SugestaoEndereco[]> {
+  const q = consulta.trim()
+  if (q.length < 3) return []
+
+  try {
+    const url = new URL('https://nominatim.openstreetmap.org/search')
+    url.searchParams.set('format', 'json')
+    url.searchParams.set('addressdetails', '1')
+    url.searchParams.set('limit', String(Math.min(12, Math.max(1, limit))))
+    url.searchParams.set('countrycodes', 'br')
+    url.searchParams.set('q', q.includes('Brasil') ? q : `${q}, Brasil`)
+
+    const res = await fetch(url.toString(), {
+      headers: {
+        Accept: 'application/json',
+      },
+    })
+    if (!res.ok) return []
+    const rows = (await res.json()) as NominatimHit[]
+    const out: SugestaoEndereco[] = []
+    const seen = new Set<string>()
+    for (const hit of rows) {
+      const lat = hit?.lat != null ? Number(hit.lat) : NaN
+      const lng = hit?.lon != null ? Number(hit.lon) : NaN
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
+      const label = formatarSugestaoNominatim(hit)
+      if (!label) continue
+      const key = label.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push({
+        label,
+        display: (hit.display_name || label).trim(),
+        lat,
+        lng,
+      })
+      if (out.length >= limit) break
+    }
+    return out
+  } catch {
+    return []
+  }
+}
+
 /**
  * Geocodifica texto livre (rua, cidade, CEP, etc.) via Nominatim.
  */
@@ -148,26 +240,13 @@ export async function geocodificarConsulta(
   const q = consulta.trim()
   if (q.length < 3) return { ok: false, erro: 'Digite um endereço ou lugar.' }
 
-  try {
-    const url = new URL('https://nominatim.openstreetmap.org/search')
-    url.searchParams.set('format', 'json')
-    url.searchParams.set('limit', '1')
-    url.searchParams.set('countrycodes', 'br')
-    url.searchParams.set('q', q.includes('Brasil') ? q : `${q}, Brasil`)
-
-    const res = await fetch(url.toString(), {
-      headers: { Accept: 'application/json' },
-    })
-    if (!res.ok) return { ok: false, erro: 'Falha ao consultar o endereço.' }
-    const rows = (await res.json()) as Array<{ lat?: string; lon?: string; display_name?: string }>
-    const hit = rows[0]
-    const lat = hit?.lat != null ? Number(hit.lat) : NaN
-    const lng = hit?.lon != null ? Number(hit.lon) : NaN
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      return { ok: false, erro: 'Endereço não encontrado.' }
+  const hits = await sugerirEnderecos(q, 1)
+  if (hits[0]) {
+    return {
+      ok: true,
+      coords: { lat: hits[0].lat, lng: hits[0].lng },
+      display: hits[0].display,
     }
-    return { ok: true, coords: { lat, lng }, display: hit.display_name }
-  } catch {
-    return { ok: false, erro: 'Não foi possível obter as coordenadas.' }
   }
+  return { ok: false, erro: 'Endereço não encontrado.' }
 }
