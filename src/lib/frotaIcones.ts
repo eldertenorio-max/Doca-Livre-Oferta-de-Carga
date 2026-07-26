@@ -102,11 +102,12 @@ const SVG: Record<FrotaIconeGrupo, string> = {
     ${wheel(26, 5.6)}${wheel(90, 5.6)}
   `),
 
-  hr: bauSvg(10, 12, 24, 14, 108, `${wheel(22, 5.8)}${wheel(92, 5.8)}`),
+  // Baú em escala: toco (maior) → 3/4 → VUC → HR (menor)
+  hr: bauSvg(14, 14, 22, 16.5, 88, `${wheel(26, 5.2)}${wheel(74, 5.2)}`),
 
-  vuc: bauSvg(9, 11, 25, 12.5, 110, `${wheel(21, 5.8)}${wheel(90, 5.8)}`),
+  vuc: bauSvg(12, 12.5, 23, 14.5, 96, `${wheel(24, 5.4)}${wheel(80, 5.4)}`),
 
-  leve: bauSvg(9, 10.5, 25, 12, 111, `${wheel(21, 5.8)}${wheel(92, 5.8)}`),
+  leve: bauSvg(10, 11, 24, 12.5, 104, `${wheel(22, 5.6)}${wheel(88, 5.6)}`),
 
   toco: bauSvg(8, 10, 25, 11, 112, `${wheel(20, 5.8)}${wheel(94, 5.8)}`),
 
