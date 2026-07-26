@@ -1,32 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Doca Livre Oferta de Carga">
-  <defs>
-    <filter id="s" x="-15%" y="-15%" width="130%" height="130%">
-      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000" flood-opacity="0.14"/>
-    </filter>
-  </defs>
-  <!-- Fundo tipo ícone de app (igual ao mobile) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Doca Livre">
+  <!-- Ícone de aba: só a marca (legível em 16–32px) -->
   <rect width="512" height="512" rx="96" fill="#ffffff"/>
-  <rect x="40" y="72" width="432" height="368" rx="48" fill="#ffffff" stroke="#eef1f4" stroke-width="5" filter="url(#s)"/>
-
-  <!-- Marca (setas) -->
-  <g transform="translate(68 150)">
-    <path d="M0 0h112" stroke="#050505" stroke-width="18" stroke-linecap="round"/>
-    <path d="M0 148h112" stroke="#050505" stroke-width="18" stroke-linecap="round"/>
-    <path d="M0 0v70" stroke="#050505" stroke-width="18" stroke-linecap="round"/>
-    <path d="M0 148v-70" stroke="#050505" stroke-width="18" stroke-linecap="round"/>
-    <path d="M148 0H56" stroke="#050505" stroke-width="18" stroke-linecap="round"/>
-    <path d="M148 148H56" stroke="#050505" stroke-width="18" stroke-linecap="round"/>
-    <path d="M148 0v70" stroke="#050505" stroke-width="18" stroke-linecap="round"/>
-    <path d="M148 148v-70" stroke="#050505" stroke-width="18" stroke-linecap="round"/>
-    <path d="M30 74h54" stroke="#f9db00" stroke-width="28" stroke-linecap="round"/>
-    <path d="M28 74l38-32v64z" fill="#f9db00"/>
-    <path d="M118 74H64" stroke="#f9db00" stroke-width="28" stroke-linecap="round"/>
-    <path d="M120 74L82 42v64z" fill="#f9db00"/>
+  <g transform="translate(106 106)">
+    <!-- Moldura com gaps (igual à logo) -->
+    <path d="M0 0h118" stroke="#050505" stroke-width="28" stroke-linecap="round"/>
+    <path d="M0 300h118" stroke="#050505" stroke-width="28" stroke-linecap="round"/>
+    <path d="M0 0v144" stroke="#050505" stroke-width="28" stroke-linecap="round"/>
+    <path d="M0 300v-144" stroke="#050505" stroke-width="28" stroke-linecap="round"/>
+    <path d="M300 0H182" stroke="#050505" stroke-width="28" stroke-linecap="round"/>
+    <path d="M300 300H182" stroke="#050505" stroke-width="28" stroke-linecap="round"/>
+    <path d="M300 0v144" stroke="#050505" stroke-width="28" stroke-linecap="round"/>
+    <path d="M300 300v-144" stroke="#050505" stroke-width="28" stroke-linecap="round"/>
+    <!-- Setas amarelas -->
+    <path d="M62 150h100" stroke="#f9db00" stroke-width="52" stroke-linecap="round"/>
+    <path d="M58 150l72-60v120z" fill="#f9db00"/>
+    <path d="M238 150H138" stroke="#f9db00" stroke-width="52" stroke-linecap="round"/>
+    <path d="M242 150L170 90v120z" fill="#f9db00"/>
   </g>
-
-  <!-- Texto: DOCA LIVRE + OFERTA DE CARGA (mesmo do mobile) -->
-  <text x="248" y="198" fill="#f9db00" font-family="Arial Black, Arial, sans-serif" font-size="58" font-weight="900" letter-spacing="1">DOCA</text>
-  <text x="252" y="258" fill="#050505" font-family="Arial, sans-serif" font-size="42" font-weight="500" letter-spacing="12">LIVRE</text>
-  <text x="252" y="308" fill="#050505" font-family="Arial Black, Arial, sans-serif" font-size="26" font-weight="900" letter-spacing="3">OFERTA</text>
-  <text x="252" y="342" fill="#050505" font-family="Arial Black, Arial, sans-serif" font-size="22" font-weight="900" letter-spacing="2">DE CARGA</text>
 </svg>

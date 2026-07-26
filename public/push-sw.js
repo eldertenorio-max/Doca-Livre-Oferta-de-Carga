@@ -7,8 +7,8 @@ self.addEventListener('push', (event) => {
   let data = {
     title: 'Doca Livre',
     body: 'Nova notificação',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    icon: '/icon-192.png?v=oferta5',
+    badge: '/icon-192.png?v=oferta5',
     tag: 'doca-livre',
     renotify: true,
     requireInteraction: true,
@@ -33,8 +33,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || 'Doca Livre', {
       body: data.body,
-      icon: data.icon || '/icon-192.png',
-      badge: data.badge || '/icon-192.png',
+      icon: data.icon || '/icon-192.png?v=oferta5',
+      badge: data.badge || '/icon-192.png?v=oferta5',
       tag: data.tag || 'doca-livre',
       renotify: data.renotify !== false,
       requireInteraction: data.requireInteraction !== false,
