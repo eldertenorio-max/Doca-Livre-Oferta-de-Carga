@@ -16,6 +16,7 @@ export function normalizeCarga(c: Carga): Carga {
       c.complemento === 'sim' || c.complemento === 'nao' || c.complemento === 'ambos'
         ? c.complemento
         : undefined,
+    antt: c.antt ?? null,
     frete_minimo: c.frete_minimo ?? null,
     frete_maximo: c.frete_maximo ?? null,
     pausado_em: c.pausado_em ?? null,

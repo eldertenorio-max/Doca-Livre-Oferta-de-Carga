@@ -925,6 +925,33 @@ export function PublishPanel({
           <Detail label="Valor Frete (Tabela)" value={formatCurrency(carga.frete_tabela)} />
           <Detail label="Valor Mercadorias" value={formatCurrency(carga.valor_mercadorias)} />
 
+          {carga.antt?.rota && (
+            <div className="mt-2 space-y-1 rounded-lg border border-ink/10 bg-white px-3 py-2 text-xs">
+              <p className="font-semibold text-ink-muted">ANTT / custos da rota</p>
+              <Detail
+                label="Tabela"
+                value={`Tabela ${carga.antt.tabela}${
+                  carga.antt.categoria_label ? ` · ${carga.antt.categoria_label}` : ''
+                }`}
+              />
+              <Detail label="Duração" value={carga.antt.rota.duracao_label} />
+              <Detail label="Distância" value={`${carga.antt.rota.distancia_km} km`} />
+              <Detail label="Pedágio" value={formatCurrency(carga.antt.rota.pedagio)} />
+              <Detail
+                label="Pedágio por eixo"
+                value={formatCurrency(carga.antt.rota.pedagio_por_eixo)}
+              />
+              <Detail label="Combustível" value={formatCurrency(carga.antt.rota.combustivel)} />
+              <Detail label="Custo Total" value={formatCurrency(carga.antt.rota.custo_total)} />
+              {carga.antt.piso_selecionado != null && (
+                <Detail
+                  label="Piso ANTT"
+                  value={formatCurrency(carga.antt.piso_selecionado)}
+                />
+              )}
+            </div>
+          )}
+
             <div className="mt-2 space-y-3 rounded-lg border border-ink/10 bg-sand-light/40 p-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-ink-muted">Publicar para negociação</span>

@@ -5,7 +5,7 @@ import { buscarCidades, filtrarSugestoes } from '../../lib/cidadesBrasil'
 import { cnpjDigits, formatCnpj, isValidCnpj } from '../../lib/cnpj'
 import { buscarDadosPorCnpj } from '../../lib/cnpjLookup'
 import { TIPOS_CARGA } from '../../lib/tiposCarga'
-import type { Carga, ClassificacaoRota, Rota } from '../../types'
+import type { AnttInfoCarga, Carga, ClassificacaoRota, Rota } from '../../types'
 import { Button, Field, inputClass } from '../ui/Modal'
 import { CnpjInput } from '../ui/CnpjInput'
 import { SuggestInput } from '../ui/SuggestInput'
@@ -13,6 +13,7 @@ import { AddressSuggestInput } from '../ui/AddressSuggestInput'
 import { joinCarrocerias, parseCarrocerias } from '../../lib/tiposCarroceria'
 import { CarroceriaSuggestInput } from '../ui/CarroceriaSuggestInput'
 import { VeiculoSuggestInput } from '../ui/VeiculoSuggestInput'
+import { AnttFretePanel } from './AnttFretePanel'
 
 type ComplementoCarga = NonNullable<Carga['complemento']>
 
@@ -82,6 +83,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
   const [destino, setDestino] = useState(carga.destino)
   const [complementoTxt, setComplementoTxt] = useState(() => labelComplemento(carga.complemento))
   const [freteTabela, setFreteTabela] = useState(formatMoneyInput(carga.frete_tabela || 0))
+  const [anttInfo, setAnttInfo] = useState<AnttInfoCarga | null>(carga.antt ?? null)
   const [classificacao, setClassificacao] = useState<ClassificacaoRota>(
     carga.classificacao_rota ?? 'B',
   )
@@ -217,6 +219,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
     setDestino(carga.destino)
     setComplementoTxt(labelComplemento(carga.complemento))
     setFreteTabela(formatMoneyInput(carga.frete_tabela || 0))
+    setAnttInfo(carga.antt ?? null)
     setClassificacao(carga.classificacao_rota ?? 'B')
     setSalvarFavorita(false)
     setPedido(carga.pedido)
@@ -337,7 +340,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
         destino: destinoFinal,
         classificacao: classifFinal,
         frete_tabela: freteFinal,
-        km: 0,
+        km: anttInfo?.rota.distancia_km ?? 0,
         situacao: 'ativo',
       }
       salvarRota(novaRota)
@@ -376,6 +379,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       destino: destinoFinal,
       complemento: parseComplemento(complementoTxt),
       frete_tabela: freteFinal,
+      antt: anttInfo,
       pedido: pedido.trim(),
       tipo_carga: tipoCarga.trim() || TIPOS_CARGA[0],
       veiculo: veiculo.trim(),
@@ -498,18 +502,6 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
               placeholder="Sim, Não ou Ambos"
             />
           </Field>
-          <Field label="Frete tabela (R$) *">
-            <SuggestInput
-              value={freteTabela}
-              onChange={setFreteTabela}
-              suggestions={sugFrete}
-              placeholder="0,00"
-              onBlur={() => {
-                const n = parseMoneyInput(freteTabela)
-                if (!Number.isNaN(n)) setFreteTabela(formatMoneyInput(n))
-              }}
-            />
-          </Field>
           <Field label="Classificação da rota">
             <select
               className={inputClass}
@@ -520,6 +512,13 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
               <option value="B">Rota B</option>
               <option value="C">Rota C</option>
             </select>
+          </Field>
+          <Field label="Veículo *">
+            <VeiculoSuggestInput
+              value={veiculo}
+              onChange={setVeiculo}
+              placeholder="Carreta, Truck, Fiorino…"
+            />
           </Field>
         </div>
         <label className="inline-flex items-center gap-2 text-xs text-ink">
@@ -532,6 +531,32 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
             Salvar esta rota como <strong>favorita</strong>
           </span>
         </label>
+
+        <AnttFretePanel
+          origem={origem}
+          destino={destino}
+          veiculo={veiculo}
+          value={anttInfo}
+          onChange={(info, frete) => {
+            setAnttInfo(info)
+            if (frete != null && frete > 0) {
+              setFreteTabela(formatMoneyInput(frete))
+            }
+          }}
+        />
+
+        <Field label="Frete tabela (R$) *">
+          <SuggestInput
+            value={freteTabela}
+            onChange={setFreteTabela}
+            suggestions={sugFrete}
+            placeholder="0,00 — use Calcular ANTT ou digite"
+            onBlur={() => {
+              const n = parseMoneyInput(freteTabela)
+              if (!Number.isNaN(n)) setFreteTabela(formatMoneyInput(n))
+            }}
+          />
+        </Field>
       </section>
 
       {/* Pedido e carga */}
@@ -554,13 +579,6 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
               onChange={setTipoCarga}
               suggestions={sugTipo}
               placeholder="Carga seca, refrigerada, congelada…"
-            />
-          </Field>
-          <Field label="Veículo *">
-            <VeiculoSuggestInput
-              value={veiculo}
-              onChange={setVeiculo}
-              placeholder="Carreta, Truck, Fiorino…"
             />
           </Field>
           <Field label="Carroceria">

@@ -207,6 +207,27 @@ export interface Rota {
   situacao: 'ativo' | 'inativo'
 }
 
+/** Snapshot do cálculo ANTT + custos de rota na publicação. */
+export interface AnttInfoCarga {
+  tabela: 'A' | 'B' | 'C' | 'D'
+  eixos: number
+  eixos_utilizados: number
+  categoria_id: number | null
+  categoria_label: string | null
+  piso_selecionado: number | null
+  pisos: { id: number; label: string; valor: number | null }[]
+  rota: {
+    distancia_km: number
+    duracao_min: number
+    duracao_label: string
+    pedagio: number
+    pedagio_por_eixo: number
+    combustivel: number
+    custo_total: number
+  }
+  fonte: string
+}
+
 export interface Carga {
   id: string
   numero: string
@@ -239,6 +260,8 @@ export interface Carga {
   previsao_entrega: string
   rota_id: string | null
   classificacao_rota: ClassificacaoRota | null
+  /** Cálculo ANTT (piso + custos de rota) na publicação */
+  antt?: AnttInfoCarga | null
   status: StatusCargaMinerva
   prioridade: Prioridade | null
   modo_publicacao: ModoPublicacao | null
