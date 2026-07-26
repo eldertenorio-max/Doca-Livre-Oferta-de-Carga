@@ -182,8 +182,8 @@ export async function notificarLocalNativa(input: {
     const reg = await navigator.serviceWorker.ready
     await reg.showNotification(input.titulo, {
       body: input.mensagem,
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
+      icon: '/icon-192.png?v=oferta6',
+      badge: '/badge-96.png?v=oferta6',
       tag: input.tag || 'doca-livre-local',
       renotify: true,
       requireInteraction: true,

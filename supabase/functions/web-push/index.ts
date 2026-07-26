@@ -95,8 +95,8 @@ Deno.serve(async (req) => {
     const payload = JSON.stringify({
       title: titulo,
       body: mensagem,
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
+      icon: 'https://ofertadecargas.docalivre.com.br/icon-192.png?v=oferta6',
+      badge: 'https://ofertadecargas.docalivre.com.br/badge-96.png?v=oferta6',
       tag,
       renotify: true,
       requireInteraction: true,

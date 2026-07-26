@@ -4,11 +4,16 @@
  * Exibe notificação nativa com som/vibração do sistema.
  */
 self.addEventListener('push', (event) => {
+  const origin = self.location.origin
+  // icon = preview colorido; badge = silhueta branca (Android status bar)
+  const defaultIcon = `${origin}/icon-192.png?v=oferta6`
+  const defaultBadge = `${origin}/badge-96.png?v=oferta6`
+
   let data = {
     title: 'Doca Livre',
     body: 'Nova notificação',
-    icon: '/icon-192.png?v=oferta5',
-    badge: '/icon-192.png?v=oferta5',
+    icon: defaultIcon,
+    badge: defaultBadge,
     tag: 'doca-livre',
     renotify: true,
     requireInteraction: true,
@@ -30,11 +35,24 @@ self.addEventListener('push', (event) => {
     }
   }
 
+  const abs = (url, fallback) => {
+    if (!url) return fallback
+    try {
+      return new URL(url, origin).href
+    } catch {
+      return fallback
+    }
+  }
+
+  // Se o payload ainda manda a logo colorida no badge, força o monocromático
+  let badgeUrl = abs(data.badge, defaultBadge)
+  if (/icon-192|favicon|logo-doca/i.test(badgeUrl)) badgeUrl = defaultBadge
+
   event.waitUntil(
     self.registration.showNotification(data.title || 'Doca Livre', {
       body: data.body,
-      icon: data.icon || '/icon-192.png?v=oferta5',
-      badge: data.badge || '/icon-192.png?v=oferta5',
+      icon: abs(data.icon, defaultIcon),
+      badge: badgeUrl,
       tag: data.tag || 'doca-livre',
       renotify: data.renotify !== false,
       requireInteraction: data.requireInteraction !== false,
