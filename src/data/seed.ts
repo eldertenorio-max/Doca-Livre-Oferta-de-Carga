@@ -53,7 +53,7 @@ export const SEED_TRANSPORTADORES: Transportador[] = [
     origem_cadastro: 'painel',
     disponivel_mapa: true,
     telefone: '(13) 3000-0001',
-    email: 'contato@santos.com',
+    email: 'santos@transportes.com',
     contato_nome: 'João Santos',
     contato_telefone: '(13) 99999-0001',
   },
@@ -75,7 +75,7 @@ export const SEED_TRANSPORTADORES: Transportador[] = [
     origem_cadastro: 'painel',
     disponivel_mapa: true,
     telefone: '(19) 3000-0002',
-    email: 'ops@novaeera.com',
+    email: 'novaera@log.com',
   },
   {
     id: 't3',

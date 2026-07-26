@@ -1436,24 +1436,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
         stateRef.current.transportadores ?? [],
       )
       const found = linked.find((a) => a.id === account.id)
-      if (found && found.transportador_id !== account.transportador_id) {
-        savePortalAccounts(linked)
+      if (found?.transportador_id) {
+        if (found.transportador_id !== account.transportador_id) {
+          savePortalAccounts(linked)
+        }
         account = found
       }
       isSuperuser = false
-      if (account.transportador_id) {
-        const alinhados = alinharVeiculosAoTransportador(
-          stateRef.current.veiculos ?? [],
-          stateRef.current.transportadores ?? [],
-          account.transportador_id,
-        )
-        if (alinhados !== stateRef.current.veiculos) {
-          setState((prev) => {
-            const next = { ...prev, veiculos: alinhados }
-            stateRef.current = next
-            return next
-          })
+      if (!account.transportador_id) {
+        return {
+          ok: false,
+          error:
+            'Conta de transportador sem empresa vinculada. Peça ao Super Usuário para associar a transportadora.',
         }
+      }
+      const alinhados = alinharVeiculosAoTransportador(
+        stateRef.current.veiculos ?? [],
+        stateRef.current.transportadores ?? [],
+        account.transportador_id,
+      )
+      if (alinhados !== stateRef.current.veiculos) {
+        setState((prev) => {
+          const next = { ...prev, veiculos: alinhados }
+          stateRef.current = next
+          return next
+        })
       }
     } else {
       isSuperuser = account.role === 'super'

@@ -20,11 +20,12 @@ type Mode = 'login' | 'cadastro' | 'senha'
 type Step = 'form' | 'codigo' | 'dados'
 
 export function LoginPage() {
-  const { login, user } = useData()
+  const { login, user, refreshTransportadores } = useData()
 
   useEffect(() => {
     void syncPortalAccounts()
-  }, [])
+    void refreshTransportadores()
+  }, [refreshTransportadores])
 
   const [mode, setMode] = useState<Mode>('login')
   const [step, setStep] = useState<Step>('form')
@@ -96,6 +97,7 @@ export function LoginPage() {
     try {
       await syncPortalAccounts()
       await healPortalLoginAtivo(usuario.trim())
+      await refreshTransportadores()
     } catch {
       /* login local continua mesmo se o sync falhar */
     }

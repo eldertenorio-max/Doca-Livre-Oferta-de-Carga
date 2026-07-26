@@ -515,9 +515,6 @@ function ensureSuperUsers(list: PortalAccount[]): PortalAccount[] {
 
 /** Garante que as contas demo de transportador existam e estejam ativas. */
 function ensureDemoTransportadores(list: PortalAccount[]): PortalAccount[] {
-  // Com Supabase ativo o banco é a fonte da verdade: recriar demos aqui fazia
-  // contas excluídas (santos / novaera) voltarem em todo carregamento.
-  if (isSupabaseConfigured) return list
   let next = [...list]
   for (const d of DEMO_TRANSPORTADORES) {
     const demo = demoTransportadorAccount(d)
@@ -528,19 +525,21 @@ function ensureDemoTransportadores(list: PortalAccount[]): PortalAccount[] {
         u.usuario.toLowerCase() === demo.usuario,
     )
     if (idx < 0) {
+      // Com Supabase: não recria demos excluídas do banco (evita “ressuscitar”).
+      if (isSupabaseConfigured) continue
       next = [demo, ...next]
-    } else {
-      // Preserva edições do Super (login/senha/etc.); só completa campos vazios
-      const cur = next[idx]
-      next[idx] = {
-        ...demo,
-        ...cur,
-        id: cur.id || demo.id,
-        transportador_id: cur.transportador_id || demo.transportador_id,
-        role: cur.role === 'super' ? 'super' : 'transportador',
-        ativo: cur.ativo ?? true,
-        created_at: cur.created_at || demo.created_at,
-      }
+      continue
+    }
+    // Conta já existe: restaura vínculo se o sync zerou (coluna UUID não guarda t1/t2).
+    const cur = next[idx]
+    next[idx] = {
+      ...cur,
+      id: cur.id || demo.id,
+      transportador_id: cur.transportador_id || demo.transportador_id,
+      role: cur.role === 'super' ? 'super' : 'transportador',
+      password: cur.password || demo.password,
+      ativo: cur.ativo ?? true,
+      created_at: cur.created_at || demo.created_at,
     }
   }
   return next
@@ -1500,7 +1499,24 @@ export function portalLoginLocal(
         'Conta de equipe desativada. Use Super Usuário (Diego/Elder) ou uma conta de transportador.',
     }
   }
-  // Transportador precisa estar vinculado
+  // Demo: o banco zera transportador_id (t1/t2 não são UUID) — restaura antes de validar
+  if (!isSuperuser && account.role === 'transportador' && !account.transportador_id) {
+    const demo = DEMO_TRANSPORTADORES.find(
+      (d) =>
+        account!.id === d.id ||
+        normId(account!.email) === normId(d.email) ||
+        normId(account!.usuario) === normId(d.usuario),
+    )
+    if (demo) {
+      const next = users.map((u) =>
+        u.id === account!.id ? { ...u, transportador_id: demo.transportador_id, ativo: true } : u,
+      )
+      savePortalAccounts(next)
+      account = { ...account, transportador_id: demo.transportador_id, ativo: true }
+    }
+  }
+
+  // Transportador precisa estar vinculado (DataContext ainda tenta casar por nome/e-mail)
   if (!isSuperuser && account.role === 'transportador' && !account.transportador_id) {
     return {
       ok: false,
