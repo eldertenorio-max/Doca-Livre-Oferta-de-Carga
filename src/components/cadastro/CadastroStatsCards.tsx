@@ -4,38 +4,58 @@ type StatCard = {
   accent: string
 }
 
+const ACCENTS = {
+  ink: 'border-l-[#111]',
+  green: 'border-l-emerald-600',
+  rose: 'border-l-rose-500',
+  blue: 'border-l-sky-600',
+  amber: 'border-l-amber-500',
+} as const
+
 /** Cards de resumo em listas de cadastro (total / ativos / inativos). */
 export function CadastroStatsCards({
   total,
   ativos,
   inativos,
   labels,
+  cards: cardsProp,
 }: {
-  total: number
-  ativos: number
-  inativos: number
+  total?: number
+  ativos?: number
+  inativos?: number
   labels?: { total?: string; ativos?: string; inativos?: string }
+  /** Cards customizados (ex.: transportadoras / embarcadores). */
+  cards?: Array<{ label: string; value: number; accent?: keyof typeof ACCENTS }>
 }) {
-  const cards: StatCard[] = [
-    {
-      label: labels?.total ?? 'Total cadastrados',
-      value: total,
-      accent: 'border-l-[#111]',
-    },
-    {
-      label: labels?.ativos ?? 'Ativos',
-      value: ativos,
-      accent: 'border-l-emerald-600',
-    },
-    {
-      label: labels?.inativos ?? 'Inativos',
-      value: inativos,
-      accent: 'border-l-rose-500',
-    },
-  ]
+  const cards: StatCard[] = cardsProp
+    ? cardsProp.map((c) => ({
+        label: c.label,
+        value: c.value,
+        accent: ACCENTS[c.accent ?? 'ink'],
+      }))
+    : [
+        {
+          label: labels?.total ?? 'Total cadastrados',
+          value: total ?? 0,
+          accent: ACCENTS.ink,
+        },
+        {
+          label: labels?.ativos ?? 'Ativos',
+          value: ativos ?? 0,
+          accent: ACCENTS.green,
+        },
+        {
+          label: labels?.inativos ?? 'Inativos',
+          value: inativos ?? 0,
+          accent: ACCENTS.rose,
+        },
+      ]
+
+  const cols =
+    cards.length <= 2 ? 'sm:grid-cols-2' : cards.length === 4 ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3'
 
   return (
-    <div className="mb-4 grid gap-3 sm:grid-cols-3">
+    <div className={`mb-4 grid gap-3 ${cols}`}>
       {cards.map((c) => (
         <div
           key={c.label}

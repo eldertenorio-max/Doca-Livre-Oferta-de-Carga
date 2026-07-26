@@ -33,6 +33,7 @@ import {
   type OrgNo,
 } from '../../lib/orgHierarchy'
 import { isLocalSuperUser, isSuperSession } from '../../lib/superUsers'
+import { CadastroStatsCards } from '../../components/cadastro/CadastroStatsCards'
 import '../../styles/cadastro.css'
 
 type Tab = 'hierarquia' | 'permissoes' | 'usuarios'
@@ -87,6 +88,14 @@ export function PortalConfigPage() {
   const accountsSorted = useMemo(() => {
     return [...accounts].sort((a, b) => a.usuario.localeCompare(b.usuario))
   }, [accounts])
+
+  const contagemPortal = useMemo(() => {
+    const transportadoras = (transportadores ?? []).filter(
+      (t) => t.situacao !== 'recusado',
+    ).length
+    const embarcadores = accounts.filter((a) => a.role === 'super').length
+    return { transportadoras, embarcadores }
+  }, [transportadores, accounts])
 
   if (!user) return <Navigate to="/login" replace />
   if (!isSuper) {
@@ -512,6 +521,20 @@ export function PortalConfigPage() {
             </button>
           </header>
           <div className="form-card__body">
+            <CadastroStatsCards
+              cards={[
+                {
+                  label: 'Transportadoras cadastradas',
+                  value: contagemPortal.transportadoras,
+                  accent: 'blue',
+                },
+                {
+                  label: 'Embarcadores',
+                  value: contagemPortal.embarcadores,
+                  accent: 'amber',
+                },
+              ]}
+            />
             <p className="portal-login__hint" style={{ marginBottom: 12 }}>
               Clique em <strong>Editar</strong> para alterar qualquer campo, depois em{' '}
               <strong>Salvar</strong>. Contas <strong>inativas</strong> ou <strong>sem senha</strong>{' '}
