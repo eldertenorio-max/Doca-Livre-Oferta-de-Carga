@@ -134,12 +134,13 @@ textarea {
 
 .cargo-card__actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 5px;
+  justify-content: space-between;
+  gap: 4px;
   width: 100%;
   max-width: 100%;
-  padding: 3px 2px 1px;
+  padding: 2px 0 0;
   box-sizing: border-box;
 }
 
@@ -167,14 +168,18 @@ textarea {
 }
 
 .cargo-icon-svg {
-  width: 22px;
-  height: 22px;
+  width: 70%;
+  height: 70%;
+  max-width: 24px;
+  max-height: 24px;
   display: block;
   filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.22));
 }
 .cargo-icon-svg--lg {
-  width: 26px;
-  height: 26px;
+  width: 78%;
+  height: 78%;
+  max-width: 28px;
+  max-height: 28px;
 }
 
 @keyframes cargo-gavel-hit {
@@ -214,9 +219,14 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 42px;
+  width: auto;
+  aspect-ratio: 1;
+  height: auto;
+  min-height: 32px;
+  max-height: 40px;
   border-radius: 9px;
   border: 1px solid rgb(0 0 0 / 0.08);
   background: linear-gradient(180deg, #ffffff 0%, #f0f0f0 100%);
