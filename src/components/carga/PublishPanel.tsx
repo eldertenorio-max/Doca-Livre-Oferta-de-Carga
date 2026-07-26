@@ -815,7 +815,7 @@ export function PublishPanel({
                 <div className="mb-1 flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-xs font-bold uppercase tracking-wide text-ink">
-                      Favoritas ({favoritasFiltradas.length}
+                      Rotas cadastradas ({favoritasFiltradas.length}
                       {qFavoritas && favoritasFiltradas.length !== rotasFavoritas.length
                         ? ` de ${rotasFavoritas.length}`
                         : ''}

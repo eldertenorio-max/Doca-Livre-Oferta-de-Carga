@@ -88,6 +88,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
     carga.classificacao_rota ?? 'B',
   )
   const [salvarFavorita, setSalvarFavorita] = useState(false)
+  const [rotaId, setRotaId] = useState(carga.rota_id ?? '')
   const [pedido, setPedido] = useState(carga.pedido)
   const [tipoCarga, setTipoCarga] = useState(carga.tipo_carga)
   const [veiculo, setVeiculo] = useState(carga.veiculo)
@@ -222,6 +223,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
     setAnttInfo(carga.antt ?? null)
     setClassificacao(carga.classificacao_rota ?? 'B')
     setSalvarFavorita(false)
+    setRotaId(carga.rota_id ?? '')
     setPedido(carga.pedido)
     setTipoCarga(carga.tipo_carga)
     setVeiculo(carga.veiculo)
@@ -296,7 +298,31 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
     }
   }, [destinatarioCnpj, editavel])
 
-  const rotaSelecionada = rotas.find((r) => r.id === carga.rota_id)
+  const rotasAtivas = useMemo(
+    () =>
+      [...rotas]
+        .filter((r) => r.situacao === 'ativo')
+        .sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR')),
+    [rotas],
+  )
+  const rotaSelecionada =
+    rotasAtivas.find((r) => r.id === rotaId) || rotas.find((r) => r.id === carga.rota_id)
+
+  function aplicarRotaCadastrada(id: string) {
+    setRotaId(id)
+    if (!id) {
+      setInfo('Rota desvinculada. Você pode preencher origem e destino manualmente.')
+      return
+    }
+    const r = rotas.find((x) => x.id === id)
+    if (!r) return
+    setOrigem(r.origem)
+    setDestino(r.destino)
+    setFreteTabela(formatMoneyInput(r.frete_tabela || 0))
+    setClassificacao(r.classificacao ?? 'B')
+    setSalvarFavorita(false)
+    setInfo(`Rota “${r.descricao}” aplicada (${r.origem} → ${r.destino}).`)
+  }
 
   function handleSalvar(irParaPublicar = false) {
     setError('')
@@ -324,7 +350,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       return
     }
 
-    let rotaIdFinal: string | null = carga.rota_id
+    let rotaIdFinal: string | null = rotaId || carga.rota_id
     if (rotaIdFinal) {
       const r = rotas.find((x) => x.id === rotaIdFinal)
       if (!r || r.origem !== origemFinal || r.destino !== destinoFinal) {
@@ -345,7 +371,8 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       }
       salvarRota(novaRota)
       rotaIdFinal = novaRota.id
-      setInfo('Rota salva nas favoritas (aba Cargas salvas).')
+      setRotaId(novaRota.id)
+      setInfo('Rota salva na aba Rotas (disponível para próximas cargas).')
     }
 
     if (!pedido.trim()) {
@@ -457,12 +484,12 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
             Carga {carga.numero}
           </p>
           <p className="text-[11px] text-ink-muted">
-            Preencha, salve e vá para Publicar. Em origem/destino, digite o endereço para ver sugestões.
+            Selecione uma rota da aba Rotas ou preencha origem/destino manualmente.
           </p>
         </div>
         {rotaSelecionada && (
           <span className="rounded-full bg-brand/10 px-2.5 py-1 text-[10px] font-bold text-brand">
-            Favorita: {rotaSelecionada.descricao}
+            Rota: {rotaSelecionada.descricao}
           </span>
         )}
       </div>
@@ -473,13 +500,41 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
           <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
             Rota
           </h3>
-          <span className="text-[10px] text-ink-muted">Favoritas → aba Cargas salvas</span>
+          <span className="text-[10px] text-ink-muted">
+            {rotasAtivas.length} cadastrada{rotasAtivas.length === 1 ? '' : 's'}
+          </span>
         </div>
+
+        <Field label="Usar rota cadastrada">
+          <select
+            className={inputClass}
+            value={rotaId}
+            disabled={!editavel}
+            onChange={(e) => aplicarRotaCadastrada(e.target.value)}
+          >
+            <option value="">Digitar origem e destino manualmente…</option>
+            {rotasAtivas.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.descricao} — {r.origem} → {r.destino}
+                {r.frete_tabela > 0 ? ` · R$ ${formatMoneyInput(r.frete_tabela)}` : ''}
+              </option>
+            ))}
+          </select>
+          {rotasAtivas.length === 0 && (
+            <p className="mt-1 text-[11px] text-ink-muted">
+              Nenhuma rota ativa. Cadastre em <strong>Rotas</strong> no menu lateral.
+            </p>
+          )}
+        </Field>
+
         <div className="grid gap-2.5 sm:grid-cols-2">
           <Field label="Origem *" className="sm:col-span-2">
             <AddressSuggestInput
               value={origem}
-              onChange={setOrigem}
+              onChange={(v) => {
+                setOrigem(v)
+                if (rotaId) setRotaId('')
+              }}
               localSuggestions={sugOrigem}
               minChars={2}
               placeholder="Digite o endereço como no Google Maps"
@@ -488,7 +543,10 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
           <Field label="Destino *">
             <AddressSuggestInput
               value={destino}
-              onChange={setDestino}
+              onChange={(v) => {
+                setDestino(v)
+                if (rotaId) setRotaId('')
+              }}
               localSuggestions={sugDestino}
               minChars={2}
               placeholder="Digite o endereço como no Google Maps"
@@ -528,7 +586,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
             onChange={(e) => setSalvarFavorita(e.target.checked)}
           />
           <span>
-            Salvar esta rota como <strong>favorita</strong>
+            Salvar esta rota na aba <strong>Rotas</strong> para reutilizar
           </span>
         </label>
 
