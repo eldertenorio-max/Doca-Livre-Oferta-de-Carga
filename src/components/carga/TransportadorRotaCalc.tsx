@@ -11,6 +11,7 @@ import {
 import type { Carga } from '../../types'
 import { AddressSuggestInput } from '../ui/AddressSuggestInput'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
+import { AnttFretePanel } from './AnttFretePanel'
 
 type Props = {
   carga: Carga | null
@@ -116,9 +117,19 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
   return (
     <Modal open={open} onClose={onClose} title={`Calcular rota · Carga ${carga.numero}`} wide>
       <div className="space-y-4">
+        <AnttFretePanel
+          origem={origem || carga.origem}
+          destino={destino || carga.destino}
+          veiculo={carga.veiculo}
+          value={carga.antt ?? null}
+          modoConsulta
+        />
+
+        <p className="text-xs font-bold uppercase tracking-wide text-ink-muted">
+          Calculadora avançada (eixos · consumo · diesel)
+        </p>
         <p className="text-xs text-ink-muted">
-          Informações puxadas da carga. Ajuste eixos, consumo e diesel e calcule pedágio + combustível
-          (OSRM + Dados Abertos ANTT) — gratuito.
+          Ajuste os parâmetros abaixo e calcule de novo. Origem/destino vêm da carga.
         </p>
 
         <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-end">

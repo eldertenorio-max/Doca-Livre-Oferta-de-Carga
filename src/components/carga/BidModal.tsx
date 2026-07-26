@@ -10,6 +10,7 @@ import {
 } from '../../lib/businessRules'
 import type { Carga } from '../../types'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
+import { AnttFretePanel } from './AnttFretePanel'
 
 interface BidModalProps {
   carga: Carga | null
@@ -163,18 +164,6 @@ export function BidModal({ carga, open, onClose, onCalcularRota }: BidModalProps
             <Detail label="Veículo" value={live.veiculo} />
             <Detail label="Origem" value={live.origem} />
             <Detail label="Destino" value={live.destino} />
-            {onCalcularRota && (
-              <div className="sm:col-span-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="!border !border-ink/20 !bg-white !text-xs"
-                  onClick={onCalcularRota}
-                >
-                  Calcular rota · pedágio · combustível
-                </Button>
-              </div>
-            )}
             <Detail label="Peso" value={formatNumber(live.peso)} />
             <Detail label="Frete Tabela" value={formatCurrency(live.frete_tabela)} />
             <Detail label="Frete Oferta" value={formatCurrency(freteRef)} />
@@ -212,6 +201,25 @@ export function BidModal({ carga, open, onClose, onCalcularRota }: BidModalProps
               </p>
             </div>
           )}
+
+        <AnttFretePanel
+          origem={live.origem}
+          destino={live.destino}
+          veiculo={live.veiculo}
+          value={live.antt ?? null}
+          modoConsulta
+        />
+
+        {onCalcularRota && (
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full !border !border-ink/20 !bg-white !text-xs"
+            onClick={onCalcularRota}
+          >
+            Ajustar eixos, consumo e diesel (calculadora avançada)
+          </Button>
+        )}
 
         {histMeu.length > 0 && (
           <div className="rounded-lg border border-ink/10 p-3 text-xs">

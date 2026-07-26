@@ -15,10 +15,20 @@ type Props = {
   destino: string
   veiculo: string
   value?: AnttInfoCarga | null
-  onChange: (info: AnttInfoCarga | null, freteTabela?: number) => void
+  /** Embarcador grava na carga; transportador pode omitir (só consulta). */
+  onChange?: (info: AnttInfoCarga | null, freteTabela?: number) => void
+  /** Só visualização/recálculo — não altera frete da publicação */
+  modoConsulta?: boolean
 }
 
-export function AnttFretePanel({ origem, destino, veiculo, value, onChange }: Props) {
+export function AnttFretePanel({
+  origem,
+  destino,
+  veiculo,
+  value,
+  onChange,
+  modoConsulta = false,
+}: Props) {
   const [tabela, setTabela] = useState<TabelaAntt>(value?.tabela ?? 'A')
   const [categoriaId, setCategoriaId] = useState<number | ''>(value?.categoria_id ?? '')
   const [busy, setBusy] = useState(false)
@@ -57,7 +67,7 @@ export function AnttFretePanel({ origem, destino, veiculo, value, onChange }: Pr
     const info = toSaved(res.data)
     const frete =
       catId !== '' ? (res.data.pisos.find((p) => p.id === catId)?.valor ?? undefined) : undefined
-    onChangeRef.current(info, frete)
+    onChangeRef.current?.(info, frete)
   }
 
   // Automático ao mudar origem / destino / veículo / tabela
@@ -66,6 +76,8 @@ export function AnttFretePanel({ origem, destino, veiculo, value, onChange }: Pr
     const d = destino.trim()
     const v = veiculo.trim()
     if (o.length < 5 || d.length < 5 || !v) return
+    // Em consulta com snapshot: só recalcula se mudar tabela (Recalcular sempre disponível)
+    if (modoConsulta && value?.rota && tabela === value.tabela) return
     const t = window.setTimeout(() => {
       void calcular(categoriaId)
     }, 900)
@@ -87,7 +99,7 @@ export function AnttFretePanel({ origem, destino, veiculo, value, onChange }: Pr
       piso_selecionado: piso,
     }
     setCalc(next)
-    onChange(toSaved(next), piso ?? undefined)
+    onChange?.(toSaved(next), piso ?? undefined)
   }
 
   const rota = calc?.rota
@@ -101,16 +113,22 @@ export function AnttFretePanel({ origem, destino, veiculo, value, onChange }: Pr
             Frete ANTT + rota (gratuito)
           </h3>
           <p className="text-[11px] text-ink-muted">
-            Automático: rota OSRM · pisos Res. 6.084/2026 · pedágio pelas{' '}
-            <a
-              href="https://dados.antt.gov.br/dataset/praca-de-pedagio"
-              target="_blank"
-              rel="noreferrer"
-              className="font-semibold text-brand underline"
-            >
-              praças dos Dados Abertos ANTT
-            </a>{' '}
-            · Vale-Pedágio Res. 6.024/2023 · RNTRC do transportador.
+            {modoConsulta
+              ? 'Mesmas informações do embarcador: pisos ANTT, duração, distância, pedágio e combustível. Use Recalcular para atualizar.'
+              : 'Automático: rota OSRM · pisos Res. 6.084/2026 · pedágio pelas '}
+            {!modoConsulta && (
+              <>
+                <a
+                  href="https://dados.antt.gov.br/dataset/praca-de-pedagio"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-brand underline"
+                >
+                  praças dos Dados Abertos ANTT
+                </a>{' '}
+                · Vale-Pedágio Res. 6.024/2023 · RNTRC do transportador.
+              </>
+            )}
           </p>
         </div>
         <Button
