@@ -439,10 +439,11 @@ export function CargoCard({
   void tick
   const chatNaoLidas = mensagensNaoLidasDaCarga(carga.id)
 
+  // Transportador sempre vê frete oferta/tabela no card (mesmo em Nova Carga).
   const frete =
     carga.frete_fechado ??
     carga.frete_oferta ??
-    (carga.status !== 'nova_carga' ? carga.frete_tabela : null)
+    (mode === 'transportador' || carga.status !== 'nova_carga' ? carga.frete_tabela : null)
 
   const freteLinha = mode === 'transportador' && bidValue != null ? bidValue : frete
 
@@ -544,10 +545,14 @@ export function CargoCard({
         <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
           <p>
             <span className="font-bold text-ink">
-              {mode === 'transportador' && bidValue != null ? 'Frete oferta:' : 'Frete:'}
+              {mode === 'transportador'
+                ? carga.frete_fechado != null
+                  ? 'Frete fechado:'
+                  : 'Frete oferta:'
+                : 'Frete:'}
             </span>{' '}
             <span className="text-[13px] font-semibold tabular-nums text-ink">
-              {mode === 'transportador' && bidValue != null
+              {mode === 'transportador'
                 ? frete != null
                   ? formatCurrency(frete)
                   : '—'
