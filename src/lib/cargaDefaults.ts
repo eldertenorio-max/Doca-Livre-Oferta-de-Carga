@@ -12,6 +12,10 @@ export function normalizeCarga(c: Carga): Carga {
       : parseCarrocerias(
           (c as Carga & { tipo_carroceria?: string }).tipo_carroceria ?? undefined,
         ),
+    complemento:
+      c.complemento === 'sim' || c.complemento === 'nao' || c.complemento === 'ambos'
+        ? c.complemento
+        : 'ambos',
     frete_minimo: c.frete_minimo ?? null,
     frete_maximo: c.frete_maximo ?? null,
     pausado_em: c.pausado_em ?? null,

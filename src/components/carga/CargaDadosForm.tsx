@@ -7,6 +7,21 @@ import { buscarDadosPorCnpj } from '../../lib/cnpjLookup'
 import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
 import { TIPOS_CARGA } from '../../lib/tiposCarga'
 import type { Carga, ClassificacaoRota, Rota } from '../../types'
+
+type ComplementoCarga = NonNullable<Carga['complemento']>
+
+const COMPLEMENTO_OPCOES: { value: ComplementoCarga; label: string }[] = [
+  { value: 'sim', label: 'Sim' },
+  { value: 'nao', label: 'Não' },
+  { value: 'ambos', label: 'Ambos' },
+]
+
+function labelComplemento(v?: Carga['complemento']) {
+  if (v === 'sim') return 'Sim'
+  if (v === 'nao') return 'Não'
+  if (v === 'ambos') return 'Ambos'
+  return 'Ambos'
+}
 import { Button, Field, inputClass } from '../ui/Modal'
 import { CnpjInput } from '../ui/CnpjInput'
 import { SuggestInput } from '../ui/SuggestInput'
@@ -61,6 +76,11 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
 
   const [origem, setOrigem] = useState(carga.origem)
   const [destino, setDestino] = useState(carga.destino)
+  const [complemento, setComplemento] = useState<ComplementoCarga>(
+    carga.complemento === 'sim' || carga.complemento === 'nao' || carga.complemento === 'ambos'
+      ? carga.complemento
+      : 'ambos',
+  )
   const [freteTabela, setFreteTabela] = useState(formatMoneyInput(carga.frete_tabela || 0))
   const [classificacao, setClassificacao] = useState<ClassificacaoRota>(
     carga.classificacao_rota ?? 'B',
@@ -196,6 +216,11 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
   useEffect(() => {
     setOrigem(carga.origem)
     setDestino(carga.destino)
+    setComplemento(
+      carga.complemento === 'sim' || carga.complemento === 'nao' || carga.complemento === 'ambos'
+        ? carga.complemento
+        : 'ambos',
+    )
     setFreteTabela(formatMoneyInput(carga.frete_tabela || 0))
     setClassificacao(carga.classificacao_rota ?? 'B')
     setSalvarFavorita(false)
@@ -354,6 +379,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       classificacao_rota: classifFinal,
       origem: origemFinal,
       destino: destinoFinal,
+      complemento,
       frete_tabela: freteFinal,
       pedido: pedido.trim(),
       tipo_carga: tipoCarga.trim() || TIPOS_CARGA[0],
@@ -384,6 +410,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
         <Row label="Pedido" value={carga.pedido || '—'} />
         <Row label="Origem" value={carga.origem || '—'} />
         <Row label="Destino" value={carga.destino || '—'} />
+        <Row label="Complemento" value={labelComplemento(carga.complemento)} />
         <Row label="Tipo" value={carga.tipo_carga || '—'} />
         <Row label="Veículo" value={carga.veiculo || '—'} />
         <Row
@@ -450,7 +477,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
           <span className="text-[10px] text-ink-muted">Favoritas → aba Cargas salvas</span>
         </div>
         <div className="grid gap-2.5 sm:grid-cols-2">
-          <Field label="Origem *">
+          <Field label="Origem *" className="sm:col-span-2">
             <AddressSuggestInput
               value={origem}
               onChange={setOrigem}
@@ -465,9 +492,34 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
               onChange={setDestino}
               localSuggestions={sugDestino}
               minChars={3}
-              placeholder="Digite o endereço ou Distribuição"
+              placeholder="Digite o endereço de destino"
             />
           </Field>
+          <div>
+            <p className="mb-2 text-base font-bold text-ink">Complemento</p>
+            <div className="space-y-1.5 rounded-xl border border-ink/10 bg-white px-3 py-3">
+              {COMPLEMENTO_OPCOES.map((op) => {
+                const id = `complemento-${op.value}`
+                return (
+                  <label
+                    key={op.value}
+                    htmlFor={id}
+                    className="flex cursor-pointer items-center gap-2 text-sm text-ink/80"
+                  >
+                    <input
+                      id={id}
+                      type="radio"
+                      name="complemento-carga"
+                      className="h-4 w-4 border-ink/30 text-brand focus:ring-brand/40"
+                      checked={complemento === op.value}
+                      onChange={() => setComplemento(op.value)}
+                    />
+                    <span>{op.label}</span>
+                  </label>
+                )
+              })}
+            </div>
+          </div>
           <Field label="Frete tabela (R$) *">
             <SuggestInput
               value={freteTabela}

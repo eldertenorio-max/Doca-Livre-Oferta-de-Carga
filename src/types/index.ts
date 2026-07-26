@@ -220,6 +220,8 @@ export interface Carga {
   remetente_cnpj: string
   origem: string
   destino: string
+  /** Se a carga aceita complemento: sim | nao | ambos */
+  complemento?: 'sim' | 'nao' | 'ambos'
   destinatario: string
   destinatario_cnpj: string
   peso: number

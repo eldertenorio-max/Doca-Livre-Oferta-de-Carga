@@ -907,6 +907,16 @@ export function PublishPanel({
           <Detail label="Remetente" value={`${carga.remetente} — ${carga.remetente_cnpj}`} />
           <Detail label="Origem" value={carga.origem || '—'} />
           <Detail label="Destino" value={carga.destino || '—'} />
+          <Detail
+            label="Complemento"
+            value={
+              carga.complemento === 'sim'
+                ? 'Sim'
+                : carga.complemento === 'nao'
+                  ? 'Não'
+                  : 'Ambos'
+            }
+          />
           <Detail label="Destinatário" value={carga.destinatario || '—'} />
           <Detail label="Peso" value={formatNumber(carga.peso)} />
           <Detail label="Volumes" value={String(carga.volumes)} />
