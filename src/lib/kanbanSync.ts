@@ -132,9 +132,13 @@ function preservarFotosLocais(locais: Veiculo[], remoto: Veiculo): Veiculo {
 export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: KanbanSyncSlice): T {
   const remoteCargas = Array.isArray(slice.cargas) ? slice.cargas : []
   const remoteLances = Array.isArray(slice.lances) ? slice.lances : []
+  // Se a carga ainda vem no remoto, ela NÃO está excluída (tombstone local não pode sumir com o board)
+  const remoteCargaIds = new Set(remoteCargas.map((c) => c.id))
   const cargasExcluidas = Array.from(
     new Set([...(prev.cargas_excluidas ?? []), ...(slice.cargas_excluidas ?? [])]),
-  ).slice(-500)
+  )
+    .filter((id) => !remoteCargaIds.has(id))
+    .slice(-500)
   const excluidas = new Set(cargasExcluidas)
   const transportadoresExcluidos = Array.from(
     new Set([

@@ -684,7 +684,11 @@ function loadState(): DataState {
         ? parsed.motoristas_excluidos.filter((id): id is string => typeof id === 'string')
         : [],
     }
-    if (loaded.cargas_excluidas.length > 0) {
+    // Tombstones locais sem cargas “vivas” costumam zerar o Kanban do embarcador no sync —
+    // descarta a lista de excluídas na migração; o remoto manda a verdade.
+    if (loaded.cargas.length === 0 && loaded.cargas_excluidas.length > 0) {
+      loaded = { ...loaded, cargas_excluidas: [] }
+    } else if (loaded.cargas_excluidas.length > 0) {
       const ex = new Set(loaded.cargas_excluidas)
       loaded = {
         ...loaded,
@@ -797,7 +801,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       })
     }
 
-    // Nunca sobrescrever o banco com cargas vazias se o remoto ainda tem ofertas
+    // Nunca gravar cargas: [] no Supabase (apaga o Kanban de todo mundo)
     if (slice.cargas.length === 0) {
       void pullKanbanSync().then((remote) => {
         if (
@@ -810,7 +814,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           const payload = remote.payload
           applyingRemoteRef.current = true
           setState((prev) => {
-            const next = ensureDemoFrotaMapa(applySyncSlice(prev, payload.slice))
+            const next = ensureDemoOfertasVisiveis(applySyncSlice(prev, payload.slice))
             stateRef.current = next
             lastSyncFpRef.current = sliceFingerprint(pickSyncSlice(next))
             return next
@@ -818,9 +822,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
           window.setTimeout(() => {
             applyingRemoteRef.current = false
           }, 0)
-          return
         }
-        send()
+        // Se remoto também está vazio ou pull falhou: NÃO faz push vazio
       })
       return
     }
@@ -891,7 +894,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (fp === lastSyncFpRef.current) return
       applyingRemoteRef.current = true
       setState((prev) => {
-        const next = ensureDemoFrotaMapa(applySyncSlice(prev, payload.slice))
+        const next = ensureDemoOfertasVisiveis(applySyncSlice(prev, payload.slice))
         stateRef.current = next
         lastSyncFpRef.current = sliceFingerprint(pickSyncSlice(next))
         return next
@@ -965,7 +968,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return { ok: true }
     }
     if ('payload' in remote && remote.payload) {
-      applyRemoteRef.current?.(remote.payload)
+      const payload = remote.payload
+      // Aplica direto (não depende do ref do effect — evita race no embarcador)
+      applyingRemoteRef.current = true
+      setState((prev) => {
+        const next = ensureDemoOfertasVisiveis(applySyncSlice(prev, payload.slice))
+        stateRef.current = next
+        lastSyncFpRef.current = sliceFingerprint(pickSyncSlice(next))
+        kanbanHydratedRef.current = true
+        return next
+      })
+      window.setTimeout(() => {
+        applyingRemoteRef.current = false
+      }, 0)
+      return { ok: true }
     }
     return { ok: true }
   }, [])

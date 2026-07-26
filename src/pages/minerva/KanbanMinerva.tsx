@@ -13,6 +13,7 @@ import {
   temLanceAtivoNaRodada,
   type ColunaMinerva,
 } from '../../lib/kanbanColumns'
+import { isKanbanSyncReady } from '../../lib/kanbanSync'
 import { loadPanelSize, type PanelSize } from '../../lib/cargasMontadas'
 import type { Carga } from '../../types'
 
@@ -119,6 +120,13 @@ export function KanbanMinerva() {
     return [...list].sort(ordenarCargasKanban)
   }, [cargas, search])
 
+  const noQuadro = useMemo(
+    () =>
+      filtered.filter((c) => colunaMinerva(c, temLanceAtivoNaRodada(c, lances)) != null).length,
+    [filtered, lances],
+  )
+  const rascunhos = useMemo(() => cargas.filter(isRascunhoNaoPublicado).length, [cargas])
+
   const liveSelected = selected ? (cargas.find((c) => c.id === selected.id) ?? null) : null
 
   function openPanel(c: Carga, tab?: 'dados' | 'salvas' | 'publicar') {
@@ -188,14 +196,20 @@ export function KanbanMinerva() {
             </p>
           )}
 
-          {cargas.length === 0 && (
+          {(cargas.length === 0 || noQuadro === 0) && (
             <p className="shrink-0 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-              Kanban vazio.{' '}
               {syncBusy ? (
-                'Sincronizando…'
+                'Sincronizando com o Supabase…'
               ) : (
                 <>
-                  Se o transportador ainda vê cargas, deixe a aba dele aberta alguns segundos e{' '}
+                  {cargas.length === 0
+                    ? 'Nenhuma carga carregada do sync.'
+                    : `Há ${cargas.length} carga(s) (${rascunhos} rascunho(s) só em Cargas salvas) — nenhuma no quadro.`}{' '}
+                  {!isKanbanSyncReady() && (
+                    <span className="font-semibold text-red-800">
+                      Sync desligado (faltam VITE_SUPABASE no Render).{' '}
+                    </span>
+                  )}
                   <button
                     type="button"
                     className="font-bold underline"
@@ -204,18 +218,26 @@ export function KanbanMinerva() {
                       void forcarSincronizarKanban().finally(() => setSyncBusy(false))
                     }}
                   >
-                    atualize o sync aqui
+                    Buscar cargas agora
                   </button>
-                  .
                 </>
               )}
             </p>
           )}
 
-          <p className="shrink-0 text-[11px] text-ink-muted">
-            Fluxo: Nova carga → salve (fica em Cargas salvas) → Publicar → aparece em Nova Carga.
-            Depois: Negociando (1º lance) → Confirmadas → Alocadas.
-          </p>
+          {noQuadro > 0 && (
+            <p className="shrink-0 text-[11px] text-ink-muted">
+              {noQuadro} no quadro
+              {rascunhos > 0 ? ` · ${rascunhos} rascunho(s) em Cargas salvas (botão Nova carga)` : ''}
+              {' · '}Fluxo: publicar → Nova Carga → Negociando → Confirmadas → Alocadas.
+            </p>
+          )}
+
+          {noQuadro === 0 && cargas.length === 0 && (
+            <p className="shrink-0 text-[11px] text-ink-muted">
+              Fluxo: Nova carga → salve (Cargas salvas) → Publicar → aparece em Nova Carga.
+            </p>
+          )}
 
           <div className="min-h-0 flex-1 overflow-hidden">
             <KanbanBoard
