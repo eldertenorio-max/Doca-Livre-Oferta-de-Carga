@@ -618,7 +618,12 @@ function ensureDemoFrotaMapa(state: DataState): DataState {
 function ensureDemoOfertasVisiveis(state: DataState): DataState {
   const withFrota = ensureDemoFrotaMapa(state)
   const excluidos = new Set(withFrota.transportadores_excluidos ?? [])
-  const DEMO_TIDS = ['t1', 't2'].filter((id) => !excluidos.has(id))
+  const DEMO_TIDS = [
+    't1',
+    't2',
+    '11111111-1111-1111-1111-111111111111',
+    '22222222-2222-2222-2222-222222222222',
+  ].filter((id) => !excluidos.has(id))
   let grupos = withFrota.grupos.map((g) => {
     if (g.situacao === 'inativo') return g
     const ids = g.transportador_ids ?? []

@@ -80,7 +80,7 @@ export const SEED_ORG_TREE: OrgNo[] = [
                     parent_id: 'org-unidade-jb',
                     tipo: 'transportadora',
                     nome: 'Santos Transportes',
-                    transportador_id: 't1',
+                    transportador_id: '11111111-1111-1111-1111-111111111111',
                     ordem: 1,
                   },
                   {
@@ -88,7 +88,7 @@ export const SEED_ORG_TREE: OrgNo[] = [
                     parent_id: 'org-unidade-jb',
                     tipo: 'transportadora',
                     nome: 'Log Nova Era',
-                    transportador_id: 't2',
+                    transportador_id: '22222222-2222-2222-2222-222222222222',
                     ordem: 2,
                   },
                 ],

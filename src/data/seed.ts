@@ -9,6 +9,10 @@ import type {
   Veiculo,
 } from '../types'
 
+/** Alinhado aos UUIDs do seed no Supabase. */
+const TID_SANTOS = '11111111-1111-1111-1111-111111111111'
+const TID_NOVAERA = '22222222-2222-2222-2222-222222222222'
+
 export const DEMO_USERS: AppUser[] = [
   {
     id: 'u-santos',
@@ -16,7 +20,7 @@ export const DEMO_USERS: AppUser[] = [
     password: 'santos123',
     nome: 'Santos Transportes',
     role: 'transportador',
-    transportador_id: 't1',
+    transportador_id: TID_SANTOS,
   },
   {
     id: 'u-novaera',
@@ -24,13 +28,13 @@ export const DEMO_USERS: AppUser[] = [
     password: 'novaera123',
     nome: 'Log Nova Era',
     role: 'transportador',
-    transportador_id: 't2',
+    transportador_id: TID_NOVAERA,
   },
 ]
 
 export const SEED_TRANSPORTADORES: Transportador[] = [
   {
-    id: 't1',
+    id: TID_SANTOS,
     razao_social: 'Santos Transportes De Cargas Eireli',
     nome_fantasia: 'Santos Transportes',
     cnpj: '12.345.678/0001-90',
@@ -58,7 +62,7 @@ export const SEED_TRANSPORTADORES: Transportador[] = [
     contato_telefone: '(13) 99999-0001',
   },
   {
-    id: 't2',
+    id: TID_NOVAERA,
     razao_social: 'Log Nova Era LTDA',
     nome_fantasia: 'Log Nova Era',
     cnpj: '23.456.789/0001-01',
@@ -142,7 +146,7 @@ export const SEED_TRANSPORTADORES: Transportador[] = [
 export const SEED_MOTORISTAS: Motorista[] = [
   {
     id: 'm1',
-    transportador_id: 't1',
+    transportador_id: TID_SANTOS,
     veiculo_id: 'v1',
     autonomo: false,
     nome: 'Carlos Motorista',
@@ -159,7 +163,7 @@ export const SEED_MOTORISTAS: Motorista[] = [
   },
   {
     id: 'm2',
-    transportador_id: 't1',
+    transportador_id: TID_SANTOS,
     veiculo_id: 'v6',
     autonomo: false,
     nome: 'Pedro Silva',
@@ -176,7 +180,7 @@ export const SEED_MOTORISTAS: Motorista[] = [
   },
   {
     id: 'm3',
-    transportador_id: 't2',
+    transportador_id: TID_NOVAERA,
     veiculo_id: 'v2',
     autonomo: false,
     nome: 'Ana Condutora',
@@ -240,7 +244,7 @@ export const SEED_VEICULOS: Veiculo[] = [
   {
     id: 'v1',
     placa: 'ABC1D23',
-    transportador_id: 't1',
+    transportador_id: TID_SANTOS,
     renavam: '00112233445',
     condutor: 'Carlos Motorista',
     tipo: 'Carreta Simples',
@@ -265,7 +269,7 @@ export const SEED_VEICULOS: Veiculo[] = [
   {
     id: 'v2',
     placa: 'XYZ9K88',
-    transportador_id: 't2',
+    transportador_id: TID_NOVAERA,
     tipo: 'Bitrem',
     marca: 'Scania',
     modelo: 'R450',
@@ -346,7 +350,7 @@ export const SEED_VEICULOS: Veiculo[] = [
   {
     id: 'v6',
     placa: 'STS6T01',
-    transportador_id: 't1',
+    transportador_id: TID_SANTOS,
     tipo: 'Toco',
     marca: 'Mercedes',
     modelo: 'Atego',
@@ -370,21 +374,21 @@ export const SEED_GRUPOS: GrupoTransportador[] = [
     descricao: 'Transportadores OURO',
     situacao: 'ativo',
     observacao: 'Grupo premium — classificação ouro',
-    transportador_ids: ['t1', 't4'],
+    transportador_ids: [TID_SANTOS, 't4'],
   },
   {
     id: 'g2',
     descricao: 'Transportadores Fixos',
     situacao: 'ativo',
     observacao: 'Parceiros fixos da operação',
-    transportador_ids: ['t1', 't2', 't3'],
+    transportador_ids: [TID_SANTOS, TID_NOVAERA, 't3'],
   },
   {
     id: 'g3',
     descricao: 'Transportadores Spot',
     situacao: 'ativo',
     observacao: 'Mercado spot / ocasionais',
-    transportador_ids: ['t1', 't3', 't5'],
+    transportador_ids: [TID_SANTOS, 't3', 't5'],
   },
 ]
 

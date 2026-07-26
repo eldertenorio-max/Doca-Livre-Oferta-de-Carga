@@ -168,6 +168,12 @@ function uid() {
   return `u-${Math.random().toString(36).slice(2, 10)}`
 }
 
+/** IDs das transportadoras demo no Supabase (seed UUID). */
+export const DEMO_TRANSPORTADOR_IDS = {
+  santos: '11111111-1111-1111-1111-111111111111',
+  novaera: '22222222-2222-2222-2222-222222222222',
+} as const
+
 /** Contas demo prontas para testar o Kanban do transportador. */
 export const DEMO_TRANSPORTADORES = [
   {
@@ -176,7 +182,7 @@ export const DEMO_TRANSPORTADORES = [
     email: 'santos@transportes.com',
     password: 'santos123',
     nome: 'Santos Transportes',
-    transportador_id: 't1',
+    transportador_id: DEMO_TRANSPORTADOR_IDS.santos,
   },
   {
     id: 'u-novaera',
@@ -184,7 +190,7 @@ export const DEMO_TRANSPORTADORES = [
     email: 'novaera@log.com',
     password: 'novaera123',
     nome: 'Log Nova Era',
-    transportador_id: 't2',
+    transportador_id: DEMO_TRANSPORTADOR_IDS.novaera,
   },
 ] as const
 
@@ -951,6 +957,7 @@ export function vincularContasAosTransportadores(
 
   return accounts.map((a) => {
     if (a.role !== 'transportador') return a
+    // Mantém só se o id existir de verdade (t1/t2 locais não contam no banco)
     if (a.transportador_id && existentes.has(a.transportador_id)) return a
 
     const email = normId(a.email)

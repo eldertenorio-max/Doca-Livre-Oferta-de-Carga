@@ -237,7 +237,12 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
   }
 
   // Garante demos t1/t2 nos grupos ativos após sync
-  const DEMO_TIDS = ['t1', 't2']
+  const DEMO_TIDS = [
+    't1',
+    't2',
+    '11111111-1111-1111-1111-111111111111',
+    '22222222-2222-2222-2222-222222222222',
+  ]
   const grupos = merged.grupos.map((g) => {
     if (g.situacao === 'inativo') return g
     const ids = g.transportador_ids ?? []
