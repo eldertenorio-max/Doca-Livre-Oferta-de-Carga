@@ -15,9 +15,9 @@ import {
   normalizeFotosVeiculo,
 } from '../../lib/veiculoFotos'
 import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
-import { joinCarrocerias, parseCarrocerias } from '../../lib/tiposCarroceria'
+import { TIPOS_CARROCERIA } from '../../lib/tiposCarroceria'
 import { newVeiculoId } from '../../lib/veiculosSync'
-import { CarroceriaPicker } from '../../components/ui/CarroceriaPicker'
+import { SuggestInput } from '../../components/ui/SuggestInput'
 import type { FotoVeiculoSlot, FotosVeiculo, Veiculo } from '../../types'
 import '../../styles/cadastro.css'
 
@@ -634,13 +634,14 @@ export function VeiculosPage() {
           </header>
           <div className="form-card__body">
             <div className="form-fields form-fields--photo">
-              <div style={{ gridColumn: '1 / -1' }}>
-                <CarroceriaPicker
-                  title=""
-                  value={parseCarrocerias(form.tipo_carroceria)}
-                  onChange={(list) => set('tipo_carroceria', joinCarrocerias(list))}
+              <Field label="Tipo de carroceria">
+                <SuggestInput
+                  value={form.tipo_carroceria ?? ''}
+                  onChange={(v) => set('tipo_carroceria', v)}
+                  suggestions={[...TIPOS_CARROCERIA]}
+                  placeholder="Baú, Sider, Graneleiro…"
                 />
-              </div>
+              </Field>
               <Field label="Quantidade de Pallets (Max 32)">
                 <input
                   type="number"

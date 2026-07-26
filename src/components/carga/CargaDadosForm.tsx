@@ -26,8 +26,7 @@ import { Button, Field, inputClass } from '../ui/Modal'
 import { CnpjInput } from '../ui/CnpjInput'
 import { SuggestInput } from '../ui/SuggestInput'
 import { AddressSuggestInput } from '../ui/AddressSuggestInput'
-import { CarroceriaPicker } from '../ui/CarroceriaPicker'
-import { parseCarrocerias } from '../../lib/tiposCarroceria'
+import { joinCarrocerias, parseCarrocerias, TIPOS_CARROCERIA } from '../../lib/tiposCarroceria'
 
 type Props = {
   carga: Carga
@@ -89,8 +88,8 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
   const [pedido, setPedido] = useState(carga.pedido)
   const [tipoCarga, setTipoCarga] = useState(carga.tipo_carga)
   const [veiculo, setVeiculo] = useState(carga.veiculo)
-  const [carrocerias, setCarrocerias] = useState<string[]>(() =>
-    parseCarrocerias(carga.carrocerias),
+  const [carroceriaTxt, setCarroceriaTxt] = useState(() =>
+    joinCarrocerias(parseCarrocerias(carga.carrocerias)),
   )
   const [destinatario, setDestinatario] = useState(carga.destinatario)
   const [destinatarioCnpj, setDestinatarioCnpj] = useState(
@@ -117,6 +116,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       pedido: outras.map((c) => c.pedido),
       tipo: outras.map((c) => c.tipo_carga),
       veiculo: outras.map((c) => c.veiculo),
+      carroceria: outras.flatMap((c) => parseCarrocerias(c.carrocerias)),
       destinatario: outras.map((c) => c.destinatario),
       cnpj: outras.map((c) => c.destinatario_cnpj),
       peso: outras.map((c) => (c.peso > 0 ? formatMoneyInput(c.peso) : '')),
@@ -178,6 +178,20 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
     [historico.veiculo],
   )
 
+  const sugCarroceria = useMemo(
+    () => (q: string) => {
+      const catalog = [...TIPOS_CARROCERIA]
+      const qt = q.trim()
+      if (!qt) return catalog
+      const exact = catalog.some((t) => t.toLowerCase() === qt.toLowerCase())
+      if (exact) return catalog
+      const matched = filtrarSugestoes(qt, [catalog], 20)
+      if (matched.length === 0) return catalog
+      return filtrarSugestoes(qt, [catalog, historico.carroceria], 20)
+    },
+    [historico.carroceria],
+  )
+
   const sugDestinatario = useMemo(
     () => (q: string) => filtrarSugestoes(q, [historico.destinatario], 12),
     [historico.destinatario],
@@ -227,7 +241,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
     setPedido(carga.pedido)
     setTipoCarga(carga.tipo_carga)
     setVeiculo(carga.veiculo)
-    setCarrocerias(parseCarrocerias(carga.carrocerias))
+    setCarroceriaTxt(joinCarrocerias(parseCarrocerias(carga.carrocerias)))
     setDestinatario(carga.destinatario)
     setDestinatarioCnpj(formatCnpj(carga.destinatario_cnpj || ''))
     setPeso(formatMoneyInput(carga.peso || 0))
@@ -384,7 +398,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       pedido: pedido.trim(),
       tipo_carga: tipoCarga.trim() || TIPOS_CARGA[0],
       veiculo: veiculo.trim(),
-      carrocerias,
+      carrocerias: parseCarrocerias(carroceriaTxt),
       destinatario: destinatario.trim(),
       destinatario_cnpj: formatCnpj(destinatarioCnpj),
       peso: pesoNum,
@@ -586,9 +600,14 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
               placeholder="HR, Fiorino, Van, Carreta, Truck…"
             />
           </Field>
-          <div className="sm:col-span-2">
-            <CarroceriaPicker value={carrocerias} onChange={setCarrocerias} />
-          </div>
+          <Field label="Carroceria">
+            <SuggestInput
+              value={carroceriaTxt}
+              onChange={setCarroceriaTxt}
+              suggestions={sugCarroceria}
+              placeholder="Baú, Sider, Graneleiro…"
+            />
+          </Field>
           <Field label="Valor mercadorias (R$)">
             <SuggestInput
               value={valorMerc}
