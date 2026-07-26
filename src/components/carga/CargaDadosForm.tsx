@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useData } from '../../context/DataContext'
 import { formatCurrency, formatMoneyInput, parseMoneyInput } from '../../lib/businessRules'
 import { buscarCidades, filtrarSugestoes } from '../../lib/cidadesBrasil'
-import { formatCnpj } from '../../lib/cnpj'
+import { cnpjDigits, formatCnpj, isValidCnpj } from '../../lib/cnpj'
+import { buscarDadosPorCnpj } from '../../lib/cnpjLookup'
 import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
 import { TIPOS_CARGA } from '../../lib/tiposCarga'
 import type { Carga, ClassificacaoRota, Rota } from '../../types'
@@ -78,6 +79,10 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
   const [observacao, setObservacao] = useState(carga.observacao ?? '')
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
+  const [cnpjBuscando, setCnpjBuscando] = useState(false)
+  const [cnpjInfo, setCnpjInfo] = useState('')
+  const [cnpjInfoOk, setCnpjInfoOk] = useState(false)
+  const ultimoCnpjBuscado = useRef('')
 
   const historico = useMemo(() => {
     const outras = cargas.filter((c) => c.id !== carga.id)
@@ -202,7 +207,65 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
     setObservacao(carga.observacao ?? '')
     setError('')
     setInfo('')
+    setCnpjBuscando(false)
+    setCnpjInfo('')
+    setCnpjInfoOk(false)
+    ultimoCnpjBuscado.current = ''
   }, [carga.id, carga.updated_at])
+
+  // Consulta Receita Federal ao completar o CNPJ do destinatário
+  useEffect(() => {
+    if (!editavel) return
+    const digits = cnpjDigits(destinatarioCnpj)
+    if (digits.length !== 14 || !isValidCnpj(digits)) {
+      setCnpjBuscando(false)
+      return
+    }
+    if (ultimoCnpjBuscado.current === digits) return
+
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        setCnpjBuscando(true)
+        setCnpjInfoOk(false)
+        setCnpjInfo('Consultando CNPJ na Receita…')
+        const res = await buscarDadosPorCnpj(digits)
+        if (cancelled) return
+        setCnpjBuscando(false)
+        ultimoCnpjBuscado.current = digits
+        if (!res.ok) {
+          setCnpjInfoOk(false)
+          setCnpjInfo(res.erro)
+          return
+        }
+        const d = res.dados
+        const nome = (d.nome_fantasia || d.razao_social || '').trim()
+        if (nome) setDestinatario(nome)
+        setDestinatarioCnpj(d.cnpj || formatCnpj(digits))
+
+        // Preenche destino da rota com o endereço do CNPJ se ainda estiver vazio
+        setDestino((cur) => {
+          if (cur.trim()) return cur
+          const rua = [d.endereco, d.numero].filter(Boolean).join(', ')
+          const cidadeUf = [d.cidade, d.uf].filter(Boolean).join(' - ')
+          const linha = [rua, d.bairro, cidadeUf].filter(Boolean).join(', ')
+          return linha || cidadeUf || cur
+        })
+
+        setCnpjInfoOk(true)
+        setCnpjInfo(
+          d.razao_social
+            ? `CNPJ encontrado: ${d.razao_social}${d.nome_fantasia && d.nome_fantasia !== d.razao_social ? ` (${d.nome_fantasia})` : ''}.`
+            : 'CNPJ encontrado. Dados preenchidos.',
+        )
+      })()
+    }, 400)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [destinatarioCnpj, editavel])
 
   const rotaSelecionada = rotas.find((r) => r.id === carga.rota_id)
 
@@ -506,9 +569,32 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
           <Field label="CNPJ">
             <CnpjInput
               value={destinatarioCnpj}
-              onChange={setDestinatarioCnpj}
+              onChange={(v) => {
+                const next = formatCnpj(v)
+                if (cnpjDigits(next) !== ultimoCnpjBuscado.current) {
+                  ultimoCnpjBuscado.current = ''
+                  setCnpjInfo('')
+                  setCnpjInfoOk(false)
+                }
+                setDestinatarioCnpj(next)
+              }}
               suggestions={historico.cnpj}
+              disabled={cnpjBuscando || !editavel}
+              showHint={!cnpjBuscando && !cnpjInfo}
             />
+            {(cnpjBuscando || cnpjInfo) && (
+              <p
+                className={`mt-1.5 text-[11px] ${
+                  cnpjBuscando
+                    ? 'text-ink-muted'
+                    : cnpjInfoOk
+                      ? 'text-emerald-700'
+                      : 'text-amber-700'
+                }`}
+              >
+                {cnpjBuscando ? 'Consultando CNPJ na Receita…' : cnpjInfo}
+              </p>
+            )}
           </Field>
         </div>
       </section>
