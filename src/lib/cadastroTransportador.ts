@@ -9,6 +9,7 @@ import {
   savePortalAccounts,
   type PortalAccount,
 } from './portalAuth'
+import { canonicalTransportadorId } from './transportadorIds'
 import { DOCUMENTOS_TRANSPORTADOR, TIPOS_DOC_OBRIGATORIOS } from './transportadorDocs'
 import type {
   Transportador,
@@ -636,13 +637,14 @@ export async function atualizarLogoTransportadorRemoto(
   transportadorId: string,
   file: File | null,
 ): Promise<{ ok: true; logo_url: string | null } | { ok: false; erro: string }> {
-  if (!transportadorId) return { ok: false, erro: 'Transportador inválido.' }
+  const tid = canonicalTransportadorId(transportadorId) || transportadorId
+  if (!tid) return { ok: false, erro: 'Transportador inválido.' }
 
   const limparStorage = async () => {
     if (!isSupabaseConfigured || !supabase) return
     const exts = ['jpg', 'jpeg', 'png', 'webp']
-    const pathsDocs = exts.map((ext) => `${transportadorId}/logo.${ext}`)
-    const pathsFotos = exts.map((ext) => `logos/${transportadorId}/logo.${ext}`)
+    const pathsDocs = exts.map((ext) => `${tid}/logo.${ext}`)
+    const pathsFotos = exts.map((ext) => `logos/${tid}/logo.${ext}`)
     await supabase.storage.from('documentos-transportadores').remove(pathsDocs)
     await supabase.storage.from('veiculos-fotos').remove(pathsFotos)
   }
@@ -651,7 +653,7 @@ export async function atualizarLogoTransportadorRemoto(
   if (!file) {
     if (isSupabaseConfigured && supabase) {
       await limparStorage()
-      const up = await upsertTransportadorComFallback('update', { logo_url: null }, transportadorId)
+      const up = await upsertTransportadorComFallback('update', { logo_url: null }, tid)
       if (!up.ok) return { ok: false, erro: up.erro }
     }
     return { ok: true, logo_url: null }
@@ -678,8 +680,8 @@ export async function atualizarLogoTransportadorRemoto(
 
   // 1) Tenta bucket de documentos; 2) se RLS bloquear (portal = anon), usa veiculos-fotos
   const tentativas: Array<{ bucket: string; path: string }> = [
-    { bucket: 'documentos-transportadores', path: `${transportadorId}/logo.${ext}` },
-    { bucket: 'veiculos-fotos', path: `logos/${transportadorId}/logo.${ext}` },
+    { bucket: 'documentos-transportadores', path: `${tid}/logo.${ext}` },
+    { bucket: 'veiculos-fotos', path: `logos/${tid}/logo.${ext}` },
   ]
 
   let logoUrl: string | null = null
@@ -716,11 +718,7 @@ export async function atualizarLogoTransportadorRemoto(
     }
   }
 
-  const logoUp = await upsertTransportadorComFallback(
-    'update',
-    { logo_url: logoUrl },
-    transportadorId,
-  )
+  const logoUp = await upsertTransportadorComFallback('update', { logo_url: logoUrl }, tid)
   if (!logoUp.ok) return { ok: false, erro: logoUp.erro }
 
   return { ok: true, logo_url: logoUrl }

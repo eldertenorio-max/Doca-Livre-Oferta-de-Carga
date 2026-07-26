@@ -536,12 +536,17 @@ function ensureDemoTransportadores(list: PortalAccount[]): PortalAccount[] {
       next = [demo, ...next]
       continue
     }
-    // Conta já existe: restaura vínculo se o sync zerou (coluna UUID não guarda t1/t2).
+    // Conta já existe: restaura/atualiza vínculo (troca t1/t2 legados pelo UUID do banco).
     const cur = next[idx]
+    const tidAtual = cur.transportador_id || ''
+    const tidCanon =
+      tidAtual === 't1' || tidAtual === 't2' || !tidAtual
+        ? demo.transportador_id
+        : tidAtual
     next[idx] = {
       ...cur,
       id: cur.id || demo.id,
-      transportador_id: cur.transportador_id || demo.transportador_id,
+      transportador_id: tidCanon,
       role: cur.role === 'super' ? 'super' : 'transportador',
       password: cur.password || demo.password,
       ativo: cur.ativo ?? true,

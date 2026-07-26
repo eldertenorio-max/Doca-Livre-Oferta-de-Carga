@@ -75,6 +75,7 @@ import {
   submeterCadastroTransportador,
   type CadastroTransportadorInput,
 } from '../lib/cadastroTransportador'
+import { canonicalTransportadorId } from '../lib/transportadorIds'
 import { portalEmailRecusaCadastro } from '../lib/portalApi'
 import {
   hydrateOrgTree,
@@ -1472,13 +1473,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
 
     const role = isSuperuser ? ('super' as const) : ('transportador' as const)
+    const tidSessao = isSuperuser
+      ? null
+      : canonicalTransportadorId(account.transportador_id) ?? account.transportador_id ?? null
+    if (!isSuperuser && tidSessao && tidSessao !== account.transportador_id) {
+      const accounts = loadPortalAccounts().map((a) =>
+        a.id === account.id ? { ...a, transportador_id: tidSessao } : a,
+      )
+      savePortalAccounts(accounts)
+      account = { ...account, transportador_id: tidSessao }
+    }
     setUser({
       id: account.id,
       email: account.email,
       nome: account.nome,
       usuario: account.usuario,
       role,
-      transportador_id: isSuperuser ? null : (account.transportador_id ?? null),
+      transportador_id: tidSessao,
       empresa_org_id: account.empresa_org_id ?? null,
       is_superuser: isSuperuser,
       perfil_operacional: account.perfil_operacional ?? null,
@@ -2993,19 +3004,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const atualizarLogoTransportador = useCallback(
     async (transportadorId: string, file: File | null) => {
-      const atual = stateRef.current.transportadores.find((t) => t.id === transportadorId)
+      const tid = canonicalTransportadorId(transportadorId) || transportadorId
+      const atual =
+        stateRef.current.transportadores.find((t) => t.id === tid) ||
+        stateRef.current.transportadores.find((t) => t.id === transportadorId)
       if (!atual) return { ok: false, error: 'Transportador não encontrado.' }
-      const result = await atualizarLogoTransportadorRemoto(transportadorId, file)
+      const result = await atualizarLogoTransportadorRemoto(tid, file)
       if (!result.ok) return { ok: false, error: result.erro }
       const next: Transportador = {
         ...atual,
+        id: tid,
         logo_url: result.logo_url || undefined,
       }
       setState((prev) => {
         const nextState = {
           ...prev,
           transportadores: prev.transportadores.map((t) =>
-            t.id === transportadorId ? next : t,
+            t.id === tid || t.id === transportadorId ? next : t,
           ),
         }
         stateRef.current = nextState

@@ -8,6 +8,7 @@ import { ChatModal } from '../carga/ChatModal'
 import { DisponibilidadeMapaFlag } from '../transportador/DisponibilidadeMapaFlag'
 import { canOpenModulo, moduloFromPath } from '../../lib/portalModules'
 import { isSuperSession } from '../../lib/superUsers'
+import { canonicalTransportadorId } from '../../lib/transportadorIds'
 import '../../styles/shell.css'
 
 type NavItem = {
@@ -276,13 +277,19 @@ export function AppLayout() {
   const isSuper = isSuperSession(user)
 
   const topbarTransportadorId =
-    actingTransportadorId ||
-    (user?.role === 'transportador' ? user.transportador_id : null) ||
-    null
+    canonicalTransportadorId(
+      actingTransportadorId ||
+        (user?.role === 'transportador' ? user.transportador_id : null) ||
+        null,
+    )
 
   const avatarFotoUrl = useMemo(() => {
     if (!topbarTransportadorId) return null
-    const t = (transportadores ?? []).find((x) => x.id === topbarTransportadorId)
+    const t = (transportadores ?? []).find(
+      (x) =>
+        x.id === topbarTransportadorId ||
+        canonicalTransportadorId(x.id) === topbarTransportadorId,
+    )
     return t?.logo_url?.trim() || null
   }, [topbarTransportadorId, transportadores])
 
