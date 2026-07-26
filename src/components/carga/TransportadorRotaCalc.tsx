@@ -132,8 +132,8 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
           Ajuste os parâmetros abaixo e calcule de novo. Origem/destino vêm da carga.
         </p>
 
-        <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-end">
-          <Field label="Ponto A — Origem">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-end">
+          <Field label="Ponto A — Origem" className="min-w-0">
             <AddressSuggestInput
               value={origem}
               onChange={setOrigem}
@@ -144,11 +144,11 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
             type="button"
             title="Inverter origem e destino"
             onClick={trocarPontos}
-            className="mb-0.5 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-ink/15 bg-white text-ink hover:bg-sand-light"
+            className="mb-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center justify-self-center rounded-lg border border-ink/15 bg-white text-ink hover:bg-sand-light"
           >
             <ArrowUpDown size={16} />
           </button>
-          <Field label="Ponto B — Destino">
+          <Field label="Ponto B — Destino" className="min-w-0">
             <AddressSuggestInput
               value={destino}
               onChange={setDestino}
@@ -157,65 +157,65 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
           </Field>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Eixos">
-            <div className="flex items-center gap-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field label="Eixos" className="min-w-0">
+            <div className="flex min-w-0 items-center gap-1.5">
               <button
                 type="button"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-ink/15 bg-white"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-ink/15 bg-white"
                 onClick={() => setEixos((e) => Math.max(2, e - 1))}
               >
                 <Minus size={14} />
               </button>
-              <span className="min-w-[4.5rem] text-center text-sm font-bold tabular-nums text-ink">
+              <span className="min-w-0 flex-1 truncate text-center text-sm font-bold tabular-nums text-ink">
                 {eixos} eixos
               </span>
               <button
                 type="button"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-ink/15 bg-white"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-ink/15 bg-white"
                 onClick={() => setEixos((e) => Math.min(9, e + 1))}
               >
                 <Plus size={14} />
               </button>
             </div>
           </Field>
-          <Field label="Consumo (KM/L)">
+          <Field label="Consumo (KM/L)" className="min-w-0">
             <input
-              className={inputClass}
+              className={`${inputClass} w-full min-w-0`}
               value={consumo}
               onChange={(e) => setConsumo(e.target.value)}
               inputMode="decimal"
             />
           </Field>
-          <Field label="Preço diesel (R$)">
-            <div className="relative">
+          <Field label="Preço diesel (R$)" className="min-w-0">
+            <div className="relative min-w-0">
               <Fuel
                 size={14}
                 className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-muted"
               />
               <input
-                className={`${inputClass} pl-9`}
+                className={`${inputClass} w-full min-w-0 pl-9`}
                 value={precoDiesel}
                 onChange={(e) => setPrecoDiesel(e.target.value)}
                 inputMode="decimal"
               />
             </div>
           </Field>
-          <Field label="Ida e volta">
+          <Field label="Ida e volta" className="min-w-0">
             <button
               type="button"
               role="switch"
               aria-checked={idaEVolta}
               onClick={() => setIdaEVolta((v) => !v)}
-              className={`flex h-10 w-full items-center justify-between rounded-lg border px-3 text-sm font-semibold ${
+              className={`flex h-10 w-full min-w-0 items-center justify-between gap-2 rounded-lg border px-3 text-sm font-semibold ${
                 idaEVolta
                   ? 'border-brand/40 bg-brand/10 text-ink'
                   : 'border-ink/15 bg-white text-ink-muted'
               }`}
             >
-              <span>{idaEVolta ? 'Sim' : 'Não'}</span>
+              <span className="truncate">{idaEVolta ? 'Sim' : 'Não'}</span>
               <span
-                className={`relative h-5 w-9 rounded-full transition ${
+                className={`relative h-5 w-9 shrink-0 rounded-full transition ${
                   idaEVolta ? 'bg-brand' : 'bg-ink/20'
                 }`}
               >
