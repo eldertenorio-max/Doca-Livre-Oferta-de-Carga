@@ -1004,15 +1004,11 @@ export function PublishPanel({
               <p className="text-center font-display text-lg font-bold text-ink">
                 Frete Oferta {formatCurrency(freteOferta)}
               </p>
-              {carga.frete_tabela > 0 && freteOferta < carga.frete_tabela && (
-                <p
-                  className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-center text-xs font-semibold text-amber-950"
-                  role="status"
-                >
+              {freteOferta < carga.frete_tabela && (
+                <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-center text-xs font-semibold text-amber-900">
                   Valor abaixo da tabela mínima ({formatCurrency(carga.frete_tabela)}).
-                  {ganho < 0
-                    ? ` Desconto de ${formatCurrency(Math.abs(ganho))} (${margem}%).`
-                    : ''}
+                  A oferta está {formatCurrency(carga.frete_tabela - freteOferta)} abaixo do frete
+                  tabela.
                 </p>
               )}
 
