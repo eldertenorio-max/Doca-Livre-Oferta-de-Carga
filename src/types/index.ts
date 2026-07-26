@@ -224,6 +224,16 @@ export interface AnttInfoCarga {
     pedagio_por_eixo: number
     combustivel: number
     custo_total: number
+    vale_pedagio?: number
+    pracas?: {
+      nome: string
+      valor: number
+      tipo?: string
+      free_flow?: boolean
+    }[]
+    free_flow?: boolean
+    link_qualp?: string
+    provedor?: 'qualp' | 'local'
   }
   fonte: string
 }

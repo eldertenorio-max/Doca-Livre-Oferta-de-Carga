@@ -17,6 +17,13 @@ export type AnttPisoCategoria = {
   valor: number | null
 }
 
+export type AnttPracaPedagio = {
+  nome: string
+  valor: number
+  tipo?: string
+  free_flow?: boolean
+}
+
 export type AnttRotaCustos = {
   distancia_km: number
   duracao_min: number
@@ -25,6 +32,12 @@ export type AnttRotaCustos = {
   pedagio_por_eixo: number
   combustivel: number
   custo_total: number
+  /** Vale-Pedágio obrigatório (Res. ANTT 6.024/2023) — em geral = pedágio da rota */
+  vale_pedagio?: number
+  pracas?: AnttPracaPedagio[]
+  free_flow?: boolean
+  link_qualp?: string
+  provedor?: 'qualp' | 'local'
 }
 
 export type AnttCalculo = {
@@ -182,6 +195,18 @@ export async function calcularAnttCompleto(params: {
     return { ok: false, erro: 'Selecione o tipo de veículo para definir os eixos.' }
   }
 
+  // 1) QualP automático (pedágio real, Free Flow/OCR, combustível, tabela frete)
+  try {
+    const { calcularViaQualp, qualpDisponivel } = await import('./qualpApi')
+    if (qualpDisponivel()) {
+      const q = await calcularViaQualp(params)
+      if (q.ok) return q
+    }
+  } catch {
+    /* fallback local */
+  }
+
+  // 2) Fallback: geocode + OSRM + coeficientes ANTT locais
   const [o, d] = await Promise.all([
     geocodificarConsulta(origemTxt),
     geocodificarConsulta(destinoTxt),
@@ -201,6 +226,8 @@ export async function calcularAnttCompleto(params: {
     rotaGeo.distanciaKm,
   )
   const rota = estimarCustosRota(rotaGeo.distanciaKm, eixosUtilizados, rotaGeo.duracaoMin)
+  rota.vale_pedagio = rota.pedagio
+  rota.provedor = 'local'
 
   const cat =
     params.categoriaId != null
@@ -220,7 +247,7 @@ export async function calcularAnttCompleto(params: {
       pisos,
       piso_selecionado: pisoSel,
       rota,
-      fonte: ANTT_FONTE,
+      fonte: `${ANTT_FONTE} (rota OSRM · pedágio estimado — configure QualP para pedágio real)`,
     },
   }
 }

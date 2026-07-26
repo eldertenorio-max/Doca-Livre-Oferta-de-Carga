@@ -941,6 +941,12 @@ export function PublishPanel({
                 label="Pedágio por eixo"
                 value={formatCurrency(carga.antt.rota.pedagio_por_eixo)}
               />
+              <Detail
+                label="Vale-Pedágio"
+                value={formatCurrency(
+                  carga.antt.rota.vale_pedagio ?? carga.antt.rota.pedagio,
+                )}
+              />
               <Detail label="Combustível" value={formatCurrency(carga.antt.rota.combustivel)} />
               <Detail label="Custo Total" value={formatCurrency(carga.antt.rota.custo_total)} />
               {carga.antt.piso_selecionado != null && (
@@ -948,6 +954,21 @@ export function PublishPanel({
                   label="Piso ANTT"
                   value={formatCurrency(carga.antt.piso_selecionado)}
                 />
+              )}
+              {carga.antt.rota.free_flow && (
+                <Detail label="Free Flow / OCR" value="Sim (praças na rota)" />
+              )}
+              {carga.antt.rota.link_qualp && (
+                <p className="pt-1">
+                  <a
+                    href={carga.antt.rota.link_qualp}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-semibold text-brand underline"
+                  >
+                    Ver na QualP
+                  </a>
+                </p>
               )}
             </div>
           )}

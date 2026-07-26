@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { formatCurrency } from '../../lib/businessRules'
 import {
   calcularAnttCompleto,
@@ -7,6 +7,7 @@ import {
   type AnttCalculo,
   type TabelaAntt,
 } from '../../lib/anttFrete'
+import { qualpDisponivel } from '../../lib/qualpApi'
 import type { AnttInfoCarga } from '../../types'
 import { Button, Field, inputClass } from '../ui/Modal'
 
@@ -23,7 +24,12 @@ export function AnttFretePanel({ origem, destino, veiculo, value, onChange }: Pr
   const [categoriaId, setCategoriaId] = useState<number | ''>(value?.categoria_id ?? '')
   const [busy, setBusy] = useState(false)
   const [erro, setErro] = useState('')
+  const [aviso, setAviso] = useState('')
   const [calc, setCalc] = useState<AnttCalculo | null>(value ? fromSaved(value) : null)
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+  const reqId = useRef(0)
+  const temQualp = qualpDisponivel()
 
   useEffect(() => {
     if (value) {
@@ -33,9 +39,11 @@ export function AnttFretePanel({ origem, destino, veiculo, value, onChange }: Pr
     }
   }, [value])
 
-  async function calcular(catId: number | '' = categoriaId) {
+  async function calcular(catId: number | '' = categoriaId, opts?: { silent?: boolean }) {
+    const id = ++reqId.current
     setBusy(true)
-    setErro('')
+    if (!opts?.silent) setErro('')
+    setAviso('')
     const res = await calcularAnttCompleto({
       origem,
       destino,
@@ -43,17 +51,36 @@ export function AnttFretePanel({ origem, destino, veiculo, value, onChange }: Pr
       tabela,
       categoriaId: catId === '' ? null : catId,
     })
+    if (id !== reqId.current) return
     setBusy(false)
     if (!res.ok) {
       setErro(res.erro)
       return
     }
+    if (res.data.rota.provedor === 'local' && !temQualp) {
+      setAviso(
+        'Sem token QualP: pedágio é estimado. Configure VITE_QUALP_ACCESS_TOKEN para pedágio real (Free Flow/OCR), como no portal QualP.',
+      )
+    }
     setCalc(res.data)
     const info = toSaved(res.data)
     const frete =
       catId !== '' ? (res.data.pisos.find((p) => p.id === catId)?.valor ?? undefined) : undefined
-    onChange(info, frete)
+    onChangeRef.current(info, frete)
   }
+
+  // Automático ao mudar origem / destino / veículo / tabela (estilo QualP)
+  useEffect(() => {
+    const o = origem.trim()
+    const d = destino.trim()
+    const v = veiculo.trim()
+    if (o.length < 5 || d.length < 5 || !v) return
+    const t = window.setTimeout(() => {
+      void calcular(categoriaId, { silent: true })
+    }, 900)
+    return () => window.clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- debounce só nestes campos
+  }, [origem, destino, veiculo, tabela])
 
   function selecionarCategoria(id: number) {
     setCategoriaId(id)
@@ -73,16 +100,26 @@ export function AnttFretePanel({ origem, destino, veiculo, value, onChange }: Pr
   }
 
   const rota = calc?.rota
+  const pracas = rota?.pracas ?? []
 
   return (
     <section className="space-y-2.5 rounded-xl border border-ink/10 bg-sand-light/30 p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
-            Frete ANTT
+            Frete ANTT + rota
           </h3>
           <p className="text-[11px] text-ink-muted">
-            Piso mínimo e custos de rota a partir da origem, destino e veículo.
+            Cálculo automático (origem → destino → veículo), no estilo{' '}
+            <a
+              href="https://qualp.com.br/#/"
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-brand underline"
+            >
+              QualP
+            </a>
+            . Pisos Res. 6.084/2026 · Vale-Pedágio Res. 6.024/2023 · RNTRC do transportador.
           </p>
         </div>
         <Button
@@ -92,7 +129,7 @@ export function AnttFretePanel({ origem, destino, veiculo, value, onChange }: Pr
           disabled={busy}
           onClick={() => void calcular()}
         >
-          {busy ? 'Calculando…' : 'Calcular ANTT'}
+          {busy ? 'Calculando…' : 'Recalcular'}
         </Button>
       </div>
 
@@ -146,6 +183,11 @@ export function AnttFretePanel({ origem, destino, veiculo, value, onChange }: Pr
           {erro}
         </p>
       )}
+      {aviso && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-950">
+          {aviso}
+        </p>
+      )}
 
       {calc && (
         <div className="grid gap-3 lg:grid-cols-2">
@@ -180,25 +222,72 @@ export function AnttFretePanel({ origem, destino, veiculo, value, onChange }: Pr
           </div>
 
           {rota && (
-            <div className="rounded-lg border border-ink/10 bg-white px-3 py-2 text-sm">
-              <RowCusto label="Duração" value={rota.duracao_label} />
-              <RowCusto label="Distância" value={`${rota.distancia_km} km`} />
-              <RowCusto label="Pedágio" value={formatCurrency(rota.pedagio)} />
-              <RowCusto label="Pedágio por eixo" value={formatCurrency(rota.pedagio_por_eixo)} />
-              <RowCusto label="Combustível" value={formatCurrency(rota.combustivel)} />
-              <div className="mt-1.5 flex items-center justify-between border-t border-ink/15 pt-2 font-bold text-ink">
-                <span>Custo Total</span>
-                <span className="tabular-nums">{formatCurrency(rota.custo_total)}</span>
-              </div>
-              <p className="mt-2 text-[10px] text-ink-muted">
-                Eixos: {calc.eixos_utilizados} · {calc.fonte}
-                {calc.piso_selecionado != null && (
-                  <>
-                    {' '}
-                    · Piso selecionado:{' '}
-                    <strong>{formatCurrency(calc.piso_selecionado)}</strong>
-                  </>
+            <div className="space-y-2">
+              <div className="rounded-lg border border-ink/10 bg-white px-3 py-2 text-sm">
+                <RowCusto label="Duração" value={rota.duracao_label} />
+                <RowCusto label="Distância" value={`${rota.distancia_km} km`} />
+                <RowCusto label="Pedágio" value={formatCurrency(rota.pedagio)} />
+                <RowCusto label="Pedágio por eixo" value={formatCurrency(rota.pedagio_por_eixo)} />
+                <RowCusto
+                  label="Vale-Pedágio (obrigatório)"
+                  value={formatCurrency(rota.vale_pedagio ?? rota.pedagio)}
+                />
+                <RowCusto label="Combustível" value={formatCurrency(rota.combustivel)} />
+                <div className="mt-1.5 flex items-center justify-between border-t border-ink/15 pt-2 font-bold text-ink">
+                  <span>Custo Total</span>
+                  <span className="tabular-nums">{formatCurrency(rota.custo_total)}</span>
+                </div>
+                <p className="mt-2 text-[10px] text-ink-muted">
+                  Eixos: {calc.eixos_utilizados}
+                  {rota.provedor === 'qualp' ? ' · QualP' : ' · local'}
+                  {rota.free_flow ? ' · inclui Free Flow/OCR' : ''}
+                  {calc.piso_selecionado != null && (
+                    <>
+                      {' '}
+                      · Piso:{' '}
+                      <strong>{formatCurrency(calc.piso_selecionado)}</strong>
+                    </>
+                  )}
+                </p>
+                {rota.link_qualp && (
+                  <a
+                    href={rota.link_qualp}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 inline-block text-[11px] font-semibold text-brand underline"
+                  >
+                    Abrir rota na QualP
+                  </a>
                 )}
+              </div>
+
+              {pracas.length > 0 && (
+                <div className="max-h-40 overflow-y-auto rounded-lg border border-ink/10 bg-white px-3 py-2">
+                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-ink-muted">
+                    Praças de pedágio
+                  </p>
+                  <ul className="space-y-1 text-[11px]">
+                    {pracas.map((p, i) => (
+                      <li key={`${p.nome}-${i}`} className="flex justify-between gap-2">
+                        <span className="text-ink/80">
+                          {p.nome}
+                          {p.free_flow ? (
+                            <span className="ml-1 rounded bg-emerald-100 px-1 text-[9px] font-bold text-emerald-800">
+                              Free Flow
+                            </span>
+                          ) : null}
+                        </span>
+                        <span className="tabular-nums font-medium">{formatCurrency(p.valor)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <p className="rounded-lg border border-ink/10 bg-white px-2.5 py-1.5 text-[10px] text-ink-muted">
+                <strong className="text-ink">RNTRC:</strong> o transportador vencedor precisa ter
+                RNTRC ativo (cadastro ANTT). O valor do Vale-Pedágio deve acompanhar a operação
+                conforme a Res. 6.024/2023.
               </p>
             </div>
           )}
