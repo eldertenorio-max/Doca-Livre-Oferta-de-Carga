@@ -164,6 +164,19 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
     [historico.tipo],
   )
 
+  const sugComplemento = useMemo(
+    () => (q: string) => {
+      const catalog = [...COMPLEMENTO_LABELS]
+      const qt = q.trim().toLowerCase()
+      if (!qt) return catalog
+      // Já escolheu Sim/Não/Ambos → ao focar mostra as 3 opções
+      if (catalog.some((t) => t.toLowerCase() === qt)) return catalog
+      const matched = catalog.filter((t) => t.toLowerCase().includes(qt))
+      return matched.length > 0 ? matched : catalog
+    },
+    [],
+  )
+
   const sugDestinatario = useMemo(
     () => (q: string) => filtrarSugestoes(q, [historico.destinatario], 12),
     [historico.destinatario],
@@ -481,7 +494,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
             <SuggestInput
               value={complementoTxt}
               onChange={setComplementoTxt}
-              suggestions={[...COMPLEMENTO_LABELS]}
+              suggestions={sugComplemento}
               placeholder="Sim, Não ou Ambos"
             />
           </Field>
