@@ -118,7 +118,7 @@ export function formatDuracaoAntt(minutos: number): string {
 }
 
 /** Consumo médio (km/l) por faixa de eixos — estimativa operacional. */
-function consumoKmL(eixos: number): number {
+export function consumoPadraoKmL(eixos: number): number {
   if (eixos <= 2) return 8
   if (eixos <= 3) return 5.5
   if (eixos <= 4) return 4.2
@@ -132,12 +132,19 @@ const DIESEL_RS = 5.94
 /** Pedágio médio por eixo por km (calibrado em rotas BR típicas). */
 const PEDAGIO_EIXO_POR_KM = 0.0526
 
-export function estimarCustosRota(distanciaKm: number, eixos: number, duracaoMin: number): AnttRotaCustos {
+export function estimarCustosRota(
+  distanciaKm: number,
+  eixos: number,
+  duracaoMin: number,
+  opts?: { consumoKmL?: number; precoDiesel?: number },
+): AnttRotaCustos {
   const km = Math.max(1, Math.round(distanciaKm))
   const pedagioPorEixo = roundMoney(km * PEDAGIO_EIXO_POR_KM)
   const pedagio = roundMoney(pedagioPorEixo * eixos)
-  const litros = km / consumoKmL(eixos)
-  const combustivel = roundMoney(litros * DIESEL_RS)
+  const kmL = opts?.consumoKmL && opts.consumoKmL > 0 ? opts.consumoKmL : consumoPadraoKmL(eixos)
+  const diesel = opts?.precoDiesel && opts.precoDiesel > 0 ? opts.precoDiesel : DIESEL_RS
+  const litros = km / kmL
+  const combustivel = roundMoney(litros * diesel)
   return {
     distancia_km: km,
     duracao_min: Math.round(duracaoMin),
@@ -146,6 +153,118 @@ export function estimarCustosRota(distanciaKm: number, eixos: number, duracaoMin
     pedagio_por_eixo: pedagioPorEixo,
     combustivel,
     custo_total: roundMoney(pedagio + combustivel),
+  }
+}
+
+export type PreferenciaRota = 'eficiente' | 'curta' | 'evitar_pedagio'
+
+/**
+ * Calculadora operacional do transportador (OSRM + praças ANTT).
+ * Puxa origem/destino da carga; permite eixos, consumo, diesel e ida/volta.
+ */
+export async function calcularRotaOperacional(params: {
+  origem: string
+  destino: string
+  eixos: number
+  consumoKmL?: number
+  precoDiesel?: number
+  idaEVolta?: boolean
+  preferencia?: PreferenciaRota
+  tabela?: TabelaAntt
+  categoriaId?: number | null
+}): Promise<{ ok: true; data: AnttCalculo } | { ok: false; erro: string }> {
+  const origemTxt = params.origem.trim()
+  const destinoTxt = params.destino.trim()
+  if (!origemTxt || !destinoTxt) {
+    return { ok: false, erro: 'Informe origem e destino.' }
+  }
+  const eixos = Math.max(2, Math.min(9, Math.round(params.eixos || 5)))
+
+  const [o, d] = await Promise.all([
+    geocodificarConsulta(origemTxt),
+    geocodificarConsulta(destinoTxt),
+  ])
+  if (!o.ok) return { ok: false, erro: `Origem: ${o.erro}` }
+  if (!d.ok) return { ok: false, erro: `Destino: ${d.erro}` }
+
+  const { rotaOsrmComGeometria, calcularPedagioNaRota } = await import('./anttPedagioAberto')
+  const evitar = params.preferencia === 'evitar_pedagio'
+  const rotaGeo = await rotaOsrmComGeometria(o.coords, d.coords, { evitarPedagios: evitar })
+  if (!rotaGeo) {
+    return { ok: false, erro: 'Não foi possível calcular a rota entre origem e destino.' }
+  }
+
+  const fator = params.idaEVolta ? 2 : 1
+  const distKm = rotaGeo.distanciaKm * fator
+  const durMin = rotaGeo.duracaoMin * fator
+
+  const tabela = params.tabela ?? 'A'
+  const { pisos, eixosUtilizados } = listarPisosAntt(tabela, eixos, distKm)
+  const rota = estimarCustosRota(distKm, eixosUtilizados, durMin, {
+    consumoKmL: params.consumoKmL,
+    precoDiesel: params.precoDiesel,
+  })
+
+  let pedFonte = 'estimativa por km'
+  try {
+    const ped = await calcularPedagioNaRota(rotaGeo.polyline, eixosUtilizados)
+    if (ped.pracas.length > 0 && !evitar) {
+      const pedIda = ped.pedagio
+      const pedVolta = params.idaEVolta ? pedIda : 0
+      rota.pedagio = roundMoney(pedIda + pedVolta)
+      rota.pedagio_por_eixo = roundMoney(rota.pedagio / Math.max(1, eixosUtilizados))
+      rota.vale_pedagio = rota.pedagio
+      rota.pracas = params.idaEVolta
+        ? [
+            ...ped.pracas.map((p) => ({ ...p, nome: `${p.nome} (ida)` })),
+            ...ped.pracas.map((p) => ({ ...p, nome: `${p.nome} (volta)` })),
+          ]
+        : ped.pracas
+      rota.free_flow = ped.free_flow
+      rota.custo_total = roundMoney(rota.pedagio + rota.combustivel)
+      rota.provedor = 'antt_aberto'
+      pedFonte = ped.fonte + (params.idaEVolta ? ' · ida e volta' : '')
+    } else if (evitar) {
+      rota.vale_pedagio = 0
+      rota.pedagio = 0
+      rota.pedagio_por_eixo = 0
+      rota.pracas = []
+      rota.custo_total = rota.combustivel
+      rota.provedor = 'local'
+      pedFonte = 'preferência evitar pedágios (OSRM exclude=toll) · pedágio zerado na estimativa'
+    } else {
+      rota.vale_pedagio = rota.pedagio
+      rota.provedor = 'local'
+      pedFonte =
+        'nenhuma praça ANTT cruzou a rota — pedágio estimado por km' +
+        (params.idaEVolta ? ' · ida e volta' : '')
+    }
+  } catch {
+    rota.vale_pedagio = rota.pedagio
+    rota.provedor = 'local'
+    pedFonte = 'falha ao carregar praças ANTT — pedágio estimado por km'
+  }
+
+  const cat =
+    params.categoriaId != null
+      ? CATEGORIAS_ANTT.find((c) => c.id === params.categoriaId) ?? null
+      : null
+  const pisoSel =
+    cat != null ? (pisos.find((p) => p.id === cat.id)?.valor ?? null) : null
+
+  return {
+    ok: true,
+    data: {
+      tabela,
+      eixos,
+      eixos_utilizados: eixosUtilizados,
+      categoria_id: cat?.id ?? null,
+      categoria_label: cat?.label ?? null,
+      pisos,
+      piso_selecionado: pisoSel,
+      rota,
+      fonte: `${ANTT_FONTE} · rota OSRM · ${pedFonte}`,
+    },
   }
 }
 

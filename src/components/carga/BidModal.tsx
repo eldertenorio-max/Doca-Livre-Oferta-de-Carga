@@ -15,6 +15,8 @@ interface BidModalProps {
   carga: Carga | null
   open: boolean
   onClose: () => void
+  /** Abre calculadora de rota com origem/destino da carga */
+  onCalcularRota?: () => void
 }
 
 /** Digitação livre em pt-BR; formata só no blur. */
@@ -27,7 +29,7 @@ function sanitizeMoneyTyping(raw: string): string {
   return s
 }
 
-export function BidModal({ carga, open, onClose }: BidModalProps) {
+export function BidModal({ carga, open, onClose, onCalcularRota }: BidModalProps) {
   const {
     cargas,
     enviarLance,
@@ -161,6 +163,18 @@ export function BidModal({ carga, open, onClose }: BidModalProps) {
             <Detail label="Veículo" value={live.veiculo} />
             <Detail label="Origem" value={live.origem} />
             <Detail label="Destino" value={live.destino} />
+            {onCalcularRota && (
+              <div className="sm:col-span-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="!border !border-ink/20 !bg-white !text-xs"
+                  onClick={onCalcularRota}
+                >
+                  Calcular rota · pedágio · combustível
+                </Button>
+              </div>
+            )}
             <Detail label="Peso" value={formatNumber(live.peso)} />
             <Detail label="Frete Tabela" value={formatCurrency(live.frete_tabela)} />
             <Detail label="Frete Oferta" value={formatCurrency(freteRef)} />

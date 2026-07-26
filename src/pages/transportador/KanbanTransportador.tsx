@@ -4,6 +4,7 @@ import { useData } from '../../context/DataContext'
 import { CargoCard } from '../../components/kanban/CargoCard'
 import { KanbanBoard } from '../../components/kanban/KanbanBoard'
 import { AllocateModal, BidModal } from '../../components/carga/BidModal'
+import { TransportadorRotaCalc } from '../../components/carga/TransportadorRotaCalc'
 import { DEMO_TRANSPORTADOR } from '../../lib/portalAuth'
 import { isSuperSession } from '../../lib/superUsers'
 import {
@@ -93,6 +94,7 @@ export function KanbanTransportador() {
   const [search, setSearch] = useState('')
   const [bidCarga, setBidCarga] = useState<Carga | null>(null)
   const [allocCarga, setAllocCarga] = useState<Carga | null>(null)
+  const [rotaCarga, setRotaCarga] = useState<Carga | null>(null)
 
   useEffect(() => {
     if (!viewAsId && defaultViewAs) setViewAsId(defaultViewAs)
@@ -279,6 +281,7 @@ export function KanbanTransportador() {
                           ? () => setAllocCarga(c)
                           : undefined
                       }
+                      onCalcularRota={() => setRotaCarga(c)}
                     />
                   ),
                 }
@@ -287,11 +290,27 @@ export function KanbanTransportador() {
         />
       </div>
 
-      <BidModal carga={bidCarga} open={!!bidCarga} onClose={() => setBidCarga(null)} />
+      <BidModal
+        carga={bidCarga}
+        open={!!bidCarga}
+        onClose={() => setBidCarga(null)}
+        onCalcularRota={
+          bidCarga
+            ? () => {
+                setRotaCarga(bidCarga)
+              }
+            : undefined
+        }
+      />
       <AllocateModal
         carga={allocCarga}
         open={!!allocCarga}
         onClose={() => setAllocCarga(null)}
+      />
+      <TransportadorRotaCalc
+        carga={rotaCarga}
+        open={!!rotaCarga}
+        onClose={() => setRotaCarga(null)}
       />
     </div>
   )

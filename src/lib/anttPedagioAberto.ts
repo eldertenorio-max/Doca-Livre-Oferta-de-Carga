@@ -231,16 +231,18 @@ export async function calcularPedagioNaRota(
 export async function rotaOsrmComGeometria(
   origem: { lat: number; lng: number },
   destino: { lat: number; lng: number },
+  opts?: { evitarPedagios?: boolean },
 ): Promise<{
   distanciaKm: number
   duracaoMin: number
   polyline: Array<{ lat: number; lng: number }>
 } | null> {
   try {
+    const exclude = opts?.evitarPedagios ? '&exclude=toll' : ''
     const url =
       `https://router.project-osrm.org/route/v1/driving/` +
       `${origem.lng},${origem.lat};${destino.lng},${destino.lat}` +
-      `?overview=full&geometries=geojson`
+      `?overview=full&geometries=geojson${exclude}`
     const res = await fetch(url)
     if (!res.ok) return null
     const data = (await res.json()) as {

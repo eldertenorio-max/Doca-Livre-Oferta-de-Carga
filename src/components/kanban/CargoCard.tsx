@@ -155,6 +155,30 @@ function IconMap() {
   )
 }
 
+function IconRouteCalc() {
+  return (
+    <svg viewBox="0 0 48 48" className="cargo-icon-svg" aria-hidden>
+      <defs>
+        <linearGradient id="routeCalc" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#fbbf24" />
+          <stop offset="100%" stopColor="#d97706" />
+        </linearGradient>
+      </defs>
+      <rect x="8" y="10" width="32" height="28" rx="4" fill="url(#routeCalc)" />
+      <path
+        d="M16 30c4-8 6-8 10-4s6 4 10-4"
+        fill="none"
+        stroke="#fffbeb"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      <circle cx="16" cy="30" r="2.5" fill="#fff" />
+      <circle cx="36" cy="22" r="2.5" fill="#fff" />
+      <path d="M20 16h12M20 20h8" stroke="#fffbeb" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function IconBan() {
   return (
     <svg viewBox="0 0 48 48" className="cargo-icon-svg" aria-hidden>
@@ -357,6 +381,8 @@ interface CargoCardProps {
   onDelete?: () => void
   /** Abrir mapa da frota a partir da origem da carga (embarcador) */
   onMapaFrota?: () => void
+  /** Transportador: calcular rota / pedágio / combustível a partir da carga */
+  onCalcularRota?: () => void
   bidValue?: number | null
   /** Ordem de chegada da proposta (1 = primeiro a ofertar). */
   bidPosition?: number | null
@@ -378,6 +404,7 @@ export function CargoCard({
   onAllocate,
   onDelete,
   onMapaFrota,
+  onCalcularRota,
   bidValue,
   bidPosition,
   bidCount,
@@ -537,6 +564,15 @@ export function CargoCard({
                 <IconMap />
               </IconBtn>
             )}
+            {onCalcularRota && (
+              <IconBtn
+                title="Calcular rota, pedágio e combustível"
+                tone="route"
+                onClick={onCalcularRota}
+              >
+                <IconRouteCalc />
+              </IconBtn>
+            )}
             {onRefuse && (
               <IconBtn title="Recusar" tone="ban" onClick={onRefuse}>
                 <IconBan />
@@ -591,7 +627,7 @@ export function CargoCard({
   )
 }
 
-type IconTone = 'view' | 'bid' | 'ban' | 'money' | 'msg' | 'truck' | 'map'
+type IconTone = 'view' | 'bid' | 'ban' | 'money' | 'msg' | 'truck' | 'map' | 'route'
 
 const TONE_CLASS: Record<IconTone, string> = {
   view: 'cargo-icon-btn--view',
@@ -601,6 +637,7 @@ const TONE_CLASS: Record<IconTone, string> = {
   msg: 'cargo-icon-btn--msg',
   truck: 'cargo-icon-btn--truck',
   map: 'cargo-icon-btn--map',
+  route: 'cargo-icon-btn--route',
 }
 
 function IconBtn({
