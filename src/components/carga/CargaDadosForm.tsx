@@ -11,6 +11,8 @@ import { Button, Field, inputClass } from '../ui/Modal'
 import { CnpjInput } from '../ui/CnpjInput'
 import { SuggestInput } from '../ui/SuggestInput'
 import { AddressSuggestInput } from '../ui/AddressSuggestInput'
+import { CarroceriaPicker } from '../ui/CarroceriaPicker'
+import { parseCarrocerias } from '../../lib/tiposCarroceria'
 
 type Props = {
   carga: Carga
@@ -67,6 +69,9 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
   const [pedido, setPedido] = useState(carga.pedido)
   const [tipoCarga, setTipoCarga] = useState(carga.tipo_carga)
   const [veiculo, setVeiculo] = useState(carga.veiculo)
+  const [carrocerias, setCarrocerias] = useState<string[]>(() =>
+    parseCarrocerias(carga.carrocerias),
+  )
   const [destinatario, setDestinatario] = useState(carga.destinatario)
   const [destinatarioCnpj, setDestinatarioCnpj] = useState(
     formatCnpj(carga.destinatario_cnpj || ''),
@@ -197,6 +202,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
     setPedido(carga.pedido)
     setTipoCarga(carga.tipo_carga)
     setVeiculo(carga.veiculo)
+    setCarrocerias(parseCarrocerias(carga.carrocerias))
     setDestinatario(carga.destinatario)
     setDestinatarioCnpj(formatCnpj(carga.destinatario_cnpj || ''))
     setPeso(formatMoneyInput(carga.peso || 0))
@@ -352,6 +358,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
       pedido: pedido.trim(),
       tipo_carga: tipoCarga.trim() || TIPOS_CARGA[0],
       veiculo: veiculo.trim(),
+      carrocerias,
       destinatario: destinatario.trim(),
       destinatario_cnpj: formatCnpj(destinatarioCnpj),
       peso: pesoNum,
@@ -379,6 +386,14 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
         <Row label="Destino" value={carga.destino || '—'} />
         <Row label="Tipo" value={carga.tipo_carga || '—'} />
         <Row label="Veículo" value={carga.veiculo || '—'} />
+        <Row
+          label="Carroceria"
+          value={
+            parseCarrocerias(carga.carrocerias).length
+              ? parseCarrocerias(carga.carrocerias).join(', ')
+              : '—'
+          }
+        />
         <Row label="Remetente" value={carga.remetente || '—'} />
         <Row label="CNPJ remetente" value={formatCnpj(carga.remetente_cnpj || '') || '—'} />
         <Row label="Destinatário" value={carga.destinatario || '—'} />
@@ -519,6 +534,9 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
               placeholder="HR, Fiorino, Van, Carreta, Truck…"
             />
           </Field>
+          <div className="sm:col-span-2">
+            <CarroceriaPicker value={carrocerias} onChange={setCarrocerias} />
+          </div>
           <Field label="Valor mercadorias (R$)">
             <SuggestInput
               value={valorMerc}

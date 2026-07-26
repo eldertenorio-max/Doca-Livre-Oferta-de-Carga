@@ -3375,6 +3375,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         ordem: `O/${69000 + Math.floor(Math.random() * 900)}-1`,
         tipo_carga: 'Carga seca',
         veiculo: '',
+        carrocerias: [],
         remetente: 'DOCA LIVRE OFERTA DE CARGA',
         remetente_cnpj: '67.620.377/0001-00',
         origem: '',

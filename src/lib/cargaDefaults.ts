@@ -1,3 +1,4 @@
+import { parseCarrocerias } from './tiposCarroceria'
 import type { Carga, HistoricoEvento, Profile, TipoHistorico } from '../types'
 
 export function normalizeCarga(c: Carga): Carga {
@@ -6,6 +7,11 @@ export function normalizeCarga(c: Carga): Carga {
     grupo_ids: Array.isArray(c.grupo_ids) ? c.grupo_ids : [],
     grupos_notificados: Array.isArray(c.grupos_notificados) ? c.grupos_notificados : [],
     recusado_por_ids: Array.isArray(c.recusado_por_ids) ? c.recusado_por_ids : [],
+    carrocerias: Array.isArray(c.carrocerias)
+      ? c.carrocerias
+      : parseCarrocerias(
+          (c as Carga & { tipo_carroceria?: string }).tipo_carroceria ?? undefined,
+        ),
     frete_minimo: c.frete_minimo ?? null,
     frete_maximo: c.frete_maximo ?? null,
     pausado_em: c.pausado_em ?? null,

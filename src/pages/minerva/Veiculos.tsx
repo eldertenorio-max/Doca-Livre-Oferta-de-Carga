@@ -15,12 +15,13 @@ import {
   normalizeFotosVeiculo,
 } from '../../lib/veiculoFotos'
 import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
+import { joinCarrocerias, parseCarrocerias } from '../../lib/tiposCarroceria'
 import { newVeiculoId } from '../../lib/veiculosSync'
+import { CarroceriaPicker } from '../../components/ui/CarroceriaPicker'
 import type { FotoVeiculoSlot, FotosVeiculo, Veiculo } from '../../types'
 import '../../styles/cadastro.css'
 
 const MARCAS = ['Volvo', 'Scania', 'Mercedes-Benz', 'Volkswagen', 'Iveco', 'Ford', 'Outra']
-const TIPOS_CARROCERIA = ['Baú', 'Sider', 'Graneleiro', 'Tanque', 'Container', 'Plataforma']
 const ACLIMATACAO = ['Seco', 'Refrigerado', 'Congelado']
 const UFS = [
   'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO',
@@ -633,19 +634,13 @@ export function VeiculosPage() {
           </header>
           <div className="form-card__body">
             <div className="form-fields form-fields--photo">
-              <Field label="Tipo de Carroceria">
-                <select
-                  value={form.tipo_carroceria ?? ''}
-                  onChange={(e) => set('tipo_carroceria', e.target.value)}
-                >
-                  <option value="">Selecione...</option>
-                  {TIPOS_CARROCERIA.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <CarroceriaPicker
+                  title=""
+                  value={parseCarrocerias(form.tipo_carroceria)}
+                  onChange={(list) => set('tipo_carroceria', joinCarrocerias(list))}
+                />
+              </div>
               <Field label="Quantidade de Pallets (Max 32)">
                 <input
                   type="number"

@@ -896,6 +896,14 @@ export function PublishPanel({
           <Detail label="Pedido" value={carga.pedido || '—'} />
           <Detail label="Tipo de Carga" value={carga.tipo_carga} />
           <Detail label="Veículo" value={carga.veiculo} />
+          <Detail
+            label="Carroceria"
+            value={
+              Array.isArray(carga.carrocerias) && carga.carrocerias.length
+                ? carga.carrocerias.join(', ')
+                : '—'
+            }
+          />
           <Detail label="Remetente" value={`${carga.remetente} — ${carga.remetente_cnpj}`} />
           <Detail label="Origem" value={carga.origem || '—'} />
           <Detail label="Destino" value={carga.destino || '—'} />

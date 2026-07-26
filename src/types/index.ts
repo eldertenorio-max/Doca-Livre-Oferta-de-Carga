@@ -214,6 +214,8 @@ export interface Carga {
   ordem: string
   tipo_carga: string
   veiculo: string
+  /** Tipos de carroceria aceitos (ex.: Baú, Sider). */
+  carrocerias?: string[]
   remetente: string
   remetente_cnpj: string
   origem: string
