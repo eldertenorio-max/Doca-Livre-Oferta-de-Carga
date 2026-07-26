@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useData } from '../../context/DataContext'
@@ -313,6 +314,9 @@ export function MapaFrotaPage() {
   const [raioGeoAtivo, setRaioGeoAtivo] = useState(true)
   const [origemRaio, setOrigemRaio] = useState<OrigemRaio | null>(null)
   const [clicarOrigem, setClicarOrigem] = useState(false)
+  const [searchParams] = useSearchParams()
+  const origemQuery = (searchParams.get('origem') || '').trim()
+  const origemQueryAplicadaRef = useRef('')
   const [enderecoOrigem, setEnderecoOrigem] = useState('')
   const [coordLat, setCoordLat] = useState('')
   const [coordLng, setCoordLng] = useState('')
@@ -437,17 +441,32 @@ export function MapaFrotaPage() {
     setRaioGeoAtivo(true)
   }
 
-  async function localizarPorEndereco() {
+  async function localizarPorEndereco(endereco?: string) {
+    const q = (endereco ?? enderecoOrigem).trim()
+    if (!q) {
+      setGeoErro('Informe um endereço de origem.')
+      return
+    }
     setGeoBusy(true)
     setGeoErro('')
-    const res = await geocodificarConsulta(enderecoOrigem)
+    const res = await geocodificarConsulta(q)
     setGeoBusy(false)
     if (!res.ok) {
       setGeoErro(res.erro)
       return
     }
-    definirOrigem(res.coords.lat, res.coords.lng, res.display || enderecoOrigem.trim())
+    definirOrigem(res.coords.lat, res.coords.lng, res.display || q)
   }
+
+  // Vindo do Kanban: ?origem=… → busca motoristas a partir do endereço da carga
+  useEffect(() => {
+    if (!origemQuery || origemQueryAplicadaRef.current === origemQuery) return
+    origemQueryAplicadaRef.current = origemQuery
+    setEnderecoOrigem(origemQuery)
+    setPesquisaAberta(true)
+    void localizarPorEndereco(origemQuery)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao mudar o query param
+  }, [origemQuery])
 
   function localizarPorCoordenadas() {
     setGeoErro('')

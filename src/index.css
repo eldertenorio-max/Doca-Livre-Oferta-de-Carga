@@ -255,3 +255,4 @@ textarea {
 .cargo-icon-btn--money:hover { background: linear-gradient(180deg, #fffbeb, #fde68a); }
 .cargo-icon-btn--msg:hover { background: linear-gradient(180deg, #fefce8, #fef08a); }
 .cargo-icon-btn--truck:hover { background: linear-gradient(180deg, #fefce8, #fde047); }
+.cargo-icon-btn--map:hover { background: linear-gradient(180deg, #ecfdf5, #a7f3d0); }

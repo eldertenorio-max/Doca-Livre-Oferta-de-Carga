@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Plus, Search } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
 import { CargoCard } from '../../components/kanban/CargoCard'
 import { KanbanBoard } from '../../components/kanban/KanbanBoard'
@@ -66,6 +67,7 @@ const COLUMNS: {
 ]
 
 export function KanbanMinerva() {
+  const navigate = useNavigate()
   const { cargas, lances, lancesDaCarga, criarCarga, moverCargaKanban } = useData()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Carga | null>(null)
@@ -105,6 +107,12 @@ export function KanbanMinerva() {
     setSelected(c)
     setInitialTab(tab ?? (isRascunhoNaoPublicado(c) ? 'dados' : 'publicar'))
     setPanelOpen(true)
+  }
+
+  function openMapaFrota(c: Carga) {
+    const origem = (c.origem || '').trim()
+    const qs = origem ? `?origem=${encodeURIComponent(origem)}` : ''
+    navigate(`/embarcador/mapa-frota${qs}`)
   }
 
   function showDragMsg(text: string) {
@@ -191,6 +199,7 @@ export function KanbanMinerva() {
                         }
                         onSelect={() => openPanel(c)}
                         onView={() => openPanel(c)}
+                        onMapaFrota={() => openMapaFrota(c)}
                       />
                     ),
                   })),

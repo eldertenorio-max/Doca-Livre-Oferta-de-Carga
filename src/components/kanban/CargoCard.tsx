@@ -124,6 +124,37 @@ function IconEye() {
   )
 }
 
+function IconMap() {
+  return (
+    <svg viewBox="0 0 48 48" className="cargo-icon-svg" aria-hidden>
+      <defs>
+        <linearGradient id="mapPin" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#34d399" />
+          <stop offset="55%" stopColor="#059669" />
+          <stop offset="100%" stopColor="#065f46" />
+        </linearGradient>
+        <linearGradient id="mapFold" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#bbf7d0" />
+          <stop offset="100%" stopColor="#6ee7b7" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M8 14l11-4 10 4 11-4v28l-11 4-10-4-11 4V14z"
+        fill="url(#mapFold)"
+        stroke="#047857"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path d="M19 10v28M29 14v28" stroke="#047857" strokeWidth="1.2" opacity="0.45" />
+      <path
+        d="M24 16c-3.6 0-6.5 2.7-6.5 6.1 0 4.6 6.5 11.4 6.5 11.4s6.5-6.8 6.5-11.4C30.5 18.7 27.6 16 24 16z"
+        fill="url(#mapPin)"
+      />
+      <circle cx="24" cy="22" r="2.4" fill="#ecfdf5" />
+    </svg>
+  )
+}
+
 function IconBan() {
   return (
     <svg viewBox="0 0 48 48" className="cargo-icon-svg" aria-hidden>
@@ -324,6 +355,8 @@ interface CargoCardProps {
   onAllocate?: () => void
   /** Excluir rascunho não publicado (Minerva) */
   onDelete?: () => void
+  /** Abrir mapa da frota a partir da origem da carga (embarcador) */
+  onMapaFrota?: () => void
   bidValue?: number | null
   /** Ordem de chegada da proposta (1 = primeiro a ofertar). */
   bidPosition?: number | null
@@ -344,6 +377,7 @@ export function CargoCard({
   onRefuse,
   onAllocate,
   onDelete,
+  onMapaFrota,
   bidValue,
   bidPosition,
   bidCount,
@@ -494,6 +528,15 @@ export function CargoCard({
                 <IconEye />
               </IconBtn>
             )}
+            {onMapaFrota && (
+              <IconBtn
+                title="Procurar motorista no mapa de frota"
+                tone="map"
+                onClick={onMapaFrota}
+              >
+                <IconMap />
+              </IconBtn>
+            )}
             {onRefuse && (
               <IconBtn title="Recusar" tone="ban" onClick={onRefuse}>
                 <IconBan />
@@ -548,7 +591,7 @@ export function CargoCard({
   )
 }
 
-type IconTone = 'view' | 'bid' | 'ban' | 'money' | 'msg' | 'truck'
+type IconTone = 'view' | 'bid' | 'ban' | 'money' | 'msg' | 'truck' | 'map'
 
 const TONE_CLASS: Record<IconTone, string> = {
   view: 'cargo-icon-btn--view',
@@ -557,6 +600,7 @@ const TONE_CLASS: Record<IconTone, string> = {
   money: 'cargo-icon-btn--money',
   msg: 'cargo-icon-btn--msg',
   truck: 'cargo-icon-btn--truck',
+  map: 'cargo-icon-btn--map',
 }
 
 function IconBtn({
