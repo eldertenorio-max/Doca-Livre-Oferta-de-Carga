@@ -140,10 +140,16 @@ export async function geocodificarEndereco(
 }
 
 export type SugestaoEndereco = {
+  /** Texto completo para preencher o campo (estilo Google Maps). */
   label: string
+  /** Linha principal (rua / lugar). */
+  primary: string
+  /** Linha secundária (bairro, cidade, estado). */
+  secondary: string
   display: string
   lat: number
   lng: number
+  housenumber?: string
 }
 
 type NominatimHit = {
@@ -153,8 +159,10 @@ type NominatimHit = {
   address?: {
     road?: string
     pedestrian?: string
+    house_number?: string
     suburb?: string
     neighbourhood?: string
+    city_district?: string
     city?: string
     town?: string
     village?: string
@@ -164,68 +172,238 @@ type NominatimHit = {
   }
 }
 
-function formatarSugestaoNominatim(hit: NominatimHit): string {
-  const a = hit.address
-  if (!a) return (hit.display_name || '').trim()
-  const rua = (a.road || a.pedestrian || '').trim()
-  const bairro = (a.suburb || a.neighbourhood || '').trim()
-  const cidade = (a.city || a.town || a.village || a.municipality || '').trim()
-  const uf = (a.state || '')
+type PhotonProps = {
+  name?: string
+  street?: string
+  housenumber?: string
+  district?: string
+  suburb?: string
+  neighbourhood?: string
+  city?: string
+  town?: string
+  county?: string
+  state?: string
+  country?: string
+  postcode?: string
+  type?: string
+  osm_value?: string
+}
+
+type PhotonFeature = {
+  geometry?: { coordinates?: [number, number] }
+  properties?: PhotonProps
+}
+
+/** Extrai número no fim da digitação (ex.: "… ramalho 907"). */
+export function extrairNumeroDigitado(consulta: string): string | undefined {
+  const m = consulta.trim().match(/(?:^|\s)(\d{1,6}[A-Za-z/\-]?)(?:\s*)$/)
+  return m?.[1]
+}
+
+function limparEstado(uf: string): string {
+  return uf
     .replace(/^Estado d[eoas]\s+/i, '')
     .replace(/^State of\s+/i, '')
     .trim()
-  // UFs longas → tenta manter só a parte útil; se vier nome do estado, usa como está
-  const partes = [rua, bairro, cidade, uf].filter(Boolean)
-  if (partes.length >= 2) return partes.join(', ')
-  return (hit.display_name || '').trim()
+}
+
+function montarLabelMaps(parts: {
+  rua: string
+  numero?: string
+  bairro?: string
+  cidade?: string
+  estado?: string
+}): { label: string; primary: string; secondary: string } {
+  const rua = parts.rua.trim()
+  const numero = (parts.numero || '').trim()
+  const primary = numero && rua ? `${rua}, ${numero}` : rua || numero
+  const secondary = [parts.bairro, parts.cidade, parts.estado]
+    .map((p) => (p || '').trim())
+    .filter(Boolean)
+    .join(', ')
+  const label = [primary, secondary].filter(Boolean).join(', ')
+  return { label, primary, secondary }
 }
 
 /**
- * Sugestões de endereço (estilo Maps) via Nominatim / OpenStreetMap.
- * Debounce no componente que chama (máx. ~1 req/s).
+ * Se o usuário digitou número e a sugestão é só a rua, inclui o número no preenchimento
+ * (comportamento típico do Google Maps).
+ */
+export function aplicarNumeroDigitado(
+  sugestao: SugestaoEndereco,
+  consulta: string,
+): string {
+  if (sugestao.housenumber) return sugestao.label
+  const num = extrairNumeroDigitado(consulta)
+  if (!num) return sugestao.label
+  if (new RegExp(`\\b${num.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(sugestao.label)) {
+    return sugestao.label
+  }
+  const primary = sugestao.primary.includes(',')
+    ? sugestao.primary
+    : `${sugestao.primary}, ${num}`
+  return [primary, sugestao.secondary].filter(Boolean).join(', ')
+}
+
+function formatarSugestaoNominatim(hit: NominatimHit): SugestaoEndereco | null {
+  const a = hit.address
+  const lat = hit?.lat != null ? Number(hit.lat) : NaN
+  const lng = hit?.lon != null ? Number(hit.lon) : NaN
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+
+  if (!a) {
+    const display = (hit.display_name || '').trim()
+    if (!display) return null
+    return {
+      label: display,
+      primary: display.split(',')[0]?.trim() || display,
+      secondary: display.split(',').slice(1).map((s) => s.trim()).join(', '),
+      display,
+      lat,
+      lng,
+    }
+  }
+
+  const rua = (a.road || a.pedestrian || '').trim()
+  const numero = (a.house_number || '').trim()
+  const bairro = (a.suburb || a.neighbourhood || a.city_district || '').trim()
+  const cidade = (a.city || a.town || a.village || a.municipality || '').trim()
+  const estado = limparEstado(a.state || '')
+  const { label, primary, secondary } = montarLabelMaps({
+    rua: rua || cidade,
+    numero,
+    bairro,
+    cidade: rua ? cidade : undefined,
+    estado,
+  })
+  if (!label) return null
+  return {
+    label,
+    primary,
+    secondary,
+    display: (hit.display_name || label).trim(),
+    lat,
+    lng,
+    housenumber: numero || undefined,
+  }
+}
+
+function formatarSugestaoPhoton(f: PhotonFeature): SugestaoEndereco | null {
+  const p = f.properties
+  const coords = f.geometry?.coordinates
+  if (!p || !coords) return null
+  const [lng, lat] = coords
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+
+  // Só Brasil (Photon não tem countrycodes como o Nominatim)
+  const country = (p.country || '').toLowerCase()
+  if (country && !country.includes('brasil') && !country.includes('brazil')) return null
+
+  const rua = (p.name || p.street || '').trim()
+  const numero = (p.housenumber || '').trim()
+  const bairro = (p.district || p.suburb || p.neighbourhood || '').trim()
+  const cidade = (p.city || p.town || p.county || '').trim()
+  const estado = limparEstado(p.state || '')
+  if (!rua && !cidade) return null
+
+  const { label, primary, secondary } = montarLabelMaps({
+    rua: rua || cidade,
+    numero,
+    bairro,
+    cidade: rua ? cidade : undefined,
+    estado,
+  })
+  if (!label) return null
+  return {
+    label,
+    primary,
+    secondary,
+    display: label,
+    lat,
+    lng,
+    housenumber: numero || undefined,
+  }
+}
+
+/** Photon (Komoot): search-as-you-type, tolerante a typos — estilo Google Maps. */
+async function sugerirEnderecosPhoton(
+  consulta: string,
+  limit: number,
+): Promise<SugestaoEndereco[]> {
+  const url = new URL('https://photon.komoot.io/api/')
+  url.searchParams.set('q', consulta)
+  url.searchParams.set('limit', String(Math.min(12, Math.max(1, limit))))
+  // Bounding box aproximado do Brasil + viés na Grande SP
+  url.searchParams.set('bbox', '-74,-34,-34,6')
+  url.searchParams.set('lat', '-23.55')
+  url.searchParams.set('lon', '-46.63')
+  url.searchParams.set('location_bias_scale', '0.4')
+
+  const res = await fetch(url.toString(), { headers: { Accept: 'application/json' } })
+  if (!res.ok) return []
+  const data = (await res.json()) as { features?: PhotonFeature[] }
+  const out: SugestaoEndereco[] = []
+  const seen = new Set<string>()
+  for (const f of data.features || []) {
+    const sug = formatarSugestaoPhoton(f)
+    if (!sug) continue
+    const key = sug.label.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(sug)
+    if (out.length >= limit) break
+  }
+  return out
+}
+
+async function sugerirEnderecosNominatim(
+  consulta: string,
+  limit: number,
+): Promise<SugestaoEndereco[]> {
+  const url = new URL('https://nominatim.openstreetmap.org/search')
+  url.searchParams.set('format', 'json')
+  url.searchParams.set('addressdetails', '1')
+  url.searchParams.set('limit', String(Math.min(12, Math.max(1, limit))))
+  url.searchParams.set('countrycodes', 'br')
+  url.searchParams.set('q', consulta.includes('Brasil') ? consulta : `${consulta}, Brasil`)
+
+  const res = await fetch(url.toString(), { headers: { Accept: 'application/json' } })
+  if (!res.ok) return []
+  const rows = (await res.json()) as NominatimHit[]
+  const out: SugestaoEndereco[] = []
+  const seen = new Set<string>()
+  for (const hit of rows) {
+    const sug = formatarSugestaoNominatim(hit)
+    if (!sug) continue
+    const key = sug.label.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(sug)
+    if (out.length >= limit) break
+  }
+  return out
+}
+
+/**
+ * Sugestões de endereço estilo Google Maps (Photon, fallback Nominatim).
+ * Debounce no componente que chama.
  */
 export async function sugerirEnderecos(
   consulta: string,
   limit = 8,
 ): Promise<SugestaoEndereco[]> {
   const q = consulta.trim()
-  if (q.length < 3) return []
+  if (q.length < 2) return []
 
   try {
-    const url = new URL('https://nominatim.openstreetmap.org/search')
-    url.searchParams.set('format', 'json')
-    url.searchParams.set('addressdetails', '1')
-    url.searchParams.set('limit', String(Math.min(12, Math.max(1, limit))))
-    url.searchParams.set('countrycodes', 'br')
-    url.searchParams.set('q', q.includes('Brasil') ? q : `${q}, Brasil`)
+    const photon = await sugerirEnderecosPhoton(q, limit)
+    if (photon.length > 0) return photon
+  } catch {
+    /* tenta Nominatim */
+  }
 
-    const res = await fetch(url.toString(), {
-      headers: {
-        Accept: 'application/json',
-      },
-    })
-    if (!res.ok) return []
-    const rows = (await res.json()) as NominatimHit[]
-    const out: SugestaoEndereco[] = []
-    const seen = new Set<string>()
-    for (const hit of rows) {
-      const lat = hit?.lat != null ? Number(hit.lat) : NaN
-      const lng = hit?.lon != null ? Number(hit.lon) : NaN
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
-      const label = formatarSugestaoNominatim(hit)
-      if (!label) continue
-      const key = label.toLowerCase()
-      if (seen.has(key)) continue
-      seen.add(key)
-      out.push({
-        label,
-        display: (hit.display_name || label).trim(),
-        lat,
-        lng,
-      })
-      if (out.length >= limit) break
-    }
-    return out
+  try {
+    return await sugerirEnderecosNominatim(q, limit)
   } catch {
     return []
   }

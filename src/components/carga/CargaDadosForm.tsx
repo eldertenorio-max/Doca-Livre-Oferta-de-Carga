@@ -496,8 +496,8 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
               value={origem}
               onChange={setOrigem}
               localSuggestions={sugOrigem}
-              minChars={3}
-              placeholder="Digite o endereço (ex.: Avenida Faustino)"
+              minChars={2}
+              placeholder="Digite o endereço como no Google Maps"
             />
           </Field>
           <Field label="Destino *">
@@ -505,8 +505,8 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish }: Props) 
               value={destino}
               onChange={setDestino}
               localSuggestions={sugDestino}
-              minChars={3}
-              placeholder="Digite o endereço de destino"
+              minChars={2}
+              placeholder="Digite o endereço como no Google Maps"
             />
           </Field>
           <div>

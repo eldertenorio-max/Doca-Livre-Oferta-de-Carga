@@ -1,11 +1,15 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { sugerirEnderecos } from '../../lib/geocodeEndereco'
+import {
+  aplicarNumeroDigitado,
+  sugerirEnderecos,
+  type SugestaoEndereco,
+} from '../../lib/geocodeEndereco'
 import { inputClass } from './Modal'
 
 type Props = {
   value: string
   onChange: (value: string) => void
-  /** Sugestões locais extras (cidades, histórico) — aparecem junto com o Maps. */
+  /** Sugestões locais extras (histórico) — só se a busca remota estiver vazia. */
   localSuggestions?: (query: string) => string[]
   placeholder?: string
   disabled?: boolean
@@ -15,7 +19,7 @@ type Props = {
 }
 
 /**
- * Campo de endereço com sugestões estilo Maps (Nominatim) + lista local opcional.
+ * Campo de endereço com autocomplete estilo Google Maps (Photon / OSM).
  */
 export function AddressSuggestInput({
   value,
@@ -24,7 +28,7 @@ export function AddressSuggestInput({
   placeholder,
   disabled,
   className,
-  minChars = 3,
+  minChars = 2,
   onBlur,
 }: Props) {
   const listId = useId()
@@ -32,29 +36,33 @@ export function AddressSuggestInput({
   const reqId = useRef(0)
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
-  const [remote, setRemote] = useState<string[]>([])
+  const [remote, setRemote] = useState<SugestaoEndereco[]>([])
   const [loading, setLoading] = useState(false)
 
   const locais =
-    open && value.trim().length >= Math.min(2, minChars) && localSuggestions
-      ? localSuggestions(value)
+    open && remote.length === 0 && value.trim().length >= minChars && localSuggestions
+      ? localSuggestions(value).slice(0, 6)
       : []
 
-  // Remotas primeiro (endereço completo); locais preenchem o restante sem duplicar
-  const options: string[] = []
-  const seen = new Set<string>()
-  for (const s of [...remote, ...locais]) {
-    const k = s.trim().toLowerCase()
-    if (!k || seen.has(k)) continue
-    seen.add(k)
-    options.push(s)
-    if (options.length >= 12) break
-  }
+  const options: Array<{ key: string; label: string; primary: string; secondary: string }> = [
+    ...remote.map((r) => ({
+      key: `r-${r.label}`,
+      label: r.label,
+      primary: r.primary,
+      secondary: r.secondary,
+    })),
+    ...locais.map((s) => ({
+      key: `l-${s}`,
+      label: s,
+      primary: s,
+      secondary: '',
+    })),
+  ]
 
   const show =
     open &&
     !disabled &&
-    value.trim().length >= Math.min(2, minChars) &&
+    value.trim().length >= minChars &&
     (options.length > 0 || loading)
 
   useEffect(() => {
@@ -69,7 +77,7 @@ export function AddressSuggestInput({
     return () => document.removeEventListener('mousedown', onDoc)
   }, [])
 
-  // Debounce da busca no Nominatim
+  // Debounce curto (estilo Maps)
   useEffect(() => {
     const q = value.trim()
     if (!open || disabled || q.length < minChars) {
@@ -82,17 +90,22 @@ export function AddressSuggestInput({
     const t = window.setTimeout(() => {
       void sugerirEnderecos(q, 8).then((hits) => {
         if (id !== reqId.current) return
-        setRemote(hits.map((h) => h.label))
+        setRemote(hits)
         setLoading(false)
       })
-    }, 380)
+    }, 220)
     return () => {
       window.clearTimeout(t)
     }
   }, [value, open, disabled, minChars])
 
-  function pick(opt: string) {
-    onChange(opt)
+  function pick(opt: { label: string }, index: number) {
+    const rem = remote[index]
+    if (rem && options[index]?.key.startsWith('r-')) {
+      onChange(aplicarNumeroDigitado(rem, value))
+    } else {
+      onChange(opt.label)
+    }
     setOpen(false)
   }
 
@@ -104,14 +117,12 @@ export function AddressSuggestInput({
         disabled={disabled}
         placeholder={placeholder}
         autoComplete="off"
+        spellCheck={false}
         role="combobox"
         aria-expanded={show}
         aria-controls={listId}
         aria-autocomplete="list"
-        onFocus={(e) => {
-          setOpen(true)
-          e.currentTarget.select()
-        }}
+        onFocus={() => setOpen(true)}
         onChange={(e) => {
           onChange(e.target.value)
           setOpen(true)
@@ -127,7 +138,7 @@ export function AddressSuggestInput({
             setActive((i) => Math.max(i - 1, 0))
           } else if (e.key === 'Enter' && options[active]) {
             e.preventDefault()
-            pick(options[active])
+            pick(options[active], active)
           } else if (e.key === 'Escape') {
             setOpen(false)
           }
@@ -137,23 +148,26 @@ export function AddressSuggestInput({
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-40 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-ink/15 bg-white py-1 shadow-lg"
+          className="absolute z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-ink/15 bg-white py-1 shadow-lg"
         >
           {loading && options.length === 0 && (
             <li className="px-3 py-2 text-[11px] text-ink-muted">Buscando endereços…</li>
           )}
           {options.map((opt, i) => (
-            <li key={`${opt}-${i}`} role="option" aria-selected={i === active}>
+            <li key={`${opt.key}-${i}`} role="option" aria-selected={i === active}>
               <button
                 type="button"
-                className={`block w-full px-3 py-1.5 text-left text-xs ${
-                  i === active ? 'bg-brand/10 font-semibold text-ink' : 'text-ink hover:bg-sand-light'
+                className={`block w-full px-3 py-2 text-left ${
+                  i === active ? 'bg-brand/10' : 'hover:bg-sand-light'
                 }`}
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => pick(opt)}
+                onClick={() => pick(opt, i)}
                 onMouseEnter={() => setActive(i)}
               >
-                {opt}
+                <span className="block text-sm font-medium text-ink">{opt.primary}</span>
+                {opt.secondary ? (
+                  <span className="mt-0.5 block text-[11px] text-ink-muted">{opt.secondary}</span>
+                ) : null}
               </button>
             </li>
           ))}

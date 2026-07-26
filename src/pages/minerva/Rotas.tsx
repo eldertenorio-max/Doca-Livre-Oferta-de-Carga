@@ -153,8 +153,8 @@ export function RotasPage() {
               value={form.origem ?? ''}
               onChange={(origem) => setForm({ ...form, origem })}
               localSuggestions={sugOrigem}
-              minChars={3}
-              placeholder="Digite o endereço (ex.: Avenida Faustino)"
+              minChars={2}
+              placeholder="Digite o endereço como no Google Maps"
             />
           </Field>
           <Field label="Destino">
@@ -162,8 +162,8 @@ export function RotasPage() {
               value={form.destino ?? ''}
               onChange={(destino) => setForm({ ...form, destino })}
               localSuggestions={sugDestino}
-              minChars={3}
-              placeholder="Digite o endereço de destino"
+              minChars={2}
+              placeholder="Digite o endereço como no Google Maps"
             />
           </Field>
           <Field label="Frete Tabela">
