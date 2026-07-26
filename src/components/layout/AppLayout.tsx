@@ -468,7 +468,7 @@ export function AppLayout() {
                   strokeLinejoin="round"
                 />
               </svg>
-              {unread > 0 && <span className="app-topbar-notif-badge">{unread > 9 ? '9+' : unread}</span>}
+              {unread > 0 && <span className="app-topbar-notif-badge">{unread > 99 ? '99+' : unread}</span>}
             </button>
             {notifOpen && (
               <div className="app-topbar-notif-panel" role="dialog" aria-label="Lista de notificações">

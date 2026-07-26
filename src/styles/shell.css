@@ -509,9 +509,9 @@
   position: absolute;
   top: -4px;
   right: -4px;
-  min-width: 16px;
+  min-width: 18px;
   height: 16px;
-  padding: 0 4px;
+  padding: 0 5px;
   border-radius: 999px;
   background: #c62828;
   color: #fff;
@@ -519,6 +519,7 @@
   font-weight: 700;
   line-height: 16px;
   text-align: center;
+  white-space: nowrap;
 }
 
 .app-topbar-notif-panel {
