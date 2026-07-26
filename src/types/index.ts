@@ -232,8 +232,7 @@ export interface AnttInfoCarga {
       free_flow?: boolean
     }[]
     free_flow?: boolean
-    link_qualp?: string
-    provedor?: 'qualp' | 'local'
+    provedor?: 'antt_aberto' | 'local'
   }
   fonte: string
 }

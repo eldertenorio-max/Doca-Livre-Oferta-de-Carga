@@ -36,8 +36,7 @@ export type AnttRotaCustos = {
   vale_pedagio?: number
   pracas?: AnttPracaPedagio[]
   free_flow?: boolean
-  link_qualp?: string
-  provedor?: 'qualp' | 'local'
+  provedor?: 'antt_aberto' | 'local'
 }
 
 export type AnttCalculo = {
@@ -150,33 +149,11 @@ export function estimarCustosRota(distanciaKm: number, eixos: number, duracaoMin
   }
 }
 
-async function rotaOsrm(
-  origem: { lat: number; lng: number },
-  destino: { lat: number; lng: number },
-): Promise<{ distanciaKm: number; duracaoMin: number } | null> {
-  try {
-    const url =
-      `https://router.project-osrm.org/route/v1/driving/` +
-      `${origem.lng},${origem.lat};${destino.lng},${destino.lat}` +
-      `?overview=false`
-    const res = await fetch(url)
-    if (!res.ok) return null
-    const data = (await res.json()) as {
-      routes?: Array<{ distance?: number; duration?: number }>
-    }
-    const r = data.routes?.[0]
-    if (!r?.distance || !r.duration) return null
-    return {
-      distanciaKm: r.distance / 1000,
-      duracaoMin: r.duration / 60,
-    }
-  } catch {
-    return null
-  }
-}
-
 /**
- * Calcula rota (OSRM) + pisos ANTT para todas as categorias.
+ * Cálculo gratuito e automático:
+ * - Rota: OSRM (OpenStreetMap)
+ * - Pisos: coeficientes oficiais Res. ANTT 6.084/2026
+ * - Pedágio / Vale-Pedágio: praças dos Dados Abertos ANTT na rota
  */
 export async function calcularAnttCompleto(params: {
   origem: string
@@ -195,18 +172,6 @@ export async function calcularAnttCompleto(params: {
     return { ok: false, erro: 'Selecione o tipo de veículo para definir os eixos.' }
   }
 
-  // 1) QualP automático (pedágio real, Free Flow/OCR, combustível, tabela frete)
-  try {
-    const { calcularViaQualp, qualpDisponivel } = await import('./qualpApi')
-    if (qualpDisponivel()) {
-      const q = await calcularViaQualp(params)
-      if (q.ok) return q
-    }
-  } catch {
-    /* fallback local */
-  }
-
-  // 2) Fallback: geocode + OSRM + coeficientes ANTT locais
   const [o, d] = await Promise.all([
     geocodificarConsulta(origemTxt),
     geocodificarConsulta(destinoTxt),
@@ -214,7 +179,8 @@ export async function calcularAnttCompleto(params: {
   if (!o.ok) return { ok: false, erro: `Origem: ${o.erro}` }
   if (!d.ok) return { ok: false, erro: `Destino: ${d.erro}` }
 
-  const rotaGeo = await rotaOsrm(o.coords, d.coords)
+  const { rotaOsrmComGeometria, calcularPedagioNaRota } = await import('./anttPedagioAberto')
+  const rotaGeo = await rotaOsrmComGeometria(o.coords, d.coords)
   if (!rotaGeo) {
     return { ok: false, erro: 'Não foi possível calcular a rota entre origem e destino.' }
   }
@@ -225,9 +191,32 @@ export async function calcularAnttCompleto(params: {
     eixos,
     rotaGeo.distanciaKm,
   )
+
   const rota = estimarCustosRota(rotaGeo.distanciaKm, eixosUtilizados, rotaGeo.duracaoMin)
-  rota.vale_pedagio = rota.pedagio
-  rota.provedor = 'local'
+
+  let pedFonte = 'estimativa por km'
+  try {
+    const ped = await calcularPedagioNaRota(rotaGeo.polyline, eixosUtilizados)
+    if (ped.pracas.length > 0) {
+      rota.pedagio = ped.pedagio
+      rota.pedagio_por_eixo = ped.pedagio_por_eixo
+      rota.vale_pedagio = ped.vale_pedagio
+      rota.pracas = ped.pracas
+      rota.free_flow = ped.free_flow
+      rota.custo_total = roundMoney(rota.pedagio + rota.combustivel)
+      rota.provedor = 'antt_aberto'
+      pedFonte = ped.fonte
+    } else {
+      rota.vale_pedagio = rota.pedagio
+      rota.provedor = 'local'
+      pedFonte =
+        'nenhuma praça ANTT cruzou a rota — pedágio estimado por km (estaduais/municipais podem não estar na base federal)'
+    }
+  } catch {
+    rota.vale_pedagio = rota.pedagio
+    rota.provedor = 'local'
+    pedFonte = 'falha ao carregar praças ANTT — pedágio estimado por km'
+  }
 
   const cat =
     params.categoriaId != null
@@ -247,7 +236,7 @@ export async function calcularAnttCompleto(params: {
       pisos,
       piso_selecionado: pisoSel,
       rota,
-      fonte: `${ANTT_FONTE} (rota OSRM · pedágio estimado — configure QualP para pedágio real)`,
+      fonte: `${ANTT_FONTE} · rota OSRM · ${pedFonte}`,
     },
   }
 }

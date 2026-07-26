@@ -958,17 +958,8 @@ export function PublishPanel({
               {carga.antt.rota.free_flow && (
                 <Detail label="Free Flow / OCR" value="Sim (praças na rota)" />
               )}
-              {carga.antt.rota.link_qualp && (
-                <p className="pt-1">
-                  <a
-                    href={carga.antt.rota.link_qualp}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs font-semibold text-brand underline"
-                  >
-                    Ver na QualP
-                  </a>
-                </p>
+              {carga.antt.rota.provedor === 'antt_aberto' && (
+                <Detail label="Fonte pedágio" value="Dados Abertos ANTT" />
               )}
             </div>
           )}

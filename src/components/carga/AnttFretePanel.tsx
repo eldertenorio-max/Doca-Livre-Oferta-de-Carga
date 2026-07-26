@@ -7,7 +7,6 @@ import {
   type AnttCalculo,
   type TabelaAntt,
 } from '../../lib/anttFrete'
-import { qualpDisponivel } from '../../lib/qualpApi'
 import type { AnttInfoCarga } from '../../types'
 import { Button, Field, inputClass } from '../ui/Modal'
 
@@ -24,12 +23,10 @@ export function AnttFretePanel({ origem, destino, veiculo, value, onChange }: Pr
   const [categoriaId, setCategoriaId] = useState<number | ''>(value?.categoria_id ?? '')
   const [busy, setBusy] = useState(false)
   const [erro, setErro] = useState('')
-  const [aviso, setAviso] = useState('')
   const [calc, setCalc] = useState<AnttCalculo | null>(value ? fromSaved(value) : null)
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
   const reqId = useRef(0)
-  const temQualp = qualpDisponivel()
 
   useEffect(() => {
     if (value) {
@@ -39,11 +36,10 @@ export function AnttFretePanel({ origem, destino, veiculo, value, onChange }: Pr
     }
   }, [value])
 
-  async function calcular(catId: number | '' = categoriaId, opts?: { silent?: boolean }) {
+  async function calcular(catId: number | '' = categoriaId) {
     const id = ++reqId.current
     setBusy(true)
-    if (!opts?.silent) setErro('')
-    setAviso('')
+    setErro('')
     const res = await calcularAnttCompleto({
       origem,
       destino,
@@ -57,11 +53,6 @@ export function AnttFretePanel({ origem, destino, veiculo, value, onChange }: Pr
       setErro(res.erro)
       return
     }
-    if (res.data.rota.provedor === 'local' && !temQualp) {
-      setAviso(
-        'Sem token QualP: pedágio é estimado. Configure VITE_QUALP_ACCESS_TOKEN para pedágio real (Free Flow/OCR), como no portal QualP.',
-      )
-    }
     setCalc(res.data)
     const info = toSaved(res.data)
     const frete =
@@ -69,17 +60,17 @@ export function AnttFretePanel({ origem, destino, veiculo, value, onChange }: Pr
     onChangeRef.current(info, frete)
   }
 
-  // Automático ao mudar origem / destino / veículo / tabela (estilo QualP)
+  // Automático ao mudar origem / destino / veículo / tabela
   useEffect(() => {
     const o = origem.trim()
     const d = destino.trim()
     const v = veiculo.trim()
     if (o.length < 5 || d.length < 5 || !v) return
     const t = window.setTimeout(() => {
-      void calcular(categoriaId, { silent: true })
+      void calcular(categoriaId)
     }, 900)
     return () => window.clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- debounce só nestes campos
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [origem, destino, veiculo, tabela])
 
   function selecionarCategoria(id: number) {
@@ -107,19 +98,19 @@ export function AnttFretePanel({ origem, destino, veiculo, value, onChange }: Pr
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
-            Frete ANTT + rota
+            Frete ANTT + rota (gratuito)
           </h3>
           <p className="text-[11px] text-ink-muted">
-            Cálculo automático (origem → destino → veículo), no estilo{' '}
+            Automático: rota OSRM · pisos Res. 6.084/2026 · pedágio pelas{' '}
             <a
-              href="https://qualp.com.br/#/"
+              href="https://dados.antt.gov.br/dataset/praca-de-pedagio"
               target="_blank"
               rel="noreferrer"
               className="font-semibold text-brand underline"
             >
-              QualP
-            </a>
-            . Pisos Res. 6.084/2026 · Vale-Pedágio Res. 6.024/2023 · RNTRC do transportador.
+              praças dos Dados Abertos ANTT
+            </a>{' '}
+            · Vale-Pedágio Res. 6.024/2023 · RNTRC do transportador.
           </p>
         </div>
         <Button
@@ -183,11 +174,6 @@ export function AnttFretePanel({ origem, destino, veiculo, value, onChange }: Pr
           {erro}
         </p>
       )}
-      {aviso && (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-950">
-          {aviso}
-        </p>
-      )}
 
       {calc && (
         <div className="grid gap-3 lg:grid-cols-2">
@@ -239,32 +225,21 @@ export function AnttFretePanel({ origem, destino, veiculo, value, onChange }: Pr
                 </div>
                 <p className="mt-2 text-[10px] text-ink-muted">
                   Eixos: {calc.eixos_utilizados}
-                  {rota.provedor === 'qualp' ? ' · QualP' : ' · local'}
-                  {rota.free_flow ? ' · inclui Free Flow/OCR' : ''}
+                  {rota.provedor === 'antt_aberto' ? ' · praças ANTT na rota' : ' · pedágio estimado'}
+                  {rota.free_flow ? ' · Free Flow/OCR na base' : ''}
                   {calc.piso_selecionado != null && (
                     <>
                       {' '}
-                      · Piso:{' '}
-                      <strong>{formatCurrency(calc.piso_selecionado)}</strong>
+                      · Piso: <strong>{formatCurrency(calc.piso_selecionado)}</strong>
                     </>
                   )}
                 </p>
-                {rota.link_qualp && (
-                  <a
-                    href={rota.link_qualp}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-1 inline-block text-[11px] font-semibold text-brand underline"
-                  >
-                    Abrir rota na QualP
-                  </a>
-                )}
               </div>
 
               {pracas.length > 0 && (
                 <div className="max-h-40 overflow-y-auto rounded-lg border border-ink/10 bg-white px-3 py-2">
                   <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-ink-muted">
-                    Praças de pedágio
+                    Praças na rota ({pracas.length})
                   </p>
                   <ul className="space-y-1 text-[11px]">
                     {pracas.map((p, i) => (
@@ -286,8 +261,7 @@ export function AnttFretePanel({ origem, destino, veiculo, value, onChange }: Pr
 
               <p className="rounded-lg border border-ink/10 bg-white px-2.5 py-1.5 text-[10px] text-ink-muted">
                 <strong className="text-ink">RNTRC:</strong> o transportador vencedor precisa ter
-                RNTRC ativo (cadastro ANTT). O valor do Vale-Pedágio deve acompanhar a operação
-                conforme a Res. 6.024/2023.
+                RNTRC ativo (cadastro ANTT). Vale-Pedágio conforme Res. 6.024/2023.
               </p>
             </div>
           )}
