@@ -247,6 +247,8 @@ export function KanbanTransportador() {
                     <CargoCard
                       carga={c}
                       mode="transportador"
+                      coluna={col.key}
+                      colunaColor={col.color}
                       bidValue={
                         meuLance?.valor ?? (col.key !== 'nova_carga' ? c.frete_fechado : null)
                       }

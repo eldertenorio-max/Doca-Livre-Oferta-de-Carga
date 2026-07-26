@@ -1,56 +1,81 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { formatCurrency, formatDate, formatNumber, tempoRestante } from '../../lib/businessRules'
-import type { Carga, Prioridade } from '../../types'
+import type { Carga } from '../../types'
 import { useData } from '../../context/DataContext'
 import { ChatModal } from '../carga/ChatModal'
 
-function TrafficLight({ prioridade }: { prioridade: Prioridade | null }) {
-  const active = prioridade ?? 'baixa'
-  const label =
-    active === 'alta'
-      ? 'Prioridade alta'
-      : active === 'media'
-        ? 'Prioridade média'
-        : 'Prioridade baixa'
+/** Qual lente acende conforme a coluna do Kanban. */
+type SemaforoNivel = 'alta' | 'media' | 'baixa'
+
+function semaforoDaColuna(coluna?: string | null): {
+  nivel: SemaforoNivel
+  label: string
+  corPadrao: string
+} {
+  switch (coluna) {
+    case 'recusadas':
+      return { nivel: 'alta', label: 'Recusadas', corPadrao: '#e84752' }
+    case 'canceladas':
+      return { nivel: 'alta', label: 'Canceladas', corPadrao: '#64748b' }
+    case 'negociando':
+      return { nivel: 'media', label: 'Negociando', corPadrao: '#3b82f6' }
+    case 'propostas':
+      return { nivel: 'media', label: 'Propostas', corPadrao: '#3b82f6' }
+    case 'confirmadas':
+      return { nivel: 'media', label: 'Confirmadas', corPadrao: '#ea580c' }
+    case 'suspensas':
+      return { nivel: 'media', label: 'Suspensas', corPadrao: '#8b5cf6' }
+    case 'alocadas':
+      return { nivel: 'baixa', label: 'Alocadas', corPadrao: '#2f9e6a' }
+    case 'nova_carga':
+    default:
+      return { nivel: 'baixa', label: 'Nova Carga', corPadrao: '#22c55e' }
+  }
+}
+
+function TrafficLight({
+  coluna,
+  corColuna,
+}: {
+  coluna?: string | null
+  /** Cor da coluna do Kanban (acende a lente ativa). */
+  corColuna?: string | null
+}) {
+  const uid = useId().replace(/:/g, '')
+  const { nivel, label, corPadrao } = semaforoDaColuna(coluna)
+  const cor = corColuna?.trim() || corPadrao
+  const gid = {
+    housing: `sfH-${uid}`,
+    off: `sfOff-${uid}`,
+    on: `sfOn-${uid}`,
+  }
 
   return (
-    <div className="cargo-semaforo" title={label} aria-label={label}>
+    <div className="cargo-semaforo" title={label} aria-label={`Coluna: ${label}`}>
       <svg viewBox="0 0 56 120" className="cargo-semaforo__svg" aria-hidden>
         <defs>
-          <linearGradient id="sfHousing" x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id={gid.housing} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#4b5563" />
             <stop offset="45%" stopColor="#1f2937" />
             <stop offset="100%" stopColor="#030712" />
           </linearGradient>
-          <radialGradient id="sfOff" cx="35%" cy="30%" r="70%">
+          <radialGradient id={gid.off} cx="35%" cy="30%" r="70%">
             <stop offset="0%" stopColor="#374151" />
             <stop offset="100%" stopColor="#111827" />
           </radialGradient>
-          <radialGradient id="sfRed" cx="32%" cy="28%" r="72%">
-            <stop offset="0%" stopColor="#fecaca" />
-            <stop offset="40%" stopColor="#ef4444" />
-            <stop offset="100%" stopColor="#7f1d1d" />
-          </radialGradient>
-          <radialGradient id="sfYellow" cx="32%" cy="28%" r="72%">
-            <stop offset="0%" stopColor="#fef9c3" />
-            <stop offset="40%" stopColor="#eab308" />
-            <stop offset="100%" stopColor="#713f12" />
-          </radialGradient>
-          <radialGradient id="sfGreen" cx="32%" cy="28%" r="72%">
-            <stop offset="0%" stopColor="#bbf7d0" />
-            <stop offset="40%" stopColor="#22c55e" />
-            <stop offset="100%" stopColor="#14532d" />
+          <radialGradient id={gid.on} cx="32%" cy="28%" r="72%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
+            <stop offset="38%" stopColor={cor} />
+            <stop offset="100%" stopColor="#030712" />
           </radialGradient>
         </defs>
-        {/* Visor / teto */}
         <path
           d="M10 10h36l4 8H6l4-8z"
           fill="#111827"
           stroke="#030712"
           strokeWidth="1"
         />
-        {/* Corpo */}
-        <rect x="8" y="16" width="40" height="88" rx="10" fill="url(#sfHousing)" />
+        <rect x="8" y="16" width="40" height="88" rx="10" fill={`url(#${gid.housing})`} />
         <rect
           x="12"
           y="20"
@@ -60,29 +85,22 @@ function TrafficLight({ prioridade }: { prioridade: Prioridade | null }) {
           fill="#0b0f14"
           opacity="0.55"
         />
-        {/* Lentes */}
         {(
           [
-            ['alta', 34, 'sfRed'],
-            ['media', 58, 'sfYellow'],
-            ['baixa', 82, 'sfGreen'],
+            ['alta', 34],
+            ['media', 58],
+            ['baixa', 82],
           ] as const
-        ).map(([p, cy, grad]) => {
-          const on = active === p
+        ).map(([p, cy]) => {
+          const on = nivel === p
           return (
             <g key={p}>
-              <circle
-                cx="28"
-                cy={cy}
-                r="11.5"
-                fill="#030712"
-                opacity="0.9"
-              />
+              <circle cx="28" cy={cy} r="11.5" fill="#030712" opacity="0.9" />
               <circle
                 cx="28"
                 cy={cy}
                 r="9.5"
-                fill={on ? `url(#${grad})` : 'url(#sfOff)'}
+                fill={on ? `url(#${gid.on})` : `url(#${gid.off})`}
                 className={on ? 'cargo-semaforo__svg-on' : undefined}
               />
               {on && (
@@ -91,7 +109,6 @@ function TrafficLight({ prioridade }: { prioridade: Prioridade | null }) {
             </g>
           )
         })}
-        {/* Haste */}
         <rect x="24" y="104" width="8" height="14" rx="1.5" fill="#374151" />
         <rect x="20" y="116" width="16" height="3" rx="1" fill="#1f2937" />
       </svg>
@@ -371,6 +388,10 @@ function IconTruck() {
 interface CargoCardProps {
   carga: Carga
   mode: 'minerva' | 'transportador'
+  /** Coluna atual do Kanban (define a cor do semáforo). */
+  coluna?: string | null
+  /** Cor da coluna no quadro (lente ativa). */
+  colunaColor?: string | null
   selected?: boolean
   onSelect: () => void
   onView?: () => void
@@ -396,6 +417,8 @@ interface CargoCardProps {
 export function CargoCard({
   carga,
   mode,
+  coluna,
+  colunaColor,
   selected,
   onSelect,
   onView,
@@ -489,7 +512,7 @@ export function CargoCard({
           )}
         </div>
         <div className="flex shrink-0 flex-col items-center gap-1">
-          <TrafficLight prioridade={carga.prioridade} />
+          <TrafficLight coluna={coluna ?? carga.status} corColuna={colunaColor} />
           {bidPosition != null && bidPosition > 0 && (
             <span
               className={`text-[22px] font-black leading-none tabular-nums ${

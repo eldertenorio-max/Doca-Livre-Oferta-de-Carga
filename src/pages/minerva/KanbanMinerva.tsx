@@ -277,6 +277,8 @@ export function KanbanMinerva() {
                       <CargoCard
                         carga={c}
                         mode="minerva"
+                        coluna={col.key}
+                        colunaColor={col.color}
                         selected={liveSelected?.id === c.id}
                         ofertasCount={
                           col.key === 'negociando'
