@@ -25,6 +25,9 @@ export function Modal({ open, title, onClose, children, wide }: ModalProps) {
         aria-modal="true"
         className={`relative z-10 flex max-h-[min(92dvh,100%)] w-full flex-col overflow-hidden ${wide ? 'max-w-3xl' : 'max-w-lg'} animate-fade-up rounded-t-xl border border-ink/10 bg-panel shadow-2xl sm:rounded-xl`}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-ink/10 px-5 py-3">
           <h3 className="font-display text-lg font-semibold text-ink">{title}</h3>

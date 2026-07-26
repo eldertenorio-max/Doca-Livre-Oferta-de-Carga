@@ -174,11 +174,20 @@ export function ChatModal({ carga, open, onClose }: ChatModalProps) {
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
+                e.stopPropagation()
                 enviar()
               }
             }}
           />
-          <Button type="button" onClick={enviar} className="self-end">
+          <Button
+            type="button"
+            className="self-end"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              enviar()
+            }}
+          >
             Enviar
           </Button>
         </div>

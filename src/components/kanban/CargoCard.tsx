@@ -617,7 +617,15 @@ export function CargoCard({
         </div>
       </div>
 
-      <ChatModal carga={carga} open={chatOpen} onClose={() => setChatOpen(false)} />
+      {chatOpen ? (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <ChatModal carga={carga} open={chatOpen} onClose={() => setChatOpen(false)} />
+        </div>
+      ) : null}
     </article>
   )
 }
