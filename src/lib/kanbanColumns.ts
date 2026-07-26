@@ -73,12 +73,17 @@ export function colunaMinerva(
   if (isRascunhoNaoPublicado(c)) return null
 
   // Publicada com lance → Negociando
-  if (['negociando', 'propostas'].includes(c.status) && temLanceAtivo) {
+  if (['negociando', 'propostas', 'nova_carga'].includes(c.status) && temLanceAtivo) {
     return 'negociando'
   }
 
   // Publicada ainda sem lance → Nova Carga
-  if (['negociando', 'propostas'].includes(c.status) && !temLanceAtivo) {
+  // (inclui status legado `nova_carga` com publicado_em)
+  if (
+    (['negociando', 'propostas'].includes(c.status) ||
+      (c.status === 'nova_carga' && Boolean(c.publicado_em))) &&
+    !temLanceAtivo
+  ) {
     return 'nova_carga'
   }
 

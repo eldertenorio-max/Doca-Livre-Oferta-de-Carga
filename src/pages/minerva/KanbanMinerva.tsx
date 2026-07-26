@@ -68,13 +68,21 @@ const COLUMNS: {
 
 export function KanbanMinerva() {
   const navigate = useNavigate()
-  const { cargas, lances, lancesDaCarga, criarCarga, moverCargaKanban } = useData()
+  const {
+    cargas,
+    lances,
+    lancesDaCarga,
+    criarCarga,
+    moverCargaKanban,
+    forcarSincronizarKanban,
+  } = useData()
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Carga | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const [panelSize, setPanelSize] = useState<PanelSize>(() => loadPanelSize())
   const [initialTab, setInitialTab] = useState<'dados' | 'salvas' | 'publicar'>('dados')
   const [dragMsg, setDragMsg] = useState<string | null>(null)
+  const [syncBusy, setSyncBusy] = useState(false)
   const [isNarrow, setIsNarrow] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches,
   )
@@ -87,6 +95,16 @@ export function KanbanMinerva() {
     mq.addEventListener('change', onChange)
     return () => mq.removeEventListener('change', onChange)
   }, [])
+
+  // Ao abrir o Kanban embarcador (ou voltar à aba), força pull do sync
+  useEffect(() => {
+    void forcarSincronizarKanban()
+    const onFocus = () => {
+      void forcarSincronizarKanban()
+    }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [forcarSincronizarKanban])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -167,6 +185,30 @@ export function KanbanMinerva() {
           {dragMsg && (
             <p className="shrink-0 animate-fade-up rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
               {dragMsg}
+            </p>
+          )}
+
+          {cargas.length === 0 && (
+            <p className="shrink-0 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+              Kanban vazio.{' '}
+              {syncBusy ? (
+                'Sincronizando…'
+              ) : (
+                <>
+                  Se o transportador ainda vê cargas, deixe a aba dele aberta alguns segundos e{' '}
+                  <button
+                    type="button"
+                    className="font-bold underline"
+                    onClick={() => {
+                      setSyncBusy(true)
+                      void forcarSincronizarKanban().finally(() => setSyncBusy(false))
+                    }}
+                  >
+                    atualize o sync aqui
+                  </button>
+                  .
+                </>
+              )}
             </p>
           )}
 

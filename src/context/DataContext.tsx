@@ -263,6 +263,8 @@ interface DataContextValue extends DataState, AuthState {
   ) => Promise<{ ok: boolean; error?: string; mensagem?: string }>
   /** Recarrega transportadoras/docs do Supabase (fila de aprovação). */
   refreshTransportadores: () => Promise<void>
+  /** Força pull do kanban_sync (útil se o embarcador abriu com board vazio). */
+  forcarSincronizarKanban: () => Promise<{ ok: boolean; error?: string }>
   /** Liga/desliga todas as placas da transportadora no mapa (atalho). */
   setDisponivelMapa: (
     transportadorId: string,
@@ -763,6 +765,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const lastSyncFpRef = useRef('')
   const pushTimerRef = useRef<number | null>(null)
   const pendingPushRef = useRef(false)
+  const applyRemoteRef = useRef<
+    | ((payload: {
+        slice: ReturnType<typeof pickSyncSlice>
+        client_id: string
+        updated_at: string
+      }) => void)
+    | null
+  >(null)
+  const healRemoteRef = useRef<(() => void) | null>(null)
 
   const flushKanbanPush = useCallback((next: typeof state) => {
     if (!isSupabaseConfigured) return
@@ -776,12 +787,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (fp === lastSyncFpRef.current) return
 
     const send = () => {
-      lastSyncFpRef.current = fp
       if (pushTimerRef.current != null) {
         window.clearTimeout(pushTimerRef.current)
         pushTimerRef.current = null
       }
-      void pushKanbanSync(slice)
+      // Só marca fingerprint após push OK — senão o heal não tenta de novo
+      void pushKanbanSync(slice).then((ok) => {
+        if (ok) lastSyncFpRef.current = fp
+      })
     }
 
     // Nunca sobrescrever o banco com cargas vazias se o remoto ainda tem ofertas
@@ -852,17 +865,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    const healRemoteFromLocal = () => {
+      if (!kanbanHydratedRef.current) return
+      if (stateRef.current.cargas.length === 0 && stateRef.current.lances.length === 0) return
+      // Remoto vazio / desatualizado: republica o que este cliente ainda tem
+      flushKanbanPush(stateRef.current)
+    }
+    healRemoteRef.current = healRemoteFromLocal
+
     const applyRemote = (payload: {
       slice: ReturnType<typeof pickSyncSlice>
       client_id: string
       updated_at: string
     }) => {
-      // Remoto vazio não apaga o que já temos
+      // Remoto vazio não apaga o que já temos — e restaura o banco
       if (
         Array.isArray(payload.slice.cargas) &&
         payload.slice.cargas.length === 0 &&
         stateRef.current.cargas.length > 0
       ) {
+        healRemoteFromLocal()
         return
       }
       const fp = sliceFingerprint(payload.slice)
@@ -876,6 +898,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       })
       window.setTimeout(finishRemoteApply, 0)
     }
+    applyRemoteRef.current = applyRemote
 
     const bootstrap = async () => {
       if (localStorage.getItem(KANBAN_WIPE_KEY) !== '1') {
@@ -914,17 +937,38 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     void bootstrap()
 
-    const unsub = subscribeKanbanSync((payload) => {
-      applyRemote(payload)
-    })
+    const unsub = subscribeKanbanSync(
+      (payload) => {
+        applyRemote(payload)
+      },
+      () => {
+        // Linha ausente / payload inválido no Supabase
+        healRemoteFromLocal()
+      },
+    )
 
     return () => {
       cancelled = true
       unsub()
+      applyRemoteRef.current = null
+      healRemoteRef.current = null
       if (retryTimer != null) window.clearTimeout(retryTimer)
       if (pushTimerRef.current != null) window.clearTimeout(pushTimerRef.current)
     }
   }, [flushKanbanPush])
+
+  const forcarSincronizarKanban = useCallback(async () => {
+    const remote = await pullKanbanSync()
+    if (!remote.ok) return { ok: false, error: remote.error }
+    if ('empty' in remote && remote.empty) {
+      healRemoteRef.current?.()
+      return { ok: true }
+    }
+    if ('payload' in remote && remote.payload) {
+      applyRemoteRef.current?.(remote.payload)
+    }
+    return { ok: true }
+  }, [])
 
   const refreshTransportadores = useCallback(async () => {
     const remote = await carregarTransportadoresDoSupabase()
@@ -3970,6 +4014,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       substituirDocumentoTransportador,
       registrarCadastroTransportador,
       refreshTransportadores,
+      forcarSincronizarKanban,
       aprovarTransportador,
       recusarTransportador,
     }),
@@ -3982,6 +4027,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       refreshPermissoes,
+      forcarSincronizarKanban,
       publicarCarga,
       enviarLance,
       aceitarLance,

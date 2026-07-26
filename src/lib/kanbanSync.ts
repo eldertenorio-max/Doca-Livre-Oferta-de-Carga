@@ -54,18 +54,18 @@ export type PullResult =
   | { ok: false; error: string }
 
 let liveChannel: RealtimeChannel | null = null
+/** Único por aba/JS — evita duas abas com o mesmo id ignorarem o sync uma da outra. */
+let memoryClientId: string | null = null
 
 export function getClientId(): string {
+  if (memoryClientId) return memoryClientId
+  memoryClientId = `cli-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`
   try {
-    let id = sessionStorage.getItem(CLIENT_KEY)
-    if (!id) {
-      id = `cli-${Math.random().toString(36).slice(2, 12)}`
-      sessionStorage.setItem(CLIENT_KEY, id)
-    }
-    return id
+    sessionStorage.setItem(CLIENT_KEY, memoryClientId)
   } catch {
-    return `cli-${Math.random().toString(36).slice(2, 12)}`
+    /* ignore */
   }
+  return memoryClientId
 }
 
 export function pickSyncSlice(state: KanbanSyncSlice): KanbanSyncSlice {
@@ -315,13 +315,15 @@ export async function pushKanbanSync(slice: KanbanSyncSlice): Promise<boolean> {
 
 export function subscribeKanbanSync(
   onRemote: (payload: KanbanSyncPayload) => void,
+  onRemoteEmpty?: () => void,
 ): () => void {
   if (!isSupabaseConfigured || !supabase) return () => {}
 
   const myId = getClientId()
   const client = supabase
 
-  const deliver = (payload: KanbanSyncPayload | null) => {
+  /** Realtime/broadcast: ignora eco do próprio push. */
+  const deliverLive = (payload: KanbanSyncPayload | null) => {
     if (!payload) return
     if (payload.client_id && payload.client_id === myId) return
     onRemote(payload)
@@ -340,17 +342,24 @@ export function subscribeKanbanSync(
           client_id?: string
           updated_at?: string
         } | null
-        deliver(parsePayload(rec?.payload, rec?.client_id, rec?.updated_at))
+        deliverLive(parsePayload(rec?.payload, rec?.client_id, rec?.updated_at))
       },
     )
     .on('broadcast', { event: BROADCAST_EVENT }, ({ payload }) => {
-      deliver(parsePayload(payload))
+      deliverLive(parsePayload(payload))
     })
     .subscribe()
 
+  // Poll: sempre aplica (fingerprint no DataContext evita loop). Assim outra aba
+  // com o mesmo client_id antigo ainda sincroniza o embarcador.
   const pollId = window.setInterval(() => {
     void pullKanbanSync().then((res) => {
-      if (res.ok && 'payload' in res && res.payload) deliver(res.payload)
+      if (!res.ok) return
+      if ('empty' in res && res.empty) {
+        onRemoteEmpty?.()
+        return
+      }
+      if ('payload' in res && res.payload) onRemote(res.payload)
     })
   }, 2500)
 
