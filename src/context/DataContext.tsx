@@ -758,12 +758,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const userRef = useRef(user)
   userRef.current = user
   const applyingRemoteRef = useRef(false)
+  /** Só libera push depois do 1º pull OK — evita apagar o remoto com estado inicial []. */
+  const kanbanHydratedRef = useRef(false)
   const lastSyncFpRef = useRef('')
   const pushTimerRef = useRef<number | null>(null)
   const pendingPushRef = useRef(false)
 
   const flushKanbanPush = useCallback((next: typeof state) => {
     if (!isSupabaseConfigured) return
+    if (!kanbanHydratedRef.current) return
     if (applyingRemoteRef.current) {
       pendingPushRef.current = true
       return
@@ -771,16 +774,50 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const slice = pickSyncSlice(next)
     const fp = sliceFingerprint(slice)
     if (fp === lastSyncFpRef.current) return
-    lastSyncFpRef.current = fp
-    if (pushTimerRef.current != null) {
-      window.clearTimeout(pushTimerRef.current)
-      pushTimerRef.current = null
+
+    const send = () => {
+      lastSyncFpRef.current = fp
+      if (pushTimerRef.current != null) {
+        window.clearTimeout(pushTimerRef.current)
+        pushTimerRef.current = null
+      }
+      void pushKanbanSync(slice)
     }
-    void pushKanbanSync(slice)
+
+    // Nunca sobrescrever o banco com cargas vazias se o remoto ainda tem ofertas
+    if (slice.cargas.length === 0) {
+      void pullKanbanSync().then((remote) => {
+        if (
+          remote.ok &&
+          'payload' in remote &&
+          remote.payload &&
+          remote.payload.slice.cargas.length > 0
+        ) {
+          console.warn('[kanbanSync] push vazio bloqueado — reaplicando remoto')
+          const payload = remote.payload
+          applyingRemoteRef.current = true
+          setState((prev) => {
+            const next = ensureDemoFrotaMapa(applySyncSlice(prev, payload.slice))
+            stateRef.current = next
+            lastSyncFpRef.current = sliceFingerprint(pickSyncSlice(next))
+            return next
+          })
+          window.setTimeout(() => {
+            applyingRemoteRef.current = false
+          }, 0)
+          return
+        }
+        send()
+      })
+      return
+    }
+
+    send()
   }, [])
 
   const scheduleKanbanPush = useCallback(() => {
     if (!isSupabaseConfigured) return
+    if (!kanbanHydratedRef.current) return
     if (applyingRemoteRef.current) {
       pendingPushRef.current = true
       return
@@ -805,6 +842,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // Sync multi-usuário — nunca sobrescreve com vazio / erro de pull
   useEffect(() => {
     let cancelled = false
+    let retryTimer: number | null = null
 
     const finishRemoteApply = () => {
       applyingRemoteRef.current = false
@@ -839,7 +877,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       window.setTimeout(finishRemoteApply, 0)
     }
 
-    void (async () => {
+    const bootstrap = async () => {
       if (localStorage.getItem(KANBAN_WIPE_KEY) !== '1') {
         localStorage.setItem(KANBAN_WIPE_KEY, '1')
       }
@@ -850,8 +888,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (!remote.ok) {
         // Erro de rede/SQL: NÃO sobrescreve o remoto com estado local vazio
         console.warn('[kanbanSync] bootstrap pull falhou — mantendo estado local')
+        retryTimer = window.setTimeout(() => {
+          retryTimer = null
+          if (!cancelled) void bootstrap()
+        }, 3000)
         return
       }
+
+      // Libera push só após pull bem-sucedido
+      kanbanHydratedRef.current = true
+
       if ('empty' in remote && remote.empty) {
         // Primeira vez: só faz seed remoto se houver algo local
         if (stateRef.current.cargas.length > 0 || stateRef.current.lances.length > 0) {
@@ -864,7 +910,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if ('payload' in remote && remote.payload) {
         applyRemote(remote.payload)
       }
-    })()
+    }
+
+    void bootstrap()
 
     const unsub = subscribeKanbanSync((payload) => {
       applyRemote(payload)
@@ -873,6 +921,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
       unsub()
+      if (retryTimer != null) window.clearTimeout(retryTimer)
       if (pushTimerRef.current != null) window.clearTimeout(pushTimerRef.current)
     }
   }, [flushKanbanPush])
