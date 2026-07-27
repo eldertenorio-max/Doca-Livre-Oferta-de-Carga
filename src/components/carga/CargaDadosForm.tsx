@@ -348,6 +348,11 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
       setError('Selecione o tipo de veículo.')
       return
     }
+    const complementoFinal = parseComplemento(complementoTxt)
+    if (!complementoFinal) {
+      setError('Selecione o complemento (Sim, Não ou Ambos).')
+      return
+    }
     if (Number.isNaN(freteFinal) || freteFinal <= 0) {
       setError('Informe o valor do frete tabela.')
       return
@@ -407,7 +412,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
       classificacao_rota: classifFinal,
       origem: origemFinal,
       destino: destinoFinal,
-      complemento: parseComplemento(complementoTxt),
+      complemento: complementoFinal,
       frete_tabela: freteFinal,
       antt: anttInfo,
       pedido: pedido.trim(),
@@ -569,7 +574,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
                 placeholder="Digite o endereço como no Google Maps"
               />
             </Field>
-            <Field label="Complemento">
+            <Field label="Complemento *">
               <SuggestInput
                 value={complementoTxt}
                 onChange={setComplementoTxt}
