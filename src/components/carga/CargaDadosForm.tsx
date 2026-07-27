@@ -668,6 +668,13 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
                 <option value="C">Rota C</option>
               </select>
             </Field>
+            <Field label="Veículo *" className="sm:col-span-2">
+              <VeiculoSuggestInput
+                value={veiculo}
+                onChange={setVeiculo}
+                placeholder="Carreta, Truck, Fiorino…"
+              />
+            </Field>
             <label className="inline-flex items-center gap-2 text-xs text-ink sm:col-span-2">
               <input
                 type="checkbox"
@@ -724,13 +731,6 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
           3 · Veículo e exigências
         </h3>
         <div className="grid gap-2.5 sm:grid-cols-2">
-          <Field label="Veículo *" className="sm:col-span-2">
-            <VeiculoSuggestInput
-              value={veiculo}
-              onChange={setVeiculo}
-              placeholder="Carreta, Truck, Fiorino…"
-            />
-          </Field>
           <Field label="Complemento *">
             <SuggestInput
               value={complementoTxt}
