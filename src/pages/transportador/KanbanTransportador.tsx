@@ -178,7 +178,7 @@ export function KanbanTransportador() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Pesquisar cargas..."
+            placeholder="Pesquisar Cargas..."
             className="w-full rounded-lg border border-ink/15 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
           />
         </div>

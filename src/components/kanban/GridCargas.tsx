@@ -198,7 +198,7 @@ export function GridCargas({
   return (
     <div className="grid-cargas">
       <div className="grid-cargas__head">
-        <h2 className="grid-cargas__title">Grid de cargas</h2>
+        <h2 className="grid-cargas__title">Grid de Cargas</h2>
         <span className="text-xs text-ink-muted">
           {filtradas.length} registro{filtradas.length === 1 ? '' : 's'}
           {filtro !== 'todas' ? ` · filtro: ${LABEL_COLUNA[filtro] || filtro}` : ''}
