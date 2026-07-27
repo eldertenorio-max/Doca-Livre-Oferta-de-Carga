@@ -1,5 +1,6 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import '../../styles/kanban-board.css'
 
 export interface KanbanItem {
   id: string
@@ -25,6 +26,7 @@ interface KanbanBoardProps {
 type DragPayload = { cardId: string; fromColumn: string }
 
 const DEFAULT_STORAGE_KEY = 'doca-livre-kanban-collapsed-v1'
+const TOTAL_KEY = 'todas'
 
 function loadCollapsed(storageKey: string): Set<string> {
   try {
@@ -54,12 +56,23 @@ export function KanbanBoard({
   const [dragOverKey, setDragOverKey] = useState<string | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(() => loadCollapsed(storageKey))
+  const [filtro, setFiltro] = useState<string>(TOTAL_KEY)
 
   useEffect(() => {
     setCollapsed(loadCollapsed(storageKey))
   }, [storageKey])
 
   const dndEnabled = Boolean(onCardDrop)
+
+  const totalItems = useMemo(
+    () => columns.reduce((acc, c) => acc + c.items.length, 0),
+    [columns],
+  )
+
+  const colunasVisiveis = useMemo(() => {
+    if (filtro === TOTAL_KEY) return columns
+    return columns.filter((c) => c.key === filtro)
+  }, [columns, filtro])
 
   function toggleCollapsed(key: string) {
     setCollapsed((prev) => {
@@ -81,181 +94,158 @@ export function KanbanBoard({
     }
   }
 
-  return (
-    <div className="flex h-full min-h-0 gap-3 overflow-x-auto overflow-y-hidden pb-2 [-webkit-overflow-scrolling:touch]">
-      {columns.map((col) => {
-        const isOver = dragOverKey === col.key
-        const isCollapsed = collapsed.has(col.key)
+  function bindDropZone(colKey: string) {
+    return {
+      onDragOver: (e: React.DragEvent) => {
+        if (!dndEnabled) return
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+        setDragOverKey(colKey)
+      },
+      onDragLeave: (e: React.DragEvent) => {
+        if (!dndEnabled) return
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+          setDragOverKey((k) => (k === colKey ? null : k))
+        }
+      },
+      onDrop: (e: React.DragEvent) => {
+        if (!dndEnabled || !onCardDrop) return
+        e.preventDefault()
+        setDragOverKey(null)
+        setDraggingId(null)
+        const payload = parsePayload(e)
+        if (!payload?.cardId) return
+        if (payload.fromColumn === colKey) return
+        onCardDrop(payload.cardId, payload.fromColumn, colKey)
+      },
+    }
+  }
 
-        if (isCollapsed) {
+  return (
+    <div className="kanban-board">
+      <div className="kanban-board__metrics" role="toolbar" aria-label="Resumo por status">
+        <button
+          type="button"
+          className={`kanban-board__metric${filtro === TOTAL_KEY ? ' is-active' : ''}`}
+          style={{ ['--metric-color' as string]: '#3b82f6' }}
+          onClick={() => setFiltro(TOTAL_KEY)}
+        >
+          <span className="kanban-board__metric-label">Total</span>
+          <span className="kanban-board__metric-value">{totalItems}</span>
+        </button>
+        {columns.map((col) => (
+          <button
+            key={col.key}
+            type="button"
+            className={`kanban-board__metric${filtro === col.key ? ' is-active' : ''}`}
+            style={{ ['--metric-color' as string]: col.color }}
+            onClick={() => setFiltro(col.key)}
+          >
+            <span className="kanban-board__metric-label">{col.title}</span>
+            <span className="kanban-board__metric-value">{col.items.length}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="kanban-board__cols">
+        {colunasVisiveis.map((col) => {
+          const isOver = dragOverKey === col.key
+          const isCollapsed = filtro === TOTAL_KEY && collapsed.has(col.key)
+          const drop = bindDropZone(col.key)
+
+          if (isCollapsed) {
+            return (
+              <section
+                key={col.key}
+                className={`kanban-col kanban-col--collapsed${isOver ? ' is-over' : ''}`}
+                style={{ ['--col-color' as string]: col.color }}
+                {...drop}
+              >
+                <button
+                  type="button"
+                  className="kanban-col__expand"
+                  onClick={() => toggleCollapsed(col.key)}
+                  title={`Expandir ${col.title}`}
+                >
+                  <ChevronRight size={16} strokeWidth={2.5} className="shrink-0 text-ink-muted" />
+                  <span className="kanban-col__expand-count">{col.items.length}</span>
+                  <span className="kanban-col__expand-title">{col.title}</span>
+                </button>
+              </section>
+            )
+          }
+
           return (
             <section
               key={col.key}
-              className={`flex w-11 shrink-0 flex-col overflow-hidden rounded-xl border transition-all duration-200 ${
-                isOver
-                  ? 'border-brand ring-2 ring-brand/50 bg-brand/5'
-                  : 'border-ink/10 bg-white/70'
+              className={`kanban-col${isOver ? ' is-over' : ''}${
+                colunasVisiveis.length === 1 ? ' kanban-col--solo' : ''
               }`}
-              onDragOver={(e) => {
-                if (!dndEnabled) return
-                e.preventDefault()
-                e.dataTransfer.dropEffect = 'move'
-                setDragOverKey(col.key)
-              }}
-              onDragLeave={(e) => {
-                if (!dndEnabled) return
-                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                  setDragOverKey((k) => (k === col.key ? null : k))
-                }
-              }}
-              onDrop={(e) => {
-                if (!dndEnabled || !onCardDrop) return
-                e.preventDefault()
-                setDragOverKey(null)
-                setDraggingId(null)
-                const payload = parsePayload(e)
-                if (!payload?.cardId) return
-                if (payload.fromColumn === col.key) return
-                onCardDrop(payload.cardId, payload.fromColumn, col.key)
-              }}
+              style={{ ['--col-color' as string]: col.color }}
+              {...drop}
             >
-              <button
-                type="button"
-                onClick={() => toggleCollapsed(col.key)}
-                title={`Expandir ${col.title}`}
-                className="flex h-full min-h-[12rem] w-full flex-col items-center gap-2 px-1 py-2 text-white transition hover:brightness-110"
-                style={{ backgroundColor: col.color }}
-              >
-                <ChevronRight size={16} strokeWidth={2.5} className="shrink-0" />
-                <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-bold">
-                  {col.items.length}
-                </span>
-                <span
-                  className="mt-1 max-h-full flex-1 origin-center font-display text-[10px] font-bold tracking-wide uppercase"
-                  style={{
-                    writingMode: 'vertical-rl',
-                    transform: 'rotate(180deg)',
-                  }}
-                >
-                  {col.title}
-                </span>
-              </button>
-            </section>
-          )
-        }
-
-        return (
-          <section
-            key={col.key}
-            className={`flex w-[min(280px,calc(100vw-5.75rem))] shrink-0 flex-col rounded-xl border bg-white/70 backdrop-blur-sm transition-all duration-200 ${
-              isOver
-                ? 'border-brand ring-2 ring-brand/50 bg-brand/5'
-                : 'border-ink/10'
-            }`}
-            onDragOver={(e) => {
-              if (!dndEnabled) return
-              e.preventDefault()
-              e.dataTransfer.dropEffect = 'move'
-              setDragOverKey(col.key)
-            }}
-            onDragLeave={(e) => {
-              if (!dndEnabled) return
-              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                setDragOverKey((k) => (k === col.key ? null : k))
-              }
-            }}
-            onDrop={(e) => {
-              if (!dndEnabled || !onCardDrop) return
-              e.preventDefault()
-              setDragOverKey(null)
-              setDraggingId(null)
-              const payload = parsePayload(e)
-              if (!payload?.cardId) return
-              if (payload.fromColumn === col.key) return
-              onCardDrop(payload.cardId, payload.fromColumn, col.key)
-            }}
-          >
-            <header
-              className="rounded-t-xl px-3 py-2.5 text-white"
-              style={{ backgroundColor: col.color }}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="min-w-0 flex-1 truncate font-display text-xs font-bold tracking-wide uppercase">
-                  {col.title}
-                </h2>
-                <div className="flex shrink-0 items-center gap-1">
-                  <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold">
-                    {col.items.length}
-                  </span>
+              <header className="kanban-col__head">
+                <h2 className="kanban-col__title">{col.title}</h2>
+                <span className="kanban-col__count">{col.items.length}</span>
+                {filtro === TOTAL_KEY ? (
                   <button
                     type="button"
+                    className="kanban-col__collapse"
                     onClick={() => toggleCollapsed(col.key)}
                     title={`Minimizar ${col.title}`}
-                    className="rounded-md p-1 text-white/90 transition hover:bg-white/15 hover:text-white"
                     aria-label={`Minimizar coluna ${col.title}`}
                   >
                     <ChevronLeft size={16} strokeWidth={2.5} />
                   </button>
-                </div>
+                ) : null}
+              </header>
+              {col.description ? <p className="kanban-col__desc">{col.description}</p> : null}
+              <div className={`kanban-col__body${isOver ? ' is-over' : ''}`}>
+                {col.items.length === 0 ? (
+                  <p className={`kanban-col__empty${isOver ? ' is-drop' : ''}`}>
+                    {isOver ? 'Solte o card aqui' : 'Nenhuma carga'}
+                  </p>
+                ) : (
+                  col.items.map((item) => (
+                    <div
+                      key={item.id}
+                      draggable={dndEnabled}
+                      onDragStart={(e) => {
+                        if (!dndEnabled) return
+                        const payload: DragPayload = {
+                          cardId: item.id,
+                          fromColumn: col.key,
+                        }
+                        e.dataTransfer.setData(
+                          'application/x-kanban-card',
+                          JSON.stringify(payload),
+                        )
+                        e.dataTransfer.setData('text/plain', item.id)
+                        e.dataTransfer.effectAllowed = 'move'
+                        setDraggingId(item.id)
+                        e.dataTransfer.setDragImage(
+                          e.currentTarget,
+                          e.currentTarget.clientWidth / 2,
+                          20,
+                        )
+                      }}
+                      onDragEnd={() => {
+                        setDraggingId(null)
+                        setDragOverKey(null)
+                      }}
+                      className={`kanban-drag-item ${
+                        dndEnabled ? 'cursor-grab active:cursor-grabbing' : ''
+                      } ${draggingId === item.id ? 'opacity-40 scale-[0.98]' : ''} transition-all`}
+                    >
+                      {item.node}
+                    </div>
+                  ))
+                )}
               </div>
-              {col.description && (
-                <p className="mt-1 text-[10px] leading-snug text-white/85">{col.description}</p>
-              )}
-            </header>
-            <div
-              className={`flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2 transition-colors ${
-                isOver ? 'bg-brand/10' : ''
-              }`}
-            >
-              {col.items.length === 0 ? (
-                <p
-                  className={`px-2 py-6 text-center text-xs ${
-                    isOver ? 'font-semibold text-ink' : 'text-ink-muted/70'
-                  }`}
-                >
-                  {isOver ? 'Solte o card aqui' : 'Nenhuma carga'}
-                </p>
-              ) : (
-                col.items.map((item) => (
-                  <div
-                    key={item.id}
-                    draggable={dndEnabled}
-                    onDragStart={(e) => {
-                      if (!dndEnabled) return
-                      const payload: DragPayload = {
-                        cardId: item.id,
-                        fromColumn: col.key,
-                      }
-                      e.dataTransfer.setData(
-                        'application/x-kanban-card',
-                        JSON.stringify(payload),
-                      )
-                      e.dataTransfer.setData('text/plain', item.id)
-                      e.dataTransfer.effectAllowed = 'move'
-                      setDraggingId(item.id)
-                      // evita abrir o painel ao soltar
-                      e.dataTransfer.setDragImage(
-                        e.currentTarget,
-                        e.currentTarget.clientWidth / 2,
-                        20,
-                      )
-                    }}
-                    onDragEnd={() => {
-                      setDraggingId(null)
-                      setDragOverKey(null)
-                    }}
-                    className={`kanban-drag-item ${
-                      dndEnabled ? 'cursor-grab active:cursor-grabbing' : ''
-                    } ${draggingId === item.id ? 'opacity-40 scale-[0.98]' : ''} transition-all`}
-                  >
-                    {item.node}
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-        )
-      })}
+            </section>
+          )
+        })}
+      </div>
     </div>
   )
 }
