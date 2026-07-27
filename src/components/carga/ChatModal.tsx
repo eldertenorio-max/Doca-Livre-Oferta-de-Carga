@@ -141,7 +141,7 @@ export function ChatModal({ carga, open, onClose }: ChatModalProps) {
         <div className="flex max-h-80 min-h-[220px] flex-col gap-2 overflow-y-auto rounded-lg border border-ink/10 bg-sand-light/60 p-3">
           {mensagens.length === 0 ? (
             <p className="m-auto text-center text-sm text-ink-muted">
-              Nenhuma mensagem ainda. Inicie a conversa sobre esta carga.
+              Nenhuma mensagem ainda. Use o chat só para conversar — a negociação de frete é pelo card.
             </p>
           ) : (
             mensagens.map((m) => {

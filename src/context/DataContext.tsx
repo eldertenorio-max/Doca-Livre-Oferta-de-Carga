@@ -2193,9 +2193,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         historicoPropostas: historicoPropostas.slice(0, 3000),
         notificacoes: pushNotif(base.notificacoes, {
           role: 'minerva',
-          titulo: isNew ? 'Nova proposta recebida' : 'Proposta atualizada',
-          mensagem: `Carga ${cargaOk.numero}: R$ ${valor.toFixed(2)}`,
+          titulo: isNew ? 'Nova proposta' : 'Proposta atualizada',
+          mensagem: `Carga ${cargaOk.numero}: R$ ${valor.toFixed(2)}. Negocie pelo card.`,
           carga_id: cargaId,
+          href: '/embarcador',
         }),
       }
       stateRef.current = next
@@ -2413,9 +2414,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       notificacoes: pushNotif(prev.notificacoes, {
         role: 'transportador',
         transportador_id: lance.transportador_id,
-        titulo: 'Contra-proposta recebida',
-        mensagem: `Carga ${carga.numero}: embarcador sugere R$ ${valorRound.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}. Veja o frete oferta no card e responda com um novo lance.`,
+        titulo: 'Contra-proposta no card',
+        mensagem: `Carga ${carga.numero}: embarcador sugere R$ ${valorRound.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}. Responda pelo card com um novo lance.`,
         carga_id: carga.id,
+        href: '/transportador',
       }),
     }
     stateRef.current = next
@@ -4067,8 +4069,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (enviandoComoTransportador) {
         notificacoes = pushNotif(notificacoes, {
           role: 'minerva',
-          titulo: `Nova mensagem · carga ${carga.numero}`,
-          mensagem: `${userNow.nome}: ${preview}`,
+          titulo: 'Nova mensagem',
+          mensagem: `Carga ${carga.numero} · ${userNow.nome}: ${preview}`,
           carga_id: cargaId,
         })
       } else {
@@ -4093,8 +4095,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         if (tids.size === 0) {
           notificacoes = pushNotif(notificacoes, {
             role: 'transportador',
-            titulo: `Nova mensagem · carga ${carga.numero}`,
-            mensagem: `${userNow.nome}: ${preview}`,
+            titulo: 'Nova mensagem',
+            mensagem: `Carga ${carga.numero} · ${userNow.nome}: ${preview}`,
             carga_id: cargaId,
           })
         } else {
@@ -4102,8 +4104,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
             notificacoes = pushNotif(notificacoes, {
               role: 'transportador',
               transportador_id: tid,
-              titulo: `Nova mensagem · carga ${carga.numero}`,
-              mensagem: `${userNow.nome}: ${preview}`,
+              titulo: 'Nova mensagem',
+              mensagem: `Carga ${carga.numero} · ${userNow.nome}: ${preview}`,
               carga_id: cargaId,
             })
           }

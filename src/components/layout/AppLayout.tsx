@@ -490,10 +490,17 @@ export function AppLayout() {
                           }
                         }}
                       >
-                        <strong>{n.titulo}</strong>
+                        <strong>
+                          {n.titulo === 'Nova proposta recebida' ||
+                          n.titulo.startsWith('Nova mensagem ·')
+                            ? 'Nova mensagem'
+                            : n.titulo}
+                        </strong>
                         <span>{n.mensagem}</span>
                         {n.href ? (
-                          <span className="app-topbar-notif-action">Abrir fila</span>
+                          <span className="app-topbar-notif-action">
+                            {n.href.includes('filtro=pendentes') ? 'Abrir fila' : 'Ver card'}
+                          </span>
                         ) : n.carga_id ? (
                           <span className="app-topbar-notif-action">Abrir chat</span>
                         ) : null}
