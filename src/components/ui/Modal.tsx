@@ -23,7 +23,7 @@ export function Modal({ open, title, onClose, children, wide }: ModalProps) {
       <div
         role="dialog"
         aria-modal="true"
-        className={`relative z-10 flex max-h-[min(92dvh,100%)] w-full flex-col overflow-hidden ${wide ? 'max-w-3xl' : 'max-w-lg'} animate-fade-up rounded-t-xl border border-ink/10 bg-panel shadow-2xl sm:rounded-xl`}
+        className={`relative z-10 flex max-h-[min(92dvh,100%)] w-full flex-col overflow-hidden ${wide ? 'max-w-5xl' : 'max-w-lg'} animate-fade-up rounded-t-xl border border-ink/10 bg-panel shadow-2xl sm:rounded-xl`}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}

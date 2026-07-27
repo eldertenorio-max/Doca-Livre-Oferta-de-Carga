@@ -157,58 +157,70 @@ export function BidModal({ carga, open, onClose, onCalcularRota }: BidModalProps
     <Modal open={open} title="Registrar lance" onClose={onClose} wide>
       <div className="space-y-4">
         <div className="rounded-lg bg-emerald-50/80 p-4 text-sm">
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(200px,0.9fr)] lg:items-stretch">
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Detail label="Carga" value={live.numero} />
-              <Detail label="Carregamento" value={formatDateTime(live.data_carregamento)} />
-              <Detail label="Pedido" value={live.pedido} />
-              <Detail label="Tipo" value={live.tipo_carga} />
-              <Detail label="Veículo" value={live.veiculo} />
-              <Detail label="Origem" value={live.origem} />
-              <Detail label="Destino" value={live.destino} />
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Detail label="Carga" value={live.numero} />
+            <Detail label="Carregamento" value={formatDateTime(live.data_carregamento)} />
+            <Detail label="Pedido" value={live.pedido} />
+            <Detail label="Tipo" value={live.tipo_carga} />
+            <Detail label="Veículo" value={live.veiculo} />
+            <Detail label="Origem" value={live.origem} />
+            <Detail label="Destino" value={live.destino} />
+            <Detail
+              label="Gerenciamento de risco"
+              value={
+                live.gerenciamento_risco === 'rastreador'
+                  ? 'Rastreador'
+                  : live.gerenciamento_risco === 'localizador'
+                    ? 'Localizador'
+                    : live.gerenciamento_risco === 'ambos'
+                      ? 'Ambos'
+                      : live.gerenciamento_risco === 'nao'
+                        ? 'Não exige'
+                        : '—'
+              }
+            />
+            <Detail label="Peso" value={formatNumber(live.peso)} />
+            <Detail label="Frete Tabela" value={formatCurrency(live.frete_tabela)} />
+            <Detail label="Frete Oferta" value={formatCurrency(freteRef)} />
+            {live.frete_minimo != null && (
+              <Detail label="Lance mínimo" value={formatCurrency(roundMoney(live.frete_minimo))} />
+            )}
+            {live.frete_maximo != null && (
+              <Detail label="Lance máximo" value={formatCurrency(roundMoney(live.frete_maximo))} />
+            )}
+            <Detail
+              label="Modo"
+              value={live.modo_publicacao === 'oferta' ? 'Oferta' : 'Leilão'}
+            />
+            <Detail label="Prioridade" value={live.prioridade ?? '—'} />
+            {meuLance && (
               <Detail
-                label="Gerenciamento de risco"
-                value={
-                  live.gerenciamento_risco === 'rastreador'
-                    ? 'Rastreador'
-                    : live.gerenciamento_risco === 'localizador'
-                      ? 'Localizador'
-                      : live.gerenciamento_risco === 'ambos'
-                        ? 'Ambos'
-                        : live.gerenciamento_risco === 'nao'
-                          ? 'Não exige'
-                          : '—'
-                }
+                label="Seu lance"
+                value={`${formatCurrency(meuLance.valor)}${
+                  meuLance.status === 'vencedor' ? ' (vencedor)' : ''
+                }`}
               />
-              <Detail label="Peso" value={formatNumber(live.peso)} />
-              <Detail label="Frete Tabela" value={formatCurrency(live.frete_tabela)} />
-              <Detail label="Frete Oferta" value={formatCurrency(freteRef)} />
-              {live.frete_minimo != null && (
-                <Detail label="Lance mínimo" value={formatCurrency(roundMoney(live.frete_minimo))} />
-              )}
-              {live.frete_maximo != null && (
-                <Detail label="Lance máximo" value={formatCurrency(roundMoney(live.frete_maximo))} />
-              )}
-              <Detail
-                label="Modo"
-                value={live.modo_publicacao === 'oferta' ? 'Oferta' : 'Leilão'}
-              />
-              <Detail label="Prioridade" value={live.prioridade ?? '—'} />
-              {meuLance && (
-                <Detail
-                  label="Seu lance"
-                  value={`${formatCurrency(meuLance.valor)}${
-                    meuLance.status === 'vencedor' ? ' (vencedor)' : ''
-                  }`}
-                />
-              )}
-            </div>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-2 rounded-lg border border-ink/10 bg-white p-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
+              Mapa da rota
+            </p>
+            <p className="text-[11px] text-ink-muted">
+              {live.origem} → {live.destino}
+            </p>
+          </div>
+          {open && (
             <RotaMapPreview
+              key={`bid-map-${live.id}`}
               origem={live.origem}
               destino={live.destino}
-              className="h-[200px] min-h-[200px] w-full lg:h-full lg:min-h-[220px]"
+              className="h-[280px] min-h-[280px] w-full"
             />
-          </div>
+          )}
         </div>
 
         {meuLance &&
