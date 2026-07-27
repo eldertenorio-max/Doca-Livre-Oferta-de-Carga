@@ -556,6 +556,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
         <Row label="E-mail destinatário" value={carga.destinatario_email?.trim() || '—'} />
         <Row label="Peso" value={formatMoneyInput(carga.peso)} />
         <Row label="Volumes" value={String(carga.volumes)} />
+        <Row label="Nº de entregas" value={String(carga.num_entregas || 1)} />
         <Row label="Frete tabela" value={formatCurrency(carga.frete_tabela)} />
         <Row label="Mercadorias" value={formatCurrency(carga.valor_mercadorias)} />
         <Row
@@ -805,6 +806,15 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
               value={volumes}
               onChange={setVolumes}
               suggestions={sugVolumes}
+              inputMode="numeric"
+            />
+          </Field>
+          <Field label="Número de entregas">
+            <SuggestInput
+              value={numEntregas}
+              onChange={setNumEntregas}
+              suggestions={sugEntregas}
+              placeholder="1"
               inputMode="numeric"
             />
           </Field>
