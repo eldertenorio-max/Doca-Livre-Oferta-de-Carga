@@ -333,11 +333,16 @@ async function sugerirEnderecosPhoton(
   const url = new URL('https://photon.komoot.io/api/')
   url.searchParams.set('q', consulta)
   url.searchParams.set('limit', String(Math.min(12, Math.max(1, limit))))
-  // Bounding box aproximado do Brasil + viés na Grande SP
+  // Bounding box aproximado do Brasil
   url.searchParams.set('bbox', '-74,-34,-34,6')
-  url.searchParams.set('lat', '-23.55')
-  url.searchParams.set('lon', '-46.63')
-  url.searchParams.set('location_bias_scale', '0.4')
+
+  // Viés SP só para busca de rua (não para "Cidade - UF", que enviesava Ribeirão Preto → capital)
+  const mun = parseCidadeUf(consulta)
+  if (!mun) {
+    url.searchParams.set('lat', '-23.55')
+    url.searchParams.set('lon', '-46.63')
+    url.searchParams.set('location_bias_scale', '0.25')
+  }
 
   const res = await fetch(url.toString(), { headers: { Accept: 'application/json' } })
   if (!res.ok) return []
@@ -411,6 +416,7 @@ export async function sugerirEnderecos(
 
 /**
  * Geocodifica texto livre (rua, cidade, CEP, etc.) via Nominatim.
+ * Municípios no formato "Cidade - UF" usam busca estruturada (sem viés SP do Photon).
  */
 export async function geocodificarConsulta(
   consulta: string,
@@ -418,13 +424,221 @@ export async function geocodificarConsulta(
   const q = consulta.trim()
   if (q.length < 3) return { ok: false, erro: 'Digite um endereço ou lugar.' }
 
-  const hits = await sugerirEnderecos(q, 1)
-  if (hits[0]) {
+  const mun = parseCidadeUf(q)
+  if (mun) {
+    const geo = await geocodificarMunicipioBr(mun.cidade, mun.uf)
+    if (geo) {
+      return { ok: true, coords: { lat: geo.lat, lng: geo.lng }, display: geo.display }
+    }
+  }
+
+  // Endereço completo: pega vários hits e ranqueia (evita 1º resultado enviesado do Photon)
+  const hits = await sugerirEnderecos(q, 8)
+  const melhor = escolherMelhorHit(hits, q, mun?.uf)
+  if (melhor) {
     return {
       ok: true,
-      coords: { lat: hits[0].lat, lng: hits[0].lng },
-      display: hits[0].display,
+      coords: { lat: melhor.lat, lng: melhor.lng },
+      display: melhor.display,
     }
   }
   return { ok: false, erro: 'Endereço não encontrado.' }
 }
+
+const UFS_BR = new Set([
+  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
+  'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+])
+
+const UF_NOME: Record<string, string> = {
+  AC: 'Acre',
+  AL: 'Alagoas',
+  AP: 'Amapá',
+  AM: 'Amazonas',
+  BA: 'Bahia',
+  CE: 'Ceará',
+  DF: 'Distrito Federal',
+  ES: 'Espírito Santo',
+  GO: 'Goiás',
+  MA: 'Maranhão',
+  MT: 'Mato Grosso',
+  MS: 'Mato Grosso do Sul',
+  MG: 'Minas Gerais',
+  PA: 'Pará',
+  PB: 'Paraíba',
+  PR: 'Paraná',
+  PE: 'Pernambuco',
+  PI: 'Piauí',
+  RJ: 'Rio de Janeiro',
+  RN: 'Rio Grande do Norte',
+  RS: 'Rio Grande do Sul',
+  RO: 'Rondônia',
+  RR: 'Roraima',
+  SC: 'Santa Catarina',
+  SP: 'São Paulo',
+  SE: 'Sergipe',
+  TO: 'Tocantins',
+}
+
+function normalizarGeo(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/** Extrai "Cidade - UF" / "Cidade-UF" / "Cidade, UF" de textos de rota. */
+export function parseCidadeUf(consulta: string): { cidade: string; uf: string } | null {
+  const raw = consulta.trim().replace(/\s+/g, ' ')
+  if (!raw) return null
+
+  // "Ribeirão Preto - SP" | "Ribeirão Preto, SP" | "Ribeirão Preto – SP"
+  let m = raw.match(/^(.+?)\s*[-–,]\s*([A-Za-zÁÉÍÓÚÂÊÔÃÕÇ]{2})\s*$/u)
+  if (m && UFS_BR.has(m[2].toUpperCase())) {
+    return { cidade: m[1].trim(), uf: m[2].toUpperCase() }
+  }
+
+  // "RIBEIRAO PRETO-SP" (sem espaço antes da UF)
+  m = raw.match(/^(.+)-([A-Za-z]{2})$/)
+  if (m && UFS_BR.has(m[2].toUpperCase())) {
+    return { cidade: m[1].trim(), uf: m[2].toUpperCase() }
+  }
+
+  // "Ribeirão Preto SP" (espaço + UF no fim)
+  m = raw.match(/^(.+?)\s+([A-Za-z]{2})$/)
+  if (m && UFS_BR.has(m[2].toUpperCase()) && m[1].trim().length >= 3) {
+    return { cidade: m[1].trim(), uf: m[2].toUpperCase() }
+  }
+
+  return null
+}
+
+async function geocodificarMunicipioBr(
+  cidade: string,
+  uf: string,
+): Promise<{ lat: number; lng: number; display: string } | null> {
+  const ufUp = uf.toUpperCase()
+  const estado = UF_NOME[ufUp] || ufUp
+  const queries = [
+    `${cidade}, ${ufUp}, Brasil`,
+    `${cidade}, ${estado}, Brasil`,
+    `${cidade}, ${estado}, Brazil`,
+  ]
+
+  for (const q of queries) {
+    try {
+      const url = new URL('https://nominatim.openstreetmap.org/search')
+      url.searchParams.set('format', 'json')
+      url.searchParams.set('addressdetails', '1')
+      url.searchParams.set('limit', '8')
+      url.searchParams.set('countrycodes', 'br')
+      url.searchParams.set('q', q)
+
+      const res = await fetch(url.toString(), {
+        headers: {
+          Accept: 'application/json',
+          'Accept-Language': 'pt-BR,pt;q=0.9',
+        },
+      })
+      if (!res.ok) continue
+      const rows = (await res.json()) as (NominatimHit & {
+        type?: string
+        class?: string
+        importance?: number
+      })[]
+
+      const cidadeNorm = normalizarGeo(cidade)
+      const estadoNorm = normalizarGeo(estado)
+      let best: { lat: number; lng: number; display: string; score: number } | null = null
+
+      for (const hit of rows) {
+        const lat = hit.lat != null ? Number(hit.lat) : NaN
+        const lng = hit.lon != null ? Number(hit.lon) : NaN
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
+
+        const a = hit.address
+        const nomeLocal = normalizarGeo(
+          a?.city || a?.town || a?.village || a?.municipality || hit.display_name?.split(',')[0] || '',
+        )
+        const estadoHit = normalizarGeo(limparEstado(a?.state || ''))
+        const display = (hit.display_name || '').trim()
+        const displayNorm = normalizarGeo(display)
+
+        let score = Number(hit.importance ?? 0) * 10
+        if (nomeLocal === cidadeNorm || displayNorm.startsWith(cidadeNorm)) score += 50
+        else if (nomeLocal.includes(cidadeNorm) || displayNorm.includes(cidadeNorm)) score += 25
+        else continue // nome da cidade não bate — evita "Ribeirão" errado em SP capital
+
+        if (
+          estadoHit.includes(estadoNorm) ||
+          estadoHit === normalizarGeo(ufUp) ||
+          displayNorm.includes(` ${normalizarGeo(ufUp)}`) ||
+          displayNorm.includes(estadoNorm)
+        ) {
+          score += 40
+        } else {
+          score -= 30
+        }
+
+        const tipo = `${hit.class || ''}/${hit.type || ''}`.toLowerCase()
+        if (
+          tipo.includes('city') ||
+          tipo.includes('town') ||
+          tipo.includes('municipality') ||
+          tipo.includes('administrative')
+        ) {
+          score += 20
+        }
+        // Penaliza rua/POI
+        if (tipo.includes('highway') || tipo.includes('residential') || tipo.includes('shop')) {
+          score -= 40
+        }
+
+        if (!best || score > best.score) {
+          best = { lat, lng, display: display || `${cidade} - ${ufUp}`, score }
+        }
+      }
+
+      if (best && best.score >= 40) return best
+    } catch {
+      /* tenta próxima query */
+    }
+  }
+  return null
+}
+
+function escolherMelhorHit(
+  hits: SugestaoEndereco[],
+  consulta: string,
+  ufHint?: string,
+): SugestaoEndereco | null {
+  if (hits.length === 0) return null
+  if (hits.length === 1) return hits[0]
+
+  const qNorm = normalizarGeo(consulta)
+  const uf = ufHint?.toUpperCase()
+  let best = hits[0]
+  let bestScore = -Infinity
+
+  for (const h of hits) {
+    const label = normalizarGeo(h.label)
+    const display = normalizarGeo(h.display)
+    let score = 0
+    if (label.startsWith(qNorm) || display.startsWith(qNorm.split(',')[0] || qNorm)) score += 20
+    if (uf) {
+      const ufN = normalizarGeo(uf)
+      const estadoN = normalizarGeo(UF_NOME[uf] || '')
+      if (label.includes(ufN) || display.includes(ufN) || display.includes(estadoN)) score += 30
+    }
+    // Preferir hits com cidade no secondary (menos "rua só")
+    if (h.secondary) score += 5
+    if (score > bestScore) {
+      bestScore = score
+      best = h
+    }
+  }
+  return best
+}
+
