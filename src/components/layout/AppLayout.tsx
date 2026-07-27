@@ -453,7 +453,7 @@ export function AppLayout() {
           {isSuper && !actingTransportadorId ? (
             <button
               type="button"
-              className="app-topbar-nova-carga"
+              className="app-topbar-nova-carga inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-[#2f9e6a] bg-[#2f9e6a] px-3 text-[0.78rem] font-extrabold text-white hover:border-[#268556] hover:bg-[#268556]"
               title="Nova carga"
               aria-label="Nova carga"
               onClick={() => {
@@ -461,7 +461,9 @@ export function AppLayout() {
                 navigate('/embarcador', { state: { novaCarga: true } })
               }}
             >
-              <span aria-hidden>+</span>
+              <span aria-hidden className="text-[1.1rem] font-extrabold leading-none">
+                +
+              </span>
               <span className="app-topbar-nova-carga__label">Nova carga</span>
             </button>
           ) : null}

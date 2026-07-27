@@ -430,32 +430,15 @@
 }
 
 .app-topbar-nova-carga {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 12px;
-  border: 1px solid #2f9e6a;
-  border-radius: 8px;
-  background: #2f9e6a;
-  color: #fff;
-  font-size: 0.78rem;
-  font-weight: 800;
   cursor: pointer;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.app-topbar-nova-carga span[aria-hidden] {
-  font-size: 1.1rem;
-  line-height: 1;
-  font-weight: 800;
+  border: 1px solid #2f9e6a !important;
+  background: #2f9e6a !important;
+  color: #fff !important;
 }
 
 .app-topbar-nova-carga:hover {
-  background: #268556;
-  border-color: #268556;
+  background: #268556 !important;
+  border-color: #268556 !important;
 }
 
 .app-topbar-disp {
