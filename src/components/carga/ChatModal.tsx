@@ -123,6 +123,10 @@ export function ChatModal({ carga, open, onClose }: ChatModalProps) {
               label="Volumes"
               value={carga.volumes > 0 ? formatNumber(carga.volumes) : '—'}
             />
+            <ChatInfoItem
+              label="Entregas"
+              value={carga.num_entregas > 0 ? formatNumber(carga.num_entregas) : '—'}
+            />
             <ChatInfoItem label="Frete" value={freteExibido(carga)} />
             <ChatInfoItem label="Carregamento" value={dataCurta(carga.data_carregamento)} />
             <ChatInfoItem label="Entrega" value={dataCurta(carga.previsao_entrega)} />

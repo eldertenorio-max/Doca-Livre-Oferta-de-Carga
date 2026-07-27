@@ -989,6 +989,7 @@ export function PublishPanel({
           />
           <Detail label="Peso" value={formatNumber(carga.peso)} />
           <Detail label="Volumes" value={String(carga.volumes)} />
+          <Detail label="Nº de entregas" value={String(carga.num_entregas || 1)} />
           <Detail label="Valor Frete (Tabela)" value={formatCurrency(carga.frete_tabela)} />
           <Detail label="Valor Mercadorias" value={formatCurrency(carga.valor_mercadorias)} />
 

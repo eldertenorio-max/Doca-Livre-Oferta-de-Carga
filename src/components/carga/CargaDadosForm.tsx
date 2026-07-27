@@ -133,6 +133,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
   )
   const [peso, setPeso] = useState(formatMoneyInput(carga.peso || 0))
   const [volumes, setVolumes] = useState(String(carga.volumes || 0))
+  const [numEntregas, setNumEntregas] = useState(String(carga.num_entregas || 1))
   const [valorMerc, setValorMerc] = useState(formatMoneyInput(carga.valor_mercadorias || 0))
   const [dataCarreg, setDataCarreg] = useState(toDateInput(carga.data_carregamento))
   const [previsao, setPrevisao] = useState(toDateInput(carga.previsao_entrega))
@@ -158,6 +159,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
       email: outras.map((c) => c.destinatario_email || ''),
       peso: outras.map((c) => (c.peso > 0 ? formatMoneyInput(c.peso) : '')),
       volumes: outras.map((c) => (c.volumes > 0 ? String(c.volumes) : '')),
+      entregas: outras.map((c) => (c.num_entregas > 0 ? String(c.num_entregas) : '')),
       valorMerc: outras.map((c) =>
         c.valor_mercadorias > 0 ? formatMoneyInput(c.valor_mercadorias) : '',
       ),
@@ -245,6 +247,11 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
     [historico.volumes],
   )
 
+  const sugEntregas = useMemo(
+    () => (q: string) => filtrarSugestoes(q, [historico.entregas], 8),
+    [historico.entregas],
+  )
+
   const sugValorMerc = useMemo(
     () => (q: string) => filtrarSugestoes(q, [historico.valorMerc], 8),
     [historico.valorMerc],
@@ -280,6 +287,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
     setDestinatarioEmail(carga.destinatario_email || '')
     setPeso(formatMoneyInput(carga.peso || 0))
     setVolumes(String(carga.volumes || 0))
+    setNumEntregas(String(carga.num_entregas || 1))
     setValorMerc(formatMoneyInput(carga.valor_mercadorias || 0))
     setDataCarreg(toDateInput(carga.data_carregamento))
     setPrevisao(toDateInput(carga.previsao_entrega))
@@ -449,6 +457,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
     }
     const pesoNum = parseMoneyInput(peso)
     const volumesNum = Number(volumes)
+    const entregasNum = Number(numEntregas)
     const valorNum = parseMoneyInput(valorMerc)
     if (Number.isNaN(pesoNum) || pesoNum <= 0) {
       setError('Peso inválido.')
@@ -456,6 +465,10 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
     }
     if (Number.isNaN(volumesNum) || volumesNum < 0) {
       setError('Volumes inválidos.')
+      return
+    }
+    if (Number.isNaN(entregasNum) || entregasNum < 1) {
+      setError('Número de entregas inválido (mínimo 1).')
       return
     }
     if (Number.isNaN(valorNum) || valorNum < 0) {
@@ -482,6 +495,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
       destinatario_email: destinatarioEmail.trim() || null,
       peso: pesoNum,
       volumes: Math.round(volumesNum),
+      num_entregas: Math.round(entregasNum),
       valor_mercadorias: valorNum,
       data_carregamento: fromDateInput(dataCarreg),
       previsao_entrega: fromDateInput(previsao),
