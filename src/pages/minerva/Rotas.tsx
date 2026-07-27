@@ -3,8 +3,9 @@ import { useData } from '../../context/DataContext'
 import { MARGENS_POR_ROTA, formatCurrency } from '../../lib/businessRules'
 import { buscarCidades, filtrarSugestoes } from '../../lib/cidadesBrasil'
 import type { ClassificacaoRota, Rota } from '../../types'
-import { Button, Field, inputClass } from '../../components/ui/Modal'
+import { Button, Field, Modal, inputClass } from '../../components/ui/Modal'
 import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
+import { RotaMapPreview } from '../../components/carga/RotaMapPreview'
 
 export function RotasPage() {
   const { rotas, salvarRota } = useData()
@@ -18,6 +19,7 @@ export function RotasPage() {
     situacao: 'ativo',
   })
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [mapaRota, setMapaRota] = useState<Rota | null>(null)
 
   const sugOrigem = useMemo(
     () => (q: string) =>
@@ -106,16 +108,25 @@ export function RotasPage() {
                 <td>{r.km}</td>
                 <td className="capitalize">{r.situacao}</td>
                 <td className="px-4">
-                  <button
-                    type="button"
-                    className="text-xs font-semibold text-ink hover:underline"
-                    onClick={() => {
-                      setEditingId(r.id)
-                      setForm(r)
-                    }}
-                  >
-                    Editar
-                  </button>
+                  <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-ink hover:underline"
+                      onClick={() => setMapaRota(r)}
+                    >
+                      Ver mapa
+                    </button>
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-ink hover:underline"
+                      onClick={() => {
+                        setEditingId(r.id)
+                        setForm(r)
+                      }}
+                    >
+                      Editar
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -187,6 +198,28 @@ export function RotasPage() {
           {editingId ? 'Salvar' : 'Adicionar'}
         </Button>
       </div>
+
+      <Modal
+        open={Boolean(mapaRota)}
+        title={mapaRota ? `Mapa — ${mapaRota.descricao}` : 'Mapa da rota'}
+        onClose={() => setMapaRota(null)}
+        wide
+      >
+        {mapaRota && (
+          <div className="space-y-3 p-1">
+            <p className="text-sm text-ink-muted">
+              {mapaRota.origem} → {mapaRota.destino}
+              {mapaRota.km > 0 ? ` · ${mapaRota.km} km (cadastro)` : ''}
+            </p>
+            <RotaMapPreview
+              key={mapaRota.id}
+              origem={mapaRota.origem}
+              destino={mapaRota.destino}
+              className="h-[min(55vh,420px)] min-h-[280px] w-full"
+            />
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }
