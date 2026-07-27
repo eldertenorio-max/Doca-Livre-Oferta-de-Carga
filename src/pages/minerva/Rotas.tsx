@@ -108,7 +108,7 @@ export function RotasPage() {
                 <td className="px-4">
                   <button
                     type="button"
-                    className="text-xs font-semibold text-brand hover:underline"
+                    className="text-xs font-semibold text-ink hover:underline"
                     onClick={() => {
                       setEditingId(r.id)
                       setForm(r)
