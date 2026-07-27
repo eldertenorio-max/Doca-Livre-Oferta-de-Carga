@@ -108,10 +108,10 @@ export function RotasPage() {
                 <td>{r.km}</td>
                 <td className="capitalize">{r.situacao}</td>
                 <td className="px-4">
-                  <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
                     <button
                       type="button"
-                      className="text-xs font-semibold text-ink hover:underline"
+                      className="rounded-md border border-ink/20 bg-white px-2 py-1 text-xs font-bold text-ink hover:bg-ink/5"
                       onClick={() => setMapaRota(r)}
                     >
                       Ver mapa
@@ -133,6 +133,28 @@ export function RotasPage() {
           </tbody>
         </table>
       </div>
+
+      <Modal
+        open={Boolean(mapaRota)}
+        title={mapaRota ? `Mapa — ${mapaRota.descricao}` : 'Mapa da rota'}
+        onClose={() => setMapaRota(null)}
+        wide
+      >
+        {mapaRota && (
+          <div className="space-y-2">
+            <p className="text-xs text-ink-muted">
+              {mapaRota.origem} → {mapaRota.destino}
+              {mapaRota.km > 0 ? ` · ${mapaRota.km} km cadastrados` : ''}
+            </p>
+            <RotaMapPreview
+              key={mapaRota.id}
+              origem={mapaRota.origem}
+              destino={mapaRota.destino}
+              className="h-[360px] min-h-[360px] w-full"
+            />
+          </div>
+        )}
+      </Modal>
 
       <div className="rounded-xl border border-ink/10 bg-white p-4">
         <h3 className="mb-3 font-display font-semibold">
@@ -198,28 +220,6 @@ export function RotasPage() {
           {editingId ? 'Salvar' : 'Adicionar'}
         </Button>
       </div>
-
-      <Modal
-        open={Boolean(mapaRota)}
-        title={mapaRota ? `Mapa — ${mapaRota.descricao}` : 'Mapa da rota'}
-        onClose={() => setMapaRota(null)}
-        wide
-      >
-        {mapaRota && (
-          <div className="space-y-3 p-1">
-            <p className="text-sm text-ink-muted">
-              {mapaRota.origem} → {mapaRota.destino}
-              {mapaRota.km > 0 ? ` · ${mapaRota.km} km (cadastro)` : ''}
-            </p>
-            <RotaMapPreview
-              key={mapaRota.id}
-              origem={mapaRota.origem}
-              destino={mapaRota.destino}
-              className="h-[min(55vh,420px)] min-h-[280px] w-full"
-            />
-          </div>
-        )}
-      </Modal>
     </div>
   )
 }
