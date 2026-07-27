@@ -3156,7 +3156,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             titulo: 'Viagem iniciada',
             mensagem: `Carga ${base.numero}: ${base.placa} · ${base.motorista}`,
             carga_id: cargaId,
-            href: '/embarcador?aba=viagens',
+            href: '/embarcador/viagens',
           }),
         }
         flushKanbanPush(next)
@@ -3204,7 +3204,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             titulo: 'Viagem finalizada — avaliar',
             mensagem: `Carga ${base.numero}: avalie motorista e veículo (1 a 5 estrelas).`,
             carga_id: cargaId,
-            href: '/embarcador?aba=viagens',
+            href: '/embarcador/viagens',
           }),
         }
         flushKanbanPush(next)
@@ -3255,7 +3255,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             titulo: 'Viagem cancelada',
             mensagem: `Carga ${base.numero}${motivoLimpo ? `: ${motivoLimpo}` : ''}`,
             carga_id: cargaId,
-            href: '/embarcador?aba=viagens',
+            href: '/embarcador/viagens',
           }),
         }
         flushKanbanPush(next)
@@ -3358,7 +3358,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             titulo: 'Avaliação recebida',
             mensagem: `Carga ${base.numero}: motorista ${notaM}/5 · veículo ${notaV}/5`,
             carga_id: cargaId,
-            href: '/transportador?aba=viagens',
+            href: '/transportador/viagens',
           }),
         }
         flushKanbanPush(next)

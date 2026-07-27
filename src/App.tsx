@@ -6,6 +6,7 @@ import { CompanySplash } from './components/CompanySplash'
 import { LoginPage } from './pages/Login'
 import { CadastroTransportadorPage } from './pages/CadastroTransportador'
 import { KanbanMinerva } from './pages/minerva/KanbanMinerva'
+import { ViagensEmbarcadorPage } from './pages/minerva/Viagens'
 import { RotasPage } from './pages/minerva/Rotas'
 import { TransportadoresPage } from './pages/minerva/Transportadores'
 import { GruposPage } from './pages/minerva/Grupos'
@@ -17,6 +18,7 @@ import { VeiculosPage } from './pages/minerva/Veiculos'
 import { MotoristasPage } from './pages/minerva/Motoristas'
 import { PortalConfigPage } from './pages/minerva/PortalConfig'
 import { KanbanTransportador } from './pages/transportador/KanbanTransportador'
+import { ViagensTransportadorPage } from './pages/transportador/Viagens'
 import { PainelTransportadorPage } from './pages/transportador/Painel'
 import { MapaFrotaPage } from './pages/minerva/MapaFrota'
 import { PerfilPage } from './pages/Perfil'
@@ -84,6 +86,14 @@ export default function App() {
           element={
             <Protected role={['super']}>
               <KanbanMinerva />
+            </Protected>
+          }
+        />
+        <Route
+          path="/embarcador/viagens"
+          element={
+            <Protected role={['super']}>
+              <ViagensEmbarcadorPage />
             </Protected>
           }
         />
@@ -183,6 +193,14 @@ export default function App() {
           element={
             <Protected role={['transportador', 'super']}>
               <KanbanTransportador />
+            </Protected>
+          }
+        />
+        <Route
+          path="/transportador/viagens"
+          element={
+            <Protected role={['transportador', 'super']}>
+              <ViagensTransportadorPage />
             </Protected>
           }
         />

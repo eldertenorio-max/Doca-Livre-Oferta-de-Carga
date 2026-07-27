@@ -7,7 +7,6 @@ import { KanbanBoard } from '../../components/kanban/KanbanBoard'
 import { GridCargas, VistaToggle } from '../../components/kanban/GridCargas'
 import { AllocateModal, BidModal } from '../../components/carga/BidModal'
 import { TransportadorRotaCalc } from '../../components/carga/TransportadorRotaCalc'
-import { ViagensBoard } from '../../components/viagens/ViagensBoard'
 import { DEMO_TRANSPORTADOR } from '../../lib/portalAuth'
 import { isSuperSession } from '../../lib/superUsers'
 import {
@@ -73,17 +72,8 @@ export function KanbanTransportador() {
     effectiveTransportadorId,
   } = useData()
   const [searchParams, setSearchParams] = useSearchParams()
-  const aba: 'kanban' | 'viagens' =
-    searchParams.get('aba') === 'viagens' ? 'viagens' : 'kanban'
   const vista: 'quadro' | 'grid' =
     searchParams.get('vista') === 'grid' ? 'grid' : 'quadro'
-
-  function setAba(next: 'kanban' | 'viagens') {
-    const sp = new URLSearchParams(searchParams)
-    if (next === 'viagens') sp.set('aba', 'viagens')
-    else sp.delete('aba')
-    setSearchParams(sp, { replace: true })
-  }
 
   function setVista(next: 'quadro' | 'grid') {
     const sp = new URLSearchParams(searchParams)
@@ -162,64 +152,6 @@ export function KanbanTransportador() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
-      <div
-        className="flex shrink-0 gap-1 border-b border-ink/10"
-        role="tablist"
-        aria-label="Kanban ou Viagens"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={aba === 'kanban'}
-          className={`px-3 py-2 text-sm font-semibold transition ${
-            aba === 'kanban'
-              ? 'border-b-2 border-ink text-ink'
-              : 'border-b-2 border-transparent text-ink-muted hover:text-ink'
-          }`}
-          onClick={() => setAba('kanban')}
-        >
-          Kanban
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={aba === 'viagens'}
-          className={`px-3 py-2 text-sm font-semibold transition ${
-            aba === 'viagens'
-              ? 'border-b-2 border-ink text-ink'
-              : 'border-b-2 border-transparent text-ink-muted hover:text-ink'
-          }`}
-          onClick={() => setAba('viagens')}
-        >
-          Viagens
-        </button>
-      </div>
-
-      {aba === 'viagens' ? (
-        <>
-          {canPickTransportador && (
-            <label className="flex min-w-0 w-full max-w-md flex-col gap-1 text-xs font-semibold text-ink">
-              Viagens do transportador
-              <select
-                value={viewAsId}
-                onChange={(e) => setViewAsId(e.target.value)}
-                className="rounded-lg border border-brand/40 bg-white px-3 py-2 text-sm font-medium text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-              >
-                {transportadoresAtivos.length === 0 && (
-                  <option value="">Nenhuma transportadora ativa</option>
-                )}
-                {transportadoresAtivos.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.nome_fantasia} · {t.classificacao}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <ViagensBoard mode="transportador" transportadorId={tid || null} />
-        </>
-      ) : (
-        <>
       <div className="flex shrink-0 flex-wrap items-end gap-3">
         {canPickTransportador && (
           <label className="flex min-w-0 w-full flex-1 flex-col gap-1 text-xs font-semibold text-ink sm:min-w-[260px] sm:w-auto">
@@ -418,8 +350,6 @@ export function KanbanTransportador() {
         open={!!rotaCarga}
         onClose={() => setRotaCarga(null)}
       />
-        </>
-      )}
     </div>
   )
 }
