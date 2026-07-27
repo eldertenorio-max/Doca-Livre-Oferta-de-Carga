@@ -254,7 +254,11 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
                   name="pref-rota"
                   className="accent-[var(--color-brand,#c45c26)]"
                   checked={preferencia === id}
-                  onChange={() => setPreferencia(id)}
+                  onChange={() => {
+                    setPreferencia(id)
+                    setCalc(null)
+                    setErro('')
+                  }}
                 />
                 {label}
               </label>

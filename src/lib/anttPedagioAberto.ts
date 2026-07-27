@@ -228,41 +228,145 @@ export async function calcularPedagioNaRota(
   }
 }
 
+export type PreferenciaOsrm = 'eficiente' | 'curta' | 'evitar_pedagio'
+
+type OsrmRouteRaw = {
+  distance?: number
+  duration?: number
+  geometry?: { coordinates?: [number, number][] }
+}
+
+function slimPolyline(coords: [number, number][]): Array<{ lat: number; lng: number }> {
+  const polyline = coords.map(([lng, lat]) => ({ lat, lng }))
+  const step = Math.max(1, Math.floor(polyline.length / 180))
+  return polyline.filter((_, i) => i % step === 0 || i === polyline.length - 1)
+}
+
+function mapOsrmRoute(r: OsrmRouteRaw): {
+  distanciaKm: number
+  duracaoMin: number
+  polyline: Array<{ lat: number; lng: number }>
+} | null {
+  if (!r.distance || !r.duration || !r.geometry?.coordinates?.length) return null
+  return {
+    distanciaKm: r.distance / 1000,
+    duracaoMin: r.duration / 60,
+    polyline: slimPolyline(r.geometry.coordinates),
+  }
+}
+
+const OSRM_BASES = [
+  'https://router.project-osrm.org',
+  'https://routing.openstreetmap.de/routed-car',
+]
+
+async function fetchOsrmRoutesFromBase(
+  base: string,
+  origem: { lat: number; lng: number },
+  destino: { lat: number; lng: number },
+  opts?: { excludeToll?: boolean; alternatives?: boolean },
+): Promise<OsrmRouteRaw[]> {
+  try {
+    const params = new URLSearchParams({
+      overview: 'full',
+      geometries: 'geojson',
+      alternatives: opts?.alternatives ? 'true' : 'false',
+    })
+    if (opts?.excludeToll) params.set('exclude', 'toll')
+    const url =
+      `${base}/route/v1/driving/` +
+      `${origem.lng},${origem.lat};${destino.lng},${destino.lat}?${params.toString()}`
+    const res = await fetch(url)
+    if (!res.ok) return []
+    const data = (await res.json()) as { code?: string; routes?: OsrmRouteRaw[] }
+    if (data.code && data.code !== 'Ok') return []
+    return Array.isArray(data.routes) ? data.routes : []
+  } catch {
+    return []
+  }
+}
+
+/** Une rotas de 1+ servidores OSRM (mais alternativas para curta vs eficiente). */
+async function fetchOsrmRoutes(
+  origem: { lat: number; lng: number },
+  destino: { lat: number; lng: number },
+  opts?: { excludeToll?: boolean; alternatives?: boolean },
+): Promise<OsrmRouteRaw[]> {
+  const batches = await Promise.all(
+    OSRM_BASES.map((base) => fetchOsrmRoutesFromBase(base, origem, destino, opts)),
+  )
+  const all = batches.flat()
+  // Dedup por distância/duração arredondadas
+  const seen = new Set<string>()
+  const unique: OsrmRouteRaw[] = []
+  for (const r of all) {
+    if (!r.distance || !r.duration) continue
+    const key = `${Math.round(r.distance / 200)}:${Math.round(r.duration / 30)}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    unique.push(r)
+  }
+  return unique
+}
+
+function escolherRota(
+  routes: OsrmRouteRaw[],
+  preferencia: 'eficiente' | 'curta',
+): OsrmRouteRaw | null {
+  const validas = routes.filter(
+    (r) => r.distance && r.duration && r.geometry?.coordinates?.length,
+  )
+  if (validas.length === 0) return null
+  if (preferencia === 'curta') {
+    return validas.reduce((best, r) =>
+      (r.distance ?? Infinity) < (best.distance ?? Infinity) ? r : best,
+    )
+  }
+  // eficiente = menor tempo
+  return validas.reduce((best, r) =>
+    (r.duration ?? Infinity) < (best.duration ?? Infinity) ? r : best,
+  )
+}
+
+/**
+ * Rota OSRM:
+ * - eficiente: entre alternativas, menor duração
+ * - curta: entre alternativas, menor distância
+ * - evitar_pedagio: exclude=toll (falha → null; quem chama trata a mensagem)
+ */
 export async function rotaOsrmComGeometria(
   origem: { lat: number; lng: number },
   destino: { lat: number; lng: number },
-  opts?: { evitarPedagios?: boolean },
+  opts?: { evitarPedagios?: boolean; preferencia?: PreferenciaOsrm },
 ): Promise<{
   distanciaKm: number
   duracaoMin: number
   polyline: Array<{ lat: number; lng: number }>
+  preferencia?: PreferenciaOsrm
 } | null> {
   try {
-    const exclude = opts?.evitarPedagios ? '&exclude=toll' : ''
-    const url =
-      `https://router.project-osrm.org/route/v1/driving/` +
-      `${origem.lng},${origem.lat};${destino.lng},${destino.lat}` +
-      `?overview=full&geometries=geojson${exclude}`
-    const res = await fetch(url)
-    if (!res.ok) return null
-    const data = (await res.json()) as {
-      routes?: Array<{
-        distance?: number
-        duration?: number
-        geometry?: { coordinates?: [number, number][] }
-      }>
+    const preferencia: PreferenciaOsrm =
+      opts?.preferencia ?? (opts?.evitarPedagios ? 'evitar_pedagio' : 'eficiente')
+
+    if (preferencia === 'evitar_pedagio') {
+      const semToll = await fetchOsrmRoutes(origem, destino, {
+        excludeToll: true,
+        alternatives: true,
+      })
+      const escolhida = escolherRota(semToll, 'eficiente')
+      if (!escolhida) return null
+      const mapped = mapOsrmRoute(escolhida)
+      if (!mapped) return null
+      return { ...mapped, preferencia }
     }
-    const r = data.routes?.[0]
-    if (!r?.distance || !r.duration || !r.geometry?.coordinates?.length) return null
-    const polyline = r.geometry.coordinates.map(([lng, lat]) => ({ lat, lng }))
-    // simplifica para performance (a cada N pontos)
-    const step = Math.max(1, Math.floor(polyline.length / 180))
-    const slim = polyline.filter((_, i) => i % step === 0 || i === polyline.length - 1)
-    return {
-      distanciaKm: r.distance / 1000,
-      duracaoMin: r.duration / 60,
-      polyline: slim,
-    }
+
+    const routes = await fetchOsrmRoutes(origem, destino, { alternatives: true })
+    const modo = preferencia === 'curta' ? 'curta' : 'eficiente'
+    const escolhida = escolherRota(routes, modo)
+    if (!escolhida) return null
+    const mapped = mapOsrmRoute(escolhida)
+    if (!mapped) return null
+    return { ...mapped, preferencia: modo }
   } catch {
     return null
   }

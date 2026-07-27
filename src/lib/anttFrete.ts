@@ -188,9 +188,16 @@ export async function calcularRotaOperacional(params: {
   if (!d.ok) return { ok: false, erro: `Destino: ${d.erro}` }
 
   const { rotaOsrmComGeometria, calcularPedagioNaRota } = await import('./anttPedagioAberto')
-  const evitar = params.preferencia === 'evitar_pedagio'
-  const rotaGeo = await rotaOsrmComGeometria(o.coords, d.coords, { evitarPedagios: evitar })
+  const preferencia = params.preferencia ?? 'eficiente'
+  const evitar = preferencia === 'evitar_pedagio'
+  const rotaGeo = await rotaOsrmComGeometria(o.coords, d.coords, { preferencia })
   if (!rotaGeo) {
+    if (evitar) {
+      return {
+        ok: false,
+        erro: 'Não foi possível calcular rota entre origem e destino sem pedágio.',
+      }
+    }
     return { ok: false, erro: 'Não foi possível calcular a rota entre origem e destino.' }
   }
 
@@ -208,7 +215,22 @@ export async function calcularRotaOperacional(params: {
   let pedFonte = 'estimativa por km'
   try {
     const ped = await calcularPedagioNaRota(rotaGeo.polyline, eixosUtilizados)
-    if (ped.pracas.length > 0 && !evitar) {
+    if (evitar) {
+      // Se ainda há praças na “rota sem pedágio”, o OSRM não conseguiu evitar
+      if (ped.pracas.length > 0) {
+        return {
+          ok: false,
+          erro: 'Não foi possível calcular rota entre origem e destino sem pedágio.',
+        }
+      }
+      rota.vale_pedagio = 0
+      rota.pedagio = 0
+      rota.pedagio_por_eixo = 0
+      rota.pracas = []
+      rota.custo_total = rota.combustivel
+      rota.provedor = 'local'
+      pedFonte = 'rota sem pedágio (OSRM exclude=toll)'
+    } else if (ped.pracas.length > 0) {
       const pedIda = ped.pedagio
       const pedVolta = params.idaEVolta ? pedIda : 0
       rota.pedagio = roundMoney(pedIda + pedVolta)
@@ -224,14 +246,6 @@ export async function calcularRotaOperacional(params: {
       rota.custo_total = roundMoney(rota.pedagio + rota.combustivel)
       rota.provedor = 'antt_aberto'
       pedFonte = ped.fonte + (params.idaEVolta ? ' · ida e volta' : '')
-    } else if (evitar) {
-      rota.vale_pedagio = 0
-      rota.pedagio = 0
-      rota.pedagio_por_eixo = 0
-      rota.pracas = []
-      rota.custo_total = rota.combustivel
-      rota.provedor = 'local'
-      pedFonte = 'preferência evitar pedágios (OSRM exclude=toll) · pedágio zerado na estimativa'
     } else {
       rota.vale_pedagio = rota.pedagio
       rota.provedor = 'local'
@@ -240,10 +254,24 @@ export async function calcularRotaOperacional(params: {
         (params.idaEVolta ? ' · ida e volta' : '')
     }
   } catch {
+    if (evitar) {
+      return {
+        ok: false,
+        erro: 'Não foi possível calcular rota entre origem e destino sem pedágio.',
+      }
+    }
     rota.vale_pedagio = rota.pedagio
     rota.provedor = 'local'
     pedFonte = 'falha ao carregar praças ANTT — pedágio estimado por km'
   }
+
+  const rotuloPref =
+    preferencia === 'curta'
+      ? 'rota curta (menor km)'
+      : preferencia === 'evitar_pedagio'
+        ? 'evitar pedágios'
+        : 'rota eficiente (menor tempo)'
+  pedFonte = `${rotuloPref} · ${pedFonte}`
 
   const cat =
     params.categoriaId != null
