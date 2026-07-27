@@ -72,7 +72,7 @@
 
 .cadastro-input:focus {
   outline: none;
-  border-color: #94a3b8;
+  border-color: #3a4048;
   box-shadow: 0 0 0 3px rgb(148 163 184 / 0.25);
 }
 
@@ -305,7 +305,7 @@
 .form-field label {
   font-size: 0.8rem;
   font-weight: 700;
-  color: #334155;
+  color: #111827;
 }
 
 .form-field label .req {
@@ -328,7 +328,7 @@
 .form-field select:focus,
 .form-field textarea:focus {
   outline: none;
-  border-color: #94a3b8;
+  border-color: #3a4048;
   box-shadow: 0 0 0 3px rgb(148 163 184 / 0.25);
 }
 
@@ -339,7 +339,7 @@
 .raio-pesquisa__hint {
   margin: 0 0 10px;
   font-size: 12px;
-  color: #64748b;
+  color: #1a1d21;
   line-height: 1.4;
 }
 
@@ -361,7 +361,7 @@
 .raio-pesquisa__value span {
   font-size: 0.9rem;
   font-weight: 700;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .raio-pesquisa__slider {
@@ -411,7 +411,7 @@
   margin-top: 6px;
   font-size: 11px;
   font-weight: 600;
-  color: #94a3b8;
+  color: #3a4048;
 }
 
 .form-field__password-wrap {
@@ -440,7 +440,7 @@
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: #64748b;
+  color: #1a1d21;
   cursor: pointer;
   padding: 0;
 }
@@ -460,7 +460,7 @@
   border: 2px dashed #cbd5e1;
   border-radius: 12px;
   background: #f8fafc;
-  color: #64748b;
+  color: #1a1d21;
   overflow: hidden;
 }
 
@@ -533,7 +533,7 @@
 
 .foto-veiculo-slot__dica {
   font-size: 0.78rem;
-  color: #334155;
+  color: #111827;
   line-height: 1.35;
   background: #eff6ff;
   border: 1px solid #bfdbfe;
@@ -634,7 +634,7 @@
 .cadastro-empty {
   padding: 28px;
   text-align: center;
-  color: #64748b;
+  color: #1a1d21;
   font-size: 0.92rem;
 }
 
@@ -665,7 +665,7 @@
 
 .badge-origem--painel {
   background: #e2e8f0;
-  color: #334155;
+  color: #111827;
 }
 
 .cadastro-link-publico {
@@ -691,7 +691,7 @@
 .cadastro-link-publico p {
   margin: 0;
   font-size: 0.78rem;
-  color: #475569;
+  color: #1a1d21;
   word-break: break-all;
 }
 
@@ -711,7 +711,7 @@
 .revisao-dl dt {
   font-size: 0.75rem;
   font-weight: 700;
-  color: #64748b;
+  color: #1a1d21;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -747,7 +747,7 @@
 
 .doc-review-list li span {
   flex: 1;
-  color: #64748b;
+  color: #1a1d21;
   font-size: 0.85rem;
   min-width: 120px;
 }
@@ -795,7 +795,7 @@
 
 .cadastro-publico__card .portal-login__subtitle {
   margin: 0 0 16px;
-  color: #334155;
+  color: #111827;
   font-size: 0.95rem;
   line-height: 1.45;
 }
@@ -815,7 +815,7 @@
 .cadastro-publico__hint {
   margin: 0 0 12px;
   font-size: 0.85rem;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .cadastro-publico__nav {
@@ -853,7 +853,7 @@
   gap: 4px;
   font-size: 0.72rem;
   font-weight: 600;
-  color: #94a3b8;
+  color: #3a4048;
   text-align: center;
 }
 
@@ -864,7 +864,7 @@
   display: grid;
   place-items: center;
   background: #e2e8f0;
-  color: #64748b;
+  color: #1a1d21;
   font-size: 0.8rem;
 }
 
@@ -915,7 +915,7 @@
 .cadastro-logo__preview span {
   font-size: 0.7rem;
   font-weight: 700;
-  color: #94a3b8;
+  color: #3a4048;
   text-align: center;
   padding: 6px;
 }
@@ -933,7 +933,7 @@
 
 .cadastro-logo__meta > span {
   font-size: 0.8rem;
-  color: #64748b;
+  color: #1a1d21;
   line-height: 1.35;
 }
 
@@ -989,7 +989,7 @@
 
 .doc-upload-row > div span {
   font-size: 0.78rem;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .doc-upload-row__file {
@@ -1077,7 +1077,7 @@
   margin: 0;
   max-width: 52rem;
   font-size: 0.92rem;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .financeiro-header-actions {
@@ -1137,7 +1137,7 @@
 }
 .financeiro-kpi--ink {
   background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
-  border-color: #334155;
+  border-color: #111827;
 }
 
 .financeiro-kpi__label {
@@ -1146,7 +1146,7 @@
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .financeiro-kpi__value {
@@ -1169,7 +1169,7 @@
 .financeiro-kpi__hint {
   margin: 0;
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: #3a4048;
 }
 
 .financeiro-filters {
@@ -1222,7 +1222,7 @@
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #475569;
+  color: #1a1d21;
 }
 
 .financeiro-period-group {
@@ -1234,7 +1234,7 @@
 .financeiro-chip {
   border: 1px solid #cbd5e1;
   background: #fff;
-  color: #334155;
+  color: #111827;
   font: inherit;
   font-size: 0.85rem;
   font-weight: 700;
@@ -1280,7 +1280,7 @@
   width: 100%;
   min-height: 42px;
   font-size: 0.92rem;
-  border-color: #94a3b8 !important;
+  border-color: #3a4048 !important;
   background: #fff;
 }
 
@@ -1369,14 +1369,14 @@
 .financeiro-empty {
   padding: 36px 16px !important;
   text-align: center;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .financeiro-meta {
   display: block;
   margin-top: 3px;
   font-size: 0.7rem;
-  color: #94a3b8;
+  color: #3a4048;
   text-transform: none;
   font-weight: 500;
   letter-spacing: 0;
@@ -1436,7 +1436,7 @@
   font: inherit;
   font-size: 0.8rem;
   font-weight: 600;
-  color: #64748b;
+  color: #1a1d21;
   cursor: pointer;
 }
 

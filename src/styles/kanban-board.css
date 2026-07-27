@@ -47,7 +47,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: #64748b;
+  color: #1a1d21;
   margin-bottom: 4px;
 }
 
@@ -136,7 +136,7 @@
   justify-content: center;
   padding: 4px;
   border-radius: 6px;
-  color: #64748b;
+  color: #1a1d21;
   transition: background 0.12s, color 0.12s;
 }
 
@@ -150,7 +150,7 @@
   padding: 0 14px 8px;
   font-size: 0.65rem;
   line-height: 1.35;
-  color: #64748b;
+  color: #1a1d21;
   border-bottom: 1px solid #f1f5f9;
 }
 
@@ -173,7 +173,7 @@
   padding: 24px 8px;
   text-align: center;
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: #3a4048;
 }
 
 .kanban-col__empty.is-drop {
@@ -222,5 +222,5 @@
   text-transform: uppercase;
   writing-mode: vertical-rl;
   transform: rotate(180deg);
-  color: #334155;
+  color: #111827;
 }

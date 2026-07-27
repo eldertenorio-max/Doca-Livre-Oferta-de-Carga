@@ -6,8 +6,8 @@
   --color-brand-dark: #e0c500;
   --color-brand-soft: #fff3a8;
   --color-ink: #000000;
-  --color-ink-deep: #111111;
-  --color-ink-muted: #5c6670;
+  --color-ink-deep: #0a0a0a;
+  --color-ink-muted: #1a1d21;
   --color-sand: #f9db00;
   --color-sand-dark: #e0c500;
   --color-sand-light: #eef1f4;
@@ -30,7 +30,7 @@
   --bg-elevated: #f8f9fb;
   --border: #dde1e6;
   --text: #000000;
-  --text-muted: #5c6670;
+  --text-muted: #1a1d21;
   --accent: var(--brand-yellow);
   --accent-hover: var(--brand-yellow-hover);
   --accent-fg: var(--brand-black);
@@ -78,6 +78,22 @@ input,
 select,
 textarea {
   font: inherit;
+  color: #000000;
+}
+
+::placeholder {
+  color: #3a4048 !important;
+  opacity: 1;
+}
+
+::-webkit-input-placeholder {
+  color: #3a4048 !important;
+  opacity: 1;
+}
+
+::-moz-placeholder {
+  color: #3a4048 !important;
+  opacity: 1;
 }
 
 ::-webkit-scrollbar {

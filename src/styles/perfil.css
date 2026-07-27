@@ -82,7 +82,7 @@
   padding: 10px 2px 12px;
   font-size: 0.95rem;
   font-weight: 700;
-  color: #64748b;
+  color: #1a1d21;
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
@@ -125,7 +125,7 @@
   justify-content: center;
   flex-shrink: 0;
   font-weight: 800;
-  color: #334155;
+  color: #111827;
 }
 
 .perfil-hero__avatar img {
@@ -214,12 +214,12 @@
 
 .perfil-hero__text > span {
   font-size: 0.92rem;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .perfil-hero__chev {
   font-size: 1.6rem;
-  color: #94a3b8;
+  color: #3a4048;
   line-height: 1;
 }
 
@@ -247,7 +247,7 @@
 .perfil-stats__label {
   margin: 4px 0 0;
   font-size: 0.75rem;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .perfil-links {
@@ -278,14 +278,14 @@
 }
 
 .perfil-link--muted {
-  color: #64748b;
+  color: #1a1d21;
   font-weight: 600;
 }
 
 .perfil-hint {
   margin: 0;
   font-size: 0.8rem;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .perfil-msg {
@@ -324,7 +324,7 @@
   align-items: center;
   gap: 10px;
   font-size: 0.92rem;
-  color: #334155;
+  color: #111827;
 }
 
 .perfil-verified li::before {
@@ -371,7 +371,7 @@
 
 .perfil-extra span {
   font-size: 0.72rem;
-  color: #64748b;
+  color: #1a1d21;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-weight: 700;
@@ -408,7 +408,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .perfil-dl dd {

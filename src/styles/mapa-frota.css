@@ -25,7 +25,7 @@
 .mapa-frota__sub {
   margin: 4px 0 0;
   font-size: 0.85rem;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .mapa-frota__filtros {
@@ -41,7 +41,7 @@
   padding: 6px 12px;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #334155;
+  color: #111827;
   cursor: pointer;
 }
 
@@ -134,7 +134,7 @@
   margin-left: auto;
   font-size: 0.72rem;
   font-weight: 700;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .mapa-frota__search-chevron {
@@ -196,7 +196,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .mapa-frota__field select:disabled {
@@ -211,7 +211,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .mapa-frota__tipos-grid {
@@ -232,7 +232,7 @@
   background: #fff;
   cursor: pointer;
   font: inherit;
-  color: #334155;
+  color: #111827;
 }
 
 .mapa-frota__tipo-chip em {
@@ -258,7 +258,7 @@
   padding: 7px 10px;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #334155;
+  color: #111827;
   cursor: pointer;
 }
 
@@ -270,7 +270,7 @@
   margin: 0;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .mapa-frota__raio-box {
@@ -302,7 +302,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #94a3b8;
+  color: #3a4048;
 }
 
 .mapa-frota__raio-slider .raio-pesquisa__value strong {
@@ -423,13 +423,13 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .mapa-frota__cats-hint {
   margin: 0 0 8px;
   font-size: 0.72rem;
-  color: #94a3b8;
+  color: #3a4048;
   line-height: 1.3;
 }
 
@@ -523,7 +523,7 @@
 .mapa-frota__cats-label {
   font-size: 0.78rem;
   font-weight: 600;
-  color: #334155;
+  color: #111827;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -553,7 +553,7 @@
   margin: 0;
   padding: 16px;
   font-size: 0.85rem;
-  color: #64748b;
+  color: #1a1d21;
   line-height: 1.45;
 }
 
@@ -596,7 +596,7 @@
 
 .mapa-frota__item-body span {
   font-size: 0.75rem;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .mapa-frota__item-meta {
@@ -652,7 +652,7 @@
   border: 1px solid #e2e8f0;
   font-size: 0.7rem;
   font-weight: 600;
-  color: #334155;
+  color: #111827;
   box-shadow: 0 4px 14px rgb(15 23 42 / 0.08);
 }
 
@@ -821,7 +821,7 @@
   height: 28px;
   border-radius: 8px;
   background: #f1f5f9;
-  color: #334155 !important;
+  color: #111827 !important;
   font-size: 18px;
   font-weight: 700;
   display: grid;
@@ -897,7 +897,7 @@
 .frota-ficha__avaliacoes-btn {
   margin: 2px 0 8px;
   font-size: 0.75rem;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .frota-ficha__avaliacoes-btn {
@@ -973,7 +973,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #94a3b8;
+  color: #3a4048;
 }
 
 .frota-ficha__dl dd {
@@ -1048,7 +1048,7 @@
 
 .disponivel-flag__label span {
   font-size: 0.78rem;
-  color: #64748b;
+  color: #1a1d21;
   line-height: 1.35;
 }
 
@@ -1067,7 +1067,7 @@
   font-weight: 800;
   cursor: pointer;
   background: #f8fafc;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .disponivel-flag__btn--ok.is-on {
@@ -1113,7 +1113,7 @@
 
 .disp-placas__head span {
   font-size: 0.75rem;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .disp-placas__bulk {
@@ -1128,7 +1128,7 @@
   border: 1px solid #d0d7de;
   border-radius: 8px;
   background: #fff;
-  color: #334155;
+  color: #111827;
   font-size: 0.72rem;
   font-weight: 700;
   padding: 6px 10px;
@@ -1176,7 +1176,7 @@
 
 .disp-placas__meta span {
   font-size: 0.72rem;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .disp-placas__toggle {
@@ -1194,7 +1194,7 @@
   font-weight: 800;
   cursor: pointer;
   background: #f8fafc;
-  color: #64748b;
+  color: #1a1d21;
   white-space: nowrap;
 }
 
@@ -1266,7 +1266,7 @@
 .frota-modal__nome {
   margin: 0 28px 14px 0;
   font-size: 0.85rem;
-  color: #64748b;
+  color: #1a1d21;
 }
 
 .frota-modal__nome {
@@ -1328,7 +1328,7 @@
 }
 
 .frota-avaliacoes-list__head span {
-  color: #94a3b8;
+  color: #3a4048;
   white-space: nowrap;
 }
 
@@ -1356,14 +1356,14 @@
 .frota-avaliacoes-list__item p {
   margin: 0;
   font-size: 0.85rem;
-  color: #334155;
+  color: #111827;
   line-height: 1.4;
 }
 
 .frota-avaliacoes-list__empty {
   padding: 18px 8px;
   text-align: center;
-  color: #94a3b8;
+  color: #3a4048;
   font-size: 0.9rem;
 }
 

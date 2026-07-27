@@ -370,7 +370,7 @@ export function PortalConfigPage() {
   return (
     <div className="cadastro-page animate-fade-up">
       <h1 className="cadastro-page-title">Configuração do Portal</h1>
-      <p style={{ color: '#64748b', marginTop: -8, marginBottom: 16, fontSize: '0.92rem' }}>
+      <p style={{ color: '#1a1d21', marginTop: -8, marginBottom: 16, fontSize: '0.92rem' }}>
         Super Usuário: {user.usuario || user.nome} — hierarquia e permissões deste sistema.
       </p>
 
@@ -781,7 +781,7 @@ function OrgTreeView({
             }}
           >
             <strong>{n.nome}</strong>
-            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{ORG_TIPO_LABEL[n.tipo]}</span>
+            <span style={{ fontSize: '0.75rem', color: '#1a1d21' }}>{ORG_TIPO_LABEL[n.tipo]}</span>
             <button type="button" className="cadastro-link" onClick={() => onAdd(n)}>
               + Filho
             </button>

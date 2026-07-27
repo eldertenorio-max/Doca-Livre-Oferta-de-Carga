@@ -356,7 +356,7 @@ export function TransportadoresPage() {
           ) : null}
           <span>
             {ficha.nome_fantasia}
-            <span style={{ marginLeft: 12, fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>
+            <span style={{ marginLeft: 12, fontSize: '0.85rem', fontWeight: 600, color: '#1a1d21' }}>
               {ficha.classificacao} · {ficha.pontuacao} pts
               {pos > 0 ? ` · ${pos}º` : ''}
             </span>
@@ -750,7 +750,7 @@ export function TransportadoresPage() {
                   onChange={(e) => setMotivoRecusa(e.target.value)}
                   placeholder="Explique o que precisa ser corrigido..."
                 />
-                <p className="form-field-hint" style={{ marginTop: 6, fontSize: 12, color: '#64748b' }}>
+                <p className="form-field-hint" style={{ marginTop: 6, fontSize: 12, color: '#1a1d21' }}>
                   O transportador recebe este motivo no e-mail do cadastro
                   {revisao.email ? ` (${revisao.email})` : ''} para poder se cadastrar de novo.
                 </p>
@@ -901,7 +901,7 @@ export function TransportadoresPage() {
                   <tr key={t.id}>
                     <td>
                       <strong>{t.nome_fantasia}</strong>
-                      <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{t.razao_social}</div>
+                      <div style={{ fontSize: '0.8rem', color: '#1a1d21' }}>{t.razao_social}</div>
                     </td>
                     <td>{t.cnpj}</td>
                     <td>
@@ -1010,11 +1010,11 @@ export function TransportadoresPage() {
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               ) : (
-                <span style={{ fontSize: 12, color: '#64748b' }}>Sem foto</span>
+                <span style={{ fontSize: 12, color: '#1a1d21' }}>Sem foto</span>
               )}
             </div>
             <div style={{ flex: 1, minWidth: 220 }}>
-              <p style={{ margin: '0 0 8px', fontSize: 13, color: '#64748b' }}>
+              <p style={{ margin: '0 0 8px', fontSize: 13, color: '#1a1d21' }}>
                 A imagem enviada aqui vira o avatar do transportador quando ele fizer login.
                 Use a logo da empresa ou uma foto do responsável (JPG, PNG ou WEBP, até 4 MB).
                 Ela aparece no login do sistema, no perfil e no mapa da frota.
@@ -1147,7 +1147,7 @@ export function TransportadoresPage() {
             <h2 className="form-card__title">Origem (residência)</h2>
           </header>
           <div className="form-card__body">
-            <p className="form-field-hint" style={{ marginBottom: 12, fontSize: 12, color: '#64748b' }}>
+            <p className="form-field-hint" style={{ marginBottom: 12, fontSize: 12, color: '#1a1d21' }}>
               Onde o transportador mora — distinto do endereço do CNPJ.
             </p>
             <div className="form-fields">

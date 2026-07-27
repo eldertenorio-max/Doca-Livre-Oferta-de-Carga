@@ -35,7 +35,7 @@
   overflow: hidden;
   background: #e2e8f0;
   border: 1px solid #cbd5e1;
-  color: #334155;
+  color: #111827;
   font-size: 0.7rem;
   font-weight: 800;
   flex-shrink: 0;
@@ -85,7 +85,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: #64748b;
+  color: #1a1d21;
   margin-bottom: 4px;
 }
 
@@ -127,7 +127,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #64748b;
+  color: #1a1d21;
   white-space: nowrap;
 }
 
@@ -155,7 +155,7 @@
 .grid-cargas__empty {
   padding: 28px 16px;
   text-align: center;
-  color: #64748b;
+  color: #1a1d21;
   font-size: 0.85rem;
 }
 
@@ -208,7 +208,7 @@
 }
 
 .grid-cargas__muted {
-  color: #94a3b8;
+  color: #3a4048;
 }
 
 .grid-cargas__actions {
@@ -235,7 +235,7 @@
 
 .grid-cargas__btn--ghost {
   background: #f1f5f9;
-  color: #334155;
+  color: #111827;
 }
 
 .grid-cargas__btn--ghost:hover {
@@ -257,7 +257,7 @@
   padding: 7px 12px;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #64748b;
+  color: #1a1d21;
   cursor: pointer;
 }
 
