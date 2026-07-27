@@ -549,7 +549,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
             Carga {carga.numero}
           </p>
           <p className="text-[11px] text-ink-muted">
-            Selecione uma rota da aba Rotas ou preencha origem/destino manualmente.
+            Preencha por seção: rota, frete, veículo, pedido e destinatário.
           </p>
         </div>
         {rotaSelecionada && (
@@ -559,11 +559,11 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
         )}
       </div>
 
-      {/* Rota */}
+      {/* 1. Rota */}
       <section className="space-y-2.5">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
-            Rota
+            1 · Rota
           </h3>
           <span className="text-[10px] text-ink-muted">
             {rotasAtivas.length} cadastrada{rotasAtivas.length === 1 ? '' : 's'}
@@ -618,23 +618,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
                 placeholder="Digite o endereço como no Google Maps"
               />
             </Field>
-            <Field label="Complemento *">
-              <SuggestInput
-                value={complementoTxt}
-                onChange={setComplementoTxt}
-                suggestions={sugComplemento}
-                placeholder="Sim, Não ou Ambos"
-              />
-            </Field>
-            <Field label="Gerenciamento de risco *">
-              <SuggestInput
-                value={riscoTxt}
-                onChange={setRiscoTxt}
-                suggestions={sugRisco}
-                placeholder="Rastreador, Localizador, Ambos ou Não exige"
-              />
-            </Field>
-            <Field label="Classificação da rota">
+            <Field label="Classificação da rota" className="sm:col-span-2">
               <select
                 className={inputClass}
                 value={classificacao}
@@ -644,13 +628,6 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
                 <option value="B">Rota B</option>
                 <option value="C">Rota C</option>
               </select>
-            </Field>
-            <Field label="Veículo *" className="sm:col-span-2">
-              <VeiculoSuggestInput
-                value={veiculo}
-                onChange={setVeiculo}
-                placeholder="Carreta, Truck, Fiorino…"
-              />
             </Field>
             <label className="inline-flex items-center gap-2 text-xs text-ink sm:col-span-2">
               <input
@@ -669,7 +646,13 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
             className="h-[220px] min-h-[220px] w-full lg:h-full lg:min-h-[260px]"
           />
         </div>
+      </section>
 
+      {/* 2. Frete */}
+      <section className="space-y-2.5 border-t border-ink/10 pt-3">
+        <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
+          2 · Frete
+        </h3>
         <AnttFretePanel
           origem={origem}
           destino={destino}
@@ -682,7 +665,6 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
             }
           }}
         />
-
         <Field label="Frete tabela (R$) *">
           <SuggestInput
             value={freteTabela}
@@ -697,10 +679,42 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
         </Field>
       </section>
 
-      {/* Pedido e carga */}
+      {/* 3. Veículo e exigências */}
       <section className="space-y-2.5 border-t border-ink/10 pt-3">
         <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
-          Pedido e carga
+          3 · Veículo e exigências
+        </h3>
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          <Field label="Veículo *" className="sm:col-span-2">
+            <VeiculoSuggestInput
+              value={veiculo}
+              onChange={setVeiculo}
+              placeholder="Carreta, Truck, Fiorino…"
+            />
+          </Field>
+          <Field label="Complemento *">
+            <SuggestInput
+              value={complementoTxt}
+              onChange={setComplementoTxt}
+              suggestions={sugComplemento}
+              placeholder="Sim, Não ou Ambos"
+            />
+          </Field>
+          <Field label="Gerenciamento de risco *">
+            <SuggestInput
+              value={riscoTxt}
+              onChange={setRiscoTxt}
+              suggestions={sugRisco}
+              placeholder="Rastreador, Localizador, Ambos ou Não exige"
+            />
+          </Field>
+        </div>
+      </section>
+
+      {/* 4. Pedido e carga */}
+      <section className="space-y-2.5 border-t border-ink/10 pt-3">
+        <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
+          4 · Pedido e carga
         </h3>
         <div className="grid gap-2.5 sm:grid-cols-2">
           <Field label="Pedido *">
@@ -759,10 +773,10 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
         </div>
       </section>
 
-      {/* Destinatário */}
+      {/* 5. Destinatário */}
       <section className="space-y-2.5 border-t border-ink/10 pt-3">
         <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
-          Destinatário
+          5 · Destinatário
         </h3>
         <div className="grid gap-2.5 sm:grid-cols-2">
           <Field label="Nome / empresa *">
@@ -806,10 +820,10 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
         </div>
       </section>
 
-      {/* Datas e obs */}
+      {/* 6. Prazos e obs */}
       <section className="space-y-2.5 border-t border-ink/10 pt-3">
         <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
-          Prazos e observações
+          6 · Prazos e observações
         </h3>
         <div className="grid gap-2.5 sm:grid-cols-2">
           <Field label="Carregamento">
