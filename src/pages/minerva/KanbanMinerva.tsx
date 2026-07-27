@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { isCargaEphemeral, montarNovaCarga, useData } from '../../context/DataContext'
 import { CargoCard } from '../../components/kanban/CargoCard'
 import { KanbanBoard } from '../../components/kanban/KanbanBoard'
 import { PublishPanel } from '../../components/carga/PublishPanel'
+import { ViagensBoard } from '../../components/viagens/ViagensBoard'
 import {
   colunaMinerva,
   isRascunhoNaoPublicado,
@@ -69,6 +70,7 @@ const COLUMNS: {
 export function KanbanMinerva() {
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const {
     cargas,
     lances,
@@ -77,6 +79,8 @@ export function KanbanMinerva() {
     moverCargaKanban,
     forcarSincronizarKanban,
   } = useData()
+  const aba: 'kanban' | 'viagens' =
+    searchParams.get('aba') === 'viagens' ? 'viagens' : 'kanban'
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Carga | null>(null)
   /** Rascunho só na tela — ainda não foi salvo em `cargas`. */
@@ -90,6 +94,13 @@ export function KanbanMinerva() {
     () => typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches,
   )
   const panelFullscreen = panelOpen && (panelSize === 'largo' || isNarrow)
+
+  function setAba(next: 'kanban' | 'viagens') {
+    const sp = new URLSearchParams(searchParams)
+    if (next === 'viagens') sp.set('aba', 'viagens')
+    else sp.delete('aba')
+    setSearchParams(sp, { replace: true })
+  }
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 900px)')
@@ -198,6 +209,43 @@ export function KanbanMinerva() {
     >
       {!panelFullscreen && (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
+          <div
+            className="flex shrink-0 gap-1 border-b border-ink/10 pb-0"
+            role="tablist"
+            aria-label="Kanban ou Viagens"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={aba === 'kanban'}
+              className={`px-3 py-2 text-sm font-semibold transition ${
+                aba === 'kanban'
+                  ? 'border-b-2 border-ink text-ink'
+                  : 'border-b-2 border-transparent text-ink-muted hover:text-ink'
+              }`}
+              onClick={() => setAba('kanban')}
+            >
+              Kanban
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={aba === 'viagens'}
+              className={`px-3 py-2 text-sm font-semibold transition ${
+                aba === 'viagens'
+                  ? 'border-b-2 border-ink text-ink'
+                  : 'border-b-2 border-transparent text-ink-muted hover:text-ink'
+              }`}
+              onClick={() => setAba('viagens')}
+            >
+              Viagens
+            </button>
+          </div>
+
+          {aba === 'viagens' ? (
+            <ViagensBoard mode="minerva" />
+          ) : (
+            <>
           <div className="relative w-full shrink-0">
             <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-muted" />
             <input
@@ -290,6 +338,8 @@ export function KanbanMinerva() {
               }))}
             />
           </div>
+            </>
+          )}
         </div>
       )}
 

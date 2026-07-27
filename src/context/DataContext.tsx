@@ -212,6 +212,15 @@ interface DataContextValue extends DataState, AuthState {
     motorista: string,
     opts?: { veiculoId?: string; motoristaId?: string },
   ) => Promise<{ ok: boolean; error?: string }>
+  /** Aba Viagens — transportador inicia a rota. */
+  iniciarViagem: (cargaId: string) => { ok: boolean; error?: string }
+  finalizarViagem: (cargaId: string) => { ok: boolean; error?: string }
+  cancelarViagem: (cargaId: string, motivo?: string) => { ok: boolean; error?: string }
+  /** Embarcador avalia motorista + veículo após rota finalizada. */
+  avaliarViagem: (
+    cargaId: string,
+    opts: { notaMotorista: number; notaVeiculo: number; comentario?: string },
+  ) => Promise<{ ok: boolean; error?: string }>
   registrarVisualizacao: (cargaId: string) => void
   notificarTodosGrupos: (cargaId: string) => void
   salvarGrupo: (grupo: GrupoTransportador) => void
@@ -3061,6 +3070,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const cargaAlocada: Carga = {
         ...base,
         status: 'alocadas',
+        status_viagem: 'aguardando_inicio',
         placa: placaNorm,
         motorista: motoristaNorm,
         veiculo_id: opts?.veiculoId || base.veiculo_id || null,
@@ -3104,6 +3114,257 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return { ok: true }
     },
     [config, flushKanbanPush],
+  )
+
+  const iniciarViagem = useCallback(
+    (cargaId: string) => {
+      const base = stateRef.current.cargas.find((c) => c.id === cargaId)
+      if (!base) return { ok: false, error: 'Carga não encontrada' }
+      if (base.status !== 'alocadas') {
+        return { ok: false, error: 'Só viagens alocadas podem ser iniciadas' }
+      }
+      const st = base.status_viagem || 'aguardando_inicio'
+      if (st !== 'aguardando_inicio') {
+        return { ok: false, error: 'Esta viagem já foi iniciada ou encerrada' }
+      }
+      const agora = new Date().toISOString()
+      setState((prev) => {
+        const next = {
+          ...prev,
+          cargas: prev.cargas.map((c) =>
+            c.id === cargaId
+              ? {
+                  ...c,
+                  status_viagem: 'rota_iniciada' as const,
+                  viagem_iniciada_em: agora,
+                  updated_at: agora,
+                }
+              : c,
+          ),
+          historico: [
+            makeHistorico('viagem_iniciada', `Viagem iniciada — ${base.numero}`, {
+              carga_id: cargaId,
+              transportador_id: base.transportador_vencedor_id,
+              detalhe: `${base.placa} · ${base.motorista}`,
+            }),
+            ...prev.historico,
+          ].slice(0, 2000),
+          notificacoes: pushNotif(prev.notificacoes, {
+            role: 'minerva',
+            titulo: 'Viagem iniciada',
+            mensagem: `Carga ${base.numero}: ${base.placa} · ${base.motorista}`,
+            carga_id: cargaId,
+            href: '/embarcador?aba=viagens',
+          }),
+        }
+        flushKanbanPush(next)
+        return next
+      })
+      return { ok: true }
+    },
+    [flushKanbanPush],
+  )
+
+  const finalizarViagem = useCallback(
+    (cargaId: string) => {
+      const base = stateRef.current.cargas.find((c) => c.id === cargaId)
+      if (!base) return { ok: false, error: 'Carga não encontrada' }
+      if (base.status !== 'alocadas') {
+        return { ok: false, error: 'Só viagens alocadas podem ser finalizadas' }
+      }
+      if (base.status_viagem !== 'rota_iniciada') {
+        return { ok: false, error: 'Inicie a viagem antes de finalizar' }
+      }
+      const agora = new Date().toISOString()
+      setState((prev) => {
+        const next = {
+          ...prev,
+          cargas: prev.cargas.map((c) =>
+            c.id === cargaId
+              ? {
+                  ...c,
+                  status_viagem: 'rota_finalizada' as const,
+                  viagem_finalizada_em: agora,
+                  updated_at: agora,
+                }
+              : c,
+          ),
+          historico: [
+            makeHistorico('viagem_finalizada', `Viagem finalizada — ${base.numero}`, {
+              carga_id: cargaId,
+              transportador_id: base.transportador_vencedor_id,
+              detalhe: `${base.placa} · ${base.motorista}`,
+            }),
+            ...prev.historico,
+          ].slice(0, 2000),
+          notificacoes: pushNotif(prev.notificacoes, {
+            role: 'minerva',
+            titulo: 'Viagem finalizada — avaliar',
+            mensagem: `Carga ${base.numero}: avalie motorista e veículo (1 a 5 estrelas).`,
+            carga_id: cargaId,
+            href: '/embarcador?aba=viagens',
+          }),
+        }
+        flushKanbanPush(next)
+        return next
+      })
+      return { ok: true }
+    },
+    [flushKanbanPush],
+  )
+
+  const cancelarViagem = useCallback(
+    (cargaId: string, motivo?: string) => {
+      const base = stateRef.current.cargas.find((c) => c.id === cargaId)
+      if (!base) return { ok: false, error: 'Carga não encontrada' }
+      if (base.status !== 'alocadas') {
+        return { ok: false, error: 'Só viagens alocadas podem ser canceladas' }
+      }
+      const st = base.status_viagem || 'aguardando_inicio'
+      if (st === 'rota_finalizada' || st === 'cancelada') {
+        return { ok: false, error: 'Esta viagem já foi encerrada' }
+      }
+      const agora = new Date().toISOString()
+      const motivoLimpo = (motivo || '').trim() || null
+      setState((prev) => {
+        const next = {
+          ...prev,
+          cargas: prev.cargas.map((c) =>
+            c.id === cargaId
+              ? {
+                  ...c,
+                  status_viagem: 'cancelada' as const,
+                  viagem_cancelada_em: agora,
+                  motivo_cancelamento_viagem: motivoLimpo,
+                  updated_at: agora,
+                }
+              : c,
+          ),
+          historico: [
+            makeHistorico('viagem_cancelada', `Viagem cancelada — ${base.numero}`, {
+              carga_id: cargaId,
+              transportador_id: base.transportador_vencedor_id,
+              detalhe: motivoLimpo || 'Cancelada no percurso',
+            }),
+            ...prev.historico,
+          ].slice(0, 2000),
+          notificacoes: pushNotif(prev.notificacoes, {
+            role: 'minerva',
+            titulo: 'Viagem cancelada',
+            mensagem: `Carga ${base.numero}${motivoLimpo ? `: ${motivoLimpo}` : ''}`,
+            carga_id: cargaId,
+            href: '/embarcador?aba=viagens',
+          }),
+        }
+        flushKanbanPush(next)
+        return next
+      })
+      return { ok: true }
+    },
+    [flushKanbanPush],
+  )
+
+  const avaliarViagem = useCallback(
+    async (
+      cargaId: string,
+      opts: { notaMotorista: number; notaVeiculo: number; comentario?: string },
+    ) => {
+      const notaM = Math.round(opts.notaMotorista)
+      const notaV = Math.round(opts.notaVeiculo)
+      if (notaM < 1 || notaM > 5) {
+        return { ok: false, error: 'Nota do motorista deve ser de 1 a 5' }
+      }
+      if (notaV < 1 || notaV > 5) {
+        return { ok: false, error: 'Nota do veículo deve ser de 1 a 5' }
+      }
+      const base = stateRef.current.cargas.find((c) => c.id === cargaId)
+      if (!base) return { ok: false, error: 'Carga não encontrada' }
+      if (base.status_viagem !== 'rota_finalizada') {
+        return { ok: false, error: 'Só é possível avaliar após finalizar a viagem' }
+      }
+      if (base.avaliado_em) {
+        return { ok: false, error: 'Esta viagem já foi avaliada' }
+      }
+      const agora = new Date().toISOString()
+      const comentario = (opts.comentario || '').trim() || null
+
+      setState((prev) => {
+        let motoristas = prev.motoristas
+        let veiculos = prev.veiculos
+
+        if (base.motorista_id) {
+          motoristas = motoristas.map((m) => {
+            if (m.id !== base.motorista_id) return m
+            const total = (m.total_avaliacoes ?? 0) + 1
+            const soma = (m.avaliacao ?? 0) * (m.total_avaliacoes ?? 0) + notaM
+            return {
+              ...m,
+              avaliacao: Math.round((soma / total) * 10) / 10,
+              total_avaliacoes: total,
+              updated_at: agora,
+            }
+          })
+        }
+        if (base.veiculo_id) {
+          veiculos = veiculos.map((v) => {
+            if (v.id !== base.veiculo_id) return v
+            const total = (v.total_avaliacoes ?? 0) + 1
+            const soma = (v.avaliacao ?? 0) * (v.total_avaliacoes ?? 0) + notaV
+            return {
+              ...v,
+              avaliacao: Math.round((soma / total) * 10) / 10,
+              total_avaliacoes: total,
+              updated_at: agora,
+            }
+          })
+        }
+
+        const next = {
+          ...prev,
+          cargas: prev.cargas.map((c) =>
+            c.id === cargaId
+              ? {
+                  ...c,
+                  avaliacao_motorista: notaM,
+                  avaliacao_veiculo: notaV,
+                  avaliacao_comentario: comentario,
+                  avaliado_em: agora,
+                  updated_at: agora,
+                }
+              : c,
+          ),
+          motoristas,
+          veiculos,
+          historico: [
+            makeHistorico(
+              'viagem_avaliada',
+              `Avaliação — ${base.numero}`,
+              {
+                carga_id: cargaId,
+                transportador_id: base.transportador_vencedor_id,
+                detalhe: `Motorista ${notaM}/5 · Veículo ${notaV}/5${
+                  comentario ? ` · ${comentario}` : ''
+                }`,
+              },
+              userRef.current,
+            ),
+            ...prev.historico,
+          ].slice(0, 2000),
+          notificacoes: pushNotif(prev.notificacoes, {
+            role: 'transportador',
+            transportador_id: base.transportador_vencedor_id,
+            titulo: 'Avaliação recebida',
+            mensagem: `Carga ${base.numero}: motorista ${notaM}/5 · veículo ${notaV}/5`,
+            carga_id: cargaId,
+            href: '/transportador?aba=viagens',
+          }),
+        }
+        flushKanbanPush(next)
+        return next
+      })
+      return { ok: true }
+    },
+    [flushKanbanPush],
   )
 
   const registrarVisualizacao = useCallback(
@@ -4285,6 +4546,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       recusarCargaMinerva,
       recusarCargaTransportador,
       alocarComposicao,
+      iniciarViagem,
+      finalizarViagem,
+      cancelarViagem,
+      avaliarViagem,
       registrarVisualizacao,
       notificarTodosGrupos,
       salvarGrupo,
@@ -4355,6 +4620,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       recusarCargaMinerva,
       recusarCargaTransportador,
       alocarComposicao,
+      iniciarViagem,
+      finalizarViagem,
+      cancelarViagem,
+      avaliarViagem,
       registrarVisualizacao,
       notificarTodosGrupos,
       salvarGrupo,

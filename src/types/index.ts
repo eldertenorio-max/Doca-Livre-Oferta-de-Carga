@@ -14,6 +14,13 @@ export type StatusCargaMinerva =
   | 'canceladas'
   | 'suspensas'
 
+/** Status da viagem após alocação (aba Viagens). */
+export type StatusViagem =
+  | 'aguardando_inicio'
+  | 'rota_iniciada'
+  | 'rota_finalizada'
+  | 'cancelada'
+
 export type StatusCargaTransportador =
   | 'nova_carga'
   | 'propostas'
@@ -165,6 +172,10 @@ export interface Veiculo {
   /** Dados do equipamento (IMEI, serial, fornecedor…) quando tem rastreador */
   rastreador_dados?: string
   situacao: 'ativo' | 'inativo'
+  /** Avaliação média do veículo (0–5). */
+  avaliacao?: number
+  /** Quantidade de avaliações do veículo. */
+  total_avaliacoes?: number
   created_at: string
   updated_at?: string
 }
@@ -300,6 +311,17 @@ export interface Carga {
   motorista: string | null
   veiculo_id: string | null
   motorista_id: string | null
+  /** Ciclo operacional pós-alocação (aba Viagens). */
+  status_viagem?: StatusViagem | null
+  viagem_iniciada_em?: string | null
+  viagem_finalizada_em?: string | null
+  viagem_cancelada_em?: string | null
+  motivo_cancelamento_viagem?: string | null
+  /** Avaliação do embarcador ao finalizar a viagem. */
+  avaliacao_motorista?: number | null
+  avaliacao_veiculo?: number | null
+  avaliacao_comentario?: string | null
+  avaliado_em?: string | null
   criado_por?: string | null
   publicado_por?: string | null
   visualizacoes: number
@@ -358,6 +380,10 @@ export type TipoHistorico =
   | 'negociacao_finalizada'
   | 'frete_recusado'
   | 'carga_alocada'
+  | 'viagem_iniciada'
+  | 'viagem_finalizada'
+  | 'viagem_cancelada'
+  | 'viagem_avaliada'
   | 'grupos_notificados'
   | 'integracao_fretes'
   | 'pontuacao'

@@ -27,6 +27,14 @@ function semaforoDaColuna(coluna?: string | null): {
       return { nivel: 'media', label: 'Suspensas', corPadrao: '#8b5cf6' }
     case 'alocadas':
       return { nivel: 'baixa', label: 'Alocadas', corPadrao: '#2f9e6a' }
+    case 'aguardando_inicio':
+      return { nivel: 'media', label: 'Aguardando início', corPadrao: '#f59e0b' }
+    case 'rota_iniciada':
+      return { nivel: 'media', label: 'Rota iniciada', corPadrao: '#3b82f6' }
+    case 'rota_finalizada':
+      return { nivel: 'baixa', label: 'Rota finalizada', corPadrao: '#2f9e6a' }
+    case 'cancelada':
+      return { nivel: 'alta', label: 'Viagem cancelada', corPadrao: '#64748b' }
     case 'nova_carga':
     default:
       return { nivel: 'baixa', label: 'Nova Carga', corPadrao: '#22c55e' }
@@ -404,6 +412,11 @@ interface CargoCardProps {
   onMapaFrota?: () => void
   /** Transportador: calcular rota / pedágio / combustível a partir da carga */
   onCalcularRota?: () => void
+  /** Aba Viagens */
+  onIniciarViagem?: () => void
+  onFinalizarViagem?: () => void
+  onCancelarViagem?: () => void
+  onAvaliarViagem?: () => void
   bidValue?: number | null
   /** Ordem de chegada da proposta (1 = primeiro a ofertar). */
   bidPosition?: number | null
@@ -428,6 +441,10 @@ export function CargoCard({
   onDelete,
   onMapaFrota,
   onCalcularRota,
+  onIniciarViagem,
+  onFinalizarViagem,
+  onCancelarViagem,
+  onAvaliarViagem,
   bidValue,
   bidPosition,
   bidCount,
@@ -503,6 +520,28 @@ export function CargoCard({
             <span className="font-bold text-ink">Peso:</span>{' '}
             <span className="text-ink/90">{formatNumber(carga.peso ?? 0)}</span>
           </p>
+          {(carga.placa || carga.motorista) && (
+            <>
+              <p>
+                <span className="font-bold text-ink">Placa:</span>{' '}
+                <span className="text-ink/90">{carga.placa || '—'}</span>
+              </p>
+              <p>
+                <span className="font-bold text-ink">Motorista:</span>{' '}
+                <span className="text-ink/90">{carga.motorista || '—'}</span>
+              </p>
+            </>
+          )}
+          {carga.avaliado_em &&
+            (carga.avaliacao_motorista != null || carga.avaliacao_veiculo != null) && (
+              <p>
+                <span className="font-bold text-ink">Avaliação:</span>{' '}
+                <span className="text-amber-600">
+                  ★ {carga.avaliacao_motorista ?? '—'}/5 motorista · ★{' '}
+                  {carga.avaliacao_veiculo ?? '—'}/5 veículo
+                </span>
+              </p>
+            )}
           {mode === 'transportador' && bidValue != null && (
             <p>
               <span className="font-bold text-ink">Seu lance:</span>{' '}
@@ -643,6 +682,51 @@ export function CargoCard({
             <IconChat />
           </IconBtn>
         </div>
+
+        {(onIniciarViagem || onFinalizarViagem || onCancelarViagem || onAvaliarViagem) && (
+          <div
+            className="mt-2 flex flex-wrap gap-1.5"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            {onIniciarViagem && (
+              <button
+                type="button"
+                className="rounded-md bg-[#2f9e6a] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[#268556]"
+                onClick={onIniciarViagem}
+              >
+                Iniciar viagem
+              </button>
+            )}
+            {onFinalizarViagem && (
+              <button
+                type="button"
+                className="rounded-md bg-[#3b82f6] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[#2563eb]"
+                onClick={onFinalizarViagem}
+              >
+                Finalizar
+              </button>
+            )}
+            {onCancelarViagem && (
+              <button
+                type="button"
+                className="rounded-md bg-[#64748b] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[#475569]"
+                onClick={onCancelarViagem}
+              >
+                Cancelar
+              </button>
+            )}
+            {onAvaliarViagem && (
+              <button
+                type="button"
+                className="rounded-md bg-amber-500 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-amber-600"
+                onClick={onAvaliarViagem}
+              >
+                {carga.avaliado_em ? 'Ver avaliação' : 'Avaliar ★'}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {chatOpen ? (
