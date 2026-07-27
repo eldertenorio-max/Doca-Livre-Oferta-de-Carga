@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
-import { isAcceptedImageFile } from '../../lib/veiculoFotos'
 import { ProductMark } from '../ProductMark'
 import { ChatModal } from '../carga/ChatModal'
+import { PerfilPanel } from './PerfilPanel'
 import { DisponibilidadeMapaFlag } from '../transportador/DisponibilidadeMapaFlag'
 import { canOpenModulo, moduloFromPath } from '../../lib/portalModules'
 import { isSuperSession } from '../../lib/superUsers'
@@ -147,7 +147,6 @@ export function AppLayout() {
     marcarTodasNotificacoesLidas,
     actingTransportadorId,
     transportadores,
-    atualizarLogoTransportador,
   } = useData()
   const navigate = useNavigate()
   /** Fixado expandido pelos 3 riscos; senão só ícones e hover abre temporário */
@@ -163,11 +162,8 @@ export function AppLayout() {
   const [notifOpen, setNotifOpen] = useState(false)
   const [chatCargaId, setChatCargaId] = useState<string | null>(null)
   const notifWrapRef = useRef<HTMLDivElement>(null)
-  const [avatarMenuOpen, setAvatarMenuOpen] = useState(false)
-  const [avatarBusy, setAvatarBusy] = useState(false)
-  const [avatarErro, setAvatarErro] = useState('')
+  const [perfilOpen, setPerfilOpen] = useState(false)
   const avatarWrapRef = useRef<HTMLDivElement>(null)
-  const avatarFileRef = useRef<HTMLInputElement>(null)
   const [fotoAvisoVisivel, setFotoAvisoVisivel] = useState(false)
 
   function clearHoverTimer() {
@@ -252,14 +248,14 @@ export function AppLayout() {
   }, [notifOpen])
 
   useEffect(() => {
-    if (!avatarMenuOpen) return
+    if (!perfilOpen) return
     function onPointerDown(e: MouseEvent) {
       if (!avatarWrapRef.current?.contains(e.target as Node)) {
-        setAvatarMenuOpen(false)
+        setPerfilOpen(false)
       }
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setAvatarMenuOpen(false)
+      if (e.key === 'Escape') setPerfilOpen(false)
     }
     document.addEventListener('mousedown', onPointerDown)
     document.addEventListener('keydown', onKey)
@@ -267,7 +263,7 @@ export function AppLayout() {
       document.removeEventListener('mousedown', onPointerDown)
       document.removeEventListener('keydown', onKey)
     }
-  }, [avatarMenuOpen])
+  }, [perfilOpen])
 
   const chatCarga = useMemo(
     () => (chatCargaId ? (cargas ?? []).find((c) => c.id === chatCargaId) ?? null : null),
@@ -326,41 +322,6 @@ export function AppLayout() {
     } catch {
       /* ignore */
     }
-  }
-
-  async function onEscolherLogo(file: File | null) {
-    if (!topbarTransportadorId || !file) return
-    if (!isAcceptedImageFile(file)) {
-      setAvatarErro('Use JPG, PNG ou WEBP.')
-      return
-    }
-    if (file.size > 4 * 1024 * 1024) {
-      setAvatarErro('A imagem deve ter no máximo 4 MB.')
-      return
-    }
-    setAvatarErro('')
-    setAvatarBusy(true)
-    const res = await atualizarLogoTransportador(topbarTransportadorId, file)
-    setAvatarBusy(false)
-    if (!res.ok) {
-      setAvatarErro(res.error ?? 'Falha ao salvar a logo.')
-      return
-    }
-    setAvatarMenuOpen(false)
-    dispensarAvisoFoto()
-  }
-
-  async function onRemoverLogo() {
-    if (!topbarTransportadorId) return
-    setAvatarErro('')
-    setAvatarBusy(true)
-    const res = await atualizarLogoTransportador(topbarTransportadorId, null)
-    setAvatarBusy(false)
-    if (!res.ok) {
-      setAvatarErro(res.error ?? 'Falha ao remover a logo.')
-      return
-    }
-    setAvatarMenuOpen(false)
   }
 
   const minhasNotifs = useMemo(() => {
@@ -572,10 +533,11 @@ export function AppLayout() {
               className="app-topbar-user"
               title="Ver perfil"
               aria-label="Abrir perfil"
+              aria-expanded={perfilOpen}
+              aria-haspopup="dialog"
               onClick={() => {
-                setAvatarMenuOpen(false)
                 setNotifOpen(false)
-                navigate('/perfil')
+                setPerfilOpen((o) => !o)
               }}
             >
               <div className="app-topbar-user-text">
@@ -593,58 +555,14 @@ export function AppLayout() {
               </span>
             </button>
 
-            {podeEditarLogo && avatarMenuOpen ? (
-              <div className="app-topbar-avatar-menu" role="menu">
-                <div className="app-topbar-avatar-menu__preview" aria-hidden>
-                  {avatarFotoUrl ? (
-                    <img src={avatarFotoUrl} alt="" />
-                  ) : (
-                    <span>{iniciais(user?.nome ?? 'DL')}</span>
-                  )}
-                </div>
-                <p className="app-topbar-avatar-menu__hint">
-                  Logo da empresa ou foto sua. Aparece no perfil.
-                </p>
-                {avatarErro ? (
-                  <p className="app-topbar-avatar-menu__erro" role="alert">
-                    {avatarErro}
-                  </p>
-                ) : null}
-                <input
-                  ref={avatarFileRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-                  hidden
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null
-                    e.target.value = ''
-                    void onEscolherLogo(file)
+            {perfilOpen ? (
+              <div className="app-topbar-perfil-panel" role="dialog" aria-label="Perfil">
+                <PerfilPanel
+                  onClose={() => {
+                    setPerfilOpen(false)
+                    dispensarAvisoFoto()
                   }}
                 />
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="app-topbar-avatar-menu__btn"
-                  disabled={avatarBusy}
-                  onClick={() => avatarFileRef.current?.click()}
-                >
-                  {avatarBusy
-                    ? 'Salvando…'
-                    : avatarFotoUrl
-                      ? 'Trocar logo / foto'
-                      : 'Enviar logo / foto'}
-                </button>
-                {avatarFotoUrl ? (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="app-topbar-avatar-menu__btn app-topbar-avatar-menu__btn--danger"
-                    disabled={avatarBusy}
-                    onClick={() => void onRemoverLogo()}
-                  >
-                    Excluir imagem
-                  </button>
-                ) : null}
               </div>
             ) : null}
           </div>
