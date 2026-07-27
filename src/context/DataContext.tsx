@@ -997,7 +997,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       })
     }
 
-    // Nunca gravar cargas: [] no Supabase (apaga o Kanban de todo mundo)
+    // Nunca gravar cargas: [] no Supabase (apaga o Kanban de todo mundo).
+    // Mas também não pode apagar edição local de grupos: mescla cargas remotas e reenvia.
     if (slice.cargas.length === 0) {
       void pullKanbanSync().then((remote) => {
         if (
@@ -1006,20 +1007,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
           remote.payload &&
           remote.payload.slice.cargas.length > 0
         ) {
-          console.warn('[kanbanSync] push vazio bloqueado — reaplicando remoto')
+          console.warn('[kanbanSync] push vazio bloqueado — mesclando cargas remotas (preserva grupos)')
           const payload = remote.payload
           applyingRemoteRef.current = true
+          let mergedState: typeof state | null = null
           setState((prev) => {
             const next = ensureDemoOfertasVisiveis(applySyncSlice(prev, payload.slice))
             stateRef.current = next
+            mergedState = next
             lastSyncFpRef.current = sliceFingerprint(pickSyncSlice(next))
             return next
           })
           window.setTimeout(() => {
             applyingRemoteRef.current = false
+            // Reenvia com cargas remotas + grupos locais (já mesclados por updated_at)
+            if (mergedState) flushKanbanPush(mergedState)
           }, 0)
+        } else {
+          // Remoto também sem cargas: permite gravar grupos/config
+          send()
         }
-        // Se remoto também está vazio ou pull falhou: NÃO faz push vazio
       })
       return
     }
@@ -3382,16 +3389,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
   )
 
   const salvarGrupo = useCallback((grupo: GrupoTransportador) => {
+    const agora = new Date().toISOString()
+    const salvo: GrupoTransportador = {
+      ...grupo,
+      transportador_ids: [...(grupo.transportador_ids ?? [])],
+      updated_at: agora,
+    }
     setState((prev) => {
-      const exists = prev.grupos.some((g) => g.id === grupo.id)
-      return {
+      const exists = prev.grupos.some((g) => g.id === salvo.id)
+      const next = {
         ...prev,
         grupos: exists
-          ? prev.grupos.map((g) => (g.id === grupo.id ? grupo : g))
-          : [...prev.grupos, grupo],
+          ? prev.grupos.map((g) => (g.id === salvo.id ? salvo : g))
+          : [...prev.grupos, salvo],
       }
+      stateRef.current = next
+      // Flush imediato — não depender só do debounce (outro aparelho sobrescrevia)
+      queueMicrotask(() => flushKanbanPush(next))
+      return next
     })
-  }, [])
+  }, [flushKanbanPush])
 
   const salvarTransportador = useCallback((t: Transportador) => {
     if (t.situacao === 'ativo') setPortalAccountAtivoPorTransportador(t.id, true)

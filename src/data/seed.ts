@@ -375,6 +375,7 @@ export const SEED_GRUPOS: GrupoTransportador[] = [
     situacao: 'ativo',
     observacao: 'Grupo premium — classificação ouro',
     transportador_ids: [TID_SANTOS, 't4'],
+    updated_at: '2024-01-01T00:00:00.000Z',
   },
   {
     id: 'g2',
@@ -382,6 +383,7 @@ export const SEED_GRUPOS: GrupoTransportador[] = [
     situacao: 'ativo',
     observacao: 'Parceiros fixos da operação',
     transportador_ids: [TID_SANTOS, TID_NOVAERA, 't3'],
+    updated_at: '2024-01-01T00:00:00.000Z',
   },
   {
     id: 'g3',
@@ -389,6 +391,7 @@ export const SEED_GRUPOS: GrupoTransportador[] = [
     situacao: 'ativo',
     observacao: 'Mercado spot / ocasionais',
     transportador_ids: [TID_SANTOS, 't3', 't5'],
+    updated_at: '2024-01-01T00:00:00.000Z',
   },
 ]
 

@@ -211,6 +211,8 @@ export interface GrupoTransportador {
   situacao: 'ativo' | 'inativo'
   observacao?: string
   transportador_ids: string[]
+  /** Usado no sync para não sobrescrever edição local com cópia antiga remota. */
+  updated_at?: string
 }
 
 export interface Rota {

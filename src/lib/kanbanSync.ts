@@ -118,6 +118,50 @@ function mergeById<T extends { id: string; updated_at?: string; created_at?: str
 }
 
 /**
+ * Grupos: o remoto só substitui se for claramente mais novo.
+ * Em empate (sem updated_at), preserva a lista local de membros — evita
+ * outro aparelho com cópia antiga apagar Ultrafrio/OURO etc.
+ */
+function mergeGrupos(
+  local: GrupoTransportador[],
+  remote: GrupoTransportador[],
+): GrupoTransportador[] {
+  const map = new Map<string, GrupoTransportador>()
+  for (const g of local) map.set(g.id, g)
+  for (const g of remote) {
+    const prev = map.get(g.id)
+    if (!prev) {
+      map.set(g.id, g)
+      continue
+    }
+    const remoteT = ts(g.updated_at)
+    const localT = ts(prev.updated_at)
+    if (remoteT > localT) {
+      map.set(g.id, g)
+      continue
+    }
+    if (localT > remoteT) {
+      continue
+    }
+    // Empate / sem timestamp: não descartar membros que só existem no local
+    const ids = Array.from(
+      new Set([...(prev.transportador_ids ?? []), ...(g.transportador_ids ?? [])]),
+    )
+    map.set(g.id, {
+      ...g,
+      ...prev,
+      descricao: prev.descricao || g.descricao,
+      observacao: prev.observacao ?? g.observacao,
+      situacao: prev.situacao || g.situacao,
+      transportador_ids: ids,
+      updated_at: prev.updated_at || g.updated_at,
+    })
+  }
+  // Remoto trouxe grupos novos já cobertos; inclui locais que remoto não tem
+  return Array.from(map.values())
+}
+
+/**
  * O slice não carrega base64; se o remoto vier sem uma foto que já existe aqui,
  * mantém a local para não “apagar” o cadastro na tela de quem tirou as fotos.
  */
@@ -186,7 +230,10 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
         const local = (prev.motoristas ?? []).find((x) => x.id === m.id)
         return !m.foto_url && local?.foto_url ? { ...m, foto_url: local.foto_url } : m
       }),
-    grupos: (slice.grupos?.length ? mergeById(prev.grupos, slice.grupos) : prev.grupos).map((g) =>
+    grupos: (slice.grupos?.length
+      ? mergeGrupos(prev.grupos, slice.grupos)
+      : prev.grupos
+    ).map((g) =>
       (g.transportador_ids ?? []).some((tid) => tExcluidos.has(tid))
         ? { ...g, transportador_ids: g.transportador_ids.filter((tid) => !tExcluidos.has(tid)) }
         : g,

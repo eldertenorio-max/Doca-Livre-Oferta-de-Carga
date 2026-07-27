@@ -112,9 +112,15 @@ export function GruposPage() {
               onChange={(e) => setForm({ ...form, observacao: e.target.value })}
             />
           </Field>
-          <Field label="Transportadores" className="sm:col-span-2">
+          <Field label="Transportadores do grupo" className="sm:col-span-2">
+            <p className="mb-2 text-[11px] text-ink-muted">
+              Marque quem entra neste grupo. O rótulo entre parênteses (ouro/prata/bronze) é a
+              classificação por pontuação — não é o grupo.
+            </p>
             <div className="grid gap-1 rounded-lg border border-ink/15 p-3 sm:grid-cols-2">
-              {transportadores.map((t) => (
+              {transportadores
+                .filter((t) => t.situacao !== 'inativo' && t.situacao !== 'recusado')
+                .map((t) => (
                 <label key={t.id} className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
@@ -122,15 +128,29 @@ export function GruposPage() {
                     onChange={() => toggleMember(t.id)}
                   />
                   {t.nome_fantasia}{' '}
-                  <span className="text-xs capitalize text-ink-muted">({t.classificacao})</span>
+                  <span className="text-xs capitalize text-ink-muted">
+                    (classificação: {t.classificacao})
+                  </span>
                 </label>
               ))}
             </div>
           </Field>
         </div>
         <Button variant="success" className="mt-4" onClick={save}>
-          {editingId ? 'Salvar' : 'Adicionar'}
+          {editingId ? 'Salvar grupo' : 'Adicionar grupo'}
         </Button>
+        {editingId ? (
+          <button
+            type="button"
+            className="ml-3 mt-4 text-xs font-semibold text-ink-muted hover:underline"
+            onClick={() => {
+              setEditingId(null)
+              setForm({ descricao: '', situacao: 'ativo', observacao: '', transportador_ids: [] })
+            }}
+          >
+            Cancelar edição
+          </button>
+        ) : null}
       </div>
     </div>
   )
