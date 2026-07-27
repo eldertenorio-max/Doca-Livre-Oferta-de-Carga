@@ -239,6 +239,8 @@ export function PublishPanel({
           c.destino,
           c.destinatario,
           c.destinatario_cnpj,
+          c.destinatario_whatsapp,
+          c.destinatario_email,
           c.tipo_carga,
           c.veiculo,
           c.observacao,
@@ -977,6 +979,14 @@ export function PublishPanel({
             }
           />
           <Detail label="Destinatário" value={carga.destinatario || '—'} />
+          <Detail
+            label="WhatsApp destinatário"
+            value={carga.destinatario_whatsapp?.trim() || '—'}
+          />
+          <Detail
+            label="E-mail destinatário"
+            value={carga.destinatario_email?.trim() || '—'}
+          />
           <Detail label="Peso" value={formatNumber(carga.peso)} />
           <Detail label="Volumes" value={String(carga.volumes)} />
           <Detail label="Valor Frete (Tabela)" value={formatCurrency(carga.frete_tabela)} />

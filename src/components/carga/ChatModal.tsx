@@ -127,6 +127,14 @@ export function ChatModal({ carga, open, onClose }: ChatModalProps) {
             <ChatInfoItem label="Carregamento" value={dataCurta(carga.data_carregamento)} />
             <ChatInfoItem label="Entrega" value={dataCurta(carga.previsao_entrega)} />
             <ChatInfoItem label="Destinatário" value={carga.destinatario || '—'} />
+            <ChatInfoItem
+              label="WhatsApp"
+              value={carga.destinatario_whatsapp?.trim() || '—'}
+            />
+            <ChatInfoItem
+              label="E-mail"
+              value={carga.destinatario_email?.trim() || '—'}
+            />
             {carga.observacao?.trim() ? (
               <div className="col-span-2 min-w-0 sm:col-span-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">

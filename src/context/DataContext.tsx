@@ -408,6 +408,8 @@ export function montarNovaCarga(
     complemento: undefined,
     destinatario: '',
     destinatario_cnpj: '',
+    destinatario_whatsapp: '',
+    destinatario_email: '',
     peso: 0,
     volumes: 0,
     num_entregas: 1,

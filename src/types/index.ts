@@ -273,6 +273,10 @@ export interface Carga {
   gerenciamento_risco?: 'rastreador' | 'localizador' | 'ambos' | 'nao'
   destinatario: string
   destinatario_cnpj: string
+  /** WhatsApp do destinatário (contato da entrega). */
+  destinatario_whatsapp?: string | null
+  /** E-mail(s) do destinatário — um ou mais, separados por vírgula ou ponto e vírgula. */
+  destinatario_email?: string | null
   peso: number
   volumes: number
   num_entregas: number

@@ -4,6 +4,7 @@ import { formatCurrency, formatMoneyInput, parseMoneyInput } from '../../lib/bus
 import { buscarCidades, filtrarSugestoes } from '../../lib/cidadesBrasil'
 import { cnpjDigits, formatCnpj, isValidCnpj } from '../../lib/cnpj'
 import { buscarDadosPorCnpj } from '../../lib/cnpjLookup'
+import { formatPhoneBr } from '../../lib/phoneBr'
 import { TIPOS_CARGA } from '../../lib/tiposCarga'
 import type { AnttInfoCarga, Carga, ClassificacaoRota, Rota } from '../../types'
 import { Button, Field, inputClass } from '../ui/Modal'
@@ -124,6 +125,12 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
   const [destinatarioCnpj, setDestinatarioCnpj] = useState(
     formatCnpj(carga.destinatario_cnpj || ''),
   )
+  const [destinatarioWhatsapp, setDestinatarioWhatsapp] = useState(
+    formatPhoneBr(carga.destinatario_whatsapp || ''),
+  )
+  const [destinatarioEmail, setDestinatarioEmail] = useState(
+    carga.destinatario_email || '',
+  )
   const [peso, setPeso] = useState(formatMoneyInput(carga.peso || 0))
   const [volumes, setVolumes] = useState(String(carga.volumes || 0))
   const [valorMerc, setValorMerc] = useState(formatMoneyInput(carga.valor_mercadorias || 0))
@@ -147,6 +154,8 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
       veiculo: outras.map((c) => c.veiculo),
       destinatario: outras.map((c) => c.destinatario),
       cnpj: outras.map((c) => c.destinatario_cnpj),
+      whatsapp: outras.map((c) => c.destinatario_whatsapp || ''),
+      email: outras.map((c) => c.destinatario_email || ''),
       peso: outras.map((c) => (c.peso > 0 ? formatMoneyInput(c.peso) : '')),
       volumes: outras.map((c) => (c.volumes > 0 ? String(c.volumes) : '')),
       valorMerc: outras.map((c) =>
@@ -267,6 +276,8 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
     setCarroceriaTxt(joinCarrocerias(parseCarrocerias(carga.carrocerias)))
     setDestinatario(carga.destinatario)
     setDestinatarioCnpj(formatCnpj(carga.destinatario_cnpj || ''))
+    setDestinatarioWhatsapp(formatPhoneBr(carga.destinatario_whatsapp || ''))
+    setDestinatarioEmail(carga.destinatario_email || '')
     setPeso(formatMoneyInput(carga.peso || 0))
     setVolumes(String(carga.volumes || 0))
     setValorMerc(formatMoneyInput(carga.valor_mercadorias || 0))
@@ -310,6 +321,12 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
         const nome = (d.nome_fantasia || d.razao_social || '').trim()
         if (nome) setDestinatario(nome)
         setDestinatarioCnpj(d.cnpj || formatCnpj(digits))
+        if (d.telefone?.trim()) {
+          setDestinatarioWhatsapp((cur) => cur.trim() || formatPhoneBr(d.telefone))
+        }
+        if (d.email?.trim()) {
+          setDestinatarioEmail((cur) => cur.trim() || d.email.trim())
+        }
 
         // Preenche destino da rota com o endereço do CNPJ se ainda estiver vazio
         setDestino((cur) => {
@@ -461,6 +478,8 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
       carrocerias: parseCarrocerias(carroceriaTxt),
       destinatario: destinatario.trim(),
       destinatario_cnpj: formatCnpj(destinatarioCnpj),
+      destinatario_whatsapp: formatPhoneBr(destinatarioWhatsapp).trim() || null,
+      destinatario_email: destinatarioEmail.trim() || null,
       peso: pesoNum,
       volumes: Math.round(volumesNum),
       valor_mercadorias: valorNum,
@@ -516,6 +535,11 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
         <Row label="CNPJ remetente" value={formatCnpj(carga.remetente_cnpj || '') || '—'} />
         <Row label="Destinatário" value={carga.destinatario || '—'} />
         <Row label="CNPJ destinatário" value={formatCnpj(carga.destinatario_cnpj || '') || '—'} />
+        <Row
+          label="WhatsApp destinatário"
+          value={formatPhoneBr(carga.destinatario_whatsapp || '') || '—'}
+        />
+        <Row label="E-mail destinatário" value={carga.destinatario_email?.trim() || '—'} />
         <Row label="Peso" value={formatMoneyInput(carga.peso)} />
         <Row label="Volumes" value={String(carga.volumes)} />
         <Row label="Frete tabela" value={formatCurrency(carga.frete_tabela)} />
@@ -816,6 +840,24 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
                 {cnpjBuscando ? 'Consultando CNPJ na Receita…' : cnpjInfo}
               </p>
             )}
+          </Field>
+          <Field label="WhatsApp">
+            <SuggestInput
+              value={destinatarioWhatsapp}
+              onChange={(v) => setDestinatarioWhatsapp(formatPhoneBr(v))}
+              suggestions={(q) => filtrarSugestoes(q, [historico.whatsapp], 8)}
+              placeholder="(00) 00000-0000"
+              inputMode="tel"
+            />
+          </Field>
+          <Field label="E-mail">
+            <SuggestInput
+              value={destinatarioEmail}
+              onChange={setDestinatarioEmail}
+              suggestions={(q) => filtrarSugestoes(q, [historico.email], 8)}
+              placeholder="contato@empresa.com (vários: separe por vírgula)"
+              inputMode="email"
+            />
           </Field>
         </div>
       </section>
