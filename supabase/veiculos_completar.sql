@@ -27,6 +27,8 @@ alter table veiculos add column if not exists usa_manobrista boolean not null de
 alter table veiculos add column if not exists padiado boolean not null default false;
 alter table veiculos add column if not exists situacao text not null default 'ativo';
 alter table veiculos add column if not exists disponivel_mapa boolean not null default true;
+alter table veiculos add column if not exists gerenciamento_risco text;
+alter table veiculos add column if not exists rastreador_dados text;
 alter table veiculos add column if not exists created_at timestamptz not null default now();
 alter table veiculos add column if not exists updated_at timestamptz not null default now();
 
