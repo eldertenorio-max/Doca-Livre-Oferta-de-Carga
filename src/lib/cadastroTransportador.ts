@@ -7,6 +7,7 @@ import { portalCriarUsuarioAuth } from './portalApi'
 import {
   loadPortalAccounts,
   savePortalAccounts,
+  marcarContaNovaParaInsert,
   type PortalAccount,
 } from './portalAuth'
 import { canonicalTransportadorId } from './transportadorIds'
@@ -213,6 +214,7 @@ export function cadastrarTransportadorLocal(
     ativo: false,
     created_at: now,
   }
+  marcarContaNovaParaInsert(account.id)
   savePortalAccounts([...loadPortalAccounts(), account])
 
   return {
@@ -526,25 +528,61 @@ export async function cadastrarTransportadorRemoto(
     })
     .eq('id', userId)
 
-  // Conta portal local (mesmo fluxo do cadastro local)
+  // Conta portal (login) — marca INSERT e grava senha em `usuarios` de imediato
   const now = new Date().toISOString()
   const users = loadPortalAccounts()
   if (!users.some((u) => u.email.toLowerCase() === email || u.usuario.toLowerCase() === input.acesso.usuario.trim().toLowerCase())) {
-    savePortalAccounts([
-      ...users,
-      {
-        id: uid('u'),
-        usuario: input.acesso.usuario.trim(),
-        email,
-        password: input.acesso.senha,
-        nome: input.acesso.nome.trim() || input.empresa.nome_fantasia.trim(),
-        role: 'transportador',
-        transportador_id: tRow.id,
-        nivel: 'operador',
-        ativo: false,
-        created_at: now,
-      },
-    ])
+    const accountId = uid('u')
+    marcarContaNovaParaInsert(accountId)
+    const account: PortalAccount = {
+      id: accountId,
+      usuario: input.acesso.usuario.trim(),
+      email,
+      password: input.acesso.senha,
+      nome: input.acesso.nome.trim() || input.empresa.nome_fantasia.trim(),
+      role: 'transportador',
+      transportador_id: tRow.id,
+      nivel: 'operador',
+      ativo: false,
+      created_at: now,
+    }
+    savePortalAccounts([...users, account])
+  }
+
+  // Upsert direto da senha (não depende só do debounce de 900ms do cache)
+  try {
+    const usuarioLogin = input.acesso.usuario.trim()
+    const { data: porEmail } = await supabase
+      .from('usuarios')
+      .select('id')
+      .ilike('email', email)
+      .maybeSingle()
+    const { data: porUsuario } = porEmail
+      ? { data: null }
+      : await supabase
+          .from('usuarios')
+          .select('id')
+          .ilike('usuario', usuarioLogin)
+          .maybeSingle()
+    const existenteId = (porEmail?.id || porUsuario?.id) as string | undefined
+    const rowUsuario = {
+      usuario: usuarioLogin,
+      email,
+      senha_hash: input.acesso.senha,
+      nome: input.acesso.nome.trim() || input.empresa.nome_fantasia.trim(),
+      role: 'transportador' as const,
+      nivel: 'operador' as const,
+      transportador_id: tRow.id,
+      ativo: false,
+      updated_at: now,
+    }
+    if (existenteId) {
+      await supabase.from('usuarios').update(rowUsuario).eq('id', existenteId)
+    } else {
+      await supabase.from('usuarios').insert(rowUsuario)
+    }
+  } catch {
+    /* persist agendado pelo savePortalAccounts ainda tenta */
   }
 
   const documentos: TransportadorDocumento[] = []

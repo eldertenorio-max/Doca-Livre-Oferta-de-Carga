@@ -59,7 +59,7 @@ import type {
   Veiculo,
 } from '../types'
 import {
-  portalLoginLocal,
+  portalLogin,
   getPermissaoUsuario,
   hydratePermissoesMap,
   loadPortalAccounts,
@@ -162,7 +162,7 @@ interface AuthState {
     identificador: string,
     password: string,
     opts?: { persistSession?: boolean },
-  ) => { ok: boolean; error?: string }
+  ) => Promise<{ ok: boolean; error?: string }>
   logout: () => void
   demoUsers: AppUser[]
   refreshPermissoes: () => void
@@ -1585,7 +1585,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id)
   }, [config.empate_exige_aceite_manual])
 
-  const login = useCallback((
+  const login = useCallback(async (
     identificador: string,
     password: string,
     opts?: { persistSession?: boolean },
@@ -1593,7 +1593,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (typeof opts?.persistSession === 'boolean') {
       setAuthPersistEnabled(opts.persistSession)
     }
-    const result = portalLoginLocal(identificador, password)
+    const result = await portalLogin(identificador, password)
     if (!result.ok) return { ok: false, error: result.erro }
     let { account, isSuperuser, permissoes } = result
 

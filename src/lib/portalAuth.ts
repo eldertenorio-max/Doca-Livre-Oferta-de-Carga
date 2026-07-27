@@ -422,17 +422,12 @@ function dedupeSuperUsers(list: PortalAccount[]): PortalAccount[] {
   return next
 }
 
-/** Limpa campos e garante senha mínima nas contas ativas. */
+/** Limpa campos. Nunca inventa senha — isso sobrescrevia a senha real no banco. */
 function sanitizePortalAccounts(list: PortalAccount[]): PortalAccount[] {
   return list.map((u) => {
     const usuario = (u.usuario || '').trim() || (u.email || '').split('@')[0] || 'user'
     const email = (u.email || '').trim().toLowerCase()
-    let password = u.password ?? ''
-    // Conta ativa sem senha: gera senha inicial previsível a partir do login
-    if (u.ativo && password.trim().length < 4) {
-      const base = slugLogin(usuario) || 'doca'
-      password = `${base}123`
-    }
+    const password = (u.password ?? '').trim()
     // Super só Diego/Elder (Doca Livre). E-mail externo (ex.: Ultrafrio) nunca vira Super.
     let role = u.role
     const isCanonSuper = isDiegoAccount({ ...u, usuario, email }) || isElderAccount({ ...u, usuario, email })
@@ -692,7 +687,7 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
   try {
     const { data, error } = await supabase
       .from('usuarios')
-      .select('id, usuario, email, ativo')
+      .select('id, usuario, email, ativo, senha_hash')
     if (error) return
 
     const remote = (data ?? []) as Array<{
@@ -700,6 +695,7 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
       usuario: string
       email: string
       ativo: boolean
+      senha_hash: string | null
     }>
 
     // Não rebaixar login de transportadora já aprovada por cache antigo de outro aparelho.
@@ -739,10 +735,10 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
         ativo = true
       }
 
-      const row = {
+      const localSenha = (account.password || '').trim()
+      const rowBase = {
         usuario: account.usuario.trim(),
         email: account.email.trim().toLowerCase(),
-        senha_hash: account.password || null,
         nome: account.nome || account.usuario,
         role: account.role === 'super' ? 'super' : 'transportador',
         nivel: account.role === 'super' ? 'super' : (account.nivel ?? 'operador'),
@@ -756,18 +752,24 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
       }
       const found = remote.find(
         (item) =>
-          item.usuario.toLowerCase() === row.usuario.toLowerCase() ||
-          item.email.toLowerCase() === row.email,
+          item.usuario.toLowerCase() === rowBase.usuario.toLowerCase() ||
+          item.email.toLowerCase() === rowBase.email,
       )
       if (found) {
-        await supabase.from('usuarios').update(row).eq('id', found.id)
+        // Nunca apagar senha do banco com valor vazio do cache local.
+        const patch: Record<string, unknown> = { ...rowBase }
+        if (localSenha.length >= 4) {
+          patch.senha_hash = localSenha
+        }
+        await supabase.from('usuarios').update(patch).eq('id', found.id)
         continue
       }
       // INSERT só para contas criadas nesta sessão (painel / cadastro público).
       // Conta que não está no banco = excluída por um Super; NÃO recriar
       // (era isso que fazia usuários excluídos "voltarem").
       if (contasNovasDaSessao.has(account.id)) {
-        await supabase.from('usuarios').insert(row)
+        if (localSenha.length < 4) continue
+        await supabase.from('usuarios').insert({ ...rowBase, senha_hash: localSenha })
       }
     }
     void broadcastPortalAccountsChanged('upsert')
@@ -1551,6 +1553,163 @@ export function portalLoginLocal(
       role: isSuperuser ? 'super' : 'transportador',
     }),
   }
+}
+
+/** Grava a senha real de volta em `usuarios` e no cache (repara contas sem senha_hash). */
+async function repararSenhaPortal(account: PortalAccount, senha: string) {
+  const senhaLimpa = senha.trim()
+  if (senhaLimpa.length < 4) return
+  const users = loadPortalAccounts()
+  const next = users.map((u) =>
+    u.id === account.id ||
+    normId(u.email) === normId(account.email) ||
+    normId(u.usuario) === normId(account.usuario)
+      ? { ...u, password: senhaLimpa }
+      : u,
+  )
+  if (!users.some((u) => u.id === account.id || normId(u.email) === normId(account.email))) {
+    marcarContaNovaParaInsert(account.id)
+    next.push({ ...account, password: senhaLimpa })
+  }
+  savePortalAccounts(normalizePortalList(next))
+
+  if (!isSupabaseConfigured || !supabase) return
+  try {
+    const email = account.email.trim().toLowerCase()
+    const usuario = account.usuario.trim()
+    const { data } = await supabase
+      .from('usuarios')
+      .select('id')
+      .ilike('email', email)
+      .limit(1)
+    let row = (data ?? [])[0] as { id: string } | undefined
+    if (!row) {
+      const { data: byUser } = await supabase
+        .from('usuarios')
+        .select('id')
+        .ilike('usuario', usuario)
+        .limit(1)
+      row = (byUser ?? [])[0] as { id: string } | undefined
+    }
+    if (row?.id) {
+      await supabase
+        .from('usuarios')
+        .update({ senha_hash: senhaLimpa, updated_at: new Date().toISOString() })
+        .eq('id', row.id)
+    } else {
+      marcarContaNovaParaInsert(account.id)
+      await supabase.from('usuarios').insert({
+        usuario,
+        email,
+        senha_hash: senhaLimpa,
+        nome: account.nome || usuario,
+        role: account.role === 'super' ? 'super' : 'transportador',
+        nivel: account.role === 'super' ? 'super' : (account.nivel ?? 'operador'),
+        perfil_operacional: account.perfil_operacional ?? null,
+        transportador_id: validUuid(account.transportador_id)
+          ? account.transportador_id
+          : null,
+        empresa_org_id: account.empresa_org_id ?? null,
+        ativo: account.ativo ?? true,
+      })
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Login do portal. Tenta a senha em `usuarios`; se falhar, valida no Supabase Auth
+ * (conta criada no cadastro) e repara `senha_hash` — corrige o caso “funcionou e
+ * depois de horas a senha parou de bater”.
+ */
+export async function portalLogin(
+  identificador: string,
+  senha: string,
+): Promise<
+  | {
+      ok: true
+      account: PortalAccount
+      isSuperuser: boolean
+      permissoes: OfertaPermissao
+    }
+  | { ok: false; erro: string }
+> {
+  const local = portalLoginLocal(identificador, senha)
+  if (local.ok) return local
+
+  if (!isSupabaseConfigured || !supabase) return local
+
+  const candidatos = findAccountsByIdentificador(loadPortalAccounts(), identificador)
+  const emails = [
+    ...new Set(
+      [
+        ...candidatos.map((c) => c.email.trim().toLowerCase()),
+        identificador.includes('@') ? identificador.trim().toLowerCase() : '',
+      ].filter((e) => e.includes('@')),
+    ),
+  ]
+
+  // Login só com usuário (sem @): busca e-mail no banco para validar no Auth
+  if (emails.length === 0 && !identificador.includes('@')) {
+    try {
+      const { data } = await supabase
+        .from('usuarios')
+        .select('email')
+        .ilike('usuario', identificador.trim())
+        .limit(1)
+      const emailDb = (data?.[0] as { email?: string } | undefined)?.email
+      if (emailDb?.includes('@')) emails.push(emailDb.trim().toLowerCase())
+    } catch {
+      /* ignore */
+    }
+  }
+
+  for (const email of emails) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password: senha,
+    })
+    if (error || !data.user) continue
+
+    const account =
+      candidatos.find((c) => normId(c.email) === normId(email)) ||
+      loadPortalAccounts().find((c) => normId(c.email) === normId(email)) ||
+      ({
+        id: data.user.id,
+        usuario: (data.user.user_metadata?.usuario as string) || email.split('@')[0],
+        email,
+        password: senha,
+        nome:
+          (data.user.user_metadata?.nome as string) ||
+          email.split('@')[0],
+        role: 'transportador' as const,
+        nivel: 'operador' as const,
+        transportador_id: null,
+        ativo: true,
+        created_at: new Date().toISOString(),
+      } satisfies PortalAccount)
+
+    await repararSenhaPortal(account, senha)
+    try {
+      await supabase.auth.signOut()
+    } catch {
+      /* ignore */
+    }
+
+    const repaired = portalLoginLocal(identificador, senha)
+    if (repaired.ok) return repaired
+    // Conta Auth ok mas portal ainda inativo / sem vínculo
+    if (!account.ativo) {
+      return {
+        ok: false,
+        erro: 'Cadastro aguardando aprovação. Você poderá entrar após a liberação.',
+      }
+    }
+    return repaired
+  }
+
+  return local
 }
 
 /** Libera login do transportador após aprovação (Doca Livre Oferta de Carga). */

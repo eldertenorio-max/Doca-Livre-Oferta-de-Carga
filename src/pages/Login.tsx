@@ -113,7 +113,7 @@ export function LoginPage() {
     } catch {
       /* ignore */
     }
-    const res = login(usuario.trim(), senha, { persistSession: salvarSessao })
+    const res = await login(usuario.trim(), senha, { persistSession: salvarSessao })
     setLoading(false)
     if (!res.ok) {
       setError(res.error ?? 'Falha no login')
