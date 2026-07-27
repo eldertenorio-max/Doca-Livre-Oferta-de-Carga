@@ -113,7 +113,7 @@ export function ViagensBoard({ mode, transportadorId }: Props) {
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
       <div className="flex shrink-0 flex-wrap items-center gap-2">
-        <div className="relative min-w-0 flex-1 max-w-md">
+        <div className="relative min-w-0 flex-1">
           <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-muted" />
           <input
             value={search}
