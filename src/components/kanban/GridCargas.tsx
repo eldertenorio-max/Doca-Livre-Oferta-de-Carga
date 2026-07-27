@@ -188,11 +188,9 @@ export function GridCargas({
     if (mode === 'transportador') {
       if (coluna === 'nova_carga' || coluna === 'propostas') return 'Fazer lance'
       if (coluna === 'confirmadas') return 'Alocar'
-      if (coluna === 'alocadas') return 'Ver'
-      return 'Abrir'
+      return 'Ver viagem'
     }
-    if (coluna === 'alocadas') return 'Ver viagem'
-    return 'Abrir'
+    return 'Ver viagem'
   }
 
   return (
