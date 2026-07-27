@@ -1,0 +1,387 @@
+import { useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useData } from '../context/DataContext'
+import { formatCurrency, roundMoney } from '../lib/businessRules'
+import { isAcceptedImageFile } from '../lib/veiculoFotos'
+import { isSuperSession } from '../lib/superUsers'
+import { canonicalTransportadorId } from '../lib/transportadorIds'
+import '../styles/perfil.css'
+
+type Aba = 'sobre' | 'conta'
+
+function iniciais(nome: string) {
+  const parts = nome.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return 'DL'
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+}
+
+function labelClassificacao(c?: string) {
+  if (c === 'ouro') return 'Ouro'
+  if (c === 'prata') return 'Prata'
+  if (c === 'bronze') return 'Bronze'
+  return '—'
+}
+
+export function PerfilPage() {
+  const navigate = useNavigate()
+  const {
+    user,
+    cargas,
+    lances,
+    transportadores,
+    veiculos,
+    motoristas,
+    atualizarLogoTransportador,
+    effectiveTransportadorId,
+  } = useData()
+  const [aba, setAba] = useState<Aba>('sobre')
+  const [busy, setBusy] = useState(false)
+  const [erro, setErro] = useState('')
+  const [okMsg, setOkMsg] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const isSuper = isSuperSession(user)
+  const tid = canonicalTransportadorId(
+    effectiveTransportadorId() || user?.transportador_id || null,
+  )
+  const transportador = useMemo(
+    () =>
+      tid
+        ? (transportadores ?? []).find(
+            (t) => t.id === tid || canonicalTransportadorId(t.id) === tid,
+          ) ?? null
+        : null,
+    [tid, transportadores],
+  )
+
+  const fotoUrl = transportador?.logo_url?.trim() || null
+  const nome = user?.nome || transportador?.nome_fantasia || 'Usuário'
+  const papel = isSuper
+    ? 'Super Usuário'
+    : user?.role === 'transportador'
+      ? 'Transportador'
+      : 'Embarcador'
+
+  const stats = useMemo(() => {
+    if (isSuper) {
+      const publicadas = (cargas ?? []).filter((c) => c.publicado_em).length
+      const fechadas = (cargas ?? []).filter(
+        (c) => c.frete_fechado != null || c.transportador_vencedor_id,
+      ).length
+      return {
+        esquerda: { valor: String(publicadas), rotulo: 'Cargas publicadas' },
+        direita: { valor: String(fechadas), rotulo: 'Fretes fechados' },
+      }
+    }
+    const tidLocal = tid
+    const meusVencedores = (cargas ?? []).filter(
+      (c) => tidLocal && c.transportador_vencedor_id === tidLocal,
+    )
+    const viagens = meusVencedores.filter(
+      (c) => c.status === 'alocadas' || c.status === 'confirmadas' || c.frete_fechado != null,
+    ).length
+    const economia = meusVencedores.reduce((acc, c) => {
+      if (c.frete_fechado == null || !c.frete_tabela) return acc
+      const diff = c.frete_tabela - c.frete_fechado
+      return acc + (diff > 0 ? diff : 0)
+    }, 0)
+    const meusLances = (lances ?? []).filter((l) => l.transportador_id === tidLocal).length
+    return {
+      esquerda: {
+        valor: economia > 0 ? formatCurrency(roundMoney(economia)) : formatCurrency(0),
+        rotulo: 'Economia até agora',
+      },
+      direita: {
+        valor: String(viagens || meusLances),
+        rotulo: viagens > 0 ? 'Total de fretes' : 'Lances enviados',
+      },
+    }
+  }, [isSuper, cargas, lances, tid])
+
+  const email =
+    user?.email || transportador?.email || user?.usuario || '—'
+  const telefone =
+    transportador?.telefone ||
+    transportador?.contato_telefone ||
+    '—'
+  const docsOk =
+    transportador?.situacao === 'ativo' ||
+    isSuper ||
+    Boolean(transportador?.rntrc)
+  const nivel = isSuper
+    ? 'Administrador'
+    : labelClassificacao(transportador?.classificacao)
+
+  const qtdVeiculos = useMemo(() => {
+    if (!tid) return 0
+    return (veiculos ?? []).filter((v) => v.transportador_id === tid).length
+  }, [veiculos, tid])
+  const qtdMotoristas = useMemo(() => {
+    if (!tid) return 0
+    return (motoristas ?? []).filter((m) => m.transportador_id === tid).length
+  }, [motoristas, tid])
+
+  async function onEscolherFoto(file: File | null) {
+    if (!file || !tid) return
+    setErro('')
+    setOkMsg('')
+    if (!isAcceptedImageFile(file)) {
+      setErro('Use JPG, PNG ou WEBP.')
+      return
+    }
+    setBusy(true)
+    const res = await atualizarLogoTransportador(tid, file)
+    setBusy(false)
+    if (!res.ok) {
+      setErro(res.error ?? 'Não foi possível salvar a foto.')
+      return
+    }
+    setOkMsg('Foto de perfil atualizada.')
+  }
+
+  async function onRemoverFoto() {
+    if (!tid) return
+    setBusy(true)
+    setErro('')
+    setOkMsg('')
+    const res = await atualizarLogoTransportador(tid, null)
+    setBusy(false)
+    if (!res.ok) {
+      setErro(res.error ?? 'Não foi possível remover a foto.')
+      return
+    }
+    setOkMsg('Foto removida.')
+  }
+
+  return (
+    <div className="perfil-page animate-fade-up">
+      <div className="perfil-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={aba === 'sobre'}
+          className={aba === 'sobre' ? 'is-active' : undefined}
+          onClick={() => setAba('sobre')}
+        >
+          Sobre você
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={aba === 'conta'}
+          className={aba === 'conta' ? 'is-active' : undefined}
+          onClick={() => setAba('conta')}
+        >
+          Conta
+        </button>
+      </div>
+
+      {aba === 'sobre' ? (
+        <div className="perfil-panel">
+          <button
+            type="button"
+            className="perfil-hero"
+            onClick={() => setAba('conta')}
+          >
+            <span className="perfil-hero__avatar" aria-hidden>
+              {fotoUrl ? (
+                <img src={fotoUrl} alt="" />
+              ) : (
+                <span>{iniciais(nome)}</span>
+              )}
+              {(docsOk || isSuper) && <i className="perfil-hero__badge" title="Perfil verificado" />}
+            </span>
+            <span className="perfil-hero__text">
+              <strong>{nome}</strong>
+              <span>{papel}</span>
+            </span>
+            <span className="perfil-hero__chev" aria-hidden>
+              ›
+            </span>
+          </button>
+
+          <div className="perfil-stats">
+            <div>
+              <p className="perfil-stats__value">{stats.esquerda.valor}</p>
+              <p className="perfil-stats__label">{stats.esquerda.rotulo}</p>
+            </div>
+            <div>
+              <p className="perfil-stats__value">{stats.direita.valor}</p>
+              <p className="perfil-stats__label">{stats.direita.rotulo}</p>
+            </div>
+          </div>
+
+          <div className="perfil-links">
+            {tid ? (
+              <>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                  hidden
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] ?? null
+                    e.target.value = ''
+                    void onEscolherFoto(f)
+                  }}
+                />
+                <button
+                  type="button"
+                  className="perfil-link"
+                  disabled={busy}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {fotoUrl ? 'Modificar foto de perfil' : 'Adicionar foto de perfil'}
+                </button>
+                {fotoUrl ? (
+                  <button
+                    type="button"
+                    className="perfil-link perfil-link--muted"
+                    disabled={busy}
+                    onClick={() => void onRemoverFoto()}
+                  >
+                    Remover foto
+                  </button>
+                ) : null}
+              </>
+            ) : (
+              <p className="perfil-hint">
+                Contas sem empresa vinculada não têm foto de perfil. Super pode usar o avatar
+                ao “ver como” transportador.
+              </p>
+            )}
+            <button
+              type="button"
+              className="perfil-link"
+              onClick={() => setAba('conta')}
+            >
+              Modificar dados pessoais
+            </button>
+          </div>
+
+          {(erro || okMsg) && (
+            <p className={erro ? 'perfil-msg perfil-msg--erro' : 'perfil-msg'}>
+              {erro || okMsg}
+            </p>
+          )}
+
+          <div className="perfil-verified">
+            <h3>
+              {isSuper || docsOk
+                ? 'Você tem um Perfil Verificado'
+                : 'Perfil em verificação'}
+            </h3>
+            <ul>
+              <li className={docsOk || isSuper ? 'is-ok' : undefined}>
+                {docsOk || isSuper
+                  ? 'Documentação confirmada'
+                  : 'Documentação pendente'}
+              </li>
+              <li className={email && email !== '—' ? 'is-ok' : undefined}>
+                {email}
+              </li>
+              <li className={telefone && telefone !== '—' ? 'is-ok' : undefined}>
+                {telefone}
+              </li>
+            </ul>
+          </div>
+
+          {!isSuper && transportador && (
+            <div className="perfil-extra">
+              <p>
+                <span>Nível</span>
+                <strong>{nivel}</strong>
+              </p>
+              <p>
+                <span>Pontuação</span>
+                <strong>{transportador.pontuacao ?? 0}</strong>
+              </p>
+              <p>
+                <span>Veículos</span>
+                <strong>{qtdVeiculos}</strong>
+              </p>
+              <p>
+                <span>Motoristas</span>
+                <strong>{qtdMotoristas}</strong>
+              </p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="perfil-panel">
+          <h3 className="perfil-conta-title">Dados da conta</h3>
+          <dl className="perfil-dl">
+            <div>
+              <dt>Nome</dt>
+              <dd>{nome}</dd>
+            </div>
+            <div>
+              <dt>Usuário / e-mail</dt>
+              <dd>{email}</dd>
+            </div>
+            <div>
+              <dt>Perfil</dt>
+              <dd>{papel}</dd>
+            </div>
+            {transportador && (
+              <>
+                <div>
+                  <dt>Empresa</dt>
+                  <dd>{transportador.nome_fantasia || transportador.razao_social}</dd>
+                </div>
+                <div>
+                  <dt>CNPJ</dt>
+                  <dd>{transportador.cnpj || '—'}</dd>
+                </div>
+                <div>
+                  <dt>Telefone</dt>
+                  <dd>{telefone}</dd>
+                </div>
+                <div>
+                  <dt>Cidade</dt>
+                  <dd>
+                    {[transportador.cidade, transportador.uf].filter(Boolean).join(' / ') ||
+                      '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Classificação</dt>
+                  <dd>{labelClassificacao(transportador.classificacao)}</dd>
+                </div>
+              </>
+            )}
+          </dl>
+
+          <div className="perfil-conta-actions">
+            {isSuper && (
+              <button
+                type="button"
+                className="perfil-btn"
+                onClick={() => navigate('/embarcador/config')}
+              >
+                Configuração do portal
+              </button>
+            )}
+            {user?.role === 'transportador' && (
+              <button
+                type="button"
+                className="perfil-btn"
+                onClick={() => navigate('/transportador/painel')}
+              >
+                Painel do transportador
+              </button>
+            )}
+            <button
+              type="button"
+              className="perfil-btn perfil-btn--ghost"
+              onClick={() => navigate(-1)}
+            >
+              Voltar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

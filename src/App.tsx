@@ -19,6 +19,7 @@ import { PortalConfigPage } from './pages/minerva/PortalConfig'
 import { KanbanTransportador } from './pages/transportador/KanbanTransportador'
 import { PainelTransportadorPage } from './pages/transportador/Painel'
 import { MapaFrotaPage } from './pages/minerva/MapaFrota'
+import { PerfilPage } from './pages/Perfil'
 import { PwaInstallBanner } from './components/PwaInstallBanner'
 import { PushEnableBanner } from './components/PushEnableBanner'
 import { isSuperSession } from './lib/superUsers'
@@ -70,6 +71,14 @@ export default function App() {
           </Protected>
         }
       >
+        <Route
+          path="/perfil"
+          element={
+            <Protected>
+              <PerfilPage />
+            </Protected>
+          }
+        />
         <Route
           path="/embarcador"
           element={

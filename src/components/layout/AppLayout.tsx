@@ -570,13 +570,12 @@ export function AppLayout() {
             <button
               type="button"
               className="app-topbar-user"
-              aria-haspopup={podeEditarLogo ? 'menu' : undefined}
-              aria-expanded={podeEditarLogo ? avatarMenuOpen : undefined}
-              title={podeEditarLogo ? 'Logo / foto de perfil' : undefined}
+              title="Ver perfil"
+              aria-label="Abrir perfil"
               onClick={() => {
-                if (!podeEditarLogo) return
-                setAvatarErro('')
-                setAvatarMenuOpen((o) => !o)
+                setAvatarMenuOpen(false)
+                setNotifOpen(false)
+                navigate('/perfil')
               }}
             >
               <div className="app-topbar-user-text">
@@ -669,8 +668,8 @@ export function AppLayout() {
             <strong>Foto de perfil</strong>
             <span>
               {podeEditarLogo
-                ? 'Adicione a logo da empresa ou uma foto sua: clique no avatar no canto superior direito. Ela aparece no login do sistema, no perfil e no mapa da frota.'
-                : 'Transportadores podem adicionar logo ou foto no avatar (canto superior direito) ou na edição da transportadora. A imagem vira o perfil no login.'}
+                ? 'Adicione a logo da empresa ou uma foto sua: clique no seu nome (ao lado de Sair) para abrir o perfil. A imagem aparece no login, no perfil e no mapa da frota.'
+                : 'Transportadores podem adicionar logo ou foto no perfil (clique no nome ao lado de Sair) ou na edição da transportadora. A imagem vira o perfil no login.'}
             </span>
           </div>
           <div className="app-foto-aviso__actions">
