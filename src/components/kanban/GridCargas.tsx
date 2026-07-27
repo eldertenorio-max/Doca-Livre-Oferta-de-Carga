@@ -103,7 +103,7 @@ export function GridCargas({
   onSelect,
   onAction,
 }: Props) {
-  const { transportadores, tick } = useData()
+  const { transportadores, veiculos, motoristas, tick } = useData()
   void tick
   const [filtro, setFiltro] = useState('todas')
   const metrics = mode === 'minerva' ? METRICS_MINERVA : METRICS_TRANSPORTADOR
@@ -131,6 +131,42 @@ export function GridCargas({
     if (filtro === 'todas') return rows
     return rows.filter((r) => r.coluna === filtro)
   }, [rows, filtro])
+
+  function transportadorDaCarga(c: Carga) {
+    const tid = c.transportador_vencedor_id || transportadorId || null
+    if (!tid) return null
+    return transportadores.find((t) => t.id === tid) ?? null
+  }
+
+  function fotoDaCarga(c: Carga): { url: string | null; label: string } {
+    const t = transportadorDaCarga(c)
+    const logo = t?.logo_url?.trim() || null
+    if (logo) {
+      return { url: logo, label: t?.nome_fantasia || t?.razao_social || 'Logo' }
+    }
+    if (c.motorista_id) {
+      const m = motoristas.find((x) => x.id === c.motorista_id)
+      const foto = m?.foto_url?.trim() || null
+      if (foto) return { url: foto, label: m?.nome || 'Motorista' }
+    }
+    if (c.veiculo_id) {
+      const v = veiculos.find((x) => x.id === c.veiculo_id)
+      const foto =
+        v?.foto_url?.trim() ||
+        v?.fotos?.dianteira?.trim() ||
+        null
+      if (foto) return { url: foto, label: v?.placa || 'Veículo' }
+    }
+    const nome = t?.nome_fantasia || c.motorista || c.placa || c.numero
+    return { url: null, label: nome }
+  }
+
+  function iniciaisFoto(label: string) {
+    const parts = label.trim().split(/\s+/).filter(Boolean)
+    if (parts.length === 0) return '?'
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+  }
 
   function nomeTransportador(id: string | null | undefined) {
     if (!id) return '—'
@@ -188,6 +224,7 @@ export function GridCargas({
         <table className="grid-cargas__table">
           <thead>
             <tr>
+              <th>Foto</th>
               <th>Data</th>
               <th>Carga</th>
               <th>Pedido</th>
@@ -207,7 +244,7 @@ export function GridCargas({
           <tbody>
             {filtradas.length === 0 ? (
               <tr>
-                <td colSpan={mode === 'minerva' ? 14 : 13}>
+                <td colSpan={mode === 'minerva' ? 15 : 14}>
                   <div className="grid-cargas__empty">Nenhuma carga neste filtro.</div>
                 </td>
               </tr>
@@ -220,6 +257,7 @@ export function GridCargas({
                 const cor = COR_COLUNA[coluna] || '#64748b'
                 const viagem =
                   c.status === 'alocadas' ? statusViagemEfetivo(c) : null
+                const foto = fotoDaCarga(c)
 
                 return (
                   <tr
@@ -227,6 +265,15 @@ export function GridCargas({
                     className={selectedId === c.id ? 'is-selected' : undefined}
                     onClick={() => onSelect(c)}
                   >
+                    <td>
+                      <span className="grid-cargas__avatar" title={foto.label}>
+                        {foto.url ? (
+                          <img src={foto.url} alt="" />
+                        ) : (
+                          <span aria-hidden>{iniciaisFoto(foto.label)}</span>
+                        )}
+                      </span>
+                    </td>
                     <td>{c.data_carregamento ? formatDate(c.data_carregamento) : '—'}</td>
                     <td>
                       <strong className="tabular-nums">{c.numero}</strong>
