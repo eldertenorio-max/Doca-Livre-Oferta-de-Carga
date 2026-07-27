@@ -55,10 +55,10 @@ const emptyForm = (): Partial<Veiculo> => ({
   cubagem_m3: undefined,
   eixos: undefined,
   frete_minimo: 0,
-  gerenciamento_risco: 'nenhum',
-  rastreador_dados: '',
   usa_manobrista: false,
   padiado: false,
+  gerenciamento_risco: 'nenhum',
+  rastreador_dados: '',
   situacao: 'ativo',
 })
 
@@ -273,9 +273,9 @@ export function VeiculosPage() {
       form.gerenciamento_risco === 'nenhum'
         ? form.gerenciamento_risco
         : 'nenhum'
-    const rastreadorDados = (form.rastreador_dados ?? '').trim()
-    if (risco === 'rastreador' && !rastreadorDados) {
-      setError('Cole os dados do rastreador (IMEI, ID, login, etc.).')
+    const dadosRastreador = (form.rastreador_dados || '').trim()
+    if (risco === 'rastreador' && !dadosRastreador) {
+      setError('Cole os dados do rastreador (IMEI, serial, fornecedor…).')
       return
     }
     const v: Veiculo = {
@@ -301,10 +301,10 @@ export function VeiculosPage() {
       eixos: form.eixos != null ? Number(form.eixos) : undefined,
       frete_minimo: roundMoney(freteMin),
       disponivel_mapa: form.disponivel_mapa !== false,
-      gerenciamento_risco: risco,
-      rastreador_dados: risco === 'rastreador' ? rastreadorDados : undefined,
       usa_manobrista: Boolean(form.usa_manobrista),
       padiado: Boolean(form.padiado),
+      gerenciamento_risco: risco,
+      rastreador_dados: risco === 'rastreador' ? dadosRastreador : undefined,
       situacao: (form.situacao as 'ativo' | 'inativo') ?? 'ativo',
       created_at: form.created_at ?? new Date().toISOString(),
     }
@@ -374,8 +374,8 @@ export function VeiculosPage() {
                   <th>Tipo</th>
                   <th>Frete mín.</th>
                   <th>Modelo</th>
-                  <th>Risco</th>
                   <th>Capacidade</th>
+                  <th>Risco</th>
                   <th>Situação</th>
                   <th />
                 </tr>
@@ -398,19 +398,17 @@ export function VeiculosPage() {
                     <td>
                       {[v.marca, v.modelo].filter(Boolean).join(' ') || '—'}
                     </td>
+                    <td>
+                      {v.capacidade_kg != null
+                        ? `${v.capacidade_kg.toLocaleString('pt-BR')} kg`
+                        : '—'}
+                    </td>
                     <td className="capitalize">
                       {v.gerenciamento_risco === 'rastreador'
                         ? 'Rastreador'
                         : v.gerenciamento_risco === 'localizador'
                           ? 'Localizador'
-                          : v.gerenciamento_risco === 'nenhum'
-                            ? 'Nenhum'
-                            : '—'}
-                    </td>
-                    <td>
-                      {v.capacidade_kg != null
-                        ? `${v.capacidade_kg.toLocaleString('pt-BR')} kg`
-                        : '—'}
+                          : 'Nenhum'}
                     </td>
                     <td>
                       <span className={`badge-situacao badge-situacao--${v.situacao}`}>
@@ -576,6 +574,45 @@ export function VeiculosPage() {
         </div>
       </section>
 
+      <section className="form-card form-card--purple" style={{ marginTop: 16 }}>
+        <header className="form-card__head">
+          <h2 className="form-card__title">Gerenciamento de risco</h2>
+        </header>
+        <div className="form-card__body">
+          <div className="form-fields">
+            <Field label="Exige" required>
+              <select
+                value={form.gerenciamento_risco ?? 'nenhum'}
+                onChange={(e) => {
+                  const value = e.target.value as Veiculo['gerenciamento_risco']
+                  setForm((prev) => ({
+                    ...prev,
+                    gerenciamento_risco: value,
+                    rastreador_dados:
+                      value === 'rastreador' ? prev.rastreador_dados ?? '' : '',
+                  }))
+                }}
+              >
+                <option value="rastreador">Rastreador</option>
+                <option value="localizador">Localizador</option>
+                <option value="nenhum">Nenhum</option>
+              </select>
+            </Field>
+            {form.gerenciamento_risco === 'rastreador' && (
+              <Field label="Dados do rastreador" required>
+                <textarea
+                  rows={3}
+                  value={form.rastreador_dados ?? ''}
+                  onChange={(e) => set('rastreador_dados', e.target.value)}
+                  placeholder="Cole aqui IMEI, serial, fornecedor, link do portal…"
+                  style={{ width: '100%', resize: 'vertical' }}
+                />
+              </Field>
+            )}
+          </div>
+        </div>
+      </section>
+
       <section className="form-card form-card--blue" style={{ marginTop: 16 }}>
         <header className="form-card__head">
           <IconCamera />
@@ -731,42 +768,6 @@ export function VeiculosPage() {
           </div>
         </section>
       </div>
-
-      <section className="form-card form-card--blue" style={{ marginTop: 16 }}>
-        <header className="form-card__head">
-          <IconExpand />
-          <h2 className="form-card__title">Gerenciamento de risco</h2>
-        </header>
-        <div className="form-card__body">
-          <div className="form-fields form-fields--photo">
-            <Field label="Tipo" required>
-              <select
-                value={form.gerenciamento_risco ?? 'nenhum'}
-                onChange={(e) => {
-                  const value = e.target.value as Veiculo['gerenciamento_risco']
-                  set('gerenciamento_risco', value)
-                  if (value !== 'rastreador') set('rastreador_dados', '')
-                }}
-              >
-                <option value="nenhum">Nenhum</option>
-                <option value="rastreador">Rastreador</option>
-                <option value="localizador">Localizador</option>
-              </select>
-            </Field>
-            {form.gerenciamento_risco === 'rastreador' && (
-              <Field label="Dados do rastreador" required>
-                <textarea
-                  rows={4}
-                  value={form.rastreador_dados ?? ''}
-                  onChange={(e) => set('rastreador_dados', e.target.value)}
-                  placeholder="Cole aqui IMEI, ID, login, senha, link do painel ou qualquer dado do rastreador…"
-                  style={{ width: '100%', resize: 'vertical' }}
-                />
-              </Field>
-            )}
-          </div>
-        </div>
-      </section>
 
       {error && <p style={{ color: '#dc2626', marginTop: 12, textAlign: 'center' }}>{error}</p>}
 

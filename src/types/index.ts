@@ -156,12 +156,12 @@ export interface Veiculo {
    * Default: true.
    */
   disponivel_mapa?: boolean
-  /** Gerenciamento de risco do veículo */
-  gerenciamento_risco?: 'rastreador' | 'localizador' | 'nenhum'
-  /** Dados do rastreador (IMEI, ID, login, etc.) — só quando gerenciamento_risco = rastreador */
-  rastreador_dados?: string
   usa_manobrista: boolean
   padiado: boolean
+  /** Gerenciamento de risco do veículo */
+  gerenciamento_risco?: 'rastreador' | 'localizador' | 'nenhum'
+  /** Dados do equipamento (IMEI, serial, fornecedor…) quando tem rastreador */
+  rastreador_dados?: string
   situacao: 'ativo' | 'inativo'
   created_at: string
   updated_at?: string

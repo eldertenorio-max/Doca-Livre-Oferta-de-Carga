@@ -31,6 +31,14 @@ function mapFotos(raw: unknown, fotoUrl?: string | null): FotosVeiculo | undefin
   return undefined
 }
 
+function mapGerenciamentoRisco(
+  raw: unknown,
+): Veiculo['gerenciamento_risco'] {
+  const v = String(raw || '').trim().toLowerCase()
+  if (v === 'rastreador' || v === 'localizador' || v === 'nenhum') return v
+  return undefined
+}
+
 export function mapVeiculoRow(row: Record<string, unknown>): Veiculo {
   const fotos = mapFotos(row.fotos, row.foto_url as string | null)
   return {
@@ -56,15 +64,10 @@ export function mapVeiculoRow(row: Record<string, unknown>): Veiculo {
     eixos: row.eixos != null ? Number(row.eixos) : undefined,
     frete_minimo: Number(row.frete_minimo) || 0,
     disponivel_mapa: row.disponivel_mapa !== false,
-    gerenciamento_risco:
-      row.gerenciamento_risco === 'rastreador' ||
-      row.gerenciamento_risco === 'localizador' ||
-      row.gerenciamento_risco === 'nenhum'
-        ? row.gerenciamento_risco
-        : undefined,
-    rastreador_dados: (row.rastreador_dados as string) || undefined,
     usa_manobrista: Boolean(row.usa_manobrista),
     padiado: Boolean(row.padiado),
+    gerenciamento_risco: mapGerenciamentoRisco(row.gerenciamento_risco),
+    rastreador_dados: (row.rastreador_dados as string) || undefined,
     situacao: row.situacao === 'inativo' ? 'inativo' : 'ativo',
     created_at: String(row.created_at || new Date().toISOString()),
     updated_at: (row.updated_at as string) || undefined,
@@ -144,35 +147,39 @@ export async function upsertVeiculoRemote(
     cubagem_m3: limpo.cubagem_m3 ?? null,
     eixos: limpo.eixos ?? null,
     frete_minimo: limpo.frete_minimo ?? 0,
-    gerenciamento_risco: limpo.gerenciamento_risco ?? null,
-    rastreador_dados:
-      limpo.gerenciamento_risco === 'rastreador'
-        ? limpo.rastreador_dados?.trim() || null
-        : null,
     usa_manobrista: Boolean(limpo.usa_manobrista),
     padiado: Boolean(limpo.padiado),
+    gerenciamento_risco: limpo.gerenciamento_risco ?? 'nenhum',
+    rastreador_dados:
+      limpo.gerenciamento_risco === 'rastreador'
+        ? (limpo.rastreador_dados ?? null)
+        : null,
     situacao: limpo.situacao,
     disponivel_mapa: limpo.disponivel_mapa !== false,
     updated_at: limpo.updated_at ?? new Date().toISOString(),
   }
-  let attempt: Record<string, unknown> = row
-  for (let i = 0; i < 3; i++) {
-    const { error } = await supabase.from('veiculos').upsert(attempt)
-    if (!error) return { ok: true, id }
-    const msg = error.message
-    if (/updated_at/i.test(msg) && 'updated_at' in attempt) {
-      const { updated_at: _u, ...rest } = attempt
-      attempt = rest
-      continue
-    }
-    if (/gerenciamento_risco|rastreador_dados/i.test(msg)) {
-      const { gerenciamento_risco: _g, rastreador_dados: _r, ...rest } = attempt
-      attempt = rest
-      continue
-    }
-    return { ok: false, erro: msg }
+  const { error } = await supabase.from('veiculos').upsert(row)
+  if (!error) return { ok: true, id }
+
+  // Colunas novas / updated_at podem ainda não existir — remove e tenta de novo
+  let retryRow: Record<string, unknown> = { ...row }
+  let stripped = false
+  if (/updated_at/i.test(error.message)) {
+    const { updated_at: _u, ...rest } = retryRow
+    retryRow = rest
+    stripped = true
   }
-  return { ok: true, id }
+  if (/gerenciamento_risco|rastreador_dados/i.test(error.message)) {
+    const { gerenciamento_risco: _g, rastreador_dados: _r, ...rest } = retryRow
+    retryRow = rest
+    stripped = true
+  }
+  if (stripped) {
+    const retry = await supabase.from('veiculos').upsert(retryRow)
+    if (retry.error) return { ok: false, erro: retry.error.message }
+    return { ok: true, id }
+  }
+  return { ok: false, erro: error.message }
 }
 
 export async function deleteVeiculoRemote(id: string): Promise<void> {
