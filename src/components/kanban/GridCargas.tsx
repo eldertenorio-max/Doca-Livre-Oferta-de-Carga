@@ -371,7 +371,7 @@ export function VistaToggle({
         className={value === 'quadro' ? 'is-active' : undefined}
         onClick={() => onChange('quadro')}
       >
-        Quadro
+        Kanban
       </button>
       <button
         type="button"
