@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
 import { CargoCard } from '../../components/kanban/CargoCard'
 import { KanbanBoard } from '../../components/kanban/KanbanBoard'
+import { GridCargas, VistaToggle } from '../../components/kanban/GridCargas'
 import { AllocateModal, BidModal } from '../../components/carga/BidModal'
 import { TransportadorRotaCalc } from '../../components/carga/TransportadorRotaCalc'
 import { ViagensBoard } from '../../components/viagens/ViagensBoard'
@@ -74,11 +75,20 @@ export function KanbanTransportador() {
   const [searchParams, setSearchParams] = useSearchParams()
   const aba: 'kanban' | 'viagens' =
     searchParams.get('aba') === 'viagens' ? 'viagens' : 'kanban'
+  const vista: 'quadro' | 'grid' =
+    searchParams.get('vista') === 'grid' ? 'grid' : 'quadro'
 
   function setAba(next: 'kanban' | 'viagens') {
     const sp = new URLSearchParams(searchParams)
     if (next === 'viagens') sp.set('aba', 'viagens')
     else sp.delete('aba')
+    setSearchParams(sp, { replace: true })
+  }
+
+  function setVista(next: 'quadro' | 'grid') {
+    const sp = new URLSearchParams(searchParams)
+    if (next === 'grid') sp.set('vista', 'grid')
+    else sp.delete('vista')
     setSearchParams(sp, { replace: true })
   }
 
@@ -240,6 +250,7 @@ export function KanbanTransportador() {
             className="w-full rounded-lg border border-ink/15 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
           />
         </div>
+        <VistaToggle value={vista} onChange={setVista} />
       </div>
 
       {!tid && (
@@ -272,11 +283,33 @@ export function KanbanTransportador() {
         </p>
       )}
 
-      <p className="shrink-0 text-[11px] text-ink-muted">
-        Fluxo: Nova Carga → Propostas (seu lance) → Confirmadas → Alocadas.
-      </p>
+      {vista === 'quadro' && (
+        <p className="shrink-0 text-[11px] text-ink-muted">
+          Fluxo: Nova Carga → Propostas (seu lance) → Confirmadas → Alocadas.
+        </p>
+      )}
 
       <div className="min-h-0 flex-1 overflow-hidden">
+        {vista === 'grid' ? (
+          <GridCargas
+            mode="transportador"
+            cargas={cargas}
+            lances={lances}
+            transportadorId={tid || null}
+            onSelect={(c) => {
+              const temMeu = meuLanceAtivoNaRodada(c, lances, tid)
+              const col = colunaTransportador(c, tid, temMeu)
+              if (col === 'nova_carga' || col === 'propostas') setBidCarga(c)
+              else if (col === 'confirmadas' || col === 'alocadas') setAllocCarga(c)
+              else setBidCarga(c)
+            }}
+            onAction={(c, coluna) => {
+              if (coluna === 'nova_carga' || coluna === 'propostas') setBidCarga(c)
+              else if (coluna === 'confirmadas' || coluna === 'alocadas') setAllocCarga(c)
+              else setBidCarga(c)
+            }}
+          />
+        ) : (
         <KanbanBoard
           storageKey="doca-livre-kanban-collapsed-transportador"
           columns={COLUMNS.map((col) => ({
@@ -360,6 +393,7 @@ export function KanbanTransportador() {
               }),
           }))}
         />
+        )}
       </div>
 
       <BidModal

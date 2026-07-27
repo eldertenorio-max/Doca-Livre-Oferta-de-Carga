@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { isCargaEphemeral, montarNovaCarga, useData } from '../../context/DataContext'
 import { CargoCard } from '../../components/kanban/CargoCard'
 import { KanbanBoard } from '../../components/kanban/KanbanBoard'
+import { GridCargas, VistaToggle } from '../../components/kanban/GridCargas'
 import { PublishPanel } from '../../components/carga/PublishPanel'
 import { ViagensBoard } from '../../components/viagens/ViagensBoard'
 import {
@@ -81,6 +82,8 @@ export function KanbanMinerva() {
   } = useData()
   const aba: 'kanban' | 'viagens' =
     searchParams.get('aba') === 'viagens' ? 'viagens' : 'kanban'
+  const vista: 'quadro' | 'grid' =
+    searchParams.get('vista') === 'grid' ? 'grid' : 'quadro'
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Carga | null>(null)
   /** Rascunho só na tela — ainda não foi salvo em `cargas`. */
@@ -99,6 +102,13 @@ export function KanbanMinerva() {
     const sp = new URLSearchParams(searchParams)
     if (next === 'viagens') sp.set('aba', 'viagens')
     else sp.delete('aba')
+    setSearchParams(sp, { replace: true })
+  }
+
+  function setVista(next: 'quadro' | 'grid') {
+    const sp = new URLSearchParams(searchParams)
+    if (next === 'grid') sp.set('vista', 'grid')
+    else sp.delete('vista')
     setSearchParams(sp, { replace: true })
   }
 
@@ -246,14 +256,17 @@ export function KanbanMinerva() {
             <ViagensBoard mode="minerva" />
           ) : (
             <>
-          <div className="relative w-full shrink-0">
-            <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-muted" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Pesquisar cargas..."
-              className="w-full rounded-lg border border-ink/15 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-            />
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <div className="relative min-w-0 flex-1">
+              <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-muted" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Pesquisar cargas..."
+                className="w-full rounded-lg border border-ink/15 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+              />
+            </div>
+            <VistaToggle value={vista} onChange={setVista} />
           </div>
 
           {dragMsg && (
@@ -291,7 +304,7 @@ export function KanbanMinerva() {
             </p>
           )}
 
-          {noQuadro > 0 && (
+          {noQuadro > 0 && vista === 'quadro' && (
             <p className="shrink-0 text-[11px] text-ink-muted">
               {noQuadro} no quadro
               {rascunhos > 0 ? ` · ${rascunhos} rascunho(s) em Cargas salvas (botão Nova carga)` : ''}
@@ -306,6 +319,16 @@ export function KanbanMinerva() {
           )}
 
           <div className="min-h-0 flex-1 overflow-hidden">
+            {vista === 'grid' ? (
+              <GridCargas
+                mode="minerva"
+                cargas={filtered}
+                lances={lances}
+                selectedId={liveSelected?.id}
+                onSelect={(c) => openPanel(c)}
+                onAction={(c) => openPanel(c)}
+              />
+            ) : (
             <KanbanBoard
               storageKey="doca-livre-kanban-collapsed-minerva"
               onCardDrop={handleCardDrop}
@@ -337,6 +360,7 @@ export function KanbanMinerva() {
                   })),
               }))}
             />
+            )}
           </div>
             </>
           )}

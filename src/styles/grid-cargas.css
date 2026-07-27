@@ -1,0 +1,250 @@
+/* Grid de cargas — visualização tabular do Kanban */
+
+.grid-cargas {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.grid-cargas__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.grid-cargas__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.grid-cargas__metrics {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  flex-shrink: 0;
+  scrollbar-width: thin;
+}
+
+.grid-cargas__metric {
+  flex: 0 0 auto;
+  min-width: 108px;
+  border: 1px solid #e2e8f0;
+  border-top: 3px solid var(--metric-color, #3b82f6);
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s, transform 0.12s;
+}
+
+.grid-cargas__metric:hover {
+  box-shadow: 0 4px 14px rgb(15 23 42 / 0.08);
+  transform: translateY(-1px);
+}
+
+.grid-cargas__metric.is-active {
+  border-color: var(--metric-color, #3b82f6);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--metric-color, #3b82f6) 28%, transparent);
+}
+
+.grid-cargas__metric-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.grid-cargas__metric-value {
+  display: block;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.grid-cargas__table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.grid-cargas__table {
+  width: 100%;
+  min-width: 1100px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.78rem;
+}
+
+.grid-cargas__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.grid-cargas__table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.grid-cargas__table tbody tr {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.grid-cargas__table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.grid-cargas__table tbody tr.is-selected {
+  background: #eff6ff;
+}
+
+.grid-cargas__empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.grid-cargas__pill {
+  display: inline-flex;
+  align-items: center;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-weight: 700;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.grid-cargas__pill--placa {
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-family: ui-monospace, monospace;
+  letter-spacing: 0.04em;
+}
+
+.grid-cargas__pill--status {
+  border: 1px solid color-mix(in srgb, var(--status-color, #64748b) 45%, #fff);
+  background: color-mix(in srgb, var(--status-color, #64748b) 12%, #fff);
+  color: var(--status-color, #64748b);
+}
+
+.grid-cargas__pill--timer {
+  background: #fef3c7;
+  color: #b45309;
+  font-variant-numeric: tabular-nums;
+}
+
+.grid-cargas__pill--timer.is-urgent {
+  background: #fee2e2;
+  color: #b91c1c;
+  animation: grid-cargas-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes grid-cargas-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+
+.grid-cargas__muted {
+  color: #94a3b8;
+}
+
+.grid-cargas__actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.grid-cargas__btn {
+  border: 0;
+  border-radius: 7px;
+  padding: 5px 10px;
+  font-size: 0.7rem;
+  font-weight: 750;
+  cursor: pointer;
+  white-space: nowrap;
+  background: #0f172a;
+  color: #fff;
+}
+
+.grid-cargas__btn:hover {
+  background: #1e293b;
+}
+
+.grid-cargas__btn--ghost {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.grid-cargas__btn--ghost:hover {
+  background: #e2e8f0;
+}
+
+.vista-toggle {
+  display: inline-flex;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  overflow: hidden;
+  background: #f8fafc;
+  flex-shrink: 0;
+}
+
+.vista-toggle button {
+  border: 0;
+  background: transparent;
+  padding: 7px 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.vista-toggle button.is-active {
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.08);
+}
+
+.vista-toggle button:hover:not(.is-active) {
+  color: #0f172a;
+}
