@@ -962,6 +962,20 @@ export function PublishPanel({
                     : '—'
             }
           />
+          <Detail
+            label="Gerenciamento de risco"
+            value={
+              carga.gerenciamento_risco === 'rastreador'
+                ? 'Rastreador'
+                : carga.gerenciamento_risco === 'localizador'
+                  ? 'Localizador'
+                  : carga.gerenciamento_risco === 'ambos'
+                    ? 'Ambos'
+                    : carga.gerenciamento_risco === 'nao'
+                      ? 'Não exige'
+                      : '—'
+            }
+          />
           <Detail label="Destinatário" value={carga.destinatario || '—'} />
           <Detail label="Peso" value={formatNumber(carga.peso)} />
           <Detail label="Volumes" value={String(carga.volumes)} />

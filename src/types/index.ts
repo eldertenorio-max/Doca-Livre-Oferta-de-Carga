@@ -252,6 +252,8 @@ export interface Carga {
   destino: string
   /** Se a carga aceita complemento: sim | nao | ambos */
   complemento?: 'sim' | 'nao' | 'ambos'
+  /** Gerenciamento de risco: exige rastreador e/ou localizador */
+  gerenciamento_risco?: 'rastreador' | 'localizador' | 'ambos' | 'nao'
   destinatario: string
   destinatario_cnpj: string
   peso: number

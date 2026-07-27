@@ -102,6 +102,20 @@ export function ChatModal({ carga, open, onClose }: ChatModalProps) {
             <ChatInfoItem label="Veículo" value={carga.veiculo || '—'} />
             <ChatInfoItem label="Carroceria" value={carroceria} />
             <ChatInfoItem
+              label="Risco"
+              value={
+                carga.gerenciamento_risco === 'rastreador'
+                  ? 'Rastreador'
+                  : carga.gerenciamento_risco === 'localizador'
+                    ? 'Localizador'
+                    : carga.gerenciamento_risco === 'ambos'
+                      ? 'Ambos'
+                      : carga.gerenciamento_risco === 'nao'
+                        ? 'Não exige'
+                        : '—'
+              }
+            />
+            <ChatInfoItem
               label="Peso"
               value={carga.peso > 0 ? `${formatNumber(carga.peso)} kg` : '—'}
             />

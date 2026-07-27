@@ -166,6 +166,20 @@ export function BidModal({ carga, open, onClose, onCalcularRota }: BidModalProps
               <Detail label="Veículo" value={live.veiculo} />
               <Detail label="Origem" value={live.origem} />
               <Detail label="Destino" value={live.destino} />
+              <Detail
+                label="Gerenciamento de risco"
+                value={
+                  live.gerenciamento_risco === 'rastreador'
+                    ? 'Rastreador'
+                    : live.gerenciamento_risco === 'localizador'
+                      ? 'Localizador'
+                      : live.gerenciamento_risco === 'ambos'
+                        ? 'Ambos'
+                        : live.gerenciamento_risco === 'nao'
+                          ? 'Não exige'
+                          : '—'
+                }
+              />
               <Detail label="Peso" value={formatNumber(live.peso)} />
               <Detail label="Frete Tabela" value={formatCurrency(live.frete_tabela)} />
               <Detail label="Frete Oferta" value={formatCurrency(freteRef)} />

@@ -17,8 +17,10 @@ import { AnttFretePanel } from './AnttFretePanel'
 import { RotaMapPreview } from './RotaMapPreview'
 
 type ComplementoCarga = NonNullable<Carga['complemento']>
+type GerenciamentoRisco = NonNullable<Carga['gerenciamento_risco']>
 
 const COMPLEMENTO_LABELS = ['Sim', 'Não', 'Ambos'] as const
+const RISCO_LABELS = ['Rastreador', 'Localizador', 'Ambos', 'Não exige'] as const
 
 function labelComplemento(v?: Carga['complemento']) {
   if (v === 'sim') return 'Sim'
@@ -32,6 +34,23 @@ function parseComplemento(txt: string): ComplementoCarga | undefined {
   if (n === 'sim') return 'sim'
   if (n === 'nao' || n === 'não') return 'nao'
   if (n === 'ambos') return 'ambos'
+  return undefined
+}
+
+function labelGerenciamentoRisco(v?: Carga['gerenciamento_risco']) {
+  if (v === 'rastreador') return 'Rastreador'
+  if (v === 'localizador') return 'Localizador'
+  if (v === 'ambos') return 'Ambos'
+  if (v === 'nao') return 'Não exige'
+  return ''
+}
+
+function parseGerenciamentoRisco(txt: string): GerenciamentoRisco | undefined {
+  const n = txt.trim().toLowerCase()
+  if (n === 'rastreador') return 'rastreador'
+  if (n === 'localizador') return 'localizador'
+  if (n === 'ambos') return 'ambos'
+  if (n === 'nao' || n === 'não' || n === 'nao exige' || n === 'não exige') return 'nao'
   return undefined
 }
 
@@ -85,6 +104,9 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
   const [origem, setOrigem] = useState(carga.origem)
   const [destino, setDestino] = useState(carga.destino)
   const [complementoTxt, setComplementoTxt] = useState(() => labelComplemento(carga.complemento))
+  const [riscoTxt, setRiscoTxt] = useState(() =>
+    labelGerenciamentoRisco(carga.gerenciamento_risco),
+  )
   const [freteTabela, setFreteTabela] = useState(formatMoneyInput(carga.frete_tabela || 0))
   const [anttInfo, setAnttInfo] = useState<AnttInfoCarga | null>(carga.antt ?? null)
   const [classificacao, setClassificacao] = useState<ClassificacaoRota>(
@@ -170,6 +192,17 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
     [historico.tipo],
   )
 
+  const sugRisco = useMemo(
+    () => (q: string) => {
+      const catalog = [...RISCO_LABELS]
+      const qt = q.trim().toLowerCase()
+      if (!qt) return catalog
+      if (catalog.some((t) => t.toLowerCase() === qt)) return catalog
+      return filtrarSugestoes(qt, [catalog], 8)
+    },
+    [],
+  )
+
   const sugComplemento = useMemo(
     () => (q: string) => {
       const catalog = [...COMPLEMENTO_LABELS]
@@ -222,6 +255,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
     setOrigem(carga.origem)
     setDestino(carga.destino)
     setComplementoTxt(labelComplemento(carga.complemento))
+    setRiscoTxt(labelGerenciamentoRisco(carga.gerenciamento_risco))
     setFreteTabela(formatMoneyInput(carga.frete_tabela || 0))
     setAnttInfo(carga.antt ?? null)
     setClassificacao(carga.classificacao_rota ?? 'B')
@@ -353,6 +387,11 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
       setError('Selecione o complemento (Sim, Não ou Ambos).')
       return
     }
+    const riscoFinal = parseGerenciamentoRisco(riscoTxt)
+    if (!riscoFinal) {
+      setError('Selecione o gerenciamento de risco (rastreador ou localizador).')
+      return
+    }
     if (Number.isNaN(freteFinal) || freteFinal <= 0) {
       setError('Informe o valor do frete tabela.')
       return
@@ -413,6 +452,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
       origem: origemFinal,
       destino: destinoFinal,
       complemento: complementoFinal,
+      gerenciamento_risco: riscoFinal,
       frete_tabela: freteFinal,
       antt: anttInfo,
       pedido: pedido.trim(),
@@ -458,6 +498,10 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
         <Row label="Origem" value={carga.origem || '—'} />
         <Row label="Destino" value={carga.destino || '—'} />
         <Row label="Complemento" value={labelComplemento(carga.complemento) || '—'} />
+        <Row
+          label="Gerenciamento de risco"
+          value={labelGerenciamentoRisco(carga.gerenciamento_risco) || '—'}
+        />
         <Row label="Tipo" value={carga.tipo_carga || '—'} />
         <Row label="Veículo" value={carga.veiculo || '—'} />
         <Row
@@ -580,6 +624,14 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
                 onChange={setComplementoTxt}
                 suggestions={sugComplemento}
                 placeholder="Sim, Não ou Ambos"
+              />
+            </Field>
+            <Field label="Gerenciamento de risco *">
+              <SuggestInput
+                value={riscoTxt}
+                onChange={setRiscoTxt}
+                suggestions={sugRisco}
+                placeholder="Rastreador, Localizador, Ambos ou Não exige"
               />
             </Field>
             <Field label="Classificação da rota">

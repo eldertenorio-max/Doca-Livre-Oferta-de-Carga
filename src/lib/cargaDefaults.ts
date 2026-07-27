@@ -16,6 +16,13 @@ export function normalizeCarga(c: Carga): Carga {
       c.complemento === 'sim' || c.complemento === 'nao' || c.complemento === 'ambos'
         ? c.complemento
         : undefined,
+    gerenciamento_risco:
+      c.gerenciamento_risco === 'rastreador' ||
+      c.gerenciamento_risco === 'localizador' ||
+      c.gerenciamento_risco === 'ambos' ||
+      c.gerenciamento_risco === 'nao'
+        ? c.gerenciamento_risco
+        : undefined,
     antt: c.antt ?? null,
     frete_minimo: c.frete_minimo ?? null,
     frete_maximo: c.frete_maximo ?? null,
