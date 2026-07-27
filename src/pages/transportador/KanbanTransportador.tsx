@@ -152,9 +152,9 @@ export function KanbanTransportador() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
-      <div className="flex shrink-0 flex-wrap items-end gap-3">
+      <div className="flex shrink-0 flex-col gap-2">
         {canPickTransportador && (
-          <label className="flex min-w-0 w-full flex-1 flex-col gap-1 text-xs font-semibold text-ink sm:min-w-[260px] sm:w-auto">
+          <label className="flex min-w-0 max-w-md flex-col gap-1 text-xs font-semibold text-ink">
             Kanban do transportador
             <select
               value={viewAsId}
@@ -173,16 +173,18 @@ export function KanbanTransportador() {
           </label>
         )}
 
-        <div className="relative min-w-0 w-full max-w-md flex-1 sm:min-w-[220px]">
-          <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-muted" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Pesquisar Cargas..."
-            className="w-full rounded-lg border border-ink/15 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
+            <Search size={16} className="absolute top-1/2 left-3 -translate-y-1/2 text-ink-muted" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Pesquisar Cargas..."
+              className="w-full rounded-lg border border-ink/15 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+            />
+          </div>
+          <VistaToggle value={vista} onChange={setVista} />
         </div>
-        <VistaToggle value={vista} onChange={setVista} />
       </div>
 
       {!tid && (
