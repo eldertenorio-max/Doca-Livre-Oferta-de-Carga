@@ -36,6 +36,8 @@ export interface Profile {
   is_superuser?: boolean
   perfil_operacional?: PerfilOperacional | null
   permissoes_modulos?: Record<string, 'visualizar' | 'editar'> | null
+  /** Foto de perfil do usuário (independente da logo da empresa). */
+  avatar_url?: string | null
 }
 
 export interface AppUser {

@@ -75,6 +75,7 @@ import {
   submeterCadastroTransportador,
   type CadastroTransportadorInput,
 } from '../lib/cadastroTransportador'
+import { atualizarAvatarUsuarioRemoto } from '../lib/userAvatar'
 import { canonicalTransportadorId } from '../lib/transportadorIds'
 import { portalEmailRecusaCadastro } from '../lib/portalApi'
 import {
@@ -218,6 +219,10 @@ interface DataContextValue extends DataState, AuthState {
   /** Envia, troca ou remove logo/foto do transportador (file=null remove). */
   atualizarLogoTransportador: (
     transportadorId: string,
+    file: File | null,
+  ) => Promise<{ ok: boolean; error?: string }>
+  /** Foto de perfil do usuário logado (Super sem empresa também). file=null remove. */
+  atualizarAvatarPerfil: (
     file: File | null,
   ) => Promise<{ ok: boolean; error?: string }>
   excluirTransportador: (id: string) => Promise<{ ok: boolean; error?: string }>
@@ -1277,6 +1282,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     persistAuthProfile(user)
   }, [user])
+
+  // Hidrata foto de perfil salva em profiles.avatar_url
+  useEffect(() => {
+    if (!user?.id || !isSupabaseConfigured || !supabase) return
+    let cancelled = false
+    void supabase
+      .from('profiles')
+      .select('avatar_url')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled || !data) return
+        const url = typeof data.avatar_url === 'string' ? data.avatar_url.trim() : ''
+        setUser((prev) => {
+          if (!prev || prev.id !== user.id) return prev
+          const atual = prev.avatar_url?.trim() || ''
+          if (atual === url) return prev
+          return { ...prev, avatar_url: url || null }
+        })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [user?.id])
 
   const salvarConfig = useCallback((cfg: ConfigNegocio) => {
     setConfig(cfg)
@@ -3153,6 +3182,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [],
   )
 
+  const atualizarAvatarPerfil = useCallback(async (file: File | null) => {
+    const u = user
+    if (!u?.id) return { ok: false, error: 'Faça login novamente.' }
+    // Transportador com empresa: mantém logo da empresa em sync
+    const tid = canonicalTransportadorId(u.transportador_id || null)
+    if (tid && u.role === 'transportador') {
+      const logo = await atualizarLogoTransportador(tid, file)
+      if (!logo.ok) return logo
+    }
+    const result = await atualizarAvatarUsuarioRemoto(u.id, file)
+    if (!result.ok) return { ok: false, error: result.erro }
+    setUser((prev) => {
+      if (!prev) return prev
+      return { ...prev, avatar_url: result.avatar_url }
+    })
+    return { ok: true }
+  }, [user, atualizarLogoTransportador])
+
   const setDisponivelMapaVeiculo = useCallback(
     async (veiculoId: string, disponivel: boolean) => {
       const atual = stateRef.current.veiculos.find((x) => x.id === veiculoId)
@@ -4241,6 +4288,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       salvarGrupo,
       salvarTransportador,
       atualizarLogoTransportador,
+      atualizarAvatarPerfil,
       setDisponivelMapa,
       setDisponivelMapaVeiculo,
       excluirTransportador,
@@ -4310,6 +4358,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       salvarGrupo,
       salvarTransportador,
       atualizarLogoTransportador,
+      atualizarAvatarPerfil,
       setDisponivelMapa,
       setDisponivelMapaVeiculo,
       excluirTransportador,

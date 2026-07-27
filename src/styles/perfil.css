@@ -174,7 +174,45 @@
   color: #0f172a;
 }
 
-.perfil-hero__text span {
+.perfil-foto-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 6px;
+}
+
+.perfil-foto-acao {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: #2563eb;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.perfil-foto-acao:hover:not(:disabled) {
+  color: #1d4ed8;
+}
+
+.perfil-foto-acao:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.perfil-foto-acao--danger {
+  color: #b91c1c;
+}
+
+.perfil-foto-acao--danger:hover:not(:disabled) {
+  color: #991b1b;
+}
+
+.perfil-hero__text > span {
   font-size: 0.92rem;
   color: #64748b;
 }

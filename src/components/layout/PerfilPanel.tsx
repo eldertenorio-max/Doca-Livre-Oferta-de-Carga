@@ -37,7 +37,7 @@ export function PerfilPanel({ onClose }: Props) {
     transportadores,
     veiculos,
     motoristas,
-    atualizarLogoTransportador,
+    atualizarAvatarPerfil,
     effectiveTransportadorId,
   } = useData()
   const [aba, setAba] = useState<Aba>('sobre')
@@ -60,7 +60,8 @@ export function PerfilPanel({ onClose }: Props) {
     [tid, transportadores],
   )
 
-  const fotoUrl = transportador?.logo_url?.trim() || null
+  const fotoUrl =
+    user?.avatar_url?.trim() || transportador?.logo_url?.trim() || null
   const nome = user?.nome || transportador?.nome_fantasia || 'Usuário'
   const papel = isSuper
     ? 'Super Usuário'
@@ -120,7 +121,7 @@ export function PerfilPanel({ onClose }: Props) {
   }, [motoristas, tid])
 
   async function onEscolherFoto(file: File | null) {
-    if (!file || !tid) return
+    if (!file) return
     setErro('')
     setOkMsg('')
     if (!isAcceptedImageFile(file)) {
@@ -128,7 +129,7 @@ export function PerfilPanel({ onClose }: Props) {
       return
     }
     setBusy(true)
-    const res = await atualizarLogoTransportador(tid, file)
+    const res = await atualizarAvatarPerfil(file)
     setBusy(false)
     if (!res.ok) {
       setErro(res.error ?? 'Não foi possível salvar a foto.')
@@ -138,11 +139,10 @@ export function PerfilPanel({ onClose }: Props) {
   }
 
   async function onRemoverFoto() {
-    if (!tid) return
     setBusy(true)
     setErro('')
     setOkMsg('')
-    const res = await atualizarLogoTransportador(tid, null)
+    const res = await atualizarAvatarPerfil(null)
     setBusy(false)
     if (!res.ok) {
       setErro(res.error ?? 'Não foi possível remover a foto.')
@@ -191,6 +191,47 @@ export function PerfilPanel({ onClose }: Props) {
             <span className="perfil-hero__text">
               <strong>{nome}</strong>
               <span>{papel}</span>
+              <div className="perfil-foto-acoes">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                  hidden
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] ?? null
+                    e.target.value = ''
+                    void onEscolherFoto(f)
+                  }}
+                />
+                <button
+                  type="button"
+                  className="perfil-foto-acao"
+                  disabled={busy}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {fotoUrl ? 'Alterar' : 'Adicionar foto'}
+                </button>
+                {fotoUrl ? (
+                  <>
+                    <button
+                      type="button"
+                      className="perfil-foto-acao"
+                      disabled={busy}
+                      onClick={() => fileRef.current?.click()}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      className="perfil-foto-acao perfil-foto-acao--danger"
+                      disabled={busy}
+                      onClick={() => void onRemoverFoto()}
+                    >
+                      Excluir
+                    </button>
+                  </>
+                ) : null}
+              </div>
             </span>
           </div>
 
@@ -206,43 +247,6 @@ export function PerfilPanel({ onClose }: Props) {
           </div>
 
           <div className="perfil-links">
-            {tid ? (
-              <>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-                  hidden
-                  onChange={(e) => {
-                    const f = e.target.files?.[0] ?? null
-                    e.target.value = ''
-                    void onEscolherFoto(f)
-                  }}
-                />
-                <button
-                  type="button"
-                  className="perfil-link"
-                  disabled={busy}
-                  onClick={() => fileRef.current?.click()}
-                >
-                  {fotoUrl ? 'Modificar foto de perfil' : 'Adicionar foto de perfil'}
-                </button>
-                {fotoUrl ? (
-                  <button
-                    type="button"
-                    className="perfil-link perfil-link--muted"
-                    disabled={busy}
-                    onClick={() => void onRemoverFoto()}
-                  >
-                    Remover foto
-                  </button>
-                ) : null}
-              </>
-            ) : (
-              <p className="perfil-hint">
-                Contas sem empresa vinculada não têm foto de perfil.
-              </p>
-            )}
             <button type="button" className="perfil-link" onClick={() => setAba('conta')}>
               Ver dados pessoais
             </button>

@@ -280,6 +280,8 @@ export function AppLayout() {
     )
 
   const avatarFotoUrl = useMemo(() => {
+    const pessoal = user?.avatar_url?.trim() || null
+    if (pessoal) return pessoal
     if (!topbarTransportadorId) return null
     const t = (transportadores ?? []).find(
       (x) =>
@@ -287,9 +289,9 @@ export function AppLayout() {
         canonicalTransportadorId(x.id) === topbarTransportadorId,
     )
     return t?.logo_url?.trim() || null
-  }, [topbarTransportadorId, transportadores])
+  }, [user?.avatar_url, topbarTransportadorId, transportadores])
 
-  const podeEditarLogo = Boolean(topbarTransportadorId)
+  const podeEditarLogo = true
 
   // Aviso de foto/logo de perfil — aparece para todos até fechar ou até enviar a imagem
   useEffect(() => {
