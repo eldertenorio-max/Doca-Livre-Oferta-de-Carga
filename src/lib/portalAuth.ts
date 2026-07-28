@@ -654,6 +654,34 @@ function validUuid(value?: string | null) {
   )
 }
 
+const TRANSPORTADOR_REF_PREFIX = 'transportador:'
+
+function transportadorRefText(account: {
+  role?: PortalAccount['role']
+  transportador_id?: string | null
+  empresa_org_id?: string | null
+}) {
+  if (
+    account.role === 'transportador' &&
+    account.transportador_id &&
+    !validUuid(account.transportador_id)
+  ) {
+    return `${TRANSPORTADOR_REF_PREFIX}${account.transportador_id}`
+  }
+  return account.empresa_org_id ?? null
+}
+
+function transportadorIdFromRemote(
+  row: { transportador_id?: string | null; empresa_org_id?: string | null },
+  local?: PortalAccount,
+) {
+  if (row.transportador_id) return row.transportador_id
+  if (row.empresa_org_id?.startsWith(TRANSPORTADOR_REF_PREFIX)) {
+    return row.empresa_org_id.slice(TRANSPORTADOR_REF_PREFIX.length) || null
+  }
+  return local?.transportador_id ?? null
+}
+
 type RemoteUsuarioRow = {
   id: string
   usuario: string
@@ -817,7 +845,7 @@ function fromRemoteAccount(row: RemotePortalAccount, local?: PortalAccount): Por
     role: row.role,
     nivel: row.nivel,
     perfil_operacional: row.perfil_operacional ?? undefined,
-    transportador_id: row.transportador_id ?? local?.transportador_id ?? null,
+    transportador_id: transportadorIdFromRemote(row, local),
     empresa_org_id: row.empresa_org_id ?? local?.empresa_org_id ?? null,
     ativo: row.ativo,
     created_at: row.created_at,
@@ -905,7 +933,7 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
         transportador_id: validUuid(account.transportador_id)
           ? account.transportador_id
           : null,
-        empresa_org_id: account.empresa_org_id ?? null,
+        empresa_org_id: transportadorRefText(account),
         ativo,
         updated_at: new Date().toISOString(),
       }
@@ -982,22 +1010,28 @@ export async function gravarContaPortalNoBanco(
     transportador_id: validUuid(account.transportador_id)
       ? account.transportador_id
       : null,
-    empresa_org_id: account.empresa_org_id ?? null,
+    empresa_org_id: transportadorRefText(account),
     ativo: account.ativo ?? true,
     updated_at: new Date().toISOString(),
   }
 
   try {
     const existente = await findRemoteUsuarioRowDb(account, prev)
-    let dbRow: { id: string; usuario?: string; email?: string; senha_hash?: string | null } | null =
-      null
+    let dbRow: {
+      id: string
+      usuario?: string
+      email?: string
+      senha_hash?: string | null
+      transportador_id?: string | null
+      empresa_org_id?: string | null
+    } | null = null
 
     if (existente?.id) {
       let { data, error } = await supabase
         .from('usuarios')
         .update(rowBase)
         .eq('id', existente.id)
-        .select('id, usuario, email, senha_hash')
+        .select('id, usuario, email, senha_hash, transportador_id, empresa_org_id')
         .maybeSingle()
       // Produção antiga pode não ter updated_at — tenta de novo sem o campo
       if (error && /updated_at/i.test(error.message)) {
@@ -1007,7 +1041,7 @@ export async function gravarContaPortalNoBanco(
           .from('usuarios')
           .update(semUpdated)
           .eq('id', existente.id)
-          .select('id, usuario, email, senha_hash')
+          .select('id, usuario, email, senha_hash, transportador_id, empresa_org_id')
           .maybeSingle()
         data = retry.data
         error = retry.error
@@ -1022,7 +1056,7 @@ export async function gravarContaPortalNoBanco(
           .from('usuarios')
           .update({ senha_hash: localSenha })
           .eq('id', data.id)
-          .select('id, usuario, email, senha_hash')
+          .select('id, usuario, email, senha_hash, transportador_id, empresa_org_id')
           .maybeSingle()
         if (force.error) return { ok: false, erro: force.error.message }
         if ((force.data?.senha_hash || '').trim() !== localSenha) {
@@ -1040,13 +1074,23 @@ export async function gravarContaPortalNoBanco(
       const { data, error } = await supabase
         .from('usuarios')
         .insert(rowBase)
-        .select('id, usuario, email, senha_hash')
+        .select('id, usuario, email, senha_hash, transportador_id, empresa_org_id')
         .maybeSingle()
       if (error) return { ok: false, erro: error.message }
       if (!data?.id) {
         return { ok: false, erro: 'Não foi possível criar a conta no banco.' }
       }
       dbRow = data
+    }
+
+    if (account.role === 'transportador' && account.transportador_id) {
+      const vinculoConfirmado = transportadorIdFromRemote(dbRow ?? {})
+      if (vinculoConfirmado !== account.transportador_id) {
+        return {
+          ok: false,
+          erro: 'O banco não confirmou a transportadora vinculada. Selecione a empresa novamente.',
+        }
+      }
     }
 
     // Mantém cache alinhado (id uuid do banco + senha nova)
@@ -1907,14 +1951,8 @@ export function portalLoginLocal(
     }
   }
 
-  // Transportador precisa estar vinculado (DataContext ainda tenta casar por nome/e-mail)
-  if (!isSuperuser && account.role === 'transportador' && !account.transportador_id) {
-    return {
-      ok: false,
-      erro:
-        'Conta de transportador sem empresa vinculada. Peça ao Super Usuário para associar a transportadora.',
-    }
-  }
+  // O DataContext faz a última tentativa de vínculo usando a lista atualizada de
+  // transportadoras. Não bloqueie aqui: isso impedia recuperar associações locais.
   return {
     ok: true,
     account: {
@@ -1986,7 +2024,7 @@ async function repararSenhaPortal(account: PortalAccount, senha: string) {
         transportador_id: validUuid(account.transportador_id)
           ? account.transportador_id
           : null,
-        empresa_org_id: account.empresa_org_id ?? null,
+        empresa_org_id: transportadorRefText(account),
         ativo: account.ativo ?? true,
       })
     }
