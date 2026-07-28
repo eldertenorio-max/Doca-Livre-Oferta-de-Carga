@@ -6,8 +6,14 @@ import { DataProvider } from './context/DataContext'
 import App from './App'
 import './index.css'
 
-// Service worker cedo — necessário para o Chrome oferecer “Instalar app”
-registerSW({ immediate: true })
+// Service worker cedo — necessário para o Chrome oferecer “Instalar app”.
+// onNeedRefresh: força atualização assim que houver build novo (evita tela travada em versão antiga).
+const updateSW = registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    void updateSW(true)
+  },
+})
 
 // HashRouter: F5 em /#/login funciona no Render Static Site sem rewrite no painel.
 createRoot(document.getElementById('root')!).render(

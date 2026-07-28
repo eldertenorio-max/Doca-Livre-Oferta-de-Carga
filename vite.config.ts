@@ -70,6 +70,10 @@ export default defineConfig({
         navigateFallback: 'index.html',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webp}'],
         importScripts: ['push-sw.js'],
+        // Ativa a versão nova assim que publicada, sem esperar todas as abas fecharem
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
