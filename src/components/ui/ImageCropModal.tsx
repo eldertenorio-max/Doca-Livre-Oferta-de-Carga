@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import { createPortal } from 'react-dom'
 import { Button } from './Modal'
 
 const CROP_SIZE = 260
@@ -119,9 +118,9 @@ export function ImageCropModal({
     )
   }
 
-  if (!open || typeof document === 'undefined') return null
+  if (!open) return null
 
-  return createPortal(
+  return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
       <div
         role="presentation"
@@ -205,7 +204,6 @@ export function ImageCropModal({
           </Button>
         </div>
       </div>
-    </div>,
-    document.body,
+    </div>
   )
 }
