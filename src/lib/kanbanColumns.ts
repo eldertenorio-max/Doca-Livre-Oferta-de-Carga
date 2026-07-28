@@ -1,5 +1,6 @@
 import type { Carga, Lance, StatusCargaMinerva } from '../types'
 import { lanceNaRodadaAtual } from './cargaDefaults'
+import { sameTransportadorId } from './transportadorIds'
 
 /** Colunas do Kanban Minerva (embarcador). */
 export type ColunaMinerva = StatusCargaMinerva | 'confirmadas'
@@ -49,7 +50,7 @@ export function meuLanceAtivoNaRodada(
   return lances.some(
     (l) =>
       l.carga_id === carga.id &&
-      l.transportador_id === transportadorId &&
+      sameTransportadorId(l.transportador_id, transportadorId) &&
       l.status === 'ativo' &&
       lanceNaRodadaAtual(l, carga),
   )
@@ -98,16 +99,22 @@ export function colunaTransportador(
   if (!transportadorId) return null
 
   // Frete fechado com outro: some do Kanban deste transportador
-  if (c.transportador_vencedor_id && c.transportador_vencedor_id !== transportadorId) {
+  if (
+    c.transportador_vencedor_id &&
+    !sameTransportadorId(c.transportador_vencedor_id, transportadorId)
+  ) {
     return null
   }
 
-  if (c.status === 'alocadas' && c.transportador_vencedor_id === transportadorId) {
+  if (
+    c.status === 'alocadas' &&
+    sameTransportadorId(c.transportador_vencedor_id, transportadorId)
+  ) {
     return 'alocadas'
   }
 
   if (
-    c.transportador_vencedor_id === transportadorId &&
+    sameTransportadorId(c.transportador_vencedor_id, transportadorId) &&
     c.status !== 'alocadas' &&
     c.status !== 'recusadas' &&
     c.status !== 'canceladas'

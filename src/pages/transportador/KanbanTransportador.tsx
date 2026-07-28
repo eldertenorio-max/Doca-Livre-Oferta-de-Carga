@@ -16,6 +16,7 @@ import {
   type ColunaTransportador,
 } from '../../lib/kanbanColumns'
 import { isKanbanSyncReady } from '../../lib/kanbanSync'
+import { sameTransportadorId } from '../../lib/transportadorIds'
 import type { Carga } from '../../types'
 
 const VIEW_AS_STORAGE_KEY = 'doca-livre-kanban-transportador-view-as'
@@ -274,7 +275,7 @@ export function KanbanTransportador() {
                     new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
                 )
                 const meuLance =
-                  ativos.find((l) => l.transportador_id === tid) ?? null
+                  ativos.find((l) => sameTransportadorId(l.transportador_id, tid)) ?? null
                 const pos =
                   meuLance && col.key !== 'nova_carga'
                     ? porValor.findIndex((l) => l.id === meuLance.id) + 1

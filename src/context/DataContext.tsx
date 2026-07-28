@@ -76,7 +76,7 @@ import {
   type CadastroTransportadorInput,
 } from '../lib/cadastroTransportador'
 import { atualizarAvatarUsuarioRemoto } from '../lib/userAvatar'
-import { canonicalTransportadorId } from '../lib/transportadorIds'
+import { canonicalTransportadorId, sameTransportadorId } from '../lib/transportadorIds'
 import { portalEmailRecusaCadastro } from '../lib/portalApi'
 import {
   hydrateOrgTree,
@@ -4268,7 +4268,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const motoristasDoTransportador = useCallback(
     (transportadorId: string) =>
-      (state.motoristas ?? []).filter((m) => m.transportador_id === transportadorId),
+      (state.motoristas ?? []).filter((m) =>
+        sameTransportadorId(m.transportador_id, transportadorId),
+      ),
     [state.motoristas],
   )
 
@@ -4463,7 +4465,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const cargasVisiveisTransportador = useCallback(
     (transportadorId: string) => {
       if (!transportadorId) return []
-      const transportador = state.transportadores.find((t) => t.id === transportadorId)
+      const transportador = state.transportadores.find((t) =>
+        sameTransportadorId(t.id, transportadorId),
+      )
       // situacao ausente = ativo (dados antigos); só bloqueia inativo
       if (!transportador || transportador.situacao === 'inativo') {
         return []
@@ -4472,18 +4476,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return state.cargas.filter((c) => {
         // Frete fechado: só o vencedor continua vendo (Confirmadas / Alocadas)
         if (c.transportador_vencedor_id) {
-          if (c.transportador_vencedor_id !== transportadorId) return false
+          if (!sameTransportadorId(c.transportador_vencedor_id, transportadorId)) return false
           return !['canceladas'].includes(c.status)
         }
 
         // Recusou esta oferta: some do Kanban
-        if ((c.recusado_por_ids ?? []).includes(transportadorId)) return false
+        if ((c.recusado_por_ids ?? []).some((id) => sameTransportadorId(id, transportadorId))) {
+          return false
+        }
 
         // Já participou na rodada atual — continua vendo enquanto a negociação existir
         const temLanceProprio = state.lances.some(
           (l) =>
             l.carga_id === c.id &&
-            l.transportador_id === transportadorId &&
+            sameTransportadorId(l.transportador_id, transportadorId) &&
             l.status !== 'cancelado' &&
             lanceNaRodadaAtual(l, c),
         )
@@ -4509,7 +4515,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const emGrupo = state.grupos.some((g) => {
           if (g.situacao === 'inativo') return false
           if (!candidatos.includes(g.id)) return false
-          return (g.transportador_ids ?? []).includes(transportadorId)
+          return (g.transportador_ids ?? []).some((id) =>
+            sameTransportadorId(id, transportadorId),
+          )
         })
         if (emGrupo) return true
 

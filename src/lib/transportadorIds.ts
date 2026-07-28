@@ -18,3 +18,13 @@ export function canonicalTransportadorId(id: string | null | undefined): string 
 export function isLegacyTransportadorId(id: string | null | undefined): boolean {
   return Boolean(id && LEGACY_TO_UUID[id])
 }
+
+/** Compara IDs aceitando tanto t1/t2 legados quanto os UUIDs atuais. */
+export function sameTransportadorId(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): boolean {
+  const ca = canonicalTransportadorId(a)
+  const cb = canonicalTransportadorId(b)
+  return Boolean(ca && cb && ca === cb)
+}

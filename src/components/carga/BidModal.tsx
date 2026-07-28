@@ -8,6 +8,7 @@ import {
   parseMoneyInput,
   roundMoney,
 } from '../../lib/businessRules'
+import { sameTransportadorId } from '../../lib/transportadorIds'
 import type { Carga } from '../../types'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
 import { AnttFretePanel } from './AnttFretePanel'
@@ -77,7 +78,7 @@ export function BidModal({
 
     registrarVisualizacao(carga.id)
     const meu = lancesRef.current(carga.id).find(
-      (l) => l.transportador_id === tid && l.status === 'ativo',
+      (l) => sameTransportadorId(l.transportador_id, tid) && l.status === 'ativo',
     )
     const ref = roundMoney(carga.frete_oferta ?? carga.frete_tabela)
     const sugestao =
@@ -97,14 +98,17 @@ export function BidModal({
     return (
       lancesDaCarga(live.id).find(
         (l) =>
-          l.transportador_id === tid && ['ativo', 'vencedor'].includes(l.status),
+          sameTransportadorId(l.transportador_id, tid) &&
+          ['ativo', 'vencedor'].includes(l.status),
       ) ?? null
     )
   }, [live, tid, lancesDaCarga])
 
   const histMeu = useMemo(() => {
     if (!live || !tid) return []
-    return historicoPropostasDaCarga(live.id).filter((h) => h.transportador_id === tid)
+    return historicoPropostasDaCarga(live.id).filter((h) =>
+      sameTransportadorId(h.transportador_id, tid),
+    )
   }, [live, tid, historicoPropostasDaCarga])
 
   if (!live) return null
@@ -397,7 +401,7 @@ export function AllocateModal({ carga, open, onClose }: AllocateModalProps) {
   const tid =
     carga?.transportador_vencedor_id ?? user?.transportador_id ?? effectiveTransportadorId() ?? ''
   const veiculosOpts = (veiculos ?? []).filter(
-    (v) => v.transportador_id === tid && v.situacao === 'ativo',
+    (v) => sameTransportadorId(v.transportador_id, tid) && v.situacao === 'ativo',
   )
   const motoristasOpts = tid
     ? motoristasDoTransportador(tid).filter((m) => m.situacao === 'ativo')
