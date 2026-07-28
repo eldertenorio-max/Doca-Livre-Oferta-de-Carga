@@ -386,13 +386,13 @@ export function PortalConfigPage() {
     setMsg(`Conta “${a.usuario}” excluída. Lista e acessos atualizados.`)
   }
 
-  function novaConta() {
+  async function novaConta() {
     const usuario = window.prompt('Login (usuário):')?.trim()
     if (!usuario) return
     const email =
-      window.prompt('E-mail:', `${usuario.toLowerCase().replace(/\s+/g, '')}@docalivre.com`)
+      window.prompt('E-mail:', `${usuario.toLowerCase().replace(/\s+/g, '')}@empresa.com`)
         ?.trim()
-        .toLowerCase() || `${usuario.toLowerCase().replace(/\s+/g, '')}@docalivre.com`
+        .toLowerCase() || `${usuario.toLowerCase().replace(/\s+/g, '')}@empresa.com`
     const password = window.prompt('Senha inicial:', '1234') || '1234'
     const roleDefault =
       isLocalSuperUser(usuario) || isLocalSuperUser(email) ? 'super' : 'transportador'
@@ -404,7 +404,8 @@ export function PortalConfigPage() {
       .toLowerCase()
     const role =
       roleAsk === 'super' || roleAsk === 'transportador' ? roleAsk : roleDefault
-    const created = createPortalAccount({
+    setMsg('Criando conta no banco…')
+    const created = await createPortalAccount({
       usuario,
       email,
       password,
@@ -418,7 +419,7 @@ export function PortalConfigPage() {
     }
     setAccounts(created.list)
     setMsg(
-      `Conta “${created.account.usuario}” criada${created.account.role === 'super' ? ' (Super)' : ''}.`,
+      `Conta “${created.account.usuario}” criada${created.account.role === 'super' ? ' (Super)' : ''} e salva no banco.`,
     )
   }
 
@@ -572,7 +573,11 @@ export function PortalConfigPage() {
         <section className="form-card form-card--green">
           <header className="form-card__head" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <h2 className="form-card__title">Contas do portal</h2>
-            <button type="button" className="cadastro-btn cadastro-btn--save" onClick={novaConta}>
+            <button
+              type="button"
+              className="cadastro-btn cadastro-btn--save"
+              onClick={() => void novaConta()}
+            >
               + Nova conta
             </button>
           </header>

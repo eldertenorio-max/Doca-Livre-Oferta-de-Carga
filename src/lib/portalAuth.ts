@@ -151,17 +151,36 @@ function foiExcluida(u: { usuario?: string; email?: string }): boolean {
 
 /**
  * Conta de demonstração gerada automaticamente por versões antigas do app:
- * login/e-mail no padrão "empresa2@docalivre.com" (nome + número). Nunca foram
- * logins reais e ficavam reaparecendo. Super (diego/elder) e e-mails de empresa
- * de verdade não batem neste padrão.
+ * login/e-mail no padrão "empresa2@docalivre.com" (nome + número).
+ * NÃO aplica a contas com senha definida (criação manual no painel).
  */
-function isContaDemoGerada(u: { usuario?: string; email?: string; role?: string }): boolean {
+function isContaDemoGerada(u: {
+  usuario?: string
+  email?: string
+  role?: string
+  password?: string
+  senha_hash?: string | null
+}): boolean {
   if (u.role === 'super') return false
+  const senha = (u.password || u.senha_hash || '').trim()
+  // Conta com senha real = criação manual / demo canônica — nunca apagar como lixo
+  if (senha.length >= 4) return false
   const email = (u.email || '').trim().toLowerCase()
   const usuario = (u.usuario || '').trim().toLowerCase()
   const padrao = /^[a-z]+\d+@docalivre\.com$/
   const padraoLogin = /^[a-z]+\d+$/
   return padrao.test(email) && padraoLogin.test(usuario)
+}
+
+function isDemoTransportadorCanonico(u: { id?: string; usuario?: string; email?: string }) {
+  const email = (u.email || '').trim().toLowerCase()
+  const usuario = (u.usuario || '').trim().toLowerCase()
+  return DEMO_TRANSPORTADORES.some(
+    (d) =>
+      u.id === d.id ||
+      email === d.email ||
+      usuario === d.usuario,
+  )
 }
 
 function uid() {
@@ -526,8 +545,9 @@ function ensureDemoTransportadores(list: PortalAccount[]): PortalAccount[] {
         u.usuario.toLowerCase() === demo.usuario,
     )
     if (idx < 0) {
-      // Com Supabase: não recria demos excluídas do banco (evita “ressuscitar”).
-      if (isSupabaseConfigured) continue
+      // Sempre mantém Santos / Nova Era na lista (sumiam no sync se não estavam no banco).
+      if (foiExcluida(demo)) continue
+      marcarContaNovaParaInsert(demo.id)
       next = [demo, ...next]
       continue
     }
@@ -559,15 +579,17 @@ function seedAccounts(): PortalAccount[] {
   return seed
 }
 
-/** Cria conta no portal e persiste de imediato (retorna lista atualizada). */
-export function createPortalAccount(input: {
+/** Cria conta no portal e grava no banco na hora (retorna lista atualizada). */
+export async function createPortalAccount(input: {
   usuario: string
   email: string
   password: string
   nome?: string
   role?: PortalAccount['role']
   transportador_id?: string | null
-}): { ok: true; account: PortalAccount; list: PortalAccount[] } | { ok: false; erro: string } {
+}): Promise<
+  { ok: true; account: PortalAccount; list: PortalAccount[] } | { ok: false; erro: string }
+> {
   const usuario = input.usuario.trim()
   const email = input.email.trim().toLowerCase()
   const password = input.password
@@ -601,10 +623,15 @@ export function createPortalAccount(input: {
     ativo: true,
     created_at: new Date().toISOString(),
   }
-  const list = normalizePortalList([...users, account])
   marcarContaNovaParaInsert(account.id)
-  savePortalAccounts(list)
-  return { ok: true, account, list }
+  const list = normalizePortalList([...users, account])
+  savePortalAccountsMemory(list)
+
+  const remoto = await gravarContaPortalNoBanco(account)
+  if (!remoto.ok) {
+    return { ok: false, erro: remoto.erro ?? 'Não foi possível gravar a conta no banco.' }
+  }
+  return { ok: true, account: loadPortalAccounts().find((u) => normLogin(u.email) === email) ?? account, list: loadPortalAccounts() }
 }
 
 function savePortalAccountsMemory(list: PortalAccount[]) {
@@ -1157,7 +1184,7 @@ export async function syncPortalAccounts(): Promise<PortalAccount[]> {
     )
 
     // Contas de demonstração geradas automaticamente por versões antigas do app
-    // (padrão "nomedaempresa2@docalivre.com"). Nunca foram logins reais — remove.
+    // (padrão "empresa2@docalivre.com" SEM senha). Nunca apaga conta com senha.
     const lixoDemo = remoteRowsAll.filter((row) => isContaDemoGerada(row))
     // Conta excluída que reapareceu (aparelho com versão antiga do app): apaga de novo.
     const ressuscitadas = remoteRowsAll.filter((row) => foiExcluida(row))
@@ -1169,12 +1196,6 @@ export async function syncPortalAccounts(): Promise<PortalAccount[]> {
     const removidos = new Set(paraRemover)
     const remoteRows = remoteRowsAll.filter((row) => !removidos.has(row.id))
 
-    // Se o banco já tem contas, ele é a fonte da verdade.
-    // Não reincorpore contas que só existem no cache: outro Super pode tê-las
-    // excluído e o cache antigo acabaria recriando-as no próximo persist.
-    // Merge com o local preserva vínculos de transportadora com id local
-    // (ex.: "t1" da Santos Transportes) que o banco não armazena (coluna uuid) —
-    // sem isso o vínculo escolhido no painel "sumia" na sincronização seguinte.
     const localPorChave = new Map<string, PortalAccount>()
     const localPorId = new Map<string, PortalAccount>()
     for (const u of local) {
@@ -1194,6 +1215,24 @@ export async function syncPortalAccounts(): Promise<PortalAccount[]> {
           )
         : [...local]
 
+    // Mantém contas locais ainda não no banco (nova conta / demos Santos·Nova Era).
+    // Sem isso o sync apagava a conta recém-criada e as demos sumiam ao editar senha.
+    if (remoteRows.length > 0) {
+      for (const u of local) {
+        if (foiExcluida(u) || isContaDemoGerada(u)) continue
+        const jaTem = merged.some(
+          (m) =>
+            m.id === u.id ||
+            normLogin(m.email) === normLogin(u.email) ||
+            normLogin(m.usuario) === normLogin(u.usuario),
+        )
+        if (jaTem) continue
+        const preservar =
+          contasNovasDaSessao.has(u.id) || isDemoTransportadorCanonico(u)
+        if (preservar) merged.push(u)
+      }
+    }
+
     // Cadastros públicos: o login existe em profiles mesmo sem conta no portal
     for (const account of await accountsDeProfiles()) {
       const existe = merged.some(
@@ -1207,8 +1246,19 @@ export async function syncPortalAccounts(): Promise<PortalAccount[]> {
 
     const normalized = normalizePortalList(merged)
     accountsCache = normalized
-    // Sincronização é somente leitura. Gravar aqui permitiria que um aparelho
-    // com resposta/cache antigo recriasse uma conta excluída por outro Super.
+    // Se demos / contas novas faltam no banco, agenda insert (sem sobrescrever senhas).
+    const precisaPersistirDemos = DEMO_TRANSPORTADORES.some((d) => {
+      const hit = normalized.find(
+        (u) =>
+          u.id === d.id ||
+          normLogin(u.email) === d.email ||
+          normLogin(u.usuario) === d.usuario,
+      )
+      return Boolean(hit && contasNovasDaSessao.has(hit.id))
+    })
+    if (precisaPersistirDemos || [...contasNovasDaSessao].some((id) => normalized.some((u) => u.id === id))) {
+      schedulePersistRemote(normalized)
+    }
     clearLegacyAccountKeys()
     return normalized
   } catch {
@@ -1638,7 +1688,7 @@ export async function portalCadastroConcluir(input: {
         'Cadastro de equipe (embarcador) foi desativado. Use o cadastro de transportadora ou acesse como Super Usuário (Diego/Elder).',
     }
   }
-  const created = createPortalAccount({
+  const created = await createPortalAccount({
     usuario,
     email,
     password: input.senha,
