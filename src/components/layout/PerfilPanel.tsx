@@ -5,6 +5,7 @@ import { formatCurrency, roundMoney } from '../../lib/businessRules'
 import { isAcceptedImageFile } from '../../lib/veiculoFotos'
 import { isSuperSession } from '../../lib/superUsers'
 import { canonicalTransportadorId } from '../../lib/transportadorIds'
+import { ImageCropModal } from '../ui/ImageCropModal'
 import '../../styles/perfil.css'
 
 type Aba = 'sobre' | 'conta'
@@ -46,6 +47,7 @@ export function PerfilPanel({ onClose, autoOpenFoto }: Props) {
   const [busy, setBusy] = useState(false)
   const [erro, setErro] = useState('')
   const [okMsg, setOkMsg] = useState('')
+  const [fotoParaAjustar, setFotoParaAjustar] = useState<File | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -127,7 +129,7 @@ export function PerfilPanel({ onClose, autoOpenFoto }: Props) {
     return (motoristas ?? []).filter((m) => m.transportador_id === tid).length
   }, [motoristas, tid])
 
-  async function onEscolherFoto(file: File | null) {
+  function onSelecionarArquivo(file: File | null) {
     if (!file) return
     setErro('')
     setOkMsg('')
@@ -135,13 +137,18 @@ export function PerfilPanel({ onClose, autoOpenFoto }: Props) {
       setErro('Use JPG, PNG ou WEBP.')
       return
     }
+    setFotoParaAjustar(file)
+  }
+
+  async function onConfirmarRecorte(fotoRecortada: File) {
     setBusy(true)
-    const res = await atualizarAvatarPerfil(file)
+    const res = await atualizarAvatarPerfil(fotoRecortada)
     setBusy(false)
     if (!res.ok) {
       setErro(res.error ?? 'Não foi possível salvar a foto.')
       return
     }
+    setFotoParaAjustar(null)
     setOkMsg('Foto de perfil atualizada.')
   }
 
@@ -207,7 +214,7 @@ export function PerfilPanel({ onClose, autoOpenFoto }: Props) {
                   onChange={(e) => {
                     const f = e.target.files?.[0] ?? null
                     e.target.value = ''
-                    void onEscolherFoto(f)
+                    onSelecionarArquivo(f)
                   }}
                 />
                 <button
@@ -370,6 +377,13 @@ export function PerfilPanel({ onClose, autoOpenFoto }: Props) {
           </div>
         </div>
       )}
+      <ImageCropModal
+        open={Boolean(fotoParaAjustar)}
+        file={fotoParaAjustar}
+        busy={busy}
+        onCancel={() => setFotoParaAjustar(null)}
+        onConfirm={(f) => void onConfirmarRecorte(f)}
+      />
     </div>
   )
 }
