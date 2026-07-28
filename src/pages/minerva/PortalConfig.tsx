@@ -404,13 +404,39 @@ export function PortalConfigPage() {
       .toLowerCase()
     const role =
       roleAsk === 'super' || roleAsk === 'transportador' ? roleAsk : roleDefault
+    let transportadorId: string | null = null
+    let nome = usuario
+    if (role === 'transportador') {
+      const opcoes = transportadores.filter((t) => t.situacao === 'ativo')
+      if (opcoes.length === 0) {
+        setMsg('Não há transportadoras ativas para associar à nova conta.')
+        return
+      }
+      const lista = opcoes
+        .map((t, i) => `${i + 1} - ${t.nome_fantasia || t.razao_social || t.cnpj}`)
+        .join('\n')
+      const escolha = window.prompt(
+        `Escolha a transportadora pelo número:\n\n${lista}`,
+        '1',
+      )
+      if (escolha == null) return
+      const indice = Number.parseInt(escolha.trim(), 10) - 1
+      const selecionada = opcoes[indice]
+      if (!selecionada) {
+        setMsg('Transportadora inválida. Clique em “+ Nova conta” e tente novamente.')
+        return
+      }
+      transportadorId = selecionada.id
+      nome = selecionada.nome_fantasia || selecionada.razao_social || usuario
+    }
     setMsg('Criando conta no banco…')
     const created = await createPortalAccount({
       usuario,
       email,
       password,
-      nome: usuario,
+      nome,
       role,
+      transportador_id: transportadorId,
     })
     if (!created.ok) {
       setMsg(created.erro)

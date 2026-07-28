@@ -142,6 +142,18 @@ function registrarExclusao(u: { usuario?: string; email?: string }) {
   }
 }
 
+/** Permite recriar conscientemente uma conta antes excluída. */
+function limparExclusao(u: { usuario?: string; email?: string }) {
+  const chaves = new Set(chavesDaConta(u))
+  if (chaves.size === 0) return
+  const next = loadTombstones().filter((t) => !chaves.has(t.chave))
+  try {
+    localStorage.setItem(TOMBSTONES_KEY, JSON.stringify(next))
+  } catch {
+    /* ignore */
+  }
+}
+
 function foiExcluida(u: { usuario?: string; email?: string }): boolean {
   const chaves = chavesDaConta(u)
   if (chaves.length === 0) return false
@@ -545,8 +557,8 @@ function ensureDemoTransportadores(list: PortalAccount[]): PortalAccount[] {
         u.usuario.toLowerCase() === demo.usuario,
     )
     if (idx < 0) {
-      // Sempre mantém Santos / Nova Era na lista (sumiam no sync se não estavam no banco).
-      if (foiExcluida(demo)) continue
+      // Santos / Nova Era são contas canônicas de teste e devem existir.
+      limparExclusao(demo)
       marcarContaNovaParaInsert(demo.id)
       next = [demo, ...next]
       continue
@@ -610,6 +622,12 @@ export async function createPortalAccount(input: {
     input.role === 'transportador'
       ? false
       : input.role === 'super' || isLocalSuperUser(usuario) || isLocalSuperUser(email)
+  if (!isSuper && !input.transportador_id) {
+    return {
+      ok: false,
+      erro: 'Selecione a transportadora antes de criar a conta.',
+    }
+  }
   const account: PortalAccount = {
     id: uid(),
     usuario,
@@ -623,12 +641,14 @@ export async function createPortalAccount(input: {
     ativo: true,
     created_at: new Date().toISOString(),
   }
+  limparExclusao(account)
   marcarContaNovaParaInsert(account.id)
   const list = normalizePortalList([...users, account])
   savePortalAccountsMemory(list)
 
   const remoto = await gravarContaPortalNoBanco(account)
   if (!remoto.ok) {
+    savePortalAccountsMemory(users)
     return { ok: false, erro: remoto.erro ?? 'Não foi possível gravar a conta no banco.' }
   }
   return { ok: true, account: loadPortalAccounts().find((u) => normLogin(u.email) === email) ?? account, list: loadPortalAccounts() }
@@ -1349,10 +1369,49 @@ export async function ensureContasTransportadores(
       )
     })
   if (same) return list
-  // Só memória — NÃO persistir lista inteira (poderia reverter senha recém-salva
-  // com snapshot antigo do sync). Vínculo transportador_id é gravado no Salvar.
+  // Atualiza apenas o vínculo; nunca regrava senha a partir de snapshot antigo.
+  for (const account of next) {
+    const before = list.find(
+      (u) =>
+        u.id === account.id ||
+        normLogin(u.email) === normLogin(account.email) ||
+        normLogin(u.usuario) === normLogin(account.usuario),
+    )
+    if (
+      account.role === 'transportador' &&
+      account.transportador_id &&
+      before?.transportador_id !== account.transportador_id
+    ) {
+      void persistPortalAccountLinkRemote(account)
+    }
+  }
   savePortalAccountsMemory(next)
   return next
+}
+
+async function persistPortalAccountLinkRemote(account: PortalAccount) {
+  if (!isSupabaseConfigured || !supabase || !account.transportador_id) return
+  try {
+    const row = await findRemoteUsuarioRowDb(account)
+    if (!row?.id) return
+    const patch = {
+      transportador_id: validUuid(account.transportador_id)
+        ? account.transportador_id
+        : null,
+      empresa_org_id: transportadorRefText(account),
+      updated_at: new Date().toISOString(),
+    }
+    let { error } = await supabase.from('usuarios').update(patch).eq('id', row.id)
+    if (error && /updated_at/i.test(error.message)) {
+      const { updated_at: _ignored, ...semUpdated } = patch
+      void _ignored
+      const retry = await supabase.from('usuarios').update(semUpdated).eq('id', row.id)
+      error = retry.error
+    }
+    if (!error) void broadcastPortalAccountsChanged('upsert')
+  } catch {
+    /* o próximo sync tenta novamente */
+  }
 }
 
 /**
