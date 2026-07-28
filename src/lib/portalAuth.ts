@@ -638,6 +638,54 @@ type RemoteUsuarioRow = {
 /** Evita sync imediato sobrescrever edição recém-gravada no painel. */
 let portalSaveGraceUntil = 0
 
+/** Senhas gravadas pelo painel — vencem sync/persist stale por alguns segundos. */
+const senhasRecemGravadas = new Map<string, { senha: string; until: number }>()
+
+function chaveSenhaConta(account: { id?: string; email?: string; usuario?: string }) {
+  if (account.id && validUuid(account.id)) return `id:${account.id}`
+  const email = normLogin(account.email)
+  if (email) return `email:${email}`
+  const usuario = normLogin(account.usuario)
+  if (usuario) return `login:${usuario}`
+  return ''
+}
+
+function marcarSenhaRecemGravada(account: PortalAccount, senha: string) {
+  const until = Date.now() + 15_000
+  const keys = [
+    chaveSenhaConta(account),
+    account.id ? `id:${account.id}` : '',
+    normLogin(account.email) ? `email:${normLogin(account.email)}` : '',
+    normLogin(account.usuario) ? `login:${normLogin(account.usuario)}` : '',
+  ].filter(Boolean)
+  for (const k of keys) senhasRecemGravadas.set(k, { senha, until })
+  portalSaveGraceUntil = Math.max(portalSaveGraceUntil, until)
+}
+
+function senhaRecemGravadaPara(account: {
+  id?: string
+  email?: string
+  usuario?: string
+}): string | null {
+  const now = Date.now()
+  const keys = [
+    chaveSenhaConta(account),
+    account.id ? `id:${account.id}` : '',
+    normLogin(account.email) ? `email:${normLogin(account.email)}` : '',
+    normLogin(account.usuario) ? `login:${normLogin(account.usuario)}` : '',
+  ].filter(Boolean)
+  for (const k of keys) {
+    const hit = senhasRecemGravadas.get(k)
+    if (!hit) continue
+    if (hit.until < now) {
+      senhasRecemGravadas.delete(k)
+      continue
+    }
+    return hit.senha
+  }
+  return null
+}
+
 function normLogin(val?: string | null) {
   return (val || '').trim().toLowerCase()
 }
@@ -714,7 +762,13 @@ type RemotePortalAccount = {
   created_at: string
 }
 
-function mergePassword(localPass: string, remotePass: string): string {
+function mergePassword(localPass: string, remotePass: string, account?: {
+  id?: string
+  email?: string
+  usuario?: string
+}): string {
+  const recent = account ? senhaRecemGravadaPara(account) : null
+  if (recent) return recent
   const local = (localPass || '').trim()
   const remote = (remotePass || '').trim()
   if (local && remote && local === remote) return local
@@ -727,7 +781,11 @@ function fromRemoteAccount(row: RemotePortalAccount, local?: PortalAccount): Por
     id: row.id,
     usuario: row.usuario,
     email: row.email,
-    password: mergePassword(local?.password || '', row.senha_hash || ''),
+    password: mergePassword(local?.password || '', row.senha_hash || '', {
+      id: row.id,
+      email: row.email,
+      usuario: row.usuario,
+    }),
     nome: row.nome,
     role: row.role,
     nivel: row.nivel,
@@ -827,10 +885,19 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
       const found = findRemoteUsuarioRow(remote, account)
       if (found) {
         // Nunca apagar senha do banco com valor vazio do cache local.
+        // Troca de senha (valor diferente) só via gravarContaPortalNoBanco —
+        // o persist em lote de sync/ensureContas NÃO pode reverter senha nova.
         const patch: Record<string, unknown> = { ...rowBase }
-        if (localSenha.length >= 4) {
+        const remoteSenha = (found.senha_hash || '').trim()
+        const recent = senhaRecemGravadaPara(account) || senhaRecemGravadaPara(found)
+        if (recent && recent.length >= 4) {
+          patch.senha_hash = recent
+        } else if (localSenha.length >= 4 && !remoteSenha) {
+          patch.senha_hash = localSenha
+        } else if (localSenha.length >= 4 && remoteSenha === localSenha) {
           patch.senha_hash = localSenha
         }
+        // else: remoto já tem senha diferente → não sobrescrever
         const { error: upErr } = await supabase
           .from('usuarios')
           .update(patch)
@@ -899,17 +966,48 @@ export async function gravarContaPortalNoBanco(
       null
 
     if (existente?.id) {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('usuarios')
         .update(rowBase)
         .eq('id', existente.id)
         .select('id, usuario, email, senha_hash')
         .maybeSingle()
+      // Produção antiga pode não ter updated_at — tenta de novo sem o campo
+      if (error && /updated_at/i.test(error.message)) {
+        const { updated_at: _ignored, ...semUpdated } = rowBase
+        void _ignored
+        const retry = await supabase
+          .from('usuarios')
+          .update(semUpdated)
+          .eq('id', existente.id)
+          .select('id, usuario, email, senha_hash')
+          .maybeSingle()
+        data = retry.data
+        error = retry.error
+      }
       if (error) return { ok: false, erro: error.message }
       if (!data?.id) {
         return { ok: false, erro: 'Não foi possível atualizar a conta no banco (registro não encontrado).' }
       }
-      dbRow = data
+      if ((data.senha_hash || '').trim() !== localSenha) {
+        // Força só a senha se o update geral não gravou senha_hash
+        const force = await supabase
+          .from('usuarios')
+          .update({ senha_hash: localSenha })
+          .eq('id', data.id)
+          .select('id, usuario, email, senha_hash')
+          .maybeSingle()
+        if (force.error) return { ok: false, erro: force.error.message }
+        if ((force.data?.senha_hash || '').trim() !== localSenha) {
+          return {
+            ok: false,
+            erro: 'O banco não confirmou a nova senha. Verifique a coluna senha_hash / RLS.',
+          }
+        }
+        dbRow = force.data
+      } else {
+        dbRow = data
+      }
     } else {
       marcarContaNovaParaInsert(account.id)
       const { data, error } = await supabase
@@ -947,10 +1045,14 @@ export async function gravarContaPortalNoBanco(
       idx >= 0
         ? users.map((u, i) => (i === idx ? salvo : u))
         : [...users, salvo]
+
+    // Cancela persist em lote stale (ex.: ensureContas com lista antiga) que
+    // reverteria a senha recém-gravada.
+    cancelScheduledPersistRemote()
     savePortalAccountsMemory(normalizePortalList(next))
+    marcarSenhaRecemGravada(salvo, localSenha)
 
     ultimaListaEnviada = ''
-    portalSaveGraceUntil = Date.now() + 2500
     void broadcastPortalAccountsChanged('upsert')
     return { ok: true }
   } catch (e) {
@@ -978,13 +1080,25 @@ export async function flushPortalAccountsRemote(
 /** Agrupa gravações remotas (a tabela é editada campo a campo pelo Super). */
 let pushTimer: number | null = null
 let pushPending: PortalAccount[] | null = null
+let pushGeneration = 0
+
+function cancelScheduledPersistRemote() {
+  if (pushTimer != null) {
+    window.clearTimeout(pushTimer)
+    pushTimer = null
+  }
+  pushPending = null
+  pushGeneration += 1
+}
 
 function schedulePersistRemote(list: PortalAccount[]) {
   if (!isSupabaseConfigured || !supabase) return
   pushPending = list
   if (pushTimer != null) window.clearTimeout(pushTimer)
+  const gen = pushGeneration
   pushTimer = window.setTimeout(() => {
     pushTimer = null
+    if (gen !== pushGeneration) return
     const pending = pushPending
     pushPending = null
     if (pending) void persistPortalAccountsRemote(pending)
@@ -1141,7 +1255,9 @@ export async function ensureContasTransportadores(
       )
     })
   if (same) return list
-  savePortalAccounts(next)
+  // Só memória — NÃO persistir lista inteira (poderia reverter senha recém-salva
+  // com snapshot antigo do sync). Vínculo transportador_id é gravado no Salvar.
+  savePortalAccountsMemory(next)
   return next
 }
 

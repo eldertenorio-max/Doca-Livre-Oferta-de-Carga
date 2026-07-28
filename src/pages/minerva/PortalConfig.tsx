@@ -49,16 +49,25 @@ export function PortalConfigPage() {
   const [msg, setMsg] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draft, setDraft] = useState<PortalAccount | null>(null)
+  const [salvando, setSalvando] = useState(false)
 
   const transportadoresRef = useRef(transportadores)
   transportadoresRef.current = transportadores
+  const editingIdRef = useRef<string | null>(null)
+  editingIdRef.current = editingId
 
   // Ao abrir Usuários: junta contas do Supabase e atualiza em tempo real entre Supers
   useEffect(() => {
     if (tab !== 'usuarios') return
-    void ensureContasTransportadores(transportadoresRef.current ?? []).then(setAccounts)
+    void ensureContasTransportadores(transportadoresRef.current ?? []).then((list) => {
+      setAccounts((prev) => (editingIdRef.current ? prev : list))
+    })
     void hydratePermissoesMap().then(setPerms)
-    const unsub = subscribePortalAccounts(setAccounts)
+    const unsub = subscribePortalAccounts((list) => {
+      // Não sobrescreve a linha enquanto o Super está editando
+      if (editingIdRef.current) return
+      setAccounts(list)
+    })
     return () => unsub()
   }, [tab])
 
@@ -72,6 +81,7 @@ export function PortalConfigPage() {
 
   useEffect(() => {
     function onFocus() {
+      if (editingIdRef.current) return
       void syncPortalAccounts().then(setAccounts)
       void hydrateOrgTree().then(setTree)
     }
@@ -229,7 +239,7 @@ export function PortalConfigPage() {
   }
 
   async function salvarEdicao() {
-    if (!draft || !editingId) return
+    if (!draft || !editingId || salvando) return
     const original = accounts.find((a) => a.id === editingId)
     const usuario = draft.usuario.trim()
     const email = draft.email.trim().toLowerCase()
@@ -279,24 +289,41 @@ export function PortalConfigPage() {
       nivel: draft.role === 'super' ? 'super' : 'operador',
     }
 
+    setSalvando(true)
     setMsg('Salvando login e senha no banco…')
-    const remoto = await gravarContaPortalNoBanco(contaSalva, {
-      usuario: original?.usuario,
-      email: original?.email,
-    })
-    if (!remoto.ok) {
-      setMsg(`Não foi possível salvar: ${remoto.erro ?? 'erro desconhecido'}.`)
-      return
-    }
+    try {
+      const remoto = await gravarContaPortalNoBanco(contaSalva, {
+        usuario: original?.usuario,
+        email: original?.email,
+      })
+      if (!remoto.ok) {
+        setMsg(`Não foi possível salvar: ${remoto.erro ?? 'erro desconhecido'}.`)
+        return
+      }
 
-    const next = loadPortalAccounts()
-    setAccounts(next)
-    if (selectedUser && original?.usuario === selectedUser) {
-      setSelectedUser(usuario)
+      // Atualiza a linha na hora (não espera sync)
+      setAccounts((prev) => {
+        const fromCache = loadPortalAccounts()
+        const base = fromCache.length ? fromCache : prev
+        const i = base.findIndex(
+          (u) =>
+            u.id === editingId ||
+            u.id === contaSalva.id ||
+            u.email.toLowerCase() === email ||
+            u.usuario.toLowerCase() === usuario.toLowerCase(),
+        )
+        if (i < 0) return [...base, contaSalva]
+        return base.map((u, idx) => (idx === i ? { ...u, ...contaSalva, password } : u))
+      })
+      if (selectedUser && original?.usuario === selectedUser) {
+        setSelectedUser(usuario)
+      }
+      setEditingId(null)
+      setDraft(null)
+      setMsg('Login e senha salvos. Já valem no próximo login.')
+    } finally {
+      setSalvando(false)
     }
-    setEditingId(null)
-    setDraft(null)
-    setMsg('Login, senha e dados salvos no painel e no banco de dados.')
   }
 
   function patchDraft(patch: Partial<PortalAccount>) {
@@ -723,9 +750,10 @@ export function PortalConfigPage() {
                                   type="button"
                                   className="cadastro-btn cadastro-btn--save"
                                   style={{ padding: '6px 10px', fontSize: '0.78rem' }}
+                                  disabled={salvando}
                                   onClick={() => void salvarEdicao()}
                                 >
-                                  Salvar
+                                  {salvando ? 'Salvando…' : 'Salvar'}
                                 </button>
                                 <button
                                   type="button"
@@ -772,8 +800,8 @@ export function PortalConfigPage() {
               </table>
             </div>
             <p className="portal-login__hint" style={{ marginTop: 12 }}>
-              Contas do portal: Super Usuários e transportadores. Alterações de login/senha/perfil
-              valem no próximo login.
+              Para alterar login ou senha: clique em <strong>Editar</strong>, mude os campos e
+              clique em <strong>Salvar</strong>. Sem Salvar, a alteração não grava no banco.
             </p>
           </div>
         </section>
