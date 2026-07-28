@@ -106,13 +106,13 @@ export function AnttFretePanel({
   const pracas = rota?.pracas ?? []
 
   return (
-    <section className="space-y-2.5 rounded-xl border border-ink/10 bg-sand-light/30 p-3">
+    <section className="space-y-1.5 rounded-lg border border-ink/15 bg-sand-light/40 p-2.5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
+          <h3 className="text-[12px] font-bold uppercase tracking-wide text-ink">
             Frete ANTT + rota (gratuito)
           </h3>
-          <p className="text-[11px] text-ink-muted">
+          <p className="text-[11px] font-medium leading-snug text-ink">
             {modoConsulta
               ? 'Mesmas informações do embarcador: pisos ANTT, duração, distância, pedágio e combustível. Use Recalcular para atualizar.'
               : 'Automático: rota OSRM · pisos Res. 6.084/2026 · pedágio pelas '}
@@ -122,7 +122,7 @@ export function AnttFretePanel({
                   href="https://dados.antt.gov.br/dataset/praca-de-pedagio"
                   target="_blank"
                   rel="noreferrer"
-                  className="font-semibold text-brand underline"
+                  className="font-bold text-ink underline"
                 >
                   praças dos Dados Abertos ANTT
                 </a>{' '}
@@ -134,7 +134,7 @@ export function AnttFretePanel({
         <Button
           type="button"
           variant="ghost"
-          className="!border !border-ink/20 !bg-white !py-1.5 !text-xs"
+          className="!border !border-ink/25 !bg-white !py-1 !text-xs !font-bold !text-ink"
           disabled={busy}
           onClick={() => void calcular()}
         >
@@ -142,7 +142,7 @@ export function AnttFretePanel({
         </Button>
       </div>
 
-      <div className="grid gap-2.5 sm:grid-cols-2">
+      <div className="grid gap-1.5 sm:grid-cols-2">
         <Field label="Tabela ANTT">
           <div className="flex items-center gap-2">
             <select
@@ -157,7 +157,7 @@ export function AnttFretePanel({
               ))}
             </select>
             <span
-              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-ink/20 text-[11px] font-bold text-ink-muted"
+              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-ink/30 text-[11px] font-bold text-ink"
               title="A/C = lotação (composição). B/D = só cavalo/agregado. C/D = alto desempenho."
             >
               ?

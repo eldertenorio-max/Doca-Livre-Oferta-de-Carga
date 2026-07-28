@@ -81,12 +81,12 @@ export function Field({
 }) {
   // div (não label): evita focar o input ao clicar no título / área ao redor
   return (
-    <div className={`flex flex-col gap-1 text-sm ${className}`}>
-      <span className="font-semibold text-ink">{label}</span>
+    <div className={`flex flex-col gap-0.5 text-sm ${className}`}>
+      <span className="text-[13px] font-bold leading-tight text-ink">{label}</span>
       {children}
     </div>
   )
 }
 
 export const inputClass =
-  'rounded-lg border border-ink/15 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand focus:ring-2 focus:ring-brand/20'
+  'rounded-md border border-ink/25 bg-white px-2.5 py-1.5 text-sm font-medium text-ink outline-none placeholder:text-ink/45 focus:border-brand focus:ring-2 focus:ring-brand/20'

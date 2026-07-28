@@ -581,30 +581,30 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
   }
 
   return (
-    <div className="space-y-4 text-sm">
-      <div className="flex flex-wrap items-end justify-between gap-2 border-b border-ink/10 pb-3">
+    <div className="carga-dados-form space-y-2.5 text-sm text-ink">
+      <div className="flex flex-wrap items-end justify-between gap-2 border-b border-ink/15 pb-2">
         <div>
-          <p className="font-display text-base font-semibold text-ink">
+          <p className="font-display text-base font-bold text-ink">
             Carga {carga.numero}
           </p>
-          <p className="text-[11px] text-ink-muted">
+          <p className="text-[12px] font-medium text-ink">
             Preencha por seção: rota, frete, veículo, pedido e destinatário.
           </p>
         </div>
         {rotaSelecionada && (
-          <span className="rounded-full bg-brand/10 px-2.5 py-1 text-[10px] font-bold text-brand">
+          <span className="rounded-full bg-brand/10 px-2.5 py-1 text-[10px] font-bold text-ink">
             Rota: {rotaSelecionada.descricao}
           </span>
         )}
       </div>
 
       {/* 1. Rota */}
-      <section className="space-y-2.5">
+      <section className="space-y-1.5">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
+          <h3 className="text-[12px] font-bold uppercase tracking-wide text-ink">
             1 · Rota
           </h3>
-          <span className="text-[10px] text-ink-muted">
+          <span className="text-[11px] font-semibold text-ink">
             {rotasAtivas.length} cadastrada{rotasAtivas.length === 1 ? '' : 's'}
           </span>
         </div>
@@ -625,14 +625,14 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
             ))}
           </select>
           {rotasAtivas.length === 0 && (
-            <p className="mt-1 text-[11px] text-ink-muted">
+            <p className="mt-0.5 text-[11px] font-medium text-ink">
               Nenhuma rota ativa. Cadastre em <strong>Rotas</strong> no menu lateral.
             </p>
           )}
         </Field>
 
-        <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1fr)_minmax(220px,1fr)] lg:items-stretch">
-          <div className="grid min-w-0 gap-2.5 sm:grid-cols-2">
+        <div className="grid gap-2 lg:grid-cols-[minmax(0,1.55fr)_minmax(180px,0.7fr)] lg:items-start">
+          <div className="grid min-w-0 gap-1.5 sm:grid-cols-2">
             <Field label="Origem *" className="sm:col-span-2">
               <AddressSuggestInput
                 value={origem}
@@ -657,7 +657,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
                 placeholder="Digite o endereço como no Google Maps"
               />
             </Field>
-            <Field label="Classificação da rota" className="sm:col-span-2">
+            <Field label="Classificação da rota">
               <select
                 className={inputClass}
                 value={classificacao}
@@ -668,14 +668,14 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
                 <option value="C">Rota C</option>
               </select>
             </Field>
-            <Field label="Veículo *" className="sm:col-span-2">
+            <Field label="Veículo *">
               <VeiculoSuggestInput
                 value={veiculo}
                 onChange={setVeiculo}
                 placeholder="Carreta, Truck, Fiorino…"
               />
             </Field>
-            <label className="inline-flex items-center gap-2 text-xs text-ink sm:col-span-2">
+            <label className="inline-flex items-center gap-2 text-[12px] font-semibold text-ink sm:col-span-2">
               <input
                 type="checkbox"
                 checked={salvarFavorita}
@@ -689,14 +689,14 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
           <RotaMapPreview
             origem={origem}
             destino={destino}
-            className="h-[220px] min-h-[220px] w-full lg:h-full lg:min-h-[260px]"
+            className="h-[180px] min-h-[180px] w-full lg:h-[220px] lg:min-h-[220px]"
           />
         </div>
       </section>
 
       {/* 2. Frete */}
-      <section className="space-y-2.5 border-t border-ink/10 pt-3">
-        <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
+      <section className="space-y-1.5 border-t border-ink/15 pt-2">
+        <h3 className="text-[12px] font-bold uppercase tracking-wide text-ink">
           2 · Frete
         </h3>
         <AnttFretePanel
@@ -726,11 +726,11 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
       </section>
 
       {/* 3. Veículo e exigências */}
-      <section className="space-y-2.5 border-t border-ink/10 pt-3">
-        <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
+      <section className="space-y-1.5 border-t border-ink/15 pt-2">
+        <h3 className="text-[12px] font-bold uppercase tracking-wide text-ink">
           3 · Veículo e exigências
         </h3>
-        <div className="grid gap-2.5 sm:grid-cols-2">
+        <div className="grid gap-1.5 sm:grid-cols-2">
           <Field label="Complemento *">
             <SuggestInput
               value={complementoTxt}
@@ -751,11 +751,11 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
       </section>
 
       {/* 4. Pedido e carga */}
-      <section className="space-y-2.5 border-t border-ink/10 pt-3">
-        <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
+      <section className="space-y-1.5 border-t border-ink/15 pt-2">
+        <h3 className="text-[12px] font-bold uppercase tracking-wide text-ink">
           4 · Pedido e carga
         </h3>
-        <div className="grid gap-2.5 sm:grid-cols-2">
+        <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Pedido *">
             <SuggestInput
               value={pedido}
@@ -822,11 +822,11 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
       </section>
 
       {/* 5. Destinatário */}
-      <section className="space-y-2.5 border-t border-ink/10 pt-3">
-        <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
+      <section className="space-y-1.5 border-t border-ink/15 pt-2">
+        <h3 className="text-[12px] font-bold uppercase tracking-wide text-ink">
           5 · Destinatário
         </h3>
-        <div className="grid gap-2.5 sm:grid-cols-2">
+        <div className="grid gap-1.5 sm:grid-cols-2">
           <Field label="Nome / empresa *">
             <SuggestInput
               value={destinatario}
@@ -853,12 +853,12 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
             />
             {(cnpjBuscando || cnpjInfo) && (
               <p
-                className={`mt-1.5 text-[11px] ${
+                className={`mt-1 text-[11px] font-medium ${
                   cnpjBuscando
-                    ? 'text-ink-muted'
+                    ? 'text-ink'
                     : cnpjInfoOk
-                      ? 'text-emerald-700'
-                      : 'text-amber-700'
+                      ? 'text-emerald-800'
+                      : 'text-amber-800'
                 }`}
               >
                 {cnpjBuscando ? 'Consultando CNPJ na Receita…' : cnpjInfo}
@@ -887,11 +887,11 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
       </section>
 
       {/* 6. Prazos e obs */}
-      <section className="space-y-2.5 border-t border-ink/10 pt-3">
-        <h3 className="text-[11px] font-bold uppercase tracking-wide text-ink-muted">
+      <section className="space-y-1.5 border-t border-ink/15 pt-2">
+        <h3 className="text-[12px] font-bold uppercase tracking-wide text-ink">
           6 · Prazos e observações
         </h3>
-        <div className="grid gap-2.5 sm:grid-cols-2">
+        <div className="grid gap-1.5 sm:grid-cols-2">
           <Field label="Carregamento">
             <input
               type="date"
@@ -922,17 +922,17 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
       </section>
 
       {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-900">
           {error}
         </p>
       )}
       {info && (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">
           {info}
         </p>
       )}
 
-      <div className="sticky bottom-0 -mx-1 flex flex-col gap-2 border-t border-ink/10 bg-white/95 px-1 pt-3 backdrop-blur sm:flex-row">
+      <div className="sticky bottom-0 -mx-1 flex flex-col gap-1.5 border-t border-ink/15 bg-white/95 px-1 pt-2 backdrop-blur sm:flex-row">
         <Button variant="success" className="flex-1" onClick={() => handleSalvar(false)}>
           Salvar dados
         </Button>
@@ -946,9 +946,9 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-ink/5 py-0.5">
-      <span className="shrink-0 text-[13px] text-ink-muted">{label}</span>
-      <span className="text-right text-[13px] font-semibold text-ink">{value}</span>
+    <div className="flex items-baseline justify-between gap-3 border-b border-ink/10 py-0.5">
+      <span className="shrink-0 text-[13px] font-semibold text-ink">{label}</span>
+      <span className="text-right text-[13px] font-bold text-ink">{value}</span>
     </div>
   )
 }

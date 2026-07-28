@@ -745,7 +745,9 @@ export function PublishPanel({
           className={`flex-1 text-sm ${
             !isNova && tab === 'publicar'
               ? 'flex min-h-0 flex-col overflow-hidden p-0'
-              : 'space-y-3 overflow-y-auto p-4'
+              : isNova && tab === 'dados'
+                ? 'overflow-y-auto p-2.5'
+                : 'space-y-3 overflow-y-auto p-4'
           }`}
         >
           {isNova && tab === 'dados' && (
