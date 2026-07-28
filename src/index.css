@@ -73,7 +73,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-button,
+button {
+  font: inherit;
+}
+
 input,
 select,
 textarea {
