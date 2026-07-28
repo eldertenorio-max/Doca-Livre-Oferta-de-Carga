@@ -581,13 +581,13 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
   }
 
   return (
-    <div className="carga-dados-form space-y-2.5 text-sm text-ink">
+    <div className="carga-dados-form space-y-2 text-sm font-medium text-black">
       <div className="flex flex-wrap items-end justify-between gap-2 border-b border-ink/15 pb-2">
         <div>
           <p className="font-display text-base font-bold text-ink">
             Carga {carga.numero}
           </p>
-          <p className="text-[12px] font-medium text-ink">
+          <p className="text-[12px] font-semibold text-black">
             Preencha por seção: rota, frete, veículo, pedido e destinatário.
           </p>
         </div>
@@ -601,10 +601,10 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
       {/* 1. Rota */}
       <section className="space-y-1.5">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-[12px] font-bold uppercase tracking-wide text-ink">
+          <h3 className="text-[13px] font-extrabold uppercase tracking-wide text-black">
             1 · Rota
           </h3>
-          <span className="text-[11px] font-semibold text-ink">
+          <span className="text-[12px] font-bold text-black">
             {rotasAtivas.length} cadastrada{rotasAtivas.length === 1 ? '' : 's'}
           </span>
         </div>
@@ -631,9 +631,9 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
           )}
         </Field>
 
-        <div className="grid gap-2 lg:grid-cols-[minmax(0,1.55fr)_minmax(180px,0.7fr)] lg:items-start">
+        <div className="grid gap-2 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,1fr)] lg:items-start">
           <div className="grid min-w-0 gap-1.5 sm:grid-cols-2">
-            <Field label="Origem *" className="sm:col-span-2">
+            <Field label="Origem *">
               <AddressSuggestInput
                 value={origem}
                 onChange={(v) => {
@@ -645,7 +645,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
                 placeholder="Digite o endereço como no Google Maps"
               />
             </Field>
-            <Field label="Destino *" className="sm:col-span-2">
+            <Field label="Destino *">
               <AddressSuggestInput
                 value={destino}
                 onChange={(v) => {
@@ -696,7 +696,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
 
       {/* 2. Frete */}
       <section className="space-y-1.5 border-t border-ink/15 pt-2">
-        <h3 className="text-[12px] font-bold uppercase tracking-wide text-ink">
+        <h3 className="text-[13px] font-extrabold uppercase tracking-wide text-black">
           2 · Frete
         </h3>
         <AnttFretePanel
@@ -727,7 +727,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
 
       {/* 3. Veículo e exigências */}
       <section className="space-y-1.5 border-t border-ink/15 pt-2">
-        <h3 className="text-[12px] font-bold uppercase tracking-wide text-ink">
+        <h3 className="text-[13px] font-extrabold uppercase tracking-wide text-black">
           3 · Veículo e exigências
         </h3>
         <div className="grid gap-1.5 sm:grid-cols-2">
@@ -752,7 +752,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
 
       {/* 4. Pedido e carga */}
       <section className="space-y-1.5 border-t border-ink/15 pt-2">
-        <h3 className="text-[12px] font-bold uppercase tracking-wide text-ink">
+        <h3 className="text-[13px] font-extrabold uppercase tracking-wide text-black">
           4 · Pedido e carga
         </h3>
         <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -823,7 +823,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
 
       {/* 5. Destinatário */}
       <section className="space-y-1.5 border-t border-ink/15 pt-2">
-        <h3 className="text-[12px] font-bold uppercase tracking-wide text-ink">
+        <h3 className="text-[13px] font-extrabold uppercase tracking-wide text-black">
           5 · Destinatário
         </h3>
         <div className="grid gap-1.5 sm:grid-cols-2">
@@ -888,7 +888,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
 
       {/* 6. Prazos e obs */}
       <section className="space-y-1.5 border-t border-ink/15 pt-2">
-        <h3 className="text-[12px] font-bold uppercase tracking-wide text-ink">
+        <h3 className="text-[13px] font-extrabold uppercase tracking-wide text-black">
           6 · Prazos e observações
         </h3>
         <div className="grid gap-1.5 sm:grid-cols-2">

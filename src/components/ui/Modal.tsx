@@ -89,4 +89,4 @@ export function Field({
 }
 
 export const inputClass =
-  'rounded-md border border-ink/25 bg-white px-2.5 py-1.5 text-sm font-medium text-ink outline-none placeholder:text-ink/45 focus:border-brand focus:ring-2 focus:ring-brand/20'
+  'block w-full min-w-0 rounded-md border border-ink/30 bg-white px-2.5 py-1.5 text-sm font-semibold text-black outline-none placeholder:font-medium placeholder:text-black/60 focus:border-brand focus:ring-2 focus:ring-brand/20'
