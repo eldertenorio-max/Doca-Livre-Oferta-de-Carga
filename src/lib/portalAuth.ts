@@ -683,12 +683,14 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
     list.map((a) => [a.usuario, a.email, a.password, a.nome, a.role, a.transportador_id, a.ativo]),
   )
   if (fp === ultimaListaEnviada) return
-  ultimaListaEnviada = fp
   try {
     const { data, error } = await supabase
       .from('usuarios')
       .select('id, usuario, email, ativo, senha_hash')
-    if (error) return
+    if (error) {
+      console.warn('[portalAuth] persist usuarios falhou:', error.message)
+      return
+    }
 
     const remote = (data ?? []) as Array<{
       id: string
@@ -761,7 +763,13 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
         if (localSenha.length >= 4) {
           patch.senha_hash = localSenha
         }
-        await supabase.from('usuarios').update(patch).eq('id', found.id)
+        const { error: upErr } = await supabase
+          .from('usuarios')
+          .update(patch)
+          .eq('id', found.id)
+        if (upErr) {
+          console.warn('[portalAuth] update usuario falhou:', upErr.message)
+        }
         continue
       }
       // INSERT só para contas criadas nesta sessão (painel / cadastro público).
@@ -769,13 +777,104 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
       // (era isso que fazia usuários excluídos "voltarem").
       if (contasNovasDaSessao.has(account.id)) {
         if (localSenha.length < 4) continue
-        await supabase.from('usuarios').insert({ ...rowBase, senha_hash: localSenha })
+        const { error: inErr } = await supabase
+          .from('usuarios')
+          .insert({ ...rowBase, senha_hash: localSenha })
+        if (inErr) {
+          console.warn('[portalAuth] insert usuario falhou:', inErr.message)
+        }
       }
     }
+    ultimaListaEnviada = fp
     void broadcastPortalAccountsChanged('upsert')
-  } catch {
-    // O modo local continua funcionando se a tabela/política ainda não foi instalada.
+  } catch (e) {
+    console.warn('[portalAuth] persist usuarios exception:', e)
   }
+}
+
+/**
+ * Grava uma conta (inclui senha) imediatamente em `usuarios`.
+ * Usado pelo painel ao Salvar — não depende do debounce de 900ms.
+ */
+export async function gravarContaPortalNoBanco(
+  account: PortalAccount,
+): Promise<{ ok: boolean; erro?: string }> {
+  if (!isSupabaseConfigured || !supabase) {
+    return { ok: true }
+  }
+  const localSenha = (account.password || '').trim()
+  if (localSenha.length < 4) {
+    return { ok: false, erro: 'Senha deve ter ao menos 4 caracteres.' }
+  }
+  const email = account.email.trim().toLowerCase()
+  const usuario = account.usuario.trim()
+  const rowBase = {
+    usuario,
+    email,
+    senha_hash: localSenha,
+    nome: account.nome || usuario,
+    role: account.role === 'super' ? 'super' : 'transportador',
+    nivel: account.role === 'super' ? 'super' : (account.nivel ?? 'operador'),
+    perfil_operacional: account.perfil_operacional ?? null,
+    transportador_id: validUuid(account.transportador_id)
+      ? account.transportador_id
+      : null,
+    empresa_org_id: account.empresa_org_id ?? null,
+    ativo: account.ativo ?? true,
+    updated_at: new Date().toISOString(),
+  }
+
+  try {
+    const { data: porEmail } = await supabase
+      .from('usuarios')
+      .select('id, senha_hash')
+      .ilike('email', email)
+      .maybeSingle()
+    const { data: porUsuario } = porEmail
+      ? { data: null }
+      : await supabase
+          .from('usuarios')
+          .select('id, senha_hash')
+          .ilike('usuario', usuario)
+          .maybeSingle()
+    const existente = (porEmail || porUsuario) as { id: string } | null
+
+    if (existente?.id) {
+      const { error } = await supabase
+        .from('usuarios')
+        .update(rowBase)
+        .eq('id', existente.id)
+      if (error) return { ok: false, erro: error.message }
+    } else {
+      marcarContaNovaParaInsert(account.id)
+      const { error } = await supabase.from('usuarios').insert(rowBase)
+      if (error) return { ok: false, erro: error.message }
+    }
+
+    // Invalida fingerprint para o próximo sync não pular a lista
+    ultimaListaEnviada = ''
+    void broadcastPortalAccountsChanged('upsert')
+    return { ok: true }
+  } catch (e) {
+    return {
+      ok: false,
+      erro: e instanceof Error ? e.message : 'Falha ao gravar no banco.',
+    }
+  }
+}
+
+/** Força envio imediato de todas as contas pendentes ao Supabase. */
+export async function flushPortalAccountsRemote(
+  list?: PortalAccount[],
+): Promise<void> {
+  if (pushTimer != null) {
+    window.clearTimeout(pushTimer)
+    pushTimer = null
+  }
+  const pending = list ?? pushPending ?? loadPortalAccounts()
+  pushPending = null
+  ultimaListaEnviada = ''
+  await persistPortalAccountsRemote(pending)
 }
 
 /** Agrupa gravações remotas (a tabela é editada campo a campo pelo Super). */

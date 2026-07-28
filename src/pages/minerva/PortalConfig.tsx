@@ -4,6 +4,7 @@ import { useData } from '../../context/DataContext'
 import {
   createPortalAccount,
   ensureContasTransportadores,
+  gravarContaPortalNoBanco,
   hydratePermissoesMap,
   loadPortalAccounts,
   removePortalAccountRemote,
@@ -227,7 +228,7 @@ export function PortalConfigPage() {
     setMsg('Edição cancelada.')
   }
 
-  function salvarEdicao() {
+  async function salvarEdicao() {
     if (!draft || !editingId) return
     const usuario = draft.usuario.trim()
     const email = draft.email.trim().toLowerCase()
@@ -249,24 +250,35 @@ export function PortalConfigPage() {
       setMsg('Selecione a transportadora para o perfil transportador.')
       return
     }
-    const ok = updateAccount(
-      editingId,
-      {
-        nome,
-        usuario,
-        email,
-        password,
-        role: draft.role === 'super' ? 'super' : 'transportador',
-        transportador_id: draft.role === 'super' ? null : draft.transportador_id || null,
-        ativo: draft.ativo,
-        nivel: draft.role === 'super' ? 'super' : 'operador',
-      },
-      { validateUnique: true },
-    )
+    const patch = {
+      nome,
+      usuario,
+      email,
+      password,
+      role: (draft.role === 'super' ? 'super' : 'transportador') as PortalAccount['role'],
+      transportador_id: draft.role === 'super' ? null : draft.transportador_id || null,
+      ativo: draft.ativo,
+      nivel: (draft.role === 'super' ? 'super' : 'operador') as PortalAccount['nivel'],
+    }
+    const ok = updateAccount(editingId, patch, { validateUnique: true })
     if (!ok) return
+
+    const contaSalva: PortalAccount = {
+      ...(loadPortalAccounts().find((a) => a.id === editingId) ?? draft),
+      ...patch,
+      id: editingId,
+    }
+    setMsg('Salvando senha no banco…')
+    const remoto = await gravarContaPortalNoBanco(contaSalva)
     setEditingId(null)
     setDraft(null)
-    setMsg('Conta salva.')
+    if (!remoto.ok) {
+      setMsg(
+        `Conta atualizada neste aparelho, mas falhou no banco: ${remoto.erro ?? 'erro desconhecido'}. Tente Salvar de novo.`,
+      )
+      return
+    }
+    setMsg('Conta e senha salvas no portal e no banco de dados.')
   }
 
   function patchDraft(patch: Partial<PortalAccount>) {
@@ -536,9 +548,11 @@ export function PortalConfigPage() {
             />
             <p className="portal-login__hint" style={{ marginBottom: 12 }}>
               Clique em <strong>Editar</strong> para alterar qualquer campo, depois em{' '}
-              <strong>Salvar</strong>. Contas <strong>inativas</strong> ou <strong>sem senha</strong>{' '}
-              não entram no login. Campos em amarelo precisam de atenção (senha vazia / e-mail
-              incompleto). Duplicatas de Super (Diego/Elder) são unificadas automaticamente.
+              <strong>Salvar</strong>. A senha é gravada na hora neste painel e na tabela{' '}
+              <code>usuarios</code> do banco. Contas <strong>inativas</strong> ou{' '}
+              <strong>sem senha</strong> não entram no login. Campos em amarelo precisam de
+              atenção (senha vazia / e-mail incompleto). Duplicatas de Super (Diego/Elder) são
+              unificadas automaticamente.
             </p>
             <div className="cadastro-table-wrap cadastro-table-wrap--scroll">
               <table className="cadastro-table">
@@ -691,7 +705,7 @@ export function PortalConfigPage() {
                                   type="button"
                                   className="cadastro-btn cadastro-btn--save"
                                   style={{ padding: '6px 10px', fontSize: '0.78rem' }}
-                                  onClick={salvarEdicao}
+                                  onClick={() => void salvarEdicao()}
                                 >
                                   Salvar
                                 </button>
