@@ -418,7 +418,7 @@ interface CargoCardProps {
   onCancelarViagem?: () => void
   onAvaliarViagem?: () => void
   bidValue?: number | null
-  /** Ordem de chegada da proposta (1 = primeiro a ofertar). */
+  /** Posição no ranking por valor (1 = menor frete / melhor oferta). */
   bidPosition?: number | null
   /** Total de propostas ativas na carga (para exibir N°/total). */
   bidCount?: number | null
@@ -560,15 +560,15 @@ export function CargoCard({
               }`}
               title={
                 bidCount != null && bidCount > 1
-                  ? `Você foi o ${bidPosition}º a enviar proposta (${bidCount} no total)${
-                      bidMelhor ? ' · melhor valor agora' : ''
+                  ? `${bidPosition}º melhor frete (${bidCount} propostas)${
+                      bidMelhor ? ' · menor valor agora' : ''
                     }`
-                  : `Você foi o ${bidPosition}º a enviar proposta`
+                  : `${bidPosition}º no ranking por valor (menor frete vence)`
               }
               aria-label={
                 bidCount != null && bidCount > 1
-                  ? `Ordem da proposta: ${bidPosition}º de ${bidCount}`
-                  : `Ordem da proposta: ${bidPosition}º`
+                  ? `Posição no ranking: ${bidPosition}º de ${bidCount}`
+                  : `Posição no ranking: ${bidPosition}º`
               }
             >
               {bidPosition}°

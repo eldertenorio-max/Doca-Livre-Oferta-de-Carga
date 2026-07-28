@@ -610,7 +610,7 @@ export function PublishPanel({
 
   const histPropostas = carga ? historicoPropostasDaCarga(carga.id) : []
   const lancesAtivos = lances.filter((l) => l.status === 'ativo')
-  const melhorLance = lancesAtivos[0]
+  const melhorLance = lancesAtivos[0] ?? null
   const idsComProposta = new Set(lancesAtivos.map((l) => l.transportador_id))
 
   const classColor =

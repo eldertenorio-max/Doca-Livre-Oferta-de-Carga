@@ -257,13 +257,7 @@ export function KanbanTransportador() {
                 const ativos = lancesDaCarga(c.id).filter((l) =>
                   ['ativo', 'vencedor'].includes(l.status),
                 )
-                // Ordem de chegada (quem ofertou primeiro = 1°)
-                const porChegada = [...ativos].sort(
-                  (a, b) =>
-                    new Date(a.created_at).getTime() - new Date(b.created_at).getTime() ||
-                    a.id.localeCompare(b.id),
-                )
-                // Ranking por valor (menor vence) — só para destacar se é a melhor
+                // Ranking por valor (menor frete = 1º); empate → quem ofertou antes
                 const porValor = [...ativos].sort(
                   (a, b) =>
                     a.valor - b.valor ||
@@ -273,7 +267,7 @@ export function KanbanTransportador() {
                   ativos.find((l) => l.transportador_id === tid) ?? null
                 const pos =
                   meuLance && col.key !== 'nova_carga'
-                    ? porChegada.findIndex((l) => l.id === meuLance.id) + 1
+                    ? porValor.findIndex((l) => l.id === meuLance.id) + 1
                     : null
                 const melhor =
                   Boolean(meuLance) && porValor[0]?.id === meuLance?.id
