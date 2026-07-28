@@ -10,6 +10,7 @@ import {
 } from 'react'
 import {
   DEMO_USERS,
+  SEED_CARGAS,
   SEED_GRUPOS,
   SEED_MOTORISTAS,
   SEED_ROTAS,
@@ -718,7 +719,7 @@ function ensureDemoFrotaMapa(state: DataState): DataState {
   }
 }
 
-/** Garante grupos com demos t1/t2; não reabre cargas automaticamente. */
+/** Garante grupos e uma oferta de teste utilizável pelas contas demo. */
 function ensureDemoOfertasVisiveis(state: DataState): DataState {
   const withFrota = ensureDemoFrotaMapa(state)
   const excluidos = new Set(withFrota.transportadores_excluidos ?? [])
@@ -739,7 +740,39 @@ function ensureDemoOfertasVisiveis(state: DataState): DataState {
     grupos = structuredClone(SEED_GRUPOS)
   }
 
-  let cargas = normalizeCargasNegociacao(withFrota.cargas, grupos)
+  let cargas = withFrota.cargas
+  const temOfertaAberta = cargas.some(
+    (c) =>
+      !c.transportador_vencedor_id &&
+      Boolean(c.publicado_em) &&
+      ['negociando', 'propostas', 'suspensas'].includes(c.status),
+  )
+  const DEMO_CARGA_ID = 'demo-oferta-aberta'
+  if (!temOfertaAberta && !cargas.some((c) => c.id === DEMO_CARGA_ID)) {
+    const modelo = SEED_CARGAS.find((c) => c.id === 'c2')
+    if (modelo) {
+      const agora = new Date()
+      cargas = [
+        ...cargas,
+        {
+          ...structuredClone(modelo),
+          id: DEMO_CARGA_ID,
+          numero: '900001',
+          pedido: 'DEMO-11167527',
+          status: 'negociando',
+          publicado_em: agora.toISOString(),
+          expira_em: new Date(agora.getTime() + 24 * 60 * 60_000).toISOString(),
+          grupo_ids: grupos.filter((g) => g.situacao !== 'inativo').map((g) => g.id),
+          grupos_notificados: grupos
+            .filter((g) => g.situacao !== 'inativo')
+            .map((g) => g.id),
+          observacao: 'Oferta demonstrativa para validação das contas Santos e Nova Era.',
+          created_at: agora.toISOString(),
+        },
+      ]
+    }
+  }
+  cargas = normalizeCargasNegociacao(cargas, grupos)
   let lances = cancelarLancesForaDaRodada(cargas, withFrota.lances)
   cargas = alinharStatusComLances(cargas, lances)
 
