@@ -19,6 +19,8 @@ interface BidModalProps {
   onClose: () => void
   /** Abre calculadora de rota com origem/destino da carga */
   onCalcularRota?: () => void
+  /** Só detalhes — sem campo/botões de lance (olhinho). Lance só pelo martelo. */
+  somenteLeitura?: boolean
 }
 
 /** Digitação livre em pt-BR; formata só no blur. */
@@ -31,7 +33,13 @@ function sanitizeMoneyTyping(raw: string): string {
   return s
 }
 
-export function BidModal({ carga, open, onClose, onCalcularRota }: BidModalProps) {
+export function BidModal({
+  carga,
+  open,
+  onClose,
+  onCalcularRota,
+  somenteLeitura = false,
+}: BidModalProps) {
   const {
     cargas,
     enviarLance,
@@ -154,7 +162,12 @@ export function BidModal({ carga, open, onClose, onCalcularRota }: BidModalProps
   }
 
   return (
-    <Modal open={open} title="Registrar lance" onClose={onClose} wide>
+    <Modal
+      open={open}
+      title={somenteLeitura ? 'Detalhes da carga' : 'Registrar lance'}
+      onClose={onClose}
+      wide
+    >
       <div className="space-y-4">
         <div className="rounded-lg bg-emerald-50/80 p-4 text-sm">
           <div className="grid gap-2 sm:grid-cols-2">
@@ -230,8 +243,10 @@ export function BidModal({ carga, open, onClose, onCalcularRota }: BidModalProps
               <p className="font-bold">Contra-proposta do embarcador</p>
               <p className="mt-0.5 text-xs">
                 Valor sugerido: <strong>{formatCurrency(roundMoney(live.frete_oferta))}</strong>
-                {' · '}seu lance atual: {formatCurrency(roundMoney(meuLance.valor))}. Use “Aceitar
-                oferta” ou envie um novo lance pelo card.
+                {' · '}seu lance atual: {formatCurrency(roundMoney(meuLance.valor))}.
+                {somenteLeitura
+                  ? ' Para responder, use o martelo no card.'
+                  : ' Use “Aceitar oferta” ou envie um novo lance.'}
               </p>
             </div>
           )}
@@ -270,77 +285,89 @@ export function BidModal({ carga, open, onClose, onCalcularRota }: BidModalProps
           </div>
         )}
 
-        <Field label="Sua oferta (R$)">
-          <input
-            className={`${inputClass} text-lg font-bold tabular-nums`}
-            value={valor}
-            inputMode="decimal"
-            autoComplete="off"
-            onChange={(e) => {
-              editingRef.current = true
-              setError('')
-              setValor(sanitizeMoneyTyping(e.target.value))
-            }}
-            onFocus={() => {
-              editingRef.current = true
-            }}
-            onBlur={() => {
-              editingRef.current = false
-              const n = parseMoneyInput(valor)
-              if (!Number.isNaN(n) && n > 0) setValor(formatMoneyInput(n))
-            }}
-            disabled={bloqueado}
-            placeholder="0,00"
-          />
-        </Field>
+        {!somenteLeitura && (
+          <>
+            <Field label="Sua oferta (R$)">
+              <input
+                className={`${inputClass} text-lg font-bold tabular-nums`}
+                value={valor}
+                inputMode="decimal"
+                autoComplete="off"
+                onChange={(e) => {
+                  editingRef.current = true
+                  setError('')
+                  setValor(sanitizeMoneyTyping(e.target.value))
+                }}
+                onFocus={() => {
+                  editingRef.current = true
+                }}
+                onBlur={() => {
+                  editingRef.current = false
+                  const n = parseMoneyInput(valor)
+                  if (!Number.isNaN(n) && n > 0) setValor(formatMoneyInput(n))
+                }}
+                disabled={bloqueado}
+                placeholder="0,00"
+              />
+            </Field>
 
-        {live.modo_publicacao === 'oferta' && (
-          <p className="text-xs text-ink-muted">
-            Modo Oferta: “Enviar lance” vai para Propostas e aguarda o embarcador. “Aceitar oferta”
-            fecha o frete no valor da oferta ({formatCurrency(freteRef)}). Após enviar, o valor não
-            pode ser alterado.
-          </p>
-        )}
-        {live.modo_publicacao === 'leilao' && (
-          <p className="text-xs text-ink-muted">
-            Modo Leilão: você pode atualizar o lance até o fim do prazo. Em empate de valor, vence
-            o mais antigo (ou o embarcador decide manualmente). Use “Aceitar oferta” para propor
-            exatamente o frete oferta ({formatCurrency(freteRef)}).
-          </p>
-        )}
-        {suspensa && (
-          <p className="text-xs text-amber-800">Negociação suspensa — aguarde a retomada.</p>
-        )}
-        {!tid && (
-          <p className="text-xs text-amber-800">
-            Conta sem transportadora. No Kanban Transportador, use “Ver como” (Super) ou entre com
-            santos@transportes.com.
-          </p>
+            {live.modo_publicacao === 'oferta' && (
+              <p className="text-xs text-ink-muted">
+                Modo Oferta: “Enviar lance” vai para Propostas e aguarda o embarcador. “Aceitar
+                oferta” fecha o frete no valor da oferta ({formatCurrency(freteRef)}). Após enviar,
+                o valor não pode ser alterado.
+              </p>
+            )}
+            {live.modo_publicacao === 'leilao' && (
+              <p className="text-xs text-ink-muted">
+                Modo Leilão: você pode atualizar o lance até o fim do prazo. Em empate de valor,
+                vence o mais antigo (ou o embarcador decide manualmente). Use “Aceitar oferta” para
+                propor exatamente o frete oferta ({formatCurrency(freteRef)}).
+              </p>
+            )}
+            {suspensa && (
+              <p className="text-xs text-amber-800">Negociação suspensa — aguarde a retomada.</p>
+            )}
+            {!tid && (
+              <p className="text-xs text-amber-800">
+                Conta sem transportadora. No Kanban Transportador, use “Ver como” (Super) ou entre
+                com santos@transportes.com.
+              </p>
+            )}
+
+            {error && <p className="text-sm text-brand">{error}</p>}
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="primary"
+                className="min-w-[140px] flex-1"
+                onClick={handleAccept}
+                disabled={bloqueado || !tid}
+              >
+                Aceitar oferta
+              </Button>
+              <Button
+                variant="success"
+                className="min-w-[140px] flex-1"
+                onClick={handleSend}
+                disabled={bloqueado || !tid}
+              >
+                Enviar lance
+              </Button>
+              <Button variant="danger" className="min-w-[100px] flex-1" onClick={onClose}>
+                Fechar
+              </Button>
+            </div>
+          </>
         )}
 
-        {error && <p className="text-sm text-brand">{error}</p>}
-
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="primary"
-            className="min-w-[140px] flex-1"
-            onClick={handleAccept}
-            disabled={bloqueado || !tid}
-          >
-            Aceitar oferta
-          </Button>
-          <Button
-            variant="success"
-            className="min-w-[140px] flex-1"
-            onClick={handleSend}
-            disabled={bloqueado || !tid}
-          >
-            Enviar lance
-          </Button>
-          <Button variant="danger" className="min-w-[100px] flex-1" onClick={onClose}>
-            Fechar
-          </Button>
-        </div>
+        {somenteLeitura && (
+          <div className="flex flex-wrap gap-2">
+            <Button variant="danger" className="min-w-[100px] flex-1" onClick={onClose}>
+              Fechar
+            </Button>
+          </div>
+        )}
       </div>
     </Modal>
   )

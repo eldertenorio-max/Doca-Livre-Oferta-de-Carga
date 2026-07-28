@@ -105,8 +105,19 @@ export function KanbanTransportador() {
   const [viewAsId, setViewAsId] = useState(defaultViewAs)
   const [search, setSearch] = useState('')
   const [bidCarga, setBidCarga] = useState<Carga | null>(null)
+  const [bidSomenteLeitura, setBidSomenteLeitura] = useState(false)
   const [allocCarga, setAllocCarga] = useState<Carga | null>(null)
   const [rotaCarga, setRotaCarga] = useState<Carga | null>(null)
+
+  function abrirDetalhes(c: Carga) {
+    setBidSomenteLeitura(true)
+    setBidCarga(c)
+  }
+
+  function abrirLance(c: Carga) {
+    setBidSomenteLeitura(false)
+    setBidCarga(c)
+  }
 
   useEffect(() => {
     if (!viewAsId && defaultViewAs) setViewAsId(defaultViewAs)
@@ -233,14 +244,13 @@ export function KanbanTransportador() {
             onSelect={(c) => {
               const temMeu = meuLanceAtivoNaRodada(c, lances, tid)
               const col = colunaTransportador(c, tid, temMeu)
-              if (col === 'nova_carga' || col === 'propostas') setBidCarga(c)
-              else if (col === 'confirmadas' || col === 'alocadas') setAllocCarga(c)
-              else setBidCarga(c)
+              if (col === 'confirmadas' || col === 'alocadas') setAllocCarga(c)
+              else abrirDetalhes(c)
             }}
             onAction={(c, coluna) => {
-              if (coluna === 'nova_carga' || coluna === 'propostas') setBidCarga(c)
+              if (coluna === 'nova_carga' || coluna === 'propostas') abrirLance(c)
               else if (coluna === 'confirmadas' || coluna === 'alocadas') setAllocCarga(c)
-              else setBidCarga(c)
+              else abrirDetalhes(c)
             }}
           />
         ) : (
@@ -287,13 +297,13 @@ export function KanbanTransportador() {
                       bidCount={ativos.length > 0 ? ativos.length : null}
                       bidMelhor={melhor}
                       onSelect={() => {
-                        if (col.key === 'nova_carga' || col.key === 'propostas') setBidCarga(c)
-                        else if (col.key === 'confirmadas') setAllocCarga(c)
+                        if (col.key === 'confirmadas' || col.key === 'alocadas') setAllocCarga(c)
+                        else abrirDetalhes(c)
                       }}
-                      onView={() => setBidCarga(c)}
+                      onView={() => abrirDetalhes(c)}
                       onBid={
                         col.key === 'nova_carga' || col.key === 'propostas'
-                          ? () => setBidCarga(c)
+                          ? () => abrirLance(c)
                           : undefined
                       }
                       onRefuse={
@@ -327,7 +337,11 @@ export function KanbanTransportador() {
       <BidModal
         carga={bidCarga}
         open={!!bidCarga}
-        onClose={() => setBidCarga(null)}
+        somenteLeitura={bidSomenteLeitura}
+        onClose={() => {
+          setBidCarga(null)
+          setBidSomenteLeitura(false)
+        }}
         onCalcularRota={
           bidCarga
             ? () => {
