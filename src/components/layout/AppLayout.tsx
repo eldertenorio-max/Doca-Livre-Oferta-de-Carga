@@ -165,6 +165,7 @@ export function AppLayout() {
   const [chatCargaId, setChatCargaId] = useState<string | null>(null)
   const notifWrapRef = useRef<HTMLDivElement>(null)
   const [perfilOpen, setPerfilOpen] = useState(false)
+  const [perfilAutoOpenFoto, setPerfilAutoOpenFoto] = useState(false)
   const avatarWrapRef = useRef<HTMLDivElement>(null)
   const [fotoAvisoVisivel, setFotoAvisoVisivel] = useState(false)
 
@@ -553,6 +554,7 @@ export function AppLayout() {
               aria-haspopup="dialog"
               onClick={() => {
                 setNotifOpen(false)
+                setPerfilAutoOpenFoto(false)
                 setPerfilOpen((o) => !o)
               }}
             >
@@ -574,6 +576,7 @@ export function AppLayout() {
             {perfilOpen ? (
               <div className="app-topbar-perfil-panel" role="dialog" aria-label="Perfil">
                 <PerfilPanel
+                  autoOpenFoto={perfilAutoOpenFoto}
                   onClose={() => {
                     setPerfilOpen(false)
                     dispensarAvisoFoto()
@@ -612,8 +615,9 @@ export function AppLayout() {
                 type="button"
                 className="app-foto-aviso__btn"
                 onClick={() => {
-                  setAvatarErro('')
-                  setAvatarMenuOpen(true)
+                  setNotifOpen(false)
+                  setPerfilAutoOpenFoto(true)
+                  setPerfilOpen(true)
                 }}
               >
                 Adicionar agora

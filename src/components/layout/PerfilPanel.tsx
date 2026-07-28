@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
 import { formatCurrency, roundMoney } from '../../lib/businessRules'
@@ -26,9 +26,11 @@ function labelClassificacao(c?: string) {
 type Props = {
   /** Fecha o painel no canto (popover). */
   onClose?: () => void
+  /** Já abre o seletor de arquivo da foto ao montar (vindo do aviso "Adicionar agora"). */
+  autoOpenFoto?: boolean
 }
 
-export function PerfilPanel({ onClose }: Props) {
+export function PerfilPanel({ onClose, autoOpenFoto }: Props) {
   const navigate = useNavigate()
   const {
     user,
@@ -45,6 +47,11 @@ export function PerfilPanel({ onClose }: Props) {
   const [erro, setErro] = useState('')
   const [okMsg, setOkMsg] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (autoOpenFoto) fileRef.current?.click()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só na montagem
+  }, [])
 
   const isSuper = isSuperSession(user)
   const tid = canonicalTransportadorId(
