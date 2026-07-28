@@ -565,18 +565,17 @@ function ensureDemoTransportadores(list: PortalAccount[]): PortalAccount[] {
     }
     // Conta já existe: restaura/atualiza vínculo (troca t1/t2 legados pelo UUID do banco).
     const cur = next[idx]
-    const tidAtual = cur.transportador_id || ''
-    const tidCanon =
-      tidAtual === 't1' || tidAtual === 't2' || !tidAtual
-        ? demo.transportador_id
-        : tidAtual
     next[idx] = {
       ...cur,
       id: cur.id || demo.id,
-      transportador_id: tidCanon,
-      role: cur.role === 'super' ? 'super' : 'transportador',
-      password: cur.password || demo.password,
-      ativo: cur.ativo ?? true,
+      usuario: demo.usuario,
+      email: demo.email,
+      nome: demo.nome,
+      transportador_id: demo.transportador_id,
+      role: 'transportador',
+      nivel: 'operador',
+      password: demo.password,
+      ativo: true,
       created_at: cur.created_at || demo.created_at,
     }
   }
@@ -708,6 +707,8 @@ type RemoteUsuarioRow = {
   email: string
   ativo?: boolean
   senha_hash?: string | null
+  transportador_id?: string | null
+  empresa_org_id?: string | null
 }
 
 /** Evita sync imediato sobrescrever edição recém-gravada no painel. */
@@ -799,7 +800,7 @@ async function findRemoteUsuarioRowDb(
   if (validUuid(account.id)) {
     const { data } = await supabase
       .from('usuarios')
-      .select('id, usuario, email, ativo, senha_hash')
+      .select('id, usuario, email, ativo, senha_hash, transportador_id, empresa_org_id')
       .eq('id', account.id)
       .maybeSingle()
     if (data?.id) return data as RemoteUsuarioRow
@@ -814,7 +815,7 @@ async function findRemoteUsuarioRowDb(
     const col = q.includes('@') ? 'email' : 'usuario'
     const { data } = await supabase
       .from('usuarios')
-      .select('id, usuario, email, ativo, senha_hash')
+      .select('id, usuario, email, ativo, senha_hash, transportador_id, empresa_org_id')
       .ilike(col, q)
       .maybeSingle()
     if (data?.id) return data as RemoteUsuarioRow
@@ -1310,6 +1311,9 @@ export async function syncPortalAccounts(): Promise<PortalAccount[]> {
 
     const normalized = normalizePortalList(merged)
     accountsCache = normalized
+    // As credenciais mostradas no card "DEMO TRANSPORTADOR" precisam ser
+    // exatamente as mesmas no banco, inclusive após edições/sync antigos.
+    await repairDemoPortalAccountsRemote(normalized)
     // Se demos / contas novas faltam no banco, agenda insert (sem sobrescrever senhas).
     const precisaPersistirDemos = DEMO_TRANSPORTADORES.some((d) => {
       const hit = normalized.find(
@@ -1327,6 +1331,57 @@ export async function syncPortalAccounts(): Promise<PortalAccount[]> {
     return normalized
   } catch {
     return loadPortalAccounts()
+  }
+}
+
+async function repairDemoPortalAccountsRemote(accounts: PortalAccount[]) {
+  if (!isSupabaseConfigured || !supabase) return
+  for (const d of DEMO_TRANSPORTADORES) {
+    const local = accounts.find(
+      (u) =>
+        u.id === d.id ||
+        normLogin(u.email) === d.email ||
+        normLogin(u.usuario) === d.usuario,
+    )
+    if (!local) continue
+    const existente = await findRemoteUsuarioRowDb(local)
+    const payload = {
+      usuario: d.usuario,
+      email: d.email,
+      senha_hash: d.password,
+      nome: d.nome,
+      role: 'transportador',
+      nivel: 'operador',
+      transportador_id: d.transportador_id,
+      ativo: true,
+      updated_at: new Date().toISOString(),
+    }
+    if (existente?.id) {
+      const precisa =
+        normLogin(existente.usuario) !== d.usuario ||
+        normLogin(existente.email) !== d.email ||
+        (existente.senha_hash || '') !== d.password ||
+        existente.transportador_id !== d.transportador_id ||
+        !existente.ativo
+      if (!precisa) continue
+      let { error } = await supabase.from('usuarios').update(payload).eq('id', existente.id)
+      if (error && /updated_at/i.test(error.message)) {
+        const { updated_at: _ignored, ...semUpdated } = payload
+        void _ignored
+        const retry = await supabase.from('usuarios').update(semUpdated).eq('id', existente.id)
+        error = retry.error
+      }
+      if (!error) contasNovasDaSessao.delete(local.id)
+      continue
+    }
+    let { error } = await supabase.from('usuarios').insert(payload)
+    if (error && /updated_at/i.test(error.message)) {
+      const { updated_at: _ignored, ...semUpdated } = payload
+      void _ignored
+      const retry = await supabase.from('usuarios').insert(semUpdated)
+      error = retry.error
+    }
+    if (!error) contasNovasDaSessao.delete(local.id)
   }
 }
 
