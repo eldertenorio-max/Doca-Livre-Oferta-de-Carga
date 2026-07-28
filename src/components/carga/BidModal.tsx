@@ -174,7 +174,7 @@ export function BidModal({
     >
       <div className="space-y-3">
         <div className="rounded-lg bg-emerald-50/80 px-3 py-2.5 text-sm">
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-3 gap-x-3 gap-y-1.5 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
             <Detail label="Carga" value={live.numero} />
             <Detail label="Pedido" value={live.pedido} />
             <Detail label="Carregamento" value={formatDateTime(live.data_carregamento)} />
@@ -183,7 +183,7 @@ export function BidModal({
             <Detail label="Origem" value={live.origem} />
             <Detail label="Destino" value={live.destino} />
             <Detail
-              label="Gerenciamento de risco"
+              label="Risco"
               value={
                 live.gerenciamento_risco === 'rastreador'
                   ? 'Rastreador'
