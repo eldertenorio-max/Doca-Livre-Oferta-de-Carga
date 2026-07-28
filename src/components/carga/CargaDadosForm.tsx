@@ -609,30 +609,29 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
           </span>
         </div>
 
-        <Field label="Usar rota cadastrada">
-          <select
-            className={inputClass}
-            value={rotaId}
-            disabled={!editavel}
-            onChange={(e) => aplicarRotaCadastrada(e.target.value)}
-          >
-            <option value="">Digitar origem e destino manualmente…</option>
-            {rotasAtivas.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.descricao} — {r.origem} → {r.destino}
-                {r.frete_tabela > 0 ? ` · R$ ${formatMoneyInput(r.frete_tabela)}` : ''}
-              </option>
-            ))}
-          </select>
-          {rotasAtivas.length === 0 && (
-            <p className="mt-0.5 text-[11px] font-medium text-ink">
-              Nenhuma rota ativa. Cadastre em <strong>Rotas</strong> no menu lateral.
-            </p>
-          )}
-        </Field>
-
-        <div className="grid gap-2 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,1fr)] lg:items-start">
-          <div className="grid min-w-0 gap-1.5 sm:grid-cols-2">
+        <div className="grid gap-2 lg:grid-cols-12 lg:items-start">
+          <div className="grid min-w-0 gap-1.5 sm:grid-cols-2 lg:col-span-7">
+            <Field label="Usar rota cadastrada" className="sm:col-span-2">
+              <select
+                className={inputClass}
+                value={rotaId}
+                disabled={!editavel}
+                onChange={(e) => aplicarRotaCadastrada(e.target.value)}
+              >
+                <option value="">Digitar origem e destino manualmente…</option>
+                {rotasAtivas.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.descricao} — {r.origem} → {r.destino}
+                    {r.frete_tabela > 0 ? ` · R$ ${formatMoneyInput(r.frete_tabela)}` : ''}
+                  </option>
+                ))}
+              </select>
+              {rotasAtivas.length === 0 && (
+                <p className="mt-0.5 text-[11px] font-semibold text-black">
+                  Nenhuma rota ativa. Cadastre em <strong>Rotas</strong> no menu lateral.
+                </p>
+              )}
+            </Field>
             <Field label="Origem *">
               <AddressSuggestInput
                 value={origem}
@@ -689,16 +688,30 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
           <RotaMapPreview
             origem={origem}
             destino={destino}
-            className="h-[180px] min-h-[180px] w-full lg:h-[220px] lg:min-h-[220px]"
+            className="h-[190px] min-h-[190px] w-full lg:col-span-5 lg:h-[190px] lg:min-h-[190px]"
           />
         </div>
       </section>
 
       {/* 2. Frete */}
       <section className="space-y-1.5 border-t border-ink/15 pt-2">
-        <h3 className="text-[13px] font-extrabold uppercase tracking-wide text-black">
-          2 · Frete
-        </h3>
+        <div className="grid items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(240px,0.45fr)]">
+          <h3 className="pb-1 text-[13px] font-extrabold uppercase tracking-wide text-black">
+            2 · Frete
+          </h3>
+          <Field label="Frete tabela (R$) *">
+            <SuggestInput
+              value={freteTabela}
+              onChange={setFreteTabela}
+              suggestions={sugFrete}
+              placeholder="0,00 — use Calcular ANTT ou digite"
+              onBlur={() => {
+                const n = parseMoneyInput(freteTabela)
+                if (!Number.isNaN(n)) setFreteTabela(formatMoneyInput(n))
+              }}
+            />
+          </Field>
+        </div>
         <AnttFretePanel
           origem={origem}
           destino={destino}
@@ -711,18 +724,6 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
             }
           }}
         />
-        <Field label="Frete tabela (R$) *">
-          <SuggestInput
-            value={freteTabela}
-            onChange={setFreteTabela}
-            suggestions={sugFrete}
-            placeholder="0,00 — use Calcular ANTT ou digite"
-            onBlur={() => {
-              const n = parseMoneyInput(freteTabela)
-              if (!Number.isNaN(n)) setFreteTabela(formatMoneyInput(n))
-            }}
-          />
-        </Field>
       </section>
 
       {/* 3. Veículo e exigências */}
@@ -891,7 +892,7 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
         <h3 className="text-[13px] font-extrabold uppercase tracking-wide text-black">
           6 · Prazos e observações
         </h3>
-        <div className="grid gap-1.5 sm:grid-cols-2">
+        <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Carregamento">
             <input
               type="date"
@@ -908,16 +909,14 @@ export function CargaDadosForm({ carga, canEdit, onSaved, onGoPublish, onPersist
               onChange={(e) => setPrevisao(e.target.value)}
             />
           </Field>
-          <div className="sm:col-span-2">
-            <Field label="Observações">
-              <SuggestInput
-                value={observacao}
-                onChange={setObservacao}
-                suggestions={sugObs}
-                placeholder="Opcional — também pedidas na publicação"
-              />
-            </Field>
-          </div>
+          <Field label="Observações">
+            <SuggestInput
+              value={observacao}
+              onChange={setObservacao}
+              suggestions={sugObs}
+              placeholder="Opcional — também pedidas na publicação"
+            />
+          </Field>
         </div>
       </section>
 
