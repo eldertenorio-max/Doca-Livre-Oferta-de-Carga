@@ -54,6 +54,18 @@
   line-height: 1.45;
   color: var(--text);
   background: var(--bg);
+  /* Reforça a fonte em todo o sistema (mesmo padrão aplicado em Nova Carga).
+     Só afeta texto sem peso definido — qualquer classe font-* (Tailwind) continua vencendo. */
+  font-weight: 500;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 700;
 }
 
 * {
