@@ -627,6 +627,78 @@ function validUuid(value?: string | null) {
   )
 }
 
+type RemoteUsuarioRow = {
+  id: string
+  usuario: string
+  email: string
+  ativo?: boolean
+  senha_hash?: string | null
+}
+
+/** Evita sync imediato sobrescrever edição recém-gravada no painel. */
+let portalSaveGraceUntil = 0
+
+function normLogin(val?: string | null) {
+  return (val || '').trim().toLowerCase()
+}
+
+function findRemoteUsuarioRow(
+  remote: RemoteUsuarioRow[],
+  account: PortalAccount,
+  prev?: { usuario?: string; email?: string },
+): RemoteUsuarioRow | undefined {
+  if (validUuid(account.id)) {
+    const byId = remote.find((r) => r.id === account.id)
+    if (byId) return byId
+  }
+  const prevU = normLogin(prev?.usuario)
+  const prevE = normLogin(prev?.email)
+  if (prevU) {
+    const hit = remote.find((r) => normLogin(r.usuario) === prevU)
+    if (hit) return hit
+  }
+  if (prevE) {
+    const hit = remote.find((r) => normLogin(r.email) === prevE)
+    if (hit) return hit
+  }
+  const curU = normLogin(account.usuario)
+  const curE = normLogin(account.email)
+  return remote.find(
+    (r) => normLogin(r.usuario) === curU || normLogin(r.email) === curE,
+  )
+}
+
+async function findRemoteUsuarioRowDb(
+  account: PortalAccount,
+  prev?: { usuario?: string; email?: string },
+): Promise<RemoteUsuarioRow | null> {
+  if (!supabase) return null
+  if (validUuid(account.id)) {
+    const { data } = await supabase
+      .from('usuarios')
+      .select('id, usuario, email, ativo, senha_hash')
+      .eq('id', account.id)
+      .maybeSingle()
+    if (data?.id) return data as RemoteUsuarioRow
+  }
+  const tries = [
+    prev?.email?.trim().toLowerCase(),
+    prev?.usuario?.trim(),
+    account.email.trim().toLowerCase(),
+    account.usuario.trim(),
+  ].filter(Boolean) as string[]
+  for (const q of tries) {
+    const col = q.includes('@') ? 'email' : 'usuario'
+    const { data } = await supabase
+      .from('usuarios')
+      .select('id, usuario, email, ativo, senha_hash')
+      .ilike(col, q)
+      .maybeSingle()
+    if (data?.id) return data as RemoteUsuarioRow
+  }
+  return null
+}
+
 type RemotePortalAccount = {
   id: string
   usuario: string
@@ -645,7 +717,7 @@ type RemotePortalAccount = {
 function mergePassword(localPass: string, remotePass: string): string {
   const local = (localPass || '').trim()
   const remote = (remotePass || '').trim()
-  // Banco manda: se remoto tem senha, usa remoto
+  if (local && remote && local === remote) return local
   if (remote) return remote
   return local
 }
@@ -752,11 +824,7 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
         ativo,
         updated_at: new Date().toISOString(),
       }
-      const found = remote.find(
-        (item) =>
-          item.usuario.toLowerCase() === rowBase.usuario.toLowerCase() ||
-          item.email.toLowerCase() === rowBase.email,
-      )
+      const found = findRemoteUsuarioRow(remote, account)
       if (found) {
         // Nunca apagar senha do banco com valor vazio do cache local.
         const patch: Record<string, unknown> = { ...rowBase }
@@ -793,11 +861,12 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
 }
 
 /**
- * Grava uma conta (inclui senha) imediatamente em `usuarios`.
+ * Grava uma conta (login, e-mail, senha) imediatamente em `usuarios`.
  * Usado pelo painel ao Salvar — não depende do debounce de 900ms.
  */
 export async function gravarContaPortalNoBanco(
   account: PortalAccount,
+  prev?: { usuario?: string; email?: string },
 ): Promise<{ ok: boolean; erro?: string }> {
   if (!isSupabaseConfigured || !supabase) {
     return { ok: true }
@@ -825,34 +894,63 @@ export async function gravarContaPortalNoBanco(
   }
 
   try {
-    const { data: porEmail } = await supabase
-      .from('usuarios')
-      .select('id, senha_hash')
-      .ilike('email', email)
-      .maybeSingle()
-    const { data: porUsuario } = porEmail
-      ? { data: null }
-      : await supabase
-          .from('usuarios')
-          .select('id, senha_hash')
-          .ilike('usuario', usuario)
-          .maybeSingle()
-    const existente = (porEmail || porUsuario) as { id: string } | null
+    const existente = await findRemoteUsuarioRowDb(account, prev)
+    let dbRow: { id: string; usuario?: string; email?: string; senha_hash?: string | null } | null =
+      null
 
     if (existente?.id) {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('usuarios')
         .update(rowBase)
         .eq('id', existente.id)
+        .select('id, usuario, email, senha_hash')
+        .maybeSingle()
       if (error) return { ok: false, erro: error.message }
+      if (!data?.id) {
+        return { ok: false, erro: 'Não foi possível atualizar a conta no banco (registro não encontrado).' }
+      }
+      dbRow = data
     } else {
       marcarContaNovaParaInsert(account.id)
-      const { error } = await supabase.from('usuarios').insert(rowBase)
+      const { data, error } = await supabase
+        .from('usuarios')
+        .insert(rowBase)
+        .select('id, usuario, email, senha_hash')
+        .maybeSingle()
       if (error) return { ok: false, erro: error.message }
+      if (!data?.id) {
+        return { ok: false, erro: 'Não foi possível criar a conta no banco.' }
+      }
+      dbRow = data
     }
 
-    // Invalida fingerprint para o próximo sync não pular a lista
+    // Mantém cache alinhado (id uuid do banco + senha nova)
+    const users = loadPortalAccounts()
+    const idx = users.findIndex(
+      (u) =>
+        u.id === account.id ||
+        (dbRow?.id && u.id === dbRow.id) ||
+        (prev?.usuario && normLogin(u.usuario) === normLogin(prev.usuario)) ||
+        (prev?.email && normLogin(u.email) === normLogin(prev.email)) ||
+        normLogin(u.usuario) === normLogin(usuario) ||
+        normLogin(u.email) === normLogin(email),
+    )
+    const salvo: PortalAccount = {
+      ...(idx >= 0 ? users[idx] : account),
+      ...account,
+      usuario,
+      email,
+      password: localSenha,
+      id: dbRow?.id ?? existente?.id ?? account.id,
+    }
+    const next =
+      idx >= 0
+        ? users.map((u, i) => (i === idx ? salvo : u))
+        : [...users, salvo]
+    savePortalAccountsMemory(normalizePortalList(next))
+
     ultimaListaEnviada = ''
+    portalSaveGraceUntil = Date.now() + 2500
     void broadcastPortalAccountsChanged('upsert')
     return { ok: true }
   } catch (e) {
@@ -964,7 +1062,9 @@ export async function syncPortalAccounts(): Promise<PortalAccount[]> {
     // (ex.: "t1" da Santos Transportes) que o banco não armazena (coluna uuid) —
     // sem isso o vínculo escolhido no painel "sumia" na sincronização seguinte.
     const localPorChave = new Map<string, PortalAccount>()
+    const localPorId = new Map<string, PortalAccount>()
     for (const u of local) {
+      localPorId.set(u.id, u)
       if (u.usuario) localPorChave.set(`login:${u.usuario.toLowerCase()}`, u)
       if (u.email) localPorChave.set(`email:${u.email.toLowerCase()}`, u)
     }
@@ -973,7 +1073,8 @@ export async function syncPortalAccounts(): Promise<PortalAccount[]> {
         ? remoteRows.map((row) =>
             fromRemoteAccount(
               row,
-              localPorChave.get(`login:${(row.usuario || '').toLowerCase()}`) ??
+              localPorId.get(row.id) ??
+                localPorChave.get(`login:${(row.usuario || '').toLowerCase()}`) ??
                 localPorChave.get(`email:${(row.email || '').toLowerCase()}`),
             ),
           )
@@ -1171,6 +1272,17 @@ let portalAccountsClientId =
 
 async function notifyPortalAccountsListeners() {
   if (portalAccountsListeners.size === 0) return
+  if (Date.now() < portalSaveGraceUntil) {
+    const list = loadPortalAccounts()
+    for (const cb of portalAccountsListeners) {
+      try {
+        cb(list)
+      } catch {
+        /* ignore */
+      }
+    }
+    return
+  }
   const list = await syncPortalAccounts()
   for (const cb of portalAccountsListeners) {
     try {

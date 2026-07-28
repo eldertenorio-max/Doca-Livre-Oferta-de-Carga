@@ -230,10 +230,11 @@ export function PortalConfigPage() {
 
   async function salvarEdicao() {
     if (!draft || !editingId) return
+    const original = accounts.find((a) => a.id === editingId)
     const usuario = draft.usuario.trim()
     const email = draft.email.trim().toLowerCase()
     const nome = (draft.nome || '').trim() || usuario
-    const password = draft.password
+    const password = (draft.password || '').trim()
     if (usuario.length < 2) {
       setMsg('Login inválido.')
       return
@@ -250,35 +251,52 @@ export function PortalConfigPage() {
       setMsg('Selecione a transportadora para o perfil transportador.')
       return
     }
-    const patch = {
+    const dupUser = accounts.some(
+      (a) => a.id !== editingId && a.usuario.toLowerCase() === usuario.toLowerCase(),
+    )
+    const dupEmail = accounts.some(
+      (a) => a.id !== editingId && a.email.toLowerCase() === email.toLowerCase(),
+    )
+    if (dupUser) {
+      setMsg('Já existe outra conta com esse login.')
+      return
+    }
+    if (dupEmail) {
+      setMsg('Já existe outra conta com esse e-mail.')
+      return
+    }
+
+    const contaSalva: PortalAccount = {
+      ...(original ?? draft),
+      id: editingId,
       nome,
       usuario,
       email,
       password,
-      role: (draft.role === 'super' ? 'super' : 'transportador') as PortalAccount['role'],
+      role: draft.role === 'super' ? 'super' : 'transportador',
       transportador_id: draft.role === 'super' ? null : draft.transportador_id || null,
       ativo: draft.ativo,
-      nivel: (draft.role === 'super' ? 'super' : 'operador') as PortalAccount['nivel'],
+      nivel: draft.role === 'super' ? 'super' : 'operador',
     }
-    const ok = updateAccount(editingId, patch, { validateUnique: true })
-    if (!ok) return
 
-    const contaSalva: PortalAccount = {
-      ...(loadPortalAccounts().find((a) => a.id === editingId) ?? draft),
-      ...patch,
-      id: editingId,
-    }
-    setMsg('Salvando senha no banco…')
-    const remoto = await gravarContaPortalNoBanco(contaSalva)
-    setEditingId(null)
-    setDraft(null)
+    setMsg('Salvando login e senha no banco…')
+    const remoto = await gravarContaPortalNoBanco(contaSalva, {
+      usuario: original?.usuario,
+      email: original?.email,
+    })
     if (!remoto.ok) {
-      setMsg(
-        `Conta atualizada neste aparelho, mas falhou no banco: ${remoto.erro ?? 'erro desconhecido'}. Tente Salvar de novo.`,
-      )
+      setMsg(`Não foi possível salvar: ${remoto.erro ?? 'erro desconhecido'}.`)
       return
     }
-    setMsg('Conta e senha salvas no portal e no banco de dados.')
+
+    const next = loadPortalAccounts()
+    setAccounts(next)
+    if (selectedUser && original?.usuario === selectedUser) {
+      setSelectedUser(usuario)
+    }
+    setEditingId(null)
+    setDraft(null)
+    setMsg('Login, senha e dados salvos no painel e no banco de dados.')
   }
 
   function patchDraft(patch: Partial<PortalAccount>) {
