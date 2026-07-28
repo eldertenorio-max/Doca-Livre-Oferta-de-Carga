@@ -1529,7 +1529,7 @@ export function PublishPanel({
                   <ul className="space-y-2.5">
                     {lances.map((l, idx) => {
                       const t = transportadorById(l.transportador_id)
-                      const isMelhor = l.status === 'ativo' && idx === 0
+                      const isMelhor = Boolean(melhorLance && l.id === melhorLance.id)
                       const isVencedor = l.status === 'vencedor'
                       return (
                         <li
