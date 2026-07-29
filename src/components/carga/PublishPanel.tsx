@@ -942,97 +942,101 @@ export function PublishPanel({
             você clicar em <strong>Publicar</strong> (com ao menos um grupo selecionado).
           </p>
 
-          <Detail label="Pedido" value={carga.pedido || '—'} />
-          <Detail label="Tipo de Carga" value={carga.tipo_carga} />
-          <Detail label="Veículo" value={carga.veiculo} />
-          <Detail
-            label="Carroceria"
-            value={
-              Array.isArray(carga.carrocerias) && carga.carrocerias.length
-                ? carga.carrocerias.join(', ')
-                : '—'
-            }
-          />
-          <Detail label="Remetente" value={`${carga.remetente} — ${carga.remetente_cnpj}`} />
-          <Detail label="Origem" value={carga.origem || '—'} />
-          <Detail label="Destino" value={carga.destino || '—'} />
-          <Detail
-            label="Complemento"
-            value={
-              carga.complemento === 'sim'
-                ? 'Sim'
-                : carga.complemento === 'nao'
-                  ? 'Não'
-                  : carga.complemento === 'ambos'
-                    ? 'Ambos'
-                    : '—'
-            }
-          />
-          <Detail
-            label="Gerenciamento de risco"
-            value={
-              carga.gerenciamento_risco === 'rastreador'
-                ? 'Rastreador'
-                : carga.gerenciamento_risco === 'localizador'
-                  ? 'Localizador'
-                  : carga.gerenciamento_risco === 'ambos'
-                    ? 'Ambos'
-                    : carga.gerenciamento_risco === 'nao'
-                      ? 'Não exige'
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
+            <Detail label="Pedido" value={carga.pedido || '—'} />
+            <Detail label="Tipo de Carga" value={carga.tipo_carga} />
+            <Detail label="Veículo" value={carga.veiculo} />
+            <Detail
+              label="Carroceria"
+              value={
+                Array.isArray(carga.carrocerias) && carga.carrocerias.length
+                  ? carga.carrocerias.join(', ')
+                  : '—'
+              }
+            />
+            <Detail label="Remetente" value={`${carga.remetente} — ${carga.remetente_cnpj}`} />
+            <Detail label="Origem" value={carga.origem || '—'} />
+            <Detail label="Destino" value={carga.destino || '—'} />
+            <Detail
+              label="Complemento"
+              value={
+                carga.complemento === 'sim'
+                  ? 'Sim'
+                  : carga.complemento === 'nao'
+                    ? 'Não'
+                    : carga.complemento === 'ambos'
+                      ? 'Ambos'
                       : '—'
-            }
-          />
-          <Detail label="Destinatário" value={carga.destinatario || '—'} />
-          <Detail
-            label="WhatsApp destinatário"
-            value={carga.destinatario_whatsapp?.trim() || '—'}
-          />
-          <Detail
-            label="E-mail destinatário"
-            value={carga.destinatario_email?.trim() || '—'}
-          />
-          <Detail label="Peso" value={formatNumber(carga.peso)} />
-          <Detail label="Volumes" value={String(carga.volumes)} />
-          <Detail label="Nº de entregas" value={String(carga.num_entregas || 1)} />
-          <Detail label="Valor Frete (Tabela)" value={formatCurrency(carga.frete_tabela)} />
-          <Detail label="Valor Mercadorias" value={formatCurrency(carga.valor_mercadorias)} />
+              }
+            />
+            <Detail
+              label="Gerenc. de risco"
+              value={
+                carga.gerenciamento_risco === 'rastreador'
+                  ? 'Rastreador'
+                  : carga.gerenciamento_risco === 'localizador'
+                    ? 'Localizador'
+                    : carga.gerenciamento_risco === 'ambos'
+                      ? 'Ambos'
+                      : carga.gerenciamento_risco === 'nao'
+                        ? 'Não exige'
+                        : '—'
+              }
+            />
+            <Detail label="Destinatário" value={carga.destinatario || '—'} />
+            <Detail
+              label="WhatsApp destinatário"
+              value={carga.destinatario_whatsapp?.trim() || '—'}
+            />
+            <Detail
+              label="E-mail destinatário"
+              value={carga.destinatario_email?.trim() || '—'}
+            />
+            <Detail label="Peso" value={formatNumber(carga.peso)} />
+            <Detail label="Volumes" value={String(carga.volumes)} />
+            <Detail label="Nº de entregas" value={String(carga.num_entregas || 1)} />
+            <Detail label="Valor Frete (Tabela)" value={formatCurrency(carga.frete_tabela)} />
+            <Detail label="Valor Mercadorias" value={formatCurrency(carga.valor_mercadorias)} />
+          </div>
 
           {carga.antt?.rota && (
             <div className="mt-2 space-y-1 rounded-lg border border-ink/10 bg-white px-3 py-2 text-xs">
               <p className="font-semibold text-ink-muted">ANTT / custos da rota</p>
-              <Detail
-                label="Tabela"
-                value={`Tabela ${carga.antt.tabela}${
-                  carga.antt.categoria_label ? ` · ${carga.antt.categoria_label}` : ''
-                }`}
-              />
-              <Detail label="Duração" value={carga.antt.rota.duracao_label} />
-              <Detail label="Distância" value={`${carga.antt.rota.distancia_km} km`} />
-              <Detail label="Pedágio" value={formatCurrency(carga.antt.rota.pedagio)} />
-              <Detail
-                label="Pedágio por eixo"
-                value={formatCurrency(carga.antt.rota.pedagio_por_eixo)}
-              />
-              <Detail
-                label="Vale-Pedágio"
-                value={formatCurrency(
-                  carga.antt.rota.vale_pedagio ?? carga.antt.rota.pedagio,
-                )}
-              />
-              <Detail label="Combustível" value={formatCurrency(carga.antt.rota.combustivel)} />
-              <Detail label="Custo Total" value={formatCurrency(carga.antt.rota.custo_total)} />
-              {carga.antt.piso_selecionado != null && (
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
                 <Detail
-                  label="Piso ANTT"
-                  value={formatCurrency(carga.antt.piso_selecionado)}
+                  label="Tabela"
+                  value={`Tabela ${carga.antt.tabela}${
+                    carga.antt.categoria_label ? ` · ${carga.antt.categoria_label}` : ''
+                  }`}
                 />
-              )}
-              {carga.antt.rota.free_flow && (
-                <Detail label="Free Flow / OCR" value="Sim (praças na rota)" />
-              )}
-              {carga.antt.rota.provedor === 'antt_aberto' && (
-                <Detail label="Fonte pedágio" value="Dados Abertos ANTT" />
-              )}
+                <Detail label="Duração" value={carga.antt.rota.duracao_label} />
+                <Detail label="Distância" value={`${carga.antt.rota.distancia_km} km`} />
+                <Detail label="Pedágio" value={formatCurrency(carga.antt.rota.pedagio)} />
+                <Detail
+                  label="Pedágio por eixo"
+                  value={formatCurrency(carga.antt.rota.pedagio_por_eixo)}
+                />
+                <Detail
+                  label="Vale-Pedágio"
+                  value={formatCurrency(
+                    carga.antt.rota.vale_pedagio ?? carga.antt.rota.pedagio,
+                  )}
+                />
+                <Detail label="Combustível" value={formatCurrency(carga.antt.rota.combustivel)} />
+                <Detail label="Custo Total" value={formatCurrency(carga.antt.rota.custo_total)} />
+                {carga.antt.piso_selecionado != null && (
+                  <Detail
+                    label="Piso ANTT"
+                    value={formatCurrency(carga.antt.piso_selecionado)}
+                  />
+                )}
+                {carga.antt.rota.free_flow && (
+                  <Detail label="Free Flow / OCR" value="Sim (praças na rota)" />
+                )}
+                {carga.antt.rota.provedor === 'antt_aberto' && (
+                  <Detail label="Fonte pedágio" value="Dados Abertos ANTT" />
+                )}
+              </div>
             </div>
           )}
 
