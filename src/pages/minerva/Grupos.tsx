@@ -69,7 +69,7 @@ export function GruposPage() {
             </ul>
             <button
               type="button"
-              className="mt-3 text-xs font-semibold text-brand hover:underline"
+              className="mt-3 text-xs font-semibold text-black hover:underline"
               onClick={() => {
                 setEditingId(g.id)
                 setForm(g)
