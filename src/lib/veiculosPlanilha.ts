@@ -40,18 +40,35 @@ const MARCAS = new Set([
   'Volvo', 'Scania', 'Mercedes-Benz', 'Volkswagen', 'Iveco', 'Ford', 'Outra',
 ])
 
+/**
+ * Força o Excel a tratar o valor como texto (evita remover zeros à esquerda
+ * em campos como RENAVAM). No CSV vira fórmula ="valor".
+ */
+function excelText(value: string): string {
+  return `="${String(value ?? '').replace(/"/g, '""')}"`
+}
+
+/** Remove fórmula/apóstrofo que o Excel usa para forçar texto. */
+function unwrapExcelText(v: string): string {
+  const s = v.trim()
+  const m = s.match(/^="(.*)"$/)
+  if (m) return m[1].replace(/""/g, '"')
+  if (s.startsWith("'")) return s.slice(1)
+  return s
+}
+
 /** Linha de exemplo no modelo (ajuda o usuário a preencher). */
 const EXEMPLO_ROW: (string | number)[] = [
   'ABC1D23',
-  '00112233445',
+  excelText('00112233445'), // texto — Excel não remove o zero à esquerda
   'Nome do Condutor',
   TIPOS_VEICULO[0] ?? 'Truck',
   '3500,00',
   'Volvo',
   'FH 460',
   'Branco',
-  '2022',
-  '2023',
+  excelText('2022'),
+  excelText('2023'),
   'SP',
   'ativo',
   'nenhum',
@@ -127,7 +144,7 @@ export type LinhaVeiculoPlanilha = {
 }
 
 function cell(raw: Record<string, string>, key: VeiculoPlanilhaHeader): string {
-  return (raw[key] ?? '').trim()
+  return unwrapExcelText(raw[key] ?? '')
 }
 
 function parseNum(v: string): number | undefined {
