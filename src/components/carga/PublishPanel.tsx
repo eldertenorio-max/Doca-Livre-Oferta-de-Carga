@@ -423,10 +423,6 @@ export function PublishPanel({
       setError('Selecione quem vai negociar: ao menos um grupo.')
       return
     }
-    if (!observacao.trim()) {
-      setError('Observações são obrigatórias na publicação.')
-      return
-    }
     if (exigeJustificativa && !motivo) {
       setShowJustificativa(true)
       return
@@ -1207,7 +1203,7 @@ export function PublishPanel({
                 </Field>
               </div>
 
-              <Field label="Observações *">
+              <Field label="Observações">
                 <textarea
                   className={`${inputClass} min-h-16`}
                   value={observacao}
