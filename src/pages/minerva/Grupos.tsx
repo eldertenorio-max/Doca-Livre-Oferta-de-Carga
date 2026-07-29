@@ -1,7 +1,27 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useData } from '../../context/DataContext'
-import type { GrupoTransportador } from '../../types'
+import { canonicalTransportadorId, sameTransportadorId } from '../../lib/transportadorIds'
+import type { GrupoTransportador, Transportador } from '../../types'
 import { Button, Field, inputClass } from '../../components/ui/Modal'
+
+function dedupeTransportadores(list: Transportador[]): Transportador[] {
+  const map = new Map<string, Transportador>()
+  for (const t of list) {
+    const key = canonicalTransportadorId(t.id) ?? t.id
+    const prev = map.get(key)
+    if (!prev) {
+      map.set(key, t)
+      continue
+    }
+    // Prefere UUID canônico / registro ativo
+    if (t.id === key || (prev.situacao !== 'ativo' && t.situacao === 'ativo')) {
+      map.set(key, t)
+    }
+  }
+  return Array.from(map.values()).sort((a, b) =>
+    a.nome_fantasia.localeCompare(b.nome_fantasia, 'pt-BR'),
+  )
+}
 
 export function GruposPage() {
   const { grupos, transportadores, salvarGrupo } = useData()
@@ -13,11 +33,32 @@ export function GruposPage() {
   })
   const [editingId, setEditingId] = useState<string | null>(null)
 
+  const opcoes = useMemo(
+    () =>
+      dedupeTransportadores(
+        transportadores.filter((t) => t.situacao !== 'inativo' && t.situacao !== 'recusado'),
+      ),
+    [transportadores],
+  )
+
+  function isSelected(id: string) {
+    return (form.transportador_ids ?? []).some((x) => sameTransportadorId(x, id))
+  }
+
   function toggleMember(id: string) {
     const ids = form.transportador_ids ?? []
+    const canon = canonicalTransportadorId(id) ?? id
+    if (isSelected(id)) {
+      // Remove todas as formas do mesmo transportador (legado t1 + UUID)
+      setForm({
+        ...form,
+        transportador_ids: ids.filter((x) => !sameTransportadorId(x, id)),
+      })
+      return
+    }
     setForm({
       ...form,
-      transportador_ids: ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id],
+      transportador_ids: [...ids.filter((x) => !sameTransportadorId(x, id)), canon],
     })
   }
 
@@ -28,7 +69,13 @@ export function GruposPage() {
       descricao: form.descricao!,
       situacao: (form.situacao as 'ativo' | 'inativo') ?? 'ativo',
       observacao: form.observacao,
-      transportador_ids: form.transportador_ids ?? [],
+      transportador_ids: Array.from(
+        new Set(
+          (form.transportador_ids ?? [])
+            .map((id) => canonicalTransportadorId(id) ?? id)
+            .filter(Boolean),
+        ),
+      ),
     }
     salvarGrupo(g)
     setEditingId(null)
@@ -63,7 +110,7 @@ export function GruposPage() {
             </p>
             <ul className="mt-1 text-xs text-ink-muted">
               {g.transportador_ids.map((id) => {
-                const t = transportadores.find((x) => x.id === id)
+                const t = transportadores.find((x) => sameTransportadorId(x.id, id))
                 return <li key={id}>• {t?.nome_fantasia ?? id}</li>
               })}
             </ul>
@@ -72,7 +119,16 @@ export function GruposPage() {
               className="mt-3 text-xs font-semibold text-black hover:underline"
               onClick={() => {
                 setEditingId(g.id)
-                setForm(g)
+                setForm({
+                  ...g,
+                  transportador_ids: Array.from(
+                    new Set(
+                      (g.transportador_ids ?? [])
+                        .map((id) => canonicalTransportadorId(id) ?? id)
+                        .filter(Boolean),
+                    ),
+                  ),
+                })
               }}
             >
               Editar
@@ -118,13 +174,11 @@ export function GruposPage() {
               classificação por pontuação — não é o grupo.
             </p>
             <div className="grid gap-1 rounded-lg border border-ink/15 p-3 sm:grid-cols-2">
-              {transportadores
-                .filter((t) => t.situacao !== 'inativo' && t.situacao !== 'recusado')
-                .map((t) => (
-                <label key={t.id} className="flex items-center gap-2 text-sm">
+              {opcoes.map((t) => (
+                <label key={canonicalTransportadorId(t.id) ?? t.id} className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
-                    checked={(form.transportador_ids ?? []).includes(t.id)}
+                    checked={isSelected(t.id)}
                     onChange={() => toggleMember(t.id)}
                   />
                   {t.nome_fantasia}{' '}

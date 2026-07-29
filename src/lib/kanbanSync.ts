@@ -143,17 +143,15 @@ function mergeGrupos(
     if (localT > remoteT) {
       continue
     }
-    // Empate / sem timestamp: não descartar membros que só existem no local
-    const ids = Array.from(
-      new Set([...(prev.transportador_ids ?? []), ...(g.transportador_ids ?? [])]),
-    )
+    // Empate / sem timestamp: preserva a lista local de membros
+    // (não unir com o remoto — evita demos/cópia antiga voltarem sozinhas).
     map.set(g.id, {
       ...g,
       ...prev,
       descricao: prev.descricao || g.descricao,
       observacao: prev.observacao ?? g.observacao,
       situacao: prev.situacao || g.situacao,
-      transportador_ids: ids,
+      transportador_ids: prev.transportador_ids ?? [],
       updated_at: prev.updated_at || g.updated_at,
     })
   }
@@ -282,24 +280,8 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
     chatLeituras: { ...(prev.chatLeituras ?? {}), ...(slice.chatLeituras ?? {}) },
   }
 
-  // Garante demos t1/t2 nos grupos ativos após sync
-  const DEMO_TIDS = [
-    't1',
-    't2',
-    '11111111-1111-1111-1111-111111111111',
-    '22222222-2222-2222-2222-222222222222',
-  ]
-  const grupos = merged.grupos.map((g) => {
-    if (g.situacao === 'inativo') return g
-    const ids = g.transportador_ids ?? []
-    const missing = DEMO_TIDS.filter((id) => !ids.includes(id))
-    if (missing.length === 0) return g
-    return { ...g, transportador_ids: [...ids, ...missing] }
-  })
-
   return {
     ...merged,
-    grupos,
     cargas: alinharStatusComLances(merged.cargas, merged.lances),
   }
 }

@@ -806,42 +806,19 @@ function unificarTransportadoresDuplicados(state: DataState): DataState {
   }
 }
 
-/** Garante grupos e uma oferta de teste utilizável pelas contas demo. */
+/** Garante frota/oferta demo sem mexer nos membros dos grupos criados pelo usuário. */
 function ensureDemoOfertasVisiveis(state: DataState): DataState {
   const withFrota = unificarTransportadoresDuplicados(ensureDemoFrotaMapa(state))
   const excluidos = new Set(withFrota.transportadores_excluidos ?? [])
   const DEMO_TIDS = [
-    't1',
-    't2',
     '11111111-1111-1111-1111-111111111111',
     '22222222-2222-2222-2222-222222222222',
   ].filter((id) => !excluidos.has(id))
+
+  // Não injeta demos em grupos existentes — o usuário controla os membros.
   let grupos = withFrota.grupos
   if (grupos.length === 0) {
     grupos = structuredClone(SEED_GRUPOS)
-  } else {
-    // Só força as contas demo num grupo se elas não estiverem em NENHUM grupo ativo
-    // (evita poluir grupos criados manualmente com membros que ninguém selecionou).
-    const jaTemDemo = grupos.some(
-      (g) =>
-        g.situacao !== 'inativo' &&
-        (g.transportador_ids ?? []).some((id) => DEMO_TIDS.includes(id)),
-    )
-    if (!jaTemDemo) {
-      const alvo = grupos.find((g) => g.situacao !== 'inativo')
-      if (alvo) {
-        grupos = grupos.map((g) =>
-          g.id === alvo.id
-            ? {
-                ...g,
-                transportador_ids: Array.from(
-                  new Set([...(g.transportador_ids ?? []), ...DEMO_TIDS]),
-                ),
-              }
-            : g,
-        )
-      }
-    }
   }
 
   let cargas = withFrota.cargas
@@ -882,10 +859,10 @@ function ensureDemoOfertasVisiveis(state: DataState): DataState {
 
   let transportadores = withFrota.transportadores
   for (const tid of DEMO_TIDS) {
-    const t = transportadores.find((x) => x.id === tid)
+    const t = transportadores.find((x) => sameTransportadorId(x.id, tid))
     if (t && t.situacao === 'inativo') {
       transportadores = transportadores.map((x) =>
-        x.id === tid ? { ...x, situacao: 'ativo' as const } : x,
+        sameTransportadorId(x.id, tid) ? { ...x, situacao: 'ativo' as const } : x,
       )
     }
   }
@@ -1387,13 +1364,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
             ),
           )
         : prev.veiculos
-      const next = ensureDemoFrotaMapa({
-        ...prev,
-        transportadores: Array.from(byId.values()),
-        documentos: Array.from(docsById.values()),
-        veiculos,
-        notificacoes,
-      })
+      const next = unificarTransportadoresDuplicados(
+        ensureDemoFrotaMapa({
+          ...prev,
+          transportadores: Array.from(byId.values()),
+          documentos: Array.from(docsById.values()),
+          veiculos,
+          notificacoes,
+        }),
+      )
       stateRef.current = next
       if (notifNova) pushSlice = next
       return next
@@ -3527,9 +3506,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const salvarGrupo = useCallback((grupo: GrupoTransportador) => {
     const agora = new Date().toISOString()
+    // Canonicaliza e remove duplicatas (t1 ↔ UUID demo, etc.)
+    const idsCanon = Array.from(
+      new Set(
+        (grupo.transportador_ids ?? [])
+          .map((id) => canonicalTransportadorId(id) ?? id)
+          .filter(Boolean),
+      ),
+    )
     const salvo: GrupoTransportador = {
       ...grupo,
-      transportador_ids: [...(grupo.transportador_ids ?? [])],
+      transportador_ids: idsCanon,
       updated_at: agora,
     }
     setState((prev) => {
