@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Check,
+  ChevronDown,
+  ChevronUp,
   Clock,
   Handshake,
   Hourglass,
@@ -1052,17 +1054,39 @@ export function PublishPanel({
                   <p className="font-semibold text-emerald-700">{formatCurrency(ganho)}</p>
                 </div>
                 <Field label="%">
-                  <select
-                    className={inputClass}
-                    value={margem}
-                    onChange={(e) => setMargem(Number(e.target.value))}
-                  >
-                    {margens.map((m) => (
-                      <option key={m} value={m}>
-                        {m}%
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex items-stretch overflow-hidden rounded-md border border-ink/30 bg-white focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      disabled={!canEdit}
+                      value={margem}
+                      onChange={(e) => {
+                        const n = Number(e.target.value)
+                        if (Number.isFinite(n)) setMargem(n)
+                      }}
+                      className="w-full min-w-0 border-0 bg-transparent px-2 py-1.5 text-sm font-bold text-black outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                    <div className="flex flex-col border-l border-ink/20">
+                      <button
+                        type="button"
+                        disabled={!canEdit}
+                        title="Aumentar 1%"
+                        onClick={() => setMargem((v) => Math.min(90, Math.round(v) + 1))}
+                        className="flex flex-1 items-center justify-center px-1.5 text-ink-muted transition hover:bg-sand-light hover:text-ink disabled:opacity-40"
+                      >
+                        <ChevronUp size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!canEdit}
+                        title="Diminuir 1%"
+                        onClick={() => setMargem((v) => Math.max(-90, Math.round(v) - 1))}
+                        className="flex flex-1 items-center justify-center border-t border-ink/20 px-1.5 text-ink-muted transition hover:bg-sand-light hover:text-ink disabled:opacity-40"
+                      >
+                        <ChevronDown size={12} />
+                      </button>
+                    </div>
+                  </div>
                 </Field>
               </div>
 

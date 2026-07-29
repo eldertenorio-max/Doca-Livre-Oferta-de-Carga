@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useData } from '../../context/DataContext'
 import { formatPrazoLabel } from '../../lib/businessRules'
 import { canEditModulo } from '../../lib/portalModules'
-import type { ClassificacaoRota } from '../../types'
 import { Button, Field, inputClass } from '../../components/ui/Modal'
 import '../../styles/cadastro.css'
 
@@ -19,14 +18,6 @@ export function ConfiguracoesPage() {
   const [avancado, setAvancado] = useState(false)
 
   useEffect(() => setForm(config), [config])
-
-  function setMargem(classe: ClassificacaoRota, idx: number, value: number) {
-    setForm((prev) => {
-      const arr = [...prev.margens[classe]]
-      arr[idx] = value
-      return { ...prev, margens: { ...prev.margens, [classe]: arr } }
-    })
-  }
 
   const resumoPrioridade = useMemo(() => {
     const lim = form.limite_urgencia_minutos
@@ -160,39 +151,10 @@ export function ConfiguracoesPage() {
           </div>
         </section>
 
-        {/* 3. Margens */}
+        {/* 3. Lances */}
         <section className="rounded-xl border border-ink/10 bg-white p-4 space-y-3">
           <div>
-            <h2 className="font-display text-base font-semibold">3. Margens do frete oferta</h2>
-            <Hint>
-              Percentual aplicado sobre o frete tabela ao publicar. Valores negativos = desconto.
-              Cada rota tem 3 opções para escolher na publicação.
-            </Hint>
-          </div>
-          {(['A', 'B', 'C'] as const).map((classe) => (
-            <div key={classe} className="rounded-lg border border-ink/10 bg-sand-light/40 p-3">
-              <p className="mb-2 text-xs font-bold text-ink">Rota {classe}</p>
-              <div className="grid grid-cols-3 gap-2">
-                {form.margens[classe].map((v, i) => (
-                  <Field key={i} label={`Opção ${i + 1} (%)`}>
-                    <input
-                      type="number"
-                      className={inputClass}
-                      disabled={!canEdit}
-                      value={v}
-                      onChange={(e) => setMargem(classe, i, Number(e.target.value))}
-                    />
-                  </Field>
-                ))}
-              </div>
-            </div>
-          ))}
-        </section>
-
-        {/* 4. Lances */}
-        <section className="rounded-xl border border-ink/10 bg-white p-4 space-y-3">
-          <div>
-            <h2 className="font-display text-base font-semibold">4. Limites do lance</h2>
+            <h2 className="font-display text-base font-semibold">3. Limites do lance</h2>
             <Hint>
               Em % sobre o frete oferta. Ex.: −20 = até 20% abaixo; 0 = não pode passar do frete
               oferta.
@@ -251,7 +213,7 @@ export function ConfiguracoesPage() {
           </label>
         </section>
 
-        {/* 5. Avançado */}
+        {/* 4. Avançado */}
         <section className="rounded-xl border border-ink/10 bg-white p-4 space-y-3">
           <button
             type="button"
@@ -259,7 +221,7 @@ export function ConfiguracoesPage() {
             onClick={() => setAvancado((v) => !v)}
           >
             <div>
-              <h2 className="font-display text-base font-semibold">5. Opções avançadas</h2>
+              <h2 className="font-display text-base font-semibold">4. Opções avançadas</h2>
               <Hint>Faixa de prazos permitidos e integração com Controle de Fretes.</Hint>
             </div>
             <span className="text-xs font-bold text-ink-muted">{avancado ? 'Ocultar' : 'Mostrar'}</span>
