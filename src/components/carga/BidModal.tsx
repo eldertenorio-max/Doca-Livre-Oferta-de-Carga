@@ -343,20 +343,20 @@ export function BidModal({
 
             <div className="flex flex-wrap gap-2">
               <Button
-                variant="primary"
-                className="min-w-[140px] flex-1"
-                onClick={handleAccept}
-                disabled={bloqueado || !tid}
-              >
-                Aceitar oferta
-              </Button>
-              <Button
                 variant="success"
                 className="min-w-[140px] flex-1"
                 onClick={handleSend}
                 disabled={bloqueado || !tid}
               >
                 Enviar lance
+              </Button>
+              <Button
+                variant="primary"
+                className="min-w-[140px] flex-1"
+                onClick={handleAccept}
+                disabled={bloqueado || !tid}
+              >
+                Aceitar oferta
               </Button>
               <Button variant="danger" className="min-w-[100px] flex-1" onClick={onClose}>
                 Fechar
