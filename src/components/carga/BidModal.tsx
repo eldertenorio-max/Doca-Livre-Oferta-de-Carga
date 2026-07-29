@@ -173,124 +173,21 @@ export function BidModal({
       wide
     >
       <div className="space-y-3">
-        <div className="rounded-lg bg-emerald-50/80 px-3 py-2.5 text-sm">
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-x-4 gap-y-2">
-            <Detail label="Carga" value={live.numero} />
-            <Detail label="Pedido" value={live.pedido} />
-            <Detail label="Carregamento" value={formatDateTime(live.data_carregamento)} />
-            <Detail label="Tipo" value={live.tipo_carga} />
-            <Detail label="Veículo" value={live.veiculo} />
-            <Detail label="Origem" value={live.origem} />
-            <Detail label="Destino" value={live.destino} />
-            <Detail
-              label="Gerenciamento de risco"
-              value={
-                live.gerenciamento_risco === 'rastreador'
-                  ? 'Rastreador'
-                  : live.gerenciamento_risco === 'localizador'
-                    ? 'Localizador'
-                    : live.gerenciamento_risco === 'ambos'
-                      ? 'Ambos'
-                      : live.gerenciamento_risco === 'nao'
-                        ? 'Não exige'
-                        : '—'
-              }
-            />
-            <Detail label="Peso" value={formatNumber(live.peso)} />
-            <Detail label="Frete Tabela" value={formatCurrency(live.frete_tabela)} />
-            <Detail label="Frete Oferta" value={formatCurrency(freteRef)} />
-            {live.frete_minimo != null && (
-              <Detail label="Lance mínimo" value={formatCurrency(roundMoney(live.frete_minimo))} />
-            )}
-            {live.frete_maximo != null && (
-              <Detail label="Lance máximo" value={formatCurrency(roundMoney(live.frete_maximo))} />
-            )}
-            <Detail
-              label="Modo"
-              value={live.modo_publicacao === 'oferta' ? 'Oferta' : 'Leilão'}
-            />
-            <Detail label="Prioridade" value={live.prioridade ?? '—'} />
-            {meuLance && (
-              <Detail
-                label="Seu lance"
-                value={`${formatCurrency(meuLance.valor)}${
-                  meuLance.status === 'vencedor' ? ' (vencedor)' : ''
-                }`}
-              />
-            )}
-          </div>
-        </div>
-
-        {meuLance &&
-          live.frete_oferta != null &&
-          Math.abs(roundMoney(live.frete_oferta) - roundMoney(meuLance.valor)) > 0.009 && (
-            <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-950">
-              <p className="font-bold">Contra-proposta do embarcador</p>
-              <p className="mt-0.5 text-xs">
-                Valor sugerido: <strong>{formatCurrency(roundMoney(live.frete_oferta))}</strong>
-                {' · '}seu lance atual: {formatCurrency(roundMoney(meuLance.valor))}.
-                {somenteLeitura
-                  ? ' Para responder, use o martelo no card.'
-                  : ' Use “Aceitar oferta” ou envie um novo lance.'}
-              </p>
-            </div>
-          )}
-
-        <AnttFretePanel
-          origem={live.origem}
-          destino={live.destino}
-          veiculo={live.veiculo}
-          value={live.antt ?? null}
-          modoConsulta
-        />
-
-        <div className="space-y-1.5 rounded-lg border border-ink/15 bg-white p-2.5">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <p className="text-[12px] font-bold uppercase tracking-wide text-ink">
-              Mapa da rota
-            </p>
-            <p className="text-[11px] font-semibold text-ink">
-              {live.origem} → {live.destino}
-            </p>
-          </div>
-          {open && (
-            <RotaMapPreview
-              key={`bid-map-${live.id}`}
-              origem={live.origem}
-              destino={live.destino}
-              className="h-[220px] min-h-[220px] w-full"
-            />
-          )}
-        </div>
-
-        {onCalcularRota && (
-          <Button
-            type="button"
-            variant="ghost"
-            className="w-full !border !border-ink/20 !bg-white !text-xs"
-            onClick={onCalcularRota}
-          >
-            Ajustar eixos, consumo e diesel (calculadora avançada)
-          </Button>
-        )}
-
-        {histMeu.length > 0 && (
-          <div className="rounded-lg border border-ink/10 p-3 text-xs">
-            <p className="mb-1 font-semibold text-ink">Seu histórico de alterações</p>
-            <ul className="max-h-24 space-y-1 overflow-y-auto text-ink">
-              {histMeu.slice(0, 8).map((h) => (
-                <li key={h.id}>
-                  {formatDateTime(h.created_at)}:{' '}
-                  {h.valor_anterior != null ? `${formatCurrency(h.valor_anterior)} → ` : 'novo '}
-                  {formatCurrency(h.valor_novo)}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
         {!somenteLeitura && (
           <>
+            {meuLance &&
+              live.frete_oferta != null &&
+              Math.abs(roundMoney(live.frete_oferta) - roundMoney(meuLance.valor)) > 0.009 && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-950">
+                  <p className="font-bold">Contra-proposta do embarcador</p>
+                  <p className="mt-0.5 text-xs">
+                    Valor sugerido: <strong>{formatCurrency(roundMoney(live.frete_oferta))}</strong>
+                    {' · '}seu lance atual: {formatCurrency(roundMoney(meuLance.valor))}. Use
+                    “Aceitar oferta” ou envie um novo lance.
+                  </p>
+                </div>
+              )}
+
             <Field label="Sua oferta (R$)">
               <input
                 className={`${inputClass} text-lg font-bold tabular-nums`}
@@ -363,6 +260,121 @@ export function BidModal({
               </Button>
             </div>
           </>
+        )}
+
+        <div className="rounded-lg bg-emerald-50/80 px-3 py-2.5 text-sm">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-x-4 gap-y-2">
+            <Detail label="Carga" value={live.numero} />
+            <Detail label="Pedido" value={live.pedido} />
+            <Detail label="Carregamento" value={formatDateTime(live.data_carregamento)} />
+            <Detail label="Tipo" value={live.tipo_carga} />
+            <Detail label="Veículo" value={live.veiculo} />
+            <Detail label="Origem" value={live.origem} />
+            <Detail label="Destino" value={live.destino} />
+            <Detail
+              label="Gerenciamento de risco"
+              value={
+                live.gerenciamento_risco === 'rastreador'
+                  ? 'Rastreador'
+                  : live.gerenciamento_risco === 'localizador'
+                    ? 'Localizador'
+                    : live.gerenciamento_risco === 'ambos'
+                      ? 'Ambos'
+                      : live.gerenciamento_risco === 'nao'
+                        ? 'Não exige'
+                        : '—'
+              }
+            />
+            <Detail label="Peso" value={formatNumber(live.peso)} />
+            <Detail label="Frete Tabela" value={formatCurrency(live.frete_tabela)} />
+            <Detail label="Frete Oferta" value={formatCurrency(freteRef)} />
+            {live.frete_minimo != null && (
+              <Detail label="Lance mínimo" value={formatCurrency(roundMoney(live.frete_minimo))} />
+            )}
+            {live.frete_maximo != null && (
+              <Detail label="Lance máximo" value={formatCurrency(roundMoney(live.frete_maximo))} />
+            )}
+            <Detail
+              label="Modo"
+              value={live.modo_publicacao === 'oferta' ? 'Oferta' : 'Leilão'}
+            />
+            <Detail label="Prioridade" value={live.prioridade ?? '—'} />
+            {meuLance && (
+              <Detail
+                label="Seu lance"
+                value={`${formatCurrency(meuLance.valor)}${
+                  meuLance.status === 'vencedor' ? ' (vencedor)' : ''
+                }`}
+              />
+            )}
+          </div>
+        </div>
+
+        {somenteLeitura &&
+          meuLance &&
+          live.frete_oferta != null &&
+          Math.abs(roundMoney(live.frete_oferta) - roundMoney(meuLance.valor)) > 0.009 && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-950">
+              <p className="font-bold">Contra-proposta do embarcador</p>
+              <p className="mt-0.5 text-xs">
+                Valor sugerido: <strong>{formatCurrency(roundMoney(live.frete_oferta))}</strong>
+                {' · '}seu lance atual: {formatCurrency(roundMoney(meuLance.valor))}. Para
+                responder, use o martelo no card.
+              </p>
+            </div>
+          )}
+
+        <AnttFretePanel
+          origem={live.origem}
+          destino={live.destino}
+          veiculo={live.veiculo}
+          value={live.antt ?? null}
+          modoConsulta
+        />
+
+        <div className="space-y-1.5 rounded-lg border border-ink/15 bg-white p-2.5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-[12px] font-bold uppercase tracking-wide text-ink">
+              Mapa da rota
+            </p>
+            <p className="text-[11px] font-semibold text-ink">
+              {live.origem} → {live.destino}
+            </p>
+          </div>
+          {open && (
+            <RotaMapPreview
+              key={`bid-map-${live.id}`}
+              origem={live.origem}
+              destino={live.destino}
+              className="h-[220px] min-h-[220px] w-full"
+            />
+          )}
+        </div>
+
+        {onCalcularRota && (
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full !border !border-ink/20 !bg-white !text-xs"
+            onClick={onCalcularRota}
+          >
+            Ajustar eixos, consumo e diesel (calculadora avançada)
+          </Button>
+        )}
+
+        {histMeu.length > 0 && (
+          <div className="rounded-lg border border-ink/10 p-3 text-xs">
+            <p className="mb-1 font-semibold text-ink">Seu histórico de alterações</p>
+            <ul className="max-h-24 space-y-1 overflow-y-auto text-ink">
+              {histMeu.slice(0, 8).map((h) => (
+                <li key={h.id}>
+                  {formatDateTime(h.created_at)}:{' '}
+                  {h.valor_anterior != null ? `${formatCurrency(h.valor_anterior)} → ` : 'novo '}
+                  {formatCurrency(h.valor_novo)}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
 
         {somenteLeitura && (
