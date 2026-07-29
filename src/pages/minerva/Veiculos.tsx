@@ -18,6 +18,7 @@ import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
 import { newVeiculoId } from '../../lib/veiculosSync'
 import { CarroceriaSuggestInput } from '../../components/ui/CarroceriaSuggestInput'
 import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
+import { ImportarVeiculosModal } from '../../components/veiculos/ImportarVeiculosModal'
 import type { FotoVeiculoSlot, FotosVeiculo, Veiculo } from '../../types'
 import '../../styles/cadastro.css'
 
@@ -72,6 +73,7 @@ export function VeiculosPage() {
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
   const [dicaFoto, setDicaFoto] = useState<FotoVeiculoSlot | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
 
   const listaVeiculos = veiculos ?? []
   const listaTransportadores = transportadores ?? []
@@ -357,10 +359,31 @@ export function VeiculosPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          <button
+            type="button"
+            className="cadastro-btn cadastro-btn--ghost"
+            onClick={() => setImportOpen(true)}
+          >
+            Importar planilha
+          </button>
           <button type="button" className="cadastro-btn cadastro-btn--primary" onClick={openNew}>
             + Novo Veículo
           </button>
         </div>
+
+        <ImportarVeiculosModal
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          transportadorIdFixo={
+            user?.role === 'transportador' ? user.transportador_id || null : undefined
+          }
+          transportadores={scopedTransportadores}
+          placasExistentes={scopedVeiculos.map((v) => v.placa)}
+          onImport={(lista) => {
+            for (const v of lista) salvarVeiculo(v)
+            setImportOpen(false)
+          }}
+        />
 
         <div className="cadastro-table-wrap">
           {filtered.length === 0 ? (
