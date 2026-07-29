@@ -21,6 +21,8 @@ interface KanbanBoardProps {
   onCardDrop?: (cardId: string, fromColumn: string, toColumn: string) => void
   /** Chave localStorage para lembrar colunas minimizadas (por Kanban) */
   storageKey?: string
+  /** Texto quando a coluna está vazia */
+  emptyLabel?: string
 }
 
 type DragPayload = { cardId: string; fromColumn: string }
@@ -52,6 +54,7 @@ export function KanbanBoard({
   columns,
   onCardDrop,
   storageKey = DEFAULT_STORAGE_KEY,
+  emptyLabel = 'Nenhuma carga',
 }: KanbanBoardProps) {
   const [dragOverKey, setDragOverKey] = useState<string | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -203,7 +206,7 @@ export function KanbanBoard({
               <div className={`kanban-col__body${isOver ? ' is-over' : ''}`}>
                 {col.items.length === 0 ? (
                   <p className={`kanban-col__empty${isOver ? ' is-drop' : ''}`}>
-                    {isOver ? 'Solte o card aqui' : 'Nenhuma carga'}
+                    {isOver ? 'Solte o card aqui' : emptyLabel}
                   </p>
                 ) : (
                   col.items.map((item) => (

@@ -451,3 +451,32 @@ export interface IntegracaoFrete {
   tentativa_em: string
   resposta?: string
 }
+
+/** Kanban de tarefas (transportador) */
+export type StatusTarefa =
+  | 'pendente'
+  | 'aprovadas'
+  | 'em_desenvolvimento'
+  | 'em_testes'
+  | 'finalizadas'
+  | 'canceladas'
+
+export type PrioridadeTarefa = 'baixa' | 'media' | 'alta' | 'urgente'
+
+export interface Tarefa {
+  id: string
+  transportador_id: string
+  titulo: string
+  descricao?: string
+  status: StatusTarefa
+  prioridade: PrioridadeTarefa
+  responsavel?: string
+  solicitado_por?: string
+  tags: string[]
+  /** Data URL ou URL das imagens de exemplo (máx. 3). */
+  imagens: string[]
+  data_inicio?: string | null
+  prazo_entrega?: string | null
+  created_at: string
+  updated_at?: string
+}

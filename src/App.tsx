@@ -18,6 +18,7 @@ import { VeiculosPage } from './pages/minerva/Veiculos'
 import { MotoristasPage } from './pages/minerva/Motoristas'
 import { PortalConfigPage } from './pages/minerva/PortalConfig'
 import { KanbanTransportador } from './pages/transportador/KanbanTransportador'
+import { KanbanTarefasPage } from './pages/transportador/KanbanTarefas'
 import { ViagensTransportadorPage } from './pages/transportador/Viagens'
 import { PainelTransportadorPage } from './pages/transportador/Painel'
 import { MapaFrotaPage } from './pages/minerva/MapaFrota'
@@ -193,6 +194,14 @@ export default function App() {
           element={
             <Protected role={['transportador', 'super']}>
               <KanbanTransportador />
+            </Protected>
+          }
+        />
+        <Route
+          path="/transportador/tarefas"
+          element={
+            <Protected role={['transportador', 'super']}>
+              <KanbanTarefasPage />
             </Protected>
           }
         />
