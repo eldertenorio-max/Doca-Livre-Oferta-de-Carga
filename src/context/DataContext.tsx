@@ -719,9 +719,96 @@ function ensureDemoFrotaMapa(state: DataState): DataState {
   }
 }
 
+/**
+ * Corrige duplicidade histórica: as contas demo (Santos/Nova Era) migraram de IDs
+ * curtos (t1/t2) para UUIDs. Quem já tinha dados salvos localmente antes da migração
+ * acaba com as DUAS versões simultâneas no array de transportadores (aparecem
+ * repetidas, por exemplo, ao montar um grupo). Aqui mantemos um único registro por
+ * transportador (preferindo o UUID canônico) e remapeamos as referências
+ * (motoristas, veículos, documentos, lances, grupos, cargas) para o id mantido.
+ */
+function unificarTransportadoresDuplicados(state: DataState): DataState {
+  const porCanonico = new Map<string, Transportador[]>()
+  for (const t of state.transportadores) {
+    const chave = canonicalTransportadorId(t.id) ?? t.id
+    const lista = porCanonico.get(chave)
+    if (lista) lista.push(t)
+    else porCanonico.set(chave, [t])
+  }
+
+  if (!Array.from(porCanonico.values()).some((lista) => lista.length > 1)) return state
+
+  const remap = new Map<string, string>()
+  const transportadoresFinal: Transportador[] = []
+  for (const [chave, lista] of porCanonico) {
+    if (lista.length === 1) {
+      transportadoresFinal.push(lista[0])
+      continue
+    }
+    const vencedor =
+      lista.find((t) => t.id === chave) ?? lista.find((t) => t.situacao === 'ativo') ?? lista[0]
+    transportadoresFinal.push({ ...lista[0], ...vencedor, id: vencedor.id })
+    for (const t of lista) {
+      if (t.id !== vencedor.id) remap.set(t.id, vencedor.id)
+    }
+  }
+
+  if (remap.size === 0) return { ...state, transportadores: transportadoresFinal }
+  const remapId = <T extends string | null | undefined>(id: T): T =>
+    (id != null && remap.has(id) ? (remap.get(id) as T) : id)
+
+  return {
+    ...state,
+    transportadores: transportadoresFinal,
+    motoristas: (state.motoristas ?? []).map((m) =>
+      m.transportador_id && remap.has(m.transportador_id)
+        ? { ...m, transportador_id: remapId(m.transportador_id) }
+        : m,
+    ),
+    veiculos: (state.veiculos ?? []).map((v) =>
+      v.transportador_id && remap.has(v.transportador_id)
+        ? { ...v, transportador_id: remapId(v.transportador_id) }
+        : v,
+    ),
+    documentos: (state.documentos ?? []).map((d) =>
+      remap.has(d.transportador_id) ? { ...d, transportador_id: remapId(d.transportador_id)! } : d,
+    ),
+    lances: (state.lances ?? []).map((l) =>
+      remap.has(l.transportador_id) ? { ...l, transportador_id: remapId(l.transportador_id)! } : l,
+    ),
+    historicoPropostas: (state.historicoPropostas ?? []).map((h) =>
+      remap.has(h.transportador_id) ? { ...h, transportador_id: remapId(h.transportador_id)! } : h,
+    ),
+    interacoes: (state.interacoes ?? []).map((i) =>
+      remap.has(i.transportador_id) ? { ...i, transportador_id: remapId(i.transportador_id)! } : i,
+    ),
+    grupos: (state.grupos ?? []).map((g) => {
+      const ids = (g.transportador_ids ?? []).map((id) => remapId(id))
+      const unicos = Array.from(new Set(ids))
+      const mudou =
+        unicos.length !== (g.transportador_ids ?? []).length ||
+        unicos.some((id, i) => id !== g.transportador_ids[i])
+      return mudou ? { ...g, transportador_ids: unicos } : g
+    }),
+    cargas: (state.cargas ?? []).map((c) => {
+      const novoVencedor = remapId(c.transportador_vencedor_id)
+      const recusados = (c.recusado_por_ids ?? []).map((id) => remapId(id))
+      const mudouRecusados =
+        recusados.length !== (c.recusado_por_ids ?? []).length ||
+        recusados.some((id, i) => id !== (c.recusado_por_ids ?? [])[i])
+      if (novoVencedor === c.transportador_vencedor_id && !mudouRecusados) return c
+      return {
+        ...c,
+        transportador_vencedor_id: novoVencedor,
+        recusado_por_ids: mudouRecusados ? recusados : c.recusado_por_ids,
+      }
+    }),
+  }
+}
+
 /** Garante grupos e uma oferta de teste utilizável pelas contas demo. */
 function ensureDemoOfertasVisiveis(state: DataState): DataState {
-  const withFrota = ensureDemoFrotaMapa(state)
+  const withFrota = unificarTransportadoresDuplicados(ensureDemoFrotaMapa(state))
   const excluidos = new Set(withFrota.transportadores_excluidos ?? [])
   const DEMO_TIDS = [
     't1',
@@ -729,15 +816,32 @@ function ensureDemoOfertasVisiveis(state: DataState): DataState {
     '11111111-1111-1111-1111-111111111111',
     '22222222-2222-2222-2222-222222222222',
   ].filter((id) => !excluidos.has(id))
-  let grupos = withFrota.grupos.map((g) => {
-    if (g.situacao === 'inativo') return g
-    const ids = g.transportador_ids ?? []
-    const missing = DEMO_TIDS.filter((id) => !ids.includes(id))
-    if (missing.length === 0) return g
-    return { ...g, transportador_ids: [...ids, ...missing] }
-  })
+  let grupos = withFrota.grupos
   if (grupos.length === 0) {
     grupos = structuredClone(SEED_GRUPOS)
+  } else {
+    // Só força as contas demo num grupo se elas não estiverem em NENHUM grupo ativo
+    // (evita poluir grupos criados manualmente com membros que ninguém selecionou).
+    const jaTemDemo = grupos.some(
+      (g) =>
+        g.situacao !== 'inativo' &&
+        (g.transportador_ids ?? []).some((id) => DEMO_TIDS.includes(id)),
+    )
+    if (!jaTemDemo) {
+      const alvo = grupos.find((g) => g.situacao !== 'inativo')
+      if (alvo) {
+        grupos = grupos.map((g) =>
+          g.id === alvo.id
+            ? {
+                ...g,
+                transportador_ids: Array.from(
+                  new Set([...(g.transportador_ids ?? []), ...DEMO_TIDS]),
+                ),
+              }
+            : g,
+        )
+      }
+    }
   }
 
   let cargas = withFrota.cargas
