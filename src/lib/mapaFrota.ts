@@ -289,7 +289,9 @@ export function montarPontosFrota(
       id: `${m.id}-${v.id}`,
       motoristaId: m.id,
       motoristaNome: m.nome,
-      motoristaTelefone: m.telefone,
+      // WhatsApp exibido: telefone do próprio motorista; se não tiver,
+      // usa o WhatsApp cadastrado da transportadora (contato_telefone).
+      motoristaTelefone: m.telefone || t.contato_telefone || t.telefone,
       motoristaCnh: m.cnh,
       motoristaCategoriaCnh: m.categoria_cnh,
       motoristaFoto: fotoPerfil,
@@ -335,7 +337,8 @@ export function montarPontosFrota(
       id: `veic-${v.id}`,
       motoristaId: '',
       motoristaNome: nome,
-      motoristaTelefone: t.telefone || t.contato_telefone,
+      // WhatsApp cadastrado da transportadora tem prioridade sobre o telefone genérico.
+      motoristaTelefone: t.contato_telefone || t.telefone,
       motoristaFoto: fotoPerfil,
       avaliacao: 0,
       totalAvaliacoes: 0,
