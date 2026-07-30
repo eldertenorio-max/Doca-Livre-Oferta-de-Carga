@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   baixarModeloPlanilhaVeiculos,
   montarVeiculosParaImportacao,
-  parsePlanilhaVeiculos,
+  parsePlanilhaVeiculosArquivo,
   type LinhaVeiculoPlanilha,
 } from '../../lib/veiculosPlanilha'
 import type { Transportador, Veiculo } from '../../types'
@@ -107,22 +107,30 @@ export function ImportarVeiculosModal({
     setErro('')
     setOkMsg('')
     const name = file.name.toLowerCase()
-    if (!name.endsWith('.csv') && !name.endsWith('.txt')) {
-      setErro('Use o modelo em CSV (Excel → Salvar como CSV / baixe o modelo).')
+    if (
+      !name.endsWith('.xlsx') &&
+      !name.endsWith('.xls') &&
+      !name.endsWith('.csv') &&
+      !name.endsWith('.txt')
+    ) {
+      setErro('Use o modelo Excel (.xlsx) baixado aqui. Também aceitamos .xls ou .csv.')
       return
     }
-    const text = await file.text()
-    const parsed = parsePlanilhaVeiculos(text)
-    setFileName(file.name)
-    setHeadersOk(parsed.headersOk)
-    setMissingHeaders(parsed.missingHeaders)
-    setLinhas(parsed.linhas)
-    if (!parsed.headersOk) {
-      setErro(
-        `Planilha incompleta. Faltam colunas obrigatórias: ${parsed.missingHeaders.join(', ')}. Baixe o modelo.`,
-      )
-    } else if (parsed.linhas.length === 0) {
-      setErro('Nenhuma linha de veículo encontrada na planilha.')
+    try {
+      const parsed = await parsePlanilhaVeiculosArquivo(file)
+      setFileName(file.name)
+      setHeadersOk(parsed.headersOk)
+      setMissingHeaders(parsed.missingHeaders)
+      setLinhas(parsed.linhas)
+      if (!parsed.headersOk) {
+        setErro(
+          `Planilha incompleta. Faltam colunas obrigatórias: ${parsed.missingHeaders.join(', ')}. Baixe o modelo.`,
+        )
+      } else if (parsed.linhas.length === 0) {
+        setErro('Nenhuma linha de veículo encontrada na planilha.')
+      }
+    } catch {
+      setErro('Não foi possível ler a planilha. Baixe o modelo .xlsx e tente novamente.')
     }
   }
 
@@ -148,12 +156,8 @@ export function ImportarVeiculosModal({
     <Modal open={open} title="Importar veículos por planilha" onClose={onClose} wide>
       <div className="space-y-4">
         <p className="text-sm font-medium text-black">
-          Baixe o modelo, preencha com os mesmos campos do cadastro e envie o arquivo CSV. As fotos
-          não entram na planilha — complete depois em Editar, se precisar.
-        </p>
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-950">
-          Ao abrir no Excel, se aparecer aviso de conversão de dados (zeros à esquerda), clique em{' '}
-          <strong>Não Converter</strong>. Isso preserva o RENAVAM e outros números com zero na frente.
+          Baixe o modelo em Excel (.xlsx), preencha com os mesmos campos do cadastro e envie o
+          arquivo. As fotos não entram na planilha — complete depois em Editar, se precisar.
         </p>
 
         <div className="flex flex-wrap gap-2">
@@ -166,7 +170,7 @@ export function ImportarVeiculosModal({
           <input
             ref={fileRef}
             type="file"
-            accept=".csv,text/csv,.txt"
+            accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0] ?? null

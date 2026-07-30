@@ -1,4 +1,4 @@
-import { downloadCsv } from './exportCsv'
+import * as XLSX from 'xlsx'
 import { emptyFotosVeiculo } from './veiculoFotos'
 import { TIPOS_VEICULO } from './tiposVeiculo'
 import { parseMoneyInput, roundMoney } from './businessRules'
@@ -31,6 +31,15 @@ export const VEICULO_PLANILHA_HEADERS = [
 
 export type VeiculoPlanilhaHeader = (typeof VEICULO_PLANILHA_HEADERS)[number]
 
+/** Colunas que devem ficar como texto no Excel (zeros à esquerda). */
+const COLUNAS_TEXTO = new Set<VeiculoPlanilhaHeader>([
+  'placa',
+  'renavam',
+  'ano_fabricacao',
+  'ano_modelo',
+  'uf_licenciamento',
+])
+
 const UFS = new Set([
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA',
   'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
@@ -39,14 +48,6 @@ const UFS = new Set([
 const MARCAS = new Set([
   'Volvo', 'Scania', 'Mercedes-Benz', 'Volkswagen', 'Iveco', 'Ford', 'Outra',
 ])
-
-/**
- * Força o Excel a tratar o valor como texto (evita remover zeros à esquerda
- * em campos como RENAVAM). No CSV vira fórmula ="valor".
- */
-function excelText(value: string): string {
-  return `="${String(value ?? '').replace(/"/g, '""')}"`
-}
 
 /** Remove fórmula/apóstrofo que o Excel usa para forçar texto. */
 function unwrapExcelText(v: string): string {
@@ -58,17 +59,17 @@ function unwrapExcelText(v: string): string {
 }
 
 /** Linha de exemplo no modelo (ajuda o usuário a preencher). */
-const EXEMPLO_ROW: (string | number)[] = [
+const EXEMPLO_ROW: string[] = [
   'ABC1D23',
-  excelText('00112233445'), // texto — Excel não remove o zero à esquerda
+  '00112233445',
   'Nome do Condutor',
   TIPOS_VEICULO[0] ?? 'Truck',
   '3500,00',
   'Volvo',
   'FH 460',
   'Branco',
-  excelText('2022'),
-  excelText('2023'),
+  '2022',
+  '2023',
   'SP',
   'ativo',
   'nenhum',
@@ -81,8 +82,32 @@ const EXEMPLO_ROW: (string | number)[] = [
   '3',
 ]
 
+/** Baixa modelo em pasta de trabalho Excel (.xlsx). */
 export function baixarModeloPlanilhaVeiculos() {
-  downloadCsv('modelo-cadastro-veiculos.csv', [...VEICULO_PLANILHA_HEADERS], [EXEMPLO_ROW])
+  const headers = [...VEICULO_PLANILHA_HEADERS]
+  const ws = XLSX.utils.aoa_to_sheet([headers, EXEMPLO_ROW])
+
+  // Largura amigável + formato texto nas colunas sensíveis (RENAVAM, anos…)
+  ws['!cols'] = headers.map((h) => ({
+    wch: Math.max(14, h.length + 2),
+  }))
+
+  for (let c = 0; c < headers.length; c++) {
+    const key = headers[c] as VeiculoPlanilhaHeader
+    if (!COLUNAS_TEXTO.has(key)) continue
+    for (const r of [0, 1]) {
+      const addr = XLSX.utils.encode_cell({ r, c })
+      const cell = ws[addr]
+      if (!cell) continue
+      cell.t = 's'
+      cell.v = String(cell.v ?? '')
+      cell.z = '@'
+    }
+  }
+
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Veículos')
+  XLSX.writeFile(wb, 'modelo-cadastro-veiculos.xlsx')
 }
 
 function normalizeHeader(h: string): string {
@@ -169,57 +194,58 @@ function mapSituacao(v: string): 'ativo' | 'inativo' {
   return 'ativo'
 }
 
-export function parsePlanilhaVeiculos(text: string): {
+const ALIASES: Record<string, VeiculoPlanilhaHeader> = {
+  placa: 'placa',
+  renavam: 'renavam',
+  condutor: 'condutor',
+  proprietario: 'condutor',
+  tipo: 'tipo',
+  categoria: 'tipo',
+  frete_minimo: 'frete_minimo',
+  frete: 'frete_minimo',
+  marca: 'marca',
+  modelo: 'modelo',
+  cor: 'cor',
+  ano_fabricacao: 'ano_fabricacao',
+  ano_fab: 'ano_fabricacao',
+  ano_modelo: 'ano_modelo',
+  uf_licenciamento: 'uf_licenciamento',
+  uf: 'uf_licenciamento',
+  situacao: 'situacao',
+  gerenciamento_risco: 'gerenciamento_risco',
+  risco: 'gerenciamento_risco',
+  rastreador_dados: 'rastreador_dados',
+  tipo_carroceria: 'tipo_carroceria',
+  carroceria: 'tipo_carroceria',
+  qtd_pallets: 'qtd_pallets',
+  pallets: 'qtd_pallets',
+  aclimatacao: 'aclimatacao',
+  capacidade_kg: 'capacidade_kg',
+  capacidade: 'capacidade_kg',
+  cubagem_m3: 'cubagem_m3',
+  cubagem: 'cubagem_m3',
+  eixos: 'eixos',
+}
+
+/** Parse a partir de matriz (1ª linha = cabeçalho). */
+export function parsePlanilhaVeiculosRows(rows: string[][]): {
   headersOk: boolean
   missingHeaders: string[]
   linhas: LinhaVeiculoPlanilha[]
 } {
-  const cleaned = text.replace(/^\ufeff/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-  const lines = cleaned.split('\n').filter((l) => l.trim().length > 0)
-  if (lines.length === 0) {
+  const nonEmpty = rows.filter((r) => r.some((c) => String(c ?? '').trim().length > 0))
+  if (nonEmpty.length === 0) {
     return { headersOk: false, missingHeaders: [...VEICULO_PLANILHA_HEADERS], linhas: [] }
   }
 
-  const sep = detectSep(lines[0])
-  const headerCells = parseCsvLine(lines[0], sep).map(normalizeHeader)
+  const headerCells = (nonEmpty[0] ?? []).map((h) => normalizeHeader(String(h ?? '')))
   const headerIndex = new Map<string, number>()
-  headerCells.forEach((h, i) => headerIndex.set(h, i))
-
-  const aliases: Record<string, VeiculoPlanilhaHeader> = {
-    placa: 'placa',
-    renavam: 'renavam',
-    condutor: 'condutor',
-    proprietario: 'condutor',
-    tipo: 'tipo',
-    categoria: 'tipo',
-    frete_minimo: 'frete_minimo',
-    frete: 'frete_minimo',
-    marca: 'marca',
-    modelo: 'modelo',
-    cor: 'cor',
-    ano_fabricacao: 'ano_fabricacao',
-    ano_fab: 'ano_fabricacao',
-    ano_modelo: 'ano_modelo',
-    uf_licenciamento: 'uf_licenciamento',
-    uf: 'uf_licenciamento',
-    situacao: 'situacao',
-    gerenciamento_risco: 'gerenciamento_risco',
-    risco: 'gerenciamento_risco',
-    rastreador_dados: 'rastreador_dados',
-    tipo_carroceria: 'tipo_carroceria',
-    carroceria: 'tipo_carroceria',
-    qtd_pallets: 'qtd_pallets',
-    pallets: 'qtd_pallets',
-    aclimatacao: 'aclimatacao',
-    capacidade_kg: 'capacidade_kg',
-    capacidade: 'capacidade_kg',
-    cubagem_m3: 'cubagem_m3',
-    cubagem: 'cubagem_m3',
-    eixos: 'eixos',
-  }
+  headerCells.forEach((h, i) => {
+    if (h) headerIndex.set(h, i)
+  })
 
   const colMap = new Map<VeiculoPlanilhaHeader, number>()
-  for (const [alias, canon] of Object.entries(aliases)) {
+  for (const [alias, canon] of Object.entries(ALIASES)) {
     const idx = headerIndex.get(alias)
     if (idx != null && !colMap.has(canon)) colMap.set(canon, idx)
   }
@@ -228,19 +254,17 @@ export function parsePlanilhaVeiculos(text: string): {
     (h) => !colMap.has(h) && (h === 'placa' || h === 'tipo' || h === 'frete_minimo'),
   )
   const headersOk = missingHeaders.length === 0
-
   const tiposLower = new Set(TIPOS_VEICULO.map((t) => t.toLowerCase()))
 
   const linhas: LinhaVeiculoPlanilha[] = []
-  for (let i = 1; i < lines.length; i++) {
-    const cells = parseCsvLine(lines[i], sep)
+  for (let i = 1; i < nonEmpty.length; i++) {
+    const cells = nonEmpty[i] ?? []
     const raw: Record<string, string> = {}
     for (const h of VEICULO_PLANILHA_HEADERS) {
       const idx = colMap.get(h)
-      raw[h] = idx != null ? (cells[idx] ?? '').trim() : ''
+      raw[h] = idx != null ? String(cells[idx] ?? '').trim() : ''
     }
 
-    // Pula linha de exemplo / totalmente vazia
     const placa = cell(raw, 'placa').toUpperCase().replace(/[^A-Z0-9]/g, '')
     if (!placa && !cell(raw, 'tipo') && !cell(raw, 'frete_minimo')) continue
 
@@ -248,9 +272,8 @@ export function parsePlanilhaVeiculos(text: string): {
     if (!placa || placa.length < 7) erros.push('Placa inválida')
     const tipo = cell(raw, 'tipo')
     if (!tipo) erros.push('Tipo obrigatório')
-    else if (!tiposLower.has(tipo.toLowerCase())) {
-      // aceita tipo livre (SuggestInput permite), só avisa se muito curto
-      if (tipo.length < 2) erros.push('Tipo inválido')
+    else if (!tiposLower.has(tipo.toLowerCase()) && tipo.length < 2) {
+      erros.push('Tipo inválido')
     }
 
     let frete = parseMoneyInput(cell(raw, 'frete_minimo'))
@@ -324,6 +347,52 @@ export function parsePlanilhaVeiculos(text: string): {
   }
 
   return { headersOk, missingHeaders, linhas }
+}
+
+/** Parse CSV/texto (compatibilidade). */
+export function parsePlanilhaVeiculos(text: string): {
+  headersOk: boolean
+  missingHeaders: string[]
+  linhas: LinhaVeiculoPlanilha[]
+} {
+  const cleaned = text.replace(/^\ufeff/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  const lines = cleaned.split('\n').filter((l) => l.trim().length > 0)
+  if (lines.length === 0) {
+    return { headersOk: false, missingHeaders: [...VEICULO_PLANILHA_HEADERS], linhas: [] }
+  }
+  const sep = detectSep(lines[0])
+  const rows = lines.map((line) => parseCsvLine(line, sep))
+  return parsePlanilhaVeiculosRows(rows)
+}
+
+/** Lê arquivo .xlsx / .xls / .csv e devolve linhas validadas. */
+export async function parsePlanilhaVeiculosArquivo(file: File): Promise<{
+  headersOk: boolean
+  missingHeaders: string[]
+  linhas: LinhaVeiculoPlanilha[]
+}> {
+  const name = file.name.toLowerCase()
+  if (name.endsWith('.csv') || name.endsWith('.txt')) {
+    return parsePlanilhaVeiculos(await file.text())
+  }
+
+  const buf = await file.arrayBuffer()
+  const wb = XLSX.read(buf, { type: 'array', cellDates: false, raw: false })
+  const sheetName = wb.SheetNames[0]
+  if (!sheetName) {
+    return { headersOk: false, missingHeaders: [...VEICULO_PLANILHA_HEADERS], linhas: [] }
+  }
+  const sheet = wb.Sheets[sheetName]
+  const aoa = XLSX.utils.sheet_to_json<(string | number | null | undefined)[]>(sheet, {
+    header: 1,
+    defval: '',
+    raw: false,
+    blankrows: false,
+  })
+  const rows = aoa.map((row) =>
+    (Array.isArray(row) ? row : []).map((c) => String(c ?? '').trim()),
+  )
+  return parsePlanilhaVeiculosRows(rows)
 }
 
 export function montarVeiculosParaImportacao(
