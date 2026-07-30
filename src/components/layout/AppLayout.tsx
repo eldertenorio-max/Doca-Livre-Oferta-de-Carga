@@ -103,6 +103,7 @@ function IconWallet() {
 
 const minervaLinks: NavItem[] = [
   { to: '/embarcador', label: 'Kanban Cargas', icon: <IconGrid />, end: true },
+  { to: '/embarcador/tarefas', label: 'Kanban Tarefas', icon: <IconGrid /> },
   { to: '/embarcador/viagens', label: 'Viagens', icon: <IconTruck /> },
   { to: '/embarcador/mapa-frota', label: 'Mapa da Frota', icon: <IconMap /> },
   { to: '/embarcador/rotas', label: 'Rotas', icon: <IconMap /> },
@@ -120,7 +121,6 @@ const minervaLinks: NavItem[] = [
 const transportadorLinks: NavItem[] = [
   { to: '/transportador/painel', label: 'Painel', icon: <IconChart /> },
   { to: '/transportador', label: 'Kanban Ofertas', icon: <IconGrid />, end: true },
-  { to: '/transportador/tarefas', label: 'Kanban Tarefas', icon: <IconGrid /> },
   { to: '/transportador/viagens', label: 'Viagens', icon: <IconTruck /> },
   { to: '/transportador/veiculos', label: 'Meus Veículos', icon: <IconTruck /> },
   { to: '/transportador/motoristas', label: 'Meus Motoristas', icon: <IconUsers /> },
@@ -369,7 +369,6 @@ export function AppLayout() {
         ...minervaLinks,
         { to: '/transportador/painel', label: 'Painel Transportador', icon: <IconChart /> },
         { to: '/transportador', label: 'Kanban Transportador', icon: <IconGrid />, end: true },
-        { to: '/transportador/tarefas', label: 'Kanban Tarefas', icon: <IconGrid /> },
         { to: '/transportador/viagens', label: 'Viagens Transportador', icon: <IconTruck /> },
       ]
     }

@@ -19,7 +19,7 @@ export type OfertaModuloId =
   | 'permissoes'
   | 'kanban_transportador'
   | 'viagens_transportador'
-  | 'tarefas_transportador'
+  | 'tarefas'
 
 export type OfertaPermissao = {
   pode_acessar: boolean
@@ -29,6 +29,7 @@ export type OfertaPermissao = {
 
 export const OFERTA_MODULOS_CATALOGO: { id: OfertaModuloId; label: string; role?: 'minerva' | 'transportador' | 'ambos' }[] = [
   { id: 'kanban', label: 'Kanban Cargas', role: 'minerva' },
+  { id: 'tarefas', label: 'Kanban Tarefas', role: 'minerva' },
   { id: 'viagens', label: 'Viagens', role: 'minerva' },
   { id: 'rotas', label: 'Rotas', role: 'minerva' },
   { id: 'transportadoras', label: 'Transportadoras', role: 'minerva' },
@@ -43,13 +44,13 @@ export const OFERTA_MODULOS_CATALOGO: { id: OfertaModuloId; label: string; role?
   { id: 'permissoes', label: 'Permissões', role: 'minerva' },
   { id: 'kanban_transportador', label: 'Kanban Ofertas', role: 'transportador' },
   { id: 'viagens_transportador', label: 'Viagens', role: 'transportador' },
-  { id: 'tarefas_transportador', label: 'Kanban Tarefas', role: 'transportador' },
 ]
 
 export const DEFAULT_PERMISSAO_MINERVA: OfertaPermissao = {
   pode_acessar: true,
   modulos: {
     kanban: 'editar',
+    tarefas: 'editar',
     viagens: 'editar',
     rotas: 'editar',
     transportadoras: 'editar',
@@ -68,7 +69,6 @@ export const DEFAULT_PERMISSAO_TRANSPORTADOR: OfertaPermissao = {
   modulos: {
     kanban_transportador: 'editar',
     viagens_transportador: 'editar',
-    tarefas_transportador: 'editar',
     veiculos: 'editar',
     motoristas: 'editar',
   },
@@ -110,7 +110,7 @@ export function moduloFromPath(pathname: string): OfertaModuloId | null {
   const p = pathname.replace(/^\/minerva(?=\/|$)/, '/embarcador')
   if (p.startsWith('/embarcador/viagens')) return 'viagens'
   if (p.startsWith('/transportador/viagens')) return 'viagens_transportador'
-  if (p.startsWith('/transportador/tarefas')) return 'tarefas_transportador'
+  if (p.startsWith('/embarcador/tarefas') || p.startsWith('/transportador/tarefas')) return 'tarefas'
   if (p.startsWith('/embarcador/rotas')) return 'rotas'
   if (p.startsWith('/embarcador/transportadores')) return 'transportadoras'
   if (p.startsWith('/embarcador/veiculos') || p.startsWith('/transportador/veiculos'))

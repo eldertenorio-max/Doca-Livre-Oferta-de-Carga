@@ -2,6 +2,9 @@ import type { StatusTarefa, Tarefa } from '../types'
 
 const STORAGE_KEY = 'doca-livre-tarefas-v1'
 
+/** Escopo único do Kanban de Tarefas do embarcador. */
+export const EMBARCADOR_TAREFAS_SCOPE = 'embarcador'
+
 function loadAll(): Tarefa[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)

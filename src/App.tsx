@@ -91,6 +91,14 @@ export default function App() {
           }
         />
         <Route
+          path="/embarcador/tarefas"
+          element={
+            <Protected role={['super']}>
+              <KanbanTarefasPage />
+            </Protected>
+          }
+        />
+        <Route
           path="/embarcador/viagens"
           element={
             <Protected role={['super']}>
@@ -200,8 +208,8 @@ export default function App() {
         <Route
           path="/transportador/tarefas"
           element={
-            <Protected role={['transportador', 'super']}>
-              <KanbanTarefasPage />
+            <Protected role={['super']}>
+              <Navigate to="/embarcador/tarefas" replace />
             </Protected>
           }
         />

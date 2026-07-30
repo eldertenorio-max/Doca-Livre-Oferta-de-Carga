@@ -452,7 +452,7 @@ export interface IntegracaoFrete {
   resposta?: string
 }
 
-/** Kanban de tarefas (transportador) */
+/** Kanban de tarefas (embarcador) */
 export type StatusTarefa =
   | 'pendente'
   | 'aprovadas'

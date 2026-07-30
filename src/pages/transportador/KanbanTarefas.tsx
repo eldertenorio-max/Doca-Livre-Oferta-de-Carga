@@ -5,84 +5,33 @@ import { KanbanBoard } from '../../components/kanban/KanbanBoard'
 import { TarefaCard } from '../../components/tarefas/TarefaCard'
 import { TarefaModal } from '../../components/tarefas/TarefaModal'
 import { COLUNAS_TAREFAS, isStatusTarefa } from '../../lib/tarefasColumns'
-import { loadTarefas, moverTarefa } from '../../lib/tarefasStorage'
-import { DEMO_TRANSPORTADOR } from '../../lib/portalAuth'
+import { EMBARCADOR_TAREFAS_SCOPE, loadTarefas, moverTarefa } from '../../lib/tarefasStorage'
 import { isSuperSession } from '../../lib/superUsers'
 import { canEditModulo } from '../../lib/portalModules'
 import { normalizarTexto } from '../../lib/cidadesBrasil'
 import type { StatusTarefa, Tarefa } from '../../types'
 import { Button, inputClass } from '../../components/ui/Modal'
 
-const VIEW_AS_STORAGE_KEY = 'doca-livre-kanban-transportador-view-as'
-
-function readStoredViewAs(): string {
-  try {
-    return sessionStorage.getItem(VIEW_AS_STORAGE_KEY) || ''
-  } catch {
-    return ''
-  }
-}
-
+/** Kanban de tarefas — exclusivo do embarcador (Super). */
 export function KanbanTarefasPage() {
-  const {
-    user,
-    transportadores,
-    setActingTransportadorId,
-    effectiveTransportadorId,
-  } = useData()
+  const { user } = useData()
 
   const isSuper = isSuperSession(user)
-  const canPickTransportador = isSuper || !user?.transportador_id
   const canEdit =
-    canEditModulo(user?.permissoes_modulos, 'tarefas_transportador') ||
+    canEditModulo(user?.permissoes_modulos, 'tarefas') ||
     Boolean(user?.is_superuser) ||
-    isSuper ||
-    user?.role === 'transportador'
+    isSuper
 
-  const transportadoresAtivos = useMemo(
-    () =>
-      [...transportadores]
-        .filter((t) => t.situacao !== 'inativo')
-        .sort((a, b) => a.nome_fantasia.localeCompare(b.nome_fantasia, 'pt-BR')),
-    [transportadores],
-  )
-
-  const defaultViewAs =
-    (canPickTransportador ? readStoredViewAs() : '') ||
-    user?.transportador_id ||
-    transportadoresAtivos.find((t) => t.id === DEMO_TRANSPORTADOR.transportador_id)?.id ||
-    transportadoresAtivos[0]?.id ||
-    ''
-
-  const [viewAsId, setViewAsId] = useState(defaultViewAs)
+  const scopeId = EMBARCADOR_TAREFAS_SCOPE
   const [tarefas, setTarefas] = useState<Tarefa[]>([])
   const [busca, setBusca] = useState('')
   const [filtroPrioridade, setFiltroPrioridade] = useState('todas')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Tarefa | null>(null)
 
-  const tid = effectiveTransportadorId || viewAsId
-
   useEffect(() => {
-    if (!viewAsId && defaultViewAs) setViewAsId(defaultViewAs)
-  }, [defaultViewAs, viewAsId])
-
-  useEffect(() => {
-    if (canPickTransportador) {
-      setActingTransportadorId(viewAsId || null)
-      try {
-        if (viewAsId) sessionStorage.setItem(VIEW_AS_STORAGE_KEY, viewAsId)
-      } catch {
-        /* ignore */
-      }
-    } else {
-      setActingTransportadorId(null)
-    }
-  }, [canPickTransportador, viewAsId, setActingTransportadorId])
-
-  useEffect(() => {
-    setTarefas(tid ? loadTarefas(tid) : [])
-  }, [tid])
+    setTarefas(loadTarefas(scopeId))
+  }, [scopeId])
 
   const filtradas = useMemo(() => {
     const q = normalizarTexto(busca)
@@ -121,7 +70,7 @@ export function KanbanTarefasPage() {
   )
 
   function refresh() {
-    if (tid) setTarefas(loadTarefas(tid))
+    setTarefas(loadTarefas(scopeId))
   }
 
   function handleDrop(cardId: string, _from: string, toColumn: string) {
@@ -141,20 +90,6 @@ export function KanbanTarefasPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {canPickTransportador ? (
-            <select
-              className={`${inputClass} !w-auto min-w-[180px]`}
-              value={viewAsId}
-              onChange={(e) => setViewAsId(e.target.value)}
-              title="Ver como"
-            >
-              {transportadoresAtivos.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nome_fantasia}
-                </option>
-              ))}
-            </select>
-          ) : null}
           {canEdit ? (
             <Button
               variant="primary"
@@ -207,24 +142,18 @@ export function KanbanTarefasPage() {
         )}
       </div>
 
-      {!tid ? (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          Selecione uma transportadora para ver as tarefas.
-        </p>
-      ) : (
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <KanbanBoard
-            columns={columns}
-            onCardDrop={canEdit ? handleDrop : undefined}
-            storageKey="doca-livre-kanban-tarefas-collapsed-v1"
-            emptyLabel="Nenhuma tarefa"
-          />
-        </div>
-      )}
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <KanbanBoard
+          columns={columns}
+          onCardDrop={canEdit ? handleDrop : undefined}
+          storageKey="doca-livre-kanban-tarefas-collapsed-v1"
+          emptyLabel="Nenhuma tarefa"
+        />
+      </div>
 
       <TarefaModal
         open={modalOpen}
-        transportadorId={tid || ''}
+        transportadorId={scopeId}
         tarefa={editing}
         onClose={() => {
           setModalOpen(false)
