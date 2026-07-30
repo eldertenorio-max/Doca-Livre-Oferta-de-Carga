@@ -163,12 +163,32 @@ export function KanbanMinerva() {
 
   // Topbar “+ Nova carga” navega com state.novaCarga
   useEffect(() => {
-    const st = location.state as { novaCarga?: boolean } | null
+    const st = location.state as { novaCarga?: boolean; abrirCargaId?: string } | null
     if (!st?.novaCarga) return
     openNovaCarga()
     navigate(location.pathname, { replace: true, state: null })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao chegar com o sinal da topbar
   }, [location.state, location.pathname, navigate])
+
+  // Notificação “Nova proposta” / Ver card → abre o painel de negociação da carga
+  useEffect(() => {
+    const st = location.state as { abrirCargaId?: string; novaCarga?: boolean } | null
+    if (st?.novaCarga) return
+    const fromQuery = searchParams.get('cargaId')
+    const id = (st?.abrirCargaId || fromQuery || '').trim()
+    if (!id) return
+    const c = cargas.find((x) => x.id === id)
+    if (!c) return
+    openPanel(c, 'publicar')
+    const sp = new URLSearchParams(searchParams)
+    sp.delete('cargaId')
+    setSearchParams(sp, { replace: true })
+    navigate(
+      { pathname: location.pathname, search: sp.toString() ? `?${sp}` : '' },
+      { replace: true, state: null },
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- abre uma vez ao chegar da notificação
+  }, [cargas, location.state, location.pathname, searchParams, navigate, setSearchParams])
 
   function openMapaFrota(c: Carga) {
     const params = new URLSearchParams()

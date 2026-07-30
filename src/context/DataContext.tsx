@@ -2332,7 +2332,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           titulo: isNew ? 'Nova proposta' : 'Proposta atualizada',
           mensagem: `Carga ${cargaOk.numero}: R$ ${valor.toFixed(2)}. Negocie pelo card.`,
           carga_id: cargaId,
-          href: '/embarcador',
+          href: `/embarcador?cargaId=${encodeURIComponent(cargaId)}`,
         }),
       }
       stateRef.current = next

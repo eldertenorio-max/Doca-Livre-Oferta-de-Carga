@@ -483,13 +483,26 @@ export function AppLayout() {
                           if (!n.lida) marcarNotificacaoLida(n.id)
                           if (n.href) {
                             setNotifOpen(false)
-                            navigate(n.href)
+                            navigate(n.href, {
+                              state: n.carga_id ? { abrirCargaId: n.carga_id } : undefined,
+                            })
                             return
                           }
                           if (n.carga_id) {
                             const c = (cargas ?? []).find((x) => x.id === n.carga_id)
                             if (c) {
                               setNotifOpen(false)
+                              // Proposta → card de negociação no Kanban embarcador
+                              if (
+                                n.titulo === 'Nova proposta' ||
+                                n.titulo === 'Proposta atualizada' ||
+                                n.titulo === 'Nova proposta recebida'
+                              ) {
+                                navigate('/embarcador', {
+                                  state: { abrirCargaId: n.carga_id },
+                                })
+                                return
+                              }
                               setChatCargaId(c.id)
                             }
                           }
