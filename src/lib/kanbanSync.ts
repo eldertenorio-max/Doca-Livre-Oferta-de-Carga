@@ -88,6 +88,34 @@ export function pickSyncSlice(state: KanbanSyncSlice): KanbanSyncSlice {
   }
 }
 
+const KANBAN_BACKUP_KEY = 'doca-livre-kanban-backup-v1'
+
+/** Backup da aba — sobrevive a F5 enquanto o sync remoto alcança. */
+export function saveKanbanBackup(slice: KanbanSyncSlice) {
+  try {
+    sessionStorage.setItem(
+      KANBAN_BACKUP_KEY,
+      JSON.stringify({ at: Date.now(), slice: pickSyncSlice(slice) }),
+    )
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+export function loadKanbanBackup(): KanbanSyncSlice | null {
+  try {
+    const raw = sessionStorage.getItem(KANBAN_BACKUP_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { at?: number; slice?: KanbanSyncSlice }
+    if (!parsed?.slice || !Array.isArray(parsed.slice.cargas)) return null
+    // Descarta backup muito antigo (12h)
+    if (parsed.at && Date.now() - parsed.at > 12 * 60 * 60_000) return null
+    return parsed.slice
+  } catch {
+    return null
+  }
+}
+
 export function sliceFingerprint(slice: KanbanSyncSlice): string {
   return JSON.stringify(slice)
 }
@@ -205,8 +233,9 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
   const cargas = cargasMerged.filter((c) => !excluidas.has(c.id))
 
   const lancesMerged =
-    remoteLances.length === 0 && prev.lances.length > 0 && remoteCargas.length === 0
-      ? prev.lances
+    remoteLances.length === 0 && prev.lances.length > 0
+      ? // Remoto sem lances não apaga propostas locais (corrida de push / payload incompleto)
+        prev.lances
       : mergeById(prev.lances, remoteLances)
   const lances = lancesMerged.filter((l) => !excluidas.has(l.carga_id))
 

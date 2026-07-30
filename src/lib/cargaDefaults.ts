@@ -100,5 +100,9 @@ export function lanceNaRodadaAtual(
   carga: { publicado_em?: string | null },
 ): boolean {
   if (!carga.publicado_em) return true
-  return new Date(lance.created_at).getTime() >= new Date(carga.publicado_em).getTime() - 2000
+  // Tolerância ampla: relógio entre aparelhos + latência de sync
+  return (
+    new Date(lance.created_at).getTime() >=
+    new Date(carga.publicado_em).getTime() - 60_000
+  )
 }

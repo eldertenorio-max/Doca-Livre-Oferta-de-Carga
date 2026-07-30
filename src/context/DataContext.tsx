@@ -98,9 +98,11 @@ import {
 } from '../lib/veiculosSync'
 import {
   applySyncSlice,
+  loadKanbanBackup,
   pickSyncSlice,
   pullKanbanSync,
   pushKanbanSync,
+  saveKanbanBackup,
   sliceFingerprint,
   subscribeKanbanSync,
 } from '../lib/kanbanSync'
@@ -855,7 +857,9 @@ function ensureDemoOfertasVisiveis(state: DataState): DataState {
     }
   }
   cargas = normalizeCargasNegociacao(cargas, grupos)
-  let lances = cancelarLancesForaDaRodada(cargas, withFrota.lances)
+  // Não cancelar lances aqui — republicar/reabrir já cancela a rodada antiga.
+  // cancelarLancesForaDaRodada neste ponto apagava propostas ativas no sync/reload.
+  let lances = withFrota.lances
   cargas = alinharStatusComLances(cargas, lances)
 
   let transportadores = withFrota.transportadores
@@ -907,6 +911,16 @@ function loadState(): DataState {
       localStorage.getItem(STORAGE_KEY) ??
       localStorage.getItem(STORAGE_KEY_LEGACY) ??
       localStorage.getItem(STORAGE_KEY_LEGACY2)
+
+    // Backup da aba (F5): restaura lances/cargas até o pull remoto
+    const backup = loadKanbanBackup()
+    if (!raw && backup && (backup.cargas?.length || backup.lances?.length)) {
+      const fromBackup = ensureDemoOfertasVisiveis(
+        applySyncSlice(defaults, backup) as DataState,
+      )
+      return fromBackup
+    }
+
     if (!raw) return ensureDemoOfertasVisiveis(defaults)
     const parsed = JSON.parse(raw) as Partial<DataState>
     const grupos = Array.isArray(parsed.grupos) ? parsed.grupos : defaults.grupos
@@ -1092,6 +1106,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const flushKanbanPush = useCallback((next: typeof state) => {
     if (!isSupabaseConfigured) return
+    // Backup local imediato (antes do push) — F5 não perde lance em andamento
+    try {
+      saveKanbanBackup(pickSyncSlice(next))
+    } catch {
+      /* ignore */
+    }
     if (!kanbanHydratedRef.current) return
     if (applyingRemoteRef.current) {
       pendingPushRef.current = true
@@ -1108,7 +1128,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
       // Só marca fingerprint após push OK — senão o heal não tenta de novo
       void pushKanbanSync(slice).then((ok) => {
-        if (ok) lastSyncFpRef.current = fp
+        if (ok) {
+          lastSyncFpRef.current = fp
+          saveKanbanBackup(slice)
+        }
       })
     }
 
@@ -1215,6 +1238,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const next = ensureDemoOfertasVisiveis(applySyncSlice(prev, payload.slice))
         stateRef.current = next
         lastSyncFpRef.current = sliceFingerprint(pickSyncSlice(next))
+        saveKanbanBackup(pickSyncSlice(next))
         return next
       })
       window.setTimeout(finishRemoteApply, 0)
