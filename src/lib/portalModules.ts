@@ -30,7 +30,7 @@ export type OfertaPermissao = {
 export const OFERTA_MODULOS_CATALOGO: { id: OfertaModuloId; label: string; role?: 'minerva' | 'transportador' | 'ambos' }[] = [
   { id: 'kanban', label: 'Kanban Cargas', role: 'minerva' },
   { id: 'tarefas', label: 'Kanban Tarefas', role: 'minerva' },
-  { id: 'viagens', label: 'Viagens', role: 'minerva' },
+  { id: 'viagens', label: 'Kanban Viagens', role: 'minerva' },
   { id: 'rotas', label: 'Rotas', role: 'minerva' },
   { id: 'transportadoras', label: 'Transportadoras', role: 'minerva' },
   { id: 'veiculos', label: 'Veículos', role: 'ambos' },
@@ -43,7 +43,7 @@ export const OFERTA_MODULOS_CATALOGO: { id: OfertaModuloId; label: string; role?
   { id: 'hierarquia', label: 'Hierarquia', role: 'minerva' },
   { id: 'permissoes', label: 'Permissões', role: 'minerva' },
   { id: 'kanban_transportador', label: 'Kanban Ofertas', role: 'transportador' },
-  { id: 'viagens_transportador', label: 'Viagens', role: 'transportador' },
+  { id: 'viagens_transportador', label: 'Kanban Viagens', role: 'transportador' },
 ]
 
 export const DEFAULT_PERMISSAO_MINERVA: OfertaPermissao = {
