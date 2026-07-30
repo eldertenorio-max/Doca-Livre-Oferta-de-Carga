@@ -144,6 +144,26 @@ export function tempoRestante(expiraEm: string | null): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+/** Tempo decorrido desde inicioEm até fimEm (ou agora). Formato m:ss ou h:mm:ss */
+export function tempoDecorrido(
+  inicioEm: string | null | undefined,
+  fimEm?: string | null,
+): string {
+  if (!inicioEm) return '0:00'
+  const start = new Date(inicioEm).getTime()
+  if (Number.isNaN(start)) return '0:00'
+  const end = fimEm ? new Date(fimEm).getTime() : Date.now()
+  if (Number.isNaN(end)) return '0:00'
+  const totalSec = Math.max(0, Math.floor((end - start) / 1000))
+  const h = Math.floor(totalSec / 3600)
+  const m = Math.floor((totalSec % 3600) / 60)
+  const s = totalSec % 60
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  }
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
 export function prioridadeColor(p: Prioridade | null): string {
   if (p === 'alta') return 'var(--priority-high)'
   if (p === 'media') return 'var(--priority-medium)'

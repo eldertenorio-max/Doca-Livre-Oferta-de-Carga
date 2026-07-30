@@ -3,6 +3,7 @@ import {
   formatCurrency,
   formatDate,
   formatNumber,
+  tempoDecorrido,
 } from '../../lib/businessRules'
 import { COLUNAS_VIAGEM, colunaViagem, type ColunaViagem } from '../../lib/viagensColumns'
 import { useData } from '../../context/DataContext'
@@ -61,7 +62,8 @@ export function GridViagens({
   onCancelar,
   onAvaliar,
 }: Props) {
-  const { transportadores, veiculos, motoristas } = useData()
+  const { transportadores, veiculos, motoristas, tick } = useData()
+  void tick
   const [filtro, setFiltro] = useState<string>('todas')
 
   const metrics = useMemo(
@@ -119,6 +121,20 @@ export function GridViagens({
     return COLUNAS_VIAGEM.find((c) => c.key === key)?.color || '#64748b'
   }
 
+  function tempoViagem(c: Carga) {
+    if (!c.viagem_iniciada_em) return '—'
+    if (c.status_viagem === 'rota_iniciada') {
+      return tempoDecorrido(c.viagem_iniciada_em)
+    }
+    if (c.status_viagem === 'rota_finalizada' || c.status_viagem === 'cancelada') {
+      return tempoDecorrido(
+        c.viagem_iniciada_em,
+        c.viagem_finalizada_em ?? c.viagem_cancelada_em ?? null,
+      )
+    }
+    return '—'
+  }
+
   function tituloColuna(key: string) {
     return COLUNAS_VIAGEM.find((c) => c.key === key)?.title || key
   }
@@ -162,6 +178,7 @@ export function GridViagens({
               <th>Placa</th>
               <th>Peso</th>
               <th>Frete</th>
+              <th>Tempo</th>
               <th>Status</th>
               <th>Ações</th>
             </tr>
@@ -169,7 +186,7 @@ export function GridViagens({
           <tbody>
             {filtradas.length === 0 ? (
               <tr>
-                <td colSpan={mode === 'minerva' ? 12 : 11}>
+                <td colSpan={mode === 'minerva' ? 13 : 12}>
                   <div className="grid-cargas__empty">Nenhuma viagem neste filtro.</div>
                 </td>
               </tr>
@@ -217,6 +234,17 @@ export function GridViagens({
                     <td>{c.peso > 0 ? `${formatNumber(c.peso, 0)} kg` : '—'}</td>
                     <td>
                       <strong>{frete(c)}</strong>
+                    </td>
+                    <td>
+                      {(() => {
+                        const t = tempoViagem(c)
+                        if (t === '—') return <span className="grid-cargas__muted">—</span>
+                        return (
+                          <span className="grid-cargas__pill grid-cargas__pill--timer tabular-nums">
+                            {t}
+                          </span>
+                        )
+                      })()}
                     </td>
                     <td>
                       <span

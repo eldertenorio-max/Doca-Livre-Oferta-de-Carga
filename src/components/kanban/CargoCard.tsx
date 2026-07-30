@@ -1,5 +1,11 @@
 import { useId, useState } from 'react'
-import { formatCurrency, formatDate, formatNumber, tempoRestante } from '../../lib/businessRules'
+import {
+  formatCurrency,
+  formatDate,
+  formatNumber,
+  tempoDecorrido,
+  tempoRestante,
+} from '../../lib/businessRules'
 import type { Carga } from '../../types'
 import { useData } from '../../context/DataContext'
 import { ChatModal } from '../carga/ChatModal'
@@ -464,8 +470,25 @@ export function CargoCard({
 
   const freteLinha = mode === 'transportador' && bidValue != null ? bidValue : frete
 
+  const statusViagem = carga.status_viagem ?? null
+  const emViagem =
+    statusViagem === 'rota_iniciada' && Boolean(carga.viagem_iniciada_em)
+  const viagemEncerrada =
+    (statusViagem === 'rota_finalizada' || statusViagem === 'cancelada') &&
+    Boolean(carga.viagem_iniciada_em)
+
+  const tempoViagem = emViagem
+    ? tempoDecorrido(carga.viagem_iniciada_em)
+    : viagemEncerrada
+      ? tempoDecorrido(
+          carga.viagem_iniciada_em,
+          carga.viagem_finalizada_em ?? carga.viagem_cancelada_em ?? null,
+        )
+      : null
+
   const janela = tempoRestante(carga.expira_em ?? carga.alocacao_expira_em)
   const urgente =
+    !tempoViagem &&
     Boolean(carga.expira_em) &&
     new Date(carga.expira_em!).getTime() - Date.now() < 5 * 60_000
 
@@ -496,13 +519,21 @@ export function CargoCard({
               <span className="font-bold text-ink">Carga:</span>{' '}
               <span className="font-semibold tabular-nums text-ink">{carga.numero}</span>
             </p>
-            <p
-              className={
-                urgente ? 'animate-pulse-soft font-semibold text-[#e84752]' : 'text-ink'
-              }
-            >
-              <span className="font-bold">Janela:</span> {janela}
-            </p>
+            {tempoViagem != null ? (
+              <p className="font-semibold tabular-nums text-[#2563eb]">
+                <span className="font-bold">Tempo:</span> {tempoViagem}
+              </p>
+            ) : (
+              <p
+                className={
+                  urgente
+                    ? 'animate-pulse-soft font-semibold text-[#e84752]'
+                    : 'text-ink'
+                }
+              >
+                <span className="font-bold">Janela:</span> {janela}
+              </p>
+            )}
           </div>
           <p>
             <span className="font-bold text-ink">Carregamento:</span>{' '}
