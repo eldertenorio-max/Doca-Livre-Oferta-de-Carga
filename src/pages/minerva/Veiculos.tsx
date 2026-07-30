@@ -381,7 +381,6 @@ export function VeiculosPage() {
           placasExistentes={scopedVeiculos.map((v) => v.placa)}
           onImport={(lista) => {
             for (const v of lista) salvarVeiculo(v)
-            setImportOpen(false)
           }}
         />
 

@@ -34,7 +34,7 @@ export function ImportarVeiculosModal({
   const [missingHeaders, setMissingHeaders] = useState<string[]>([])
   const [fileName, setFileName] = useState('')
   const [erro, setErro] = useState('')
-  const [okMsg, setOkMsg] = useState('')
+  const [concluidoQtd, setConcluidoQtd] = useState<number | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -44,7 +44,7 @@ export function ImportarVeiculosModal({
     setHeadersOk(true)
     setMissingHeaders([])
     setErro('')
-    setOkMsg('')
+    setConcluidoQtd(null)
     if (fileRef.current) fileRef.current.value = ''
   }, [open, transportadorIdFixo])
 
@@ -98,14 +98,13 @@ export function ImportarVeiculosModal({
     setHeadersOk(true)
     setMissingHeaders([])
     setErro('')
-    setOkMsg('')
     if (fileRef.current) fileRef.current.value = ''
   }
 
   async function onPickFile(file: File | null) {
     if (!file) return
     setErro('')
-    setOkMsg('')
+    setConcluidoQtd(null)
     const name = file.name.toLowerCase()
     if (
       !name.endsWith('.xlsx') &&
@@ -136,7 +135,6 @@ export function ImportarVeiculosModal({
 
   function handleImport() {
     setErro('')
-    setOkMsg('')
     const tid = transportadorIdFixo || transportadorId || null
     if (precisaEscolherEmpresa && !tid) {
       setErro('Selecione a transportadora para vincular as placas.')
@@ -148,118 +146,139 @@ export function ImportarVeiculosModal({
     }
     const veiculos = montarVeiculosParaImportacao(validas, tid)
     onImport(veiculos)
-    setOkMsg(`${veiculos.length} veículo(s) importado(s). Fotos podem ser anexadas depois em Editar.`)
     resetFile()
+    setConcluidoQtd(veiculos.length)
   }
 
   return (
     <Modal open={open} title="Importar veículos por planilha" onClose={onClose} wide>
       <div className="space-y-4">
-        <p className="text-sm font-medium text-black">
-          Baixe o modelo em Excel (.xlsx), preencha com os mesmos campos do cadastro e envie o
-          arquivo. As fotos não entram na planilha — complete depois em Editar, se precisar.
-        </p>
-
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="ghost" className="!border !border-ink/20" onClick={baixarModeloPlanilhaVeiculos}>
-            Baixar modelo de planilha
-          </Button>
-          <Button type="button" variant="primary" onClick={() => fileRef.current?.click()}>
-            Selecionar planilha
-          </Button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0] ?? null
-              void onPickFile(f)
-            }}
-          />
-        </div>
-
-        {precisaEscolherEmpresa ? (
-          <Field label="Transportadora para vincular as placas *">
-            <select
-              className={inputClass}
-              value={transportadorId}
-              onChange={(e) => setTransportadorId(e.target.value)}
-            >
-              <option value="">Selecione…</option>
-              {empresasAtivas.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nome_fantasia}
-                </option>
-              ))}
-            </select>
-          </Field>
+        {concluidoQtd != null ? (
+          <div
+            className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-950"
+            role="status"
+            aria-live="polite"
+          >
+            <p className="text-base font-extrabold text-emerald-900">Importação concluída</p>
+            <p className="mt-1 font-medium text-emerald-900">
+              {concluidoQtd} veículo(s) cadastrado(s) com sucesso.
+            </p>
+            <p className="mt-1 text-xs font-medium text-emerald-800">
+              As fotos podem ser anexadas depois em Editar, se precisar.
+            </p>
+          </div>
         ) : (
-          <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">
-            As placas serão vinculadas automaticamente à sua transportadora.
+          <p className="text-sm font-medium text-black">
+            Baixe o modelo em Excel (.xlsx), preencha com os mesmos campos do cadastro e envie o
+            arquivo. As fotos não entram na planilha — complete depois em Editar, se precisar.
           </p>
         )}
 
-        {fileName ? (
-          <p className="text-xs font-semibold text-ink">
-            Arquivo: <span className="text-black">{fileName}</span> · {linhas.length} linha(s)
-            {headersOk ? '' : ' · cabeçalho incompleto'}
-          </p>
-        ) : null}
-
-        {linhas.length > 0 && headersOk ? (
-          <div className="grid gap-2 sm:grid-cols-3 text-xs">
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
-              <p className="font-bold text-emerald-900">Prontas</p>
-              <p className="text-lg font-extrabold text-emerald-800">{validas.length}</p>
+        {concluidoQtd == null ? (
+          <>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="ghost" className="!border !border-ink/20" onClick={baixarModeloPlanilhaVeiculos}>
+                Baixar modelo de planilha
+              </Button>
+              <Button type="button" variant="primary" onClick={() => fileRef.current?.click()}>
+                Selecionar planilha
+              </Button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null
+                  void onPickFile(f)
+                }}
+              />
             </div>
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-              <p className="font-bold text-amber-900">Já cadastradas / duplicadas</p>
-              <p className="text-lg font-extrabold text-amber-800">
-                {jaCadastradas.length + duplicadasArquivo.length}
+
+            {precisaEscolherEmpresa ? (
+              <Field label="Transportadora para vincular as placas *">
+                <select
+                  className={inputClass}
+                  value={transportadorId}
+                  onChange={(e) => setTransportadorId(e.target.value)}
+                >
+                  <option value="">Selecione…</option>
+                  {empresasAtivas.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.nome_fantasia}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            ) : (
+              <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">
+                As placas serão vinculadas automaticamente à sua transportadora.
               </p>
-            </div>
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
-              <p className="font-bold text-red-900">Com erro</p>
-              <p className="text-lg font-extrabold text-red-800">{invalidas.length}</p>
-            </div>
-          </div>
-        ) : null}
+            )}
 
-        {invalidas.length > 0 ? (
-          <div className="max-h-36 overflow-y-auto rounded-lg border border-red-100 bg-red-50/50 p-2 text-[11px] text-red-900">
-            {invalidas.slice(0, 20).map((l) => (
-              <p key={l.linha}>
-                Linha {l.linha}: {l.erros.join('; ')}
+            {fileName ? (
+              <p className="text-xs font-semibold text-ink">
+                Arquivo: <span className="text-black">{fileName}</span> · {linhas.length} linha(s)
+                {headersOk ? '' : ' · cabeçalho incompleto'}
               </p>
-            ))}
-            {invalidas.length > 20 ? <p>… e mais {invalidas.length - 20}</p> : null}
-          </div>
-        ) : null}
+            ) : null}
 
-        {erro ? (
-          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800">
-            {erro}
-          </p>
-        ) : null}
-        {okMsg ? (
-          <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">
-            {okMsg}
-          </p>
+            {linhas.length > 0 && headersOk ? (
+              <div className="grid gap-2 sm:grid-cols-3 text-xs">
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+                  <p className="font-bold text-emerald-900">Prontas</p>
+                  <p className="text-lg font-extrabold text-emerald-800">{validas.length}</p>
+                </div>
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                  <p className="font-bold text-amber-900">Já cadastradas / duplicadas</p>
+                  <p className="text-lg font-extrabold text-amber-800">
+                    {jaCadastradas.length + duplicadasArquivo.length}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                  <p className="font-bold text-red-900">Com erro</p>
+                  <p className="text-lg font-extrabold text-red-800">{invalidas.length}</p>
+                </div>
+              </div>
+            ) : null}
+
+            {invalidas.length > 0 ? (
+              <div className="max-h-36 overflow-y-auto rounded-lg border border-red-100 bg-red-50/50 p-2 text-[11px] text-red-900">
+                {invalidas.slice(0, 20).map((l) => (
+                  <p key={l.linha}>
+                    Linha {l.linha}: {l.erros.join('; ')}
+                  </p>
+                ))}
+                {invalidas.length > 20 ? <p>… e mais {invalidas.length - 20}</p> : null}
+              </div>
+            ) : null}
+
+            {erro ? (
+              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800">
+                {erro}
+              </p>
+            ) : null}
+          </>
         ) : null}
 
         <div className="flex flex-wrap justify-end gap-2">
           <Button type="button" variant="ghost" className="!border !border-ink/15" onClick={onClose}>
             Fechar
           </Button>
-          <Button
-            type="button"
-            variant="success"
-            disabled={validas.length === 0 || (precisaEscolherEmpresa && !transportadorId)}
-            onClick={handleImport}
-          >
-            Importar {validas.length > 0 ? `(${validas.length})` : ''}
-          </Button>
+          {concluidoQtd == null ? (
+            <Button
+              type="button"
+              variant="success"
+              disabled={validas.length === 0 || (precisaEscolherEmpresa && !transportadorId)}
+              onClick={handleImport}
+            >
+              Importar {validas.length > 0 ? `(${validas.length})` : ''}
+            </Button>
+          ) : (
+            <Button type="button" variant="success" onClick={onClose}>
+              Concluir
+            </Button>
+          )}
         </div>
       </div>
     </Modal>
