@@ -147,10 +147,22 @@ export function BidModal({
     submitValor(parseMoneyInput(valor))
   }
 
+  const temContraProposta =
+    Boolean(meuLance) &&
+    live.frete_oferta != null &&
+    Math.abs(roundMoney(live.frete_oferta) - roundMoney(meuLance!.valor)) > 0.009
+
   function handleAccept() {
     const aceito = roundMoney(freteRef)
+    if (temContraProposta) {
+      const ok = window.confirm(
+        `Deseja realmente aceitar a contra-proposta de ${formatCurrency(aceito)}?\n\n` +
+          `Seu lance atual: ${formatCurrency(roundMoney(meuLance!.valor))}.\n` +
+          `Ao confirmar, o frete será fechado neste valor.`,
+      )
+      if (!ok) return
+    }
     setValor(formatMoneyInput(aceito))
-    // Aceita a oferta/contra-proposta e fecha o frete nesse valor
     submitValor(aceito, { aceitarOferta: true })
   }
 
