@@ -24,6 +24,7 @@ import {
   formatMoneyInput,
   formatNumber,
   formatPrazoLabel,
+  moneyFromDigits,
   parseMoneyInput,
   tempoRestante,
 } from '../../lib/businessRules'
@@ -1790,9 +1791,9 @@ export function PublishPanel({
             <input
               className={`${inputClass} text-lg font-bold tabular-nums`}
               value={contraValor}
-              inputMode="decimal"
+              inputMode="numeric"
               autoFocus
-              onChange={(e) => setContraValor(e.target.value)}
+              onChange={(e) => setContraValor(moneyFromDigits(e.target.value).display)}
               onBlur={() => {
                 const n = parseMoneyInput(contraValor)
                 if (Number.isNaN(n)) return

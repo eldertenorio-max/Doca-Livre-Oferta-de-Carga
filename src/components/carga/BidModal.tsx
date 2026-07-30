@@ -5,6 +5,7 @@ import {
   formatDateTime,
   formatMoneyInput,
   formatNumber,
+  moneyFromDigits,
   parseMoneyInput,
   roundMoney,
 } from '../../lib/businessRules'
@@ -22,16 +23,6 @@ interface BidModalProps {
   onCalcularRota?: () => void
   /** Só detalhes — sem campo/botões de lance (olhinho). Lance só pelo martelo. */
   somenteLeitura?: boolean
-}
-
-/** Digitação livre em pt-BR; formata só no blur. */
-function sanitizeMoneyTyping(raw: string): string {
-  let s = raw.replace(/[^\d.,]/g, '')
-  const comma = s.indexOf(',')
-  if (comma >= 0) {
-    s = s.slice(0, comma + 1) + s.slice(comma + 1).replace(/,/g, '').replace(/\./g, '')
-  }
-  return s
 }
 
 export function BidModal({
@@ -192,12 +183,12 @@ export function BidModal({
               <input
                 className={`${inputClass} text-lg font-bold tabular-nums`}
                 value={valor}
-                inputMode="decimal"
+                inputMode="numeric"
                 autoComplete="off"
                 onChange={(e) => {
                   editingRef.current = true
                   setError('')
-                  setValor(sanitizeMoneyTyping(e.target.value))
+                  setValor(moneyFromDigits(e.target.value).display)
                 }}
                 onFocus={() => {
                   editingRef.current = true

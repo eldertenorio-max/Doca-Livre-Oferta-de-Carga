@@ -70,6 +70,16 @@ export function formatMoneyInput(value: number): string {
   })
 }
 
+/**
+ * Máscara ao digitar: só dígitos → valor em reais (centavos à direita).
+ * Ex.: digitar 399000 → 3.990,00
+ */
+export function moneyFromDigits(raw: string, maxDigits = 12): { display: string; value: number } {
+  const digits = String(raw ?? '').replace(/\D/g, '').slice(0, maxDigits)
+  const value = roundMoney(Number(digits || '0') / 100)
+  return { display: formatMoneyInput(value), value }
+}
+
 /** Converte texto pt-BR / en-US em número (2 casas). */
 export function parseMoneyInput(raw: string): number {
   const s = raw.trim()
