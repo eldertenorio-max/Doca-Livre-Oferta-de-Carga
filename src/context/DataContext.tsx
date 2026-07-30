@@ -2608,7 +2608,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         titulo: 'Contra-proposta no card',
         mensagem: `Carga ${carga.numero}: embarcador sugere R$ ${valorRound.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}. Responda pelo card com um novo lance.`,
         carga_id: carga.id,
-        href: '/transportador',
+        href: `/transportador?cargaId=${encodeURIComponent(carga.id)}`,
       }),
     }
     stateRef.current = next

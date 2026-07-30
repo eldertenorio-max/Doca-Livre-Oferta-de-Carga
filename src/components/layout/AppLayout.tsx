@@ -503,6 +503,13 @@ export function AppLayout() {
                                 })
                                 return
                               }
+                              // Contra-proposta → card de lance do transportador
+                              if (n.titulo === 'Contra-proposta no card') {
+                                navigate('/transportador', {
+                                  state: { abrirCargaId: n.carga_id },
+                                })
+                                return
+                              }
                               setChatCargaId(c.id)
                             }
                           }

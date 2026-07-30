@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
-import { useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
 import { CargoCard } from '../../components/kanban/CargoCard'
 import { KanbanBoard } from '../../components/kanban/KanbanBoard'
@@ -71,7 +71,10 @@ export function KanbanTransportador() {
     recusarCargaTransportador,
     setActingTransportadorId,
     effectiveTransportadorId,
+    cargas: todasCargas,
   } = useData()
+  const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const vista: 'quadro' | 'grid' =
     searchParams.get('vista') === 'grid' ? 'grid' : 'quadro'
@@ -143,6 +146,28 @@ export function KanbanTransportador() {
     effectiveTransportadorId() ||
     user?.transportador_id ||
     ''
+
+  // Notificação “Contra-proposta” / Ver card → abre o modal de lance
+  useEffect(() => {
+    const st = location.state as { abrirCargaId?: string } | null
+    const fromQuery = searchParams.get('cargaId')
+    const id = (st?.abrirCargaId || fromQuery || '').trim()
+    if (!id) return
+    const c =
+      (todasCargas ?? []).find((x) => x.id === id) ||
+      cargasVisiveisTransportador(tid).find((x) => x.id === id) ||
+      null
+    if (!c) return
+    abrirLance(c)
+    const sp = new URLSearchParams(searchParams)
+    sp.delete('cargaId')
+    setSearchParams(sp, { replace: true })
+    navigate(
+      { pathname: location.pathname, search: sp.toString() ? `?${sp}` : '' },
+      { replace: true, state: null },
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- abre uma vez ao chegar da notificação
+  }, [todasCargas, tid, location.state, location.pathname, searchParams, navigate, setSearchParams])
 
   const cargas = useMemo(() => {
     const list = cargasVisiveisTransportador(tid)
