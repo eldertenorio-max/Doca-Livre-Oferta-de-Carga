@@ -1,4 +1,6 @@
 -- Foto de perfil do usuário (Super / embarcador / transportador)
+-- Preferir supabase/usuario_avatar.sql (grava em usuarios + profiles).
+
 alter table public.profiles
   add column if not exists avatar_url text;
 

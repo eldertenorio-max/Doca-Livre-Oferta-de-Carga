@@ -76,7 +76,7 @@ import {
   submeterCadastroTransportador,
   type CadastroTransportadorInput,
 } from '../lib/cadastroTransportador'
-import { atualizarAvatarUsuarioRemoto } from '../lib/userAvatar'
+import { atualizarAvatarUsuarioRemoto, buscarAvatarUsuarioRemoto } from '../lib/userAvatar'
 import { canonicalTransportadorId, sameTransportadorId } from '../lib/transportadorIds'
 import { portalEmailRecusaCadastro } from '../lib/portalApi'
 import {
@@ -1417,29 +1417,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
     persistAuthProfile(user)
   }, [user])
 
-  // Hidrata foto de perfil salva em profiles.avatar_url
+  // Hidrata foto de perfil salva em usuarios.avatar_url (compartilhada entre aparelhos)
   useEffect(() => {
     if (!user?.id || !isSupabaseConfigured || !supabase) return
     let cancelled = false
-    void supabase
-      .from('profiles')
-      .select('avatar_url')
-      .eq('id', user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (cancelled || !data) return
-        const url = typeof data.avatar_url === 'string' ? data.avatar_url.trim() : ''
-        setUser((prev) => {
-          if (!prev || prev.id !== user.id) return prev
-          const atual = prev.avatar_url?.trim() || ''
-          if (atual === url) return prev
-          return { ...prev, avatar_url: url || null }
-        })
+    void buscarAvatarUsuarioRemoto(user.id, {
+      email: user.email,
+      usuario: user.usuario,
+    }).then((url) => {
+      if (cancelled) return
+      setUser((prev) => {
+        if (!prev || prev.id !== user.id) return prev
+        const atual = prev.avatar_url?.trim() || ''
+        const next = (url || '').trim()
+        // Prefere URL remota (http/data no banco). Se remoto vazio, mantém local.
+        if (!next) return prev
+        if (atual === next) return prev
+        // Se local é data URL e remoto é URL pública, troca; se ambos iguais, ok
+        return { ...prev, avatar_url: next }
       })
+    })
     return () => {
       cancelled = true
     }
-  }, [user?.id])
+  }, [user?.id, user?.email, user?.usuario])
 
   const salvarConfig = useCallback((cfg: ConfigNegocio) => {
     setConfig(cfg)
@@ -1779,6 +1780,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       is_superuser: isSuperuser,
       perfil_operacional: account.perfil_operacional ?? null,
       permissoes_modulos: isSuperuser ? null : permissoes.modulos,
+      avatar_url: account.avatar_url?.trim() || null,
     })
     return { ok: true }
   }, [])
@@ -3597,7 +3599,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const logo = await atualizarLogoTransportador(tid, file)
       if (!logo.ok) return logo
     }
-    const result = await atualizarAvatarUsuarioRemoto(u.id, file)
+    const result = await atualizarAvatarUsuarioRemoto(u.id, file, {
+      email: u.email,
+      usuario: u.usuario,
+    })
     if (!result.ok) return { ok: false, error: result.erro }
     setUser((prev) => {
       if (!prev) return prev

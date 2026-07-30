@@ -82,6 +82,8 @@ export type PortalAccount = {
   nivel?: 'super' | 'gestor' | 'operador'
   /** PPT §9 — Administrador | Operador | Consulta */
   perfil_operacional?: PerfilOperacional
+  /** Foto de perfil (compartilhada via usuarios.avatar_url). */
+  avatar_url?: string | null
   ativo: boolean
   created_at: string
 }
@@ -834,6 +836,7 @@ type RemotePortalAccount = {
   perfil_operacional: PerfilOperacional | null
   transportador_id: string | null
   empresa_org_id: string | null
+  avatar_url?: string | null
   ativo: boolean
   created_at: string
 }
@@ -853,6 +856,8 @@ function mergePassword(localPass: string, remotePass: string, account?: {
 }
 
 function fromRemoteAccount(row: RemotePortalAccount, local?: PortalAccount): PortalAccount {
+  const remoteAvatar =
+    typeof row.avatar_url === 'string' ? row.avatar_url.trim() : ''
   return {
     id: row.id,
     usuario: row.usuario,
@@ -868,6 +873,8 @@ function fromRemoteAccount(row: RemotePortalAccount, local?: PortalAccount): Por
     perfil_operacional: row.perfil_operacional ?? undefined,
     transportador_id: transportadorIdFromRemote(row, local),
     empresa_org_id: row.empresa_org_id ?? local?.empresa_org_id ?? null,
+    // Banco manda; se coluna ainda não existir no select, preserva local
+    avatar_url: remoteAvatar || local?.avatar_url || null,
     ativo: row.ativo,
     created_at: row.created_at,
   }
@@ -1202,9 +1209,23 @@ async function accountsDeProfiles(): Promise<PortalAccount[]> {
   if (!isSupabaseConfigured || !supabase) return []
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, nome, usuario, role, transportador_id, ativo, created_at')
-  if (error) return []
-  const rows = (data ?? []) as Array<{
+    .select('id, email, nome, usuario, role, transportador_id, ativo, created_at, avatar_url')
+  if (error) {
+    // Coluna avatar_url pode não existir ainda
+    if (/avatar_url/i.test(error.message)) {
+      const retry = await supabase
+        .from('profiles')
+        .select('id, email, nome, usuario, role, transportador_id, ativo, created_at')
+      if (retry.error) return []
+      return mapProfilesToAccounts(retry.data ?? [])
+    }
+    return []
+  }
+  return mapProfilesToAccounts(data ?? [])
+}
+
+function mapProfilesToAccounts(
+  rows: Array<{
     id: string
     email: string
     nome: string
@@ -1213,7 +1234,9 @@ async function accountsDeProfiles(): Promise<PortalAccount[]> {
     transportador_id: string | null
     ativo: boolean
     created_at: string
-  }>
+    avatar_url?: string | null
+  }>,
+): PortalAccount[] {
   return rows
     .filter((row) => row.role === 'transportador' && row.transportador_id && row.ativo)
     .map((row) => ({
@@ -1225,6 +1248,7 @@ async function accountsDeProfiles(): Promise<PortalAccount[]> {
       role: 'transportador' as const,
       transportador_id: row.transportador_id,
       nivel: 'operador' as const,
+      avatar_url: typeof row.avatar_url === 'string' ? row.avatar_url.trim() || null : null,
       ativo: row.ativo,
       created_at: row.created_at,
     }))
@@ -1236,12 +1260,23 @@ export async function syncPortalAccounts(): Promise<PortalAccount[]> {
   const local = loadPortalAccounts()
   if (!isSupabaseConfigured || !supabase) return local
   try {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('usuarios')
       .select(
-        'id, usuario, email, senha_hash, nome, role, nivel, perfil_operacional, transportador_id, empresa_org_id, ativo, created_at',
+        'id, usuario, email, senha_hash, nome, role, nivel, perfil_operacional, transportador_id, empresa_org_id, avatar_url, ativo, created_at',
       )
       .order('created_at', { ascending: true })
+    // Produção antiga sem coluna avatar_url
+    if (error && /avatar_url/i.test(error.message)) {
+      const retry = await supabase
+        .from('usuarios')
+        .select(
+          'id, usuario, email, senha_hash, nome, role, nivel, perfil_operacional, transportador_id, empresa_org_id, ativo, created_at',
+        )
+        .order('created_at', { ascending: true })
+      data = retry.data
+      error = retry.error
+    }
     if (error) return local
 
     const remoteRowsAll = ((data ?? []) as RemotePortalAccount[]).filter(
