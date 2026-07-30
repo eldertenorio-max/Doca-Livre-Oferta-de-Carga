@@ -22,6 +22,7 @@ import {
   calcularPrioridadeEModo,
   classificacaoPorPontuacao,
   PONTOS_ADERENCIA,
+  roundMoney,
 } from '../lib/businessRules'
 import {
   hydrateConfigNegocio,
@@ -2075,13 +2076,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const enviarLance = useCallback(
     (cargaId: string, valor: number, opts?: { aceitarOferta?: boolean }) => {
-      const tid = actingTransportadorId || userRef.current?.transportador_id
+      const tidRaw = actingTransportadorId || userRef.current?.transportador_id
+      const tid = canonicalTransportadorId(tidRaw) || tidRaw
       if (!tid) return { ok: false, error: 'Usuário sem transportador' }
 
       const prev = stateRef.current
       const carga = prev.cargas.find((c) => c.id === cargaId)
       if (!carga) return { ok: false, error: 'Carga não encontrada' }
-      if (!['negociando', 'propostas'].includes(carga.status)) {
+      const statusAberto =
+        ['negociando', 'propostas'].includes(carga.status) ||
+        (carga.status === 'nova_carga' && Boolean(carga.publicado_em))
+      if (!statusAberto) {
         return { ok: false, error: 'Carga não está aberta para lances' }
       }
       if (carga.pausado_em) {
@@ -2104,7 +2109,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       if (valor <= 0) return { ok: false, error: 'Valor inválido' }
 
-      const freteRef = cargaOk.frete_oferta ?? cargaOk.frete_tabela
+      const freteRef = roundMoney(cargaOk.frete_oferta ?? cargaOk.frete_tabela)
       const min = cargaOk.frete_minimo
       const max = cargaOk.frete_maximo
       if (min != null && valor < min - 0.009) {
@@ -2131,16 +2136,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
           (g) =>
             g.situacao !== 'inativo' &&
             gruposOk.includes(g.id) &&
-            (g.transportador_ids ?? []).includes(tid),
+            (g.transportador_ids ?? []).some((id) => sameTransportadorId(id, tid)),
         )
       if (!autorizado) {
         return { ok: false, error: 'Você ainda não foi chamado para negociar esta carga' }
       }
 
       const jaTemLance = stateRef.current.lances.some(
-        (l) => l.carga_id === cargaId && l.transportador_id === tid && l.status === 'ativo',
+        (l) =>
+          l.carga_id === cargaId &&
+          sameTransportadorId(l.transportador_id, tid) &&
+          l.status === 'ativo',
       )
-      if (jaTemLance && cargaOk.modo_publicacao === 'oferta') {
+      if (jaTemLance && cargaOk.modo_publicacao === 'oferta' && !opts?.aceitarOferta) {
         return { ok: false, error: 'No modo Oferta não é permitido alterar a proposta.' }
       }
 
@@ -2148,27 +2156,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const agora = new Date().toISOString()
       const base = stateRef.current
 
-      // Modo Oferta: só “Aceitar oferta” fecha na hora. “Enviar lance” vai para Propostas
-      // e aguarda o embarcador (ou outro fechamento).
-      if (
-        cargaOk.modo_publicacao === 'oferta' &&
-        opts?.aceitarOferta &&
-        valor <= freteRef + 0.009
-      ) {
+      // “Aceitar oferta” / contra-proposta: fecha o frete no valor da oferta (Oferta e Leilão)
+      if (opts?.aceitarOferta && valor <= freteRef + 0.009) {
+        const existingAceite = base.lances.find(
+          (l) =>
+            l.carga_id === cargaId &&
+            sameTransportadorId(l.transportador_id, tid) &&
+            l.status === 'ativo',
+        )
         const lance: Lance = {
-          id: uid('lance'),
+          id: existingAceite?.id ?? uid('lance'),
           carga_id: cargaId,
           transportador_id: tid,
           valor,
           status: 'vencedor',
-          created_at: agora,
+          created_at: existingAceite?.created_at ?? agora,
           updated_at: agora,
         }
         const outrosPerdedores = base.lances
           .filter(
             (l) =>
               l.carga_id === cargaId &&
-              l.transportador_id !== tid &&
+              !sameTransportadorId(l.transportador_id, tid) &&
               l.status === 'ativo',
           )
           .map((l) => l.transportador_id)
@@ -2189,6 +2198,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
             carga_id: cargaId,
           })
         }
+        notifs = pushNotif(notifs, {
+          role: 'minerva',
+          titulo: 'Frete fechado',
+          mensagem: `Carga ${cargaOk.numero}: transportador aceitou a oferta (R$ ${valor.toFixed(2)}).`,
+          carga_id: cargaId,
+          href: `/embarcador?cargaId=${encodeURIComponent(cargaId)}`,
+        })
         const next: DataState = {
           ...base,
           cargas: base.cargas.map((c) =>
@@ -2198,6 +2214,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                   status: 'propostas' as const,
                   transportador_vencedor_id: tid,
                   frete_fechado: valor,
+                  frete_oferta: valor,
                   alocacao_expira_em: new Date(
                     Date.now() + Math.max(c.prazo_alocacao_minutos ?? 10, 10) * 60_000,
                   ).toISOString(),
@@ -2209,7 +2226,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
             ...base.lances
               .filter(
                 (l) =>
-                  !(l.carga_id === cargaId && l.transportador_id === tid && l.status === 'ativo'),
+                  !(
+                    l.carga_id === cargaId &&
+                    sameTransportadorId(l.transportador_id, tid) &&
+                    (l.status === 'ativo' || l.id === lance.id)
+                  ),
               )
               .map((l) =>
                 l.carga_id === cargaId && l.status === 'ativo'
@@ -2219,7 +2240,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             lance,
           ],
           transportadores: base.transportadores.map((t) => {
-            if (t.id !== tid) return t
+            if (!sameTransportadorId(t.id, tid)) return t
             const pontuacao =
               t.pontuacao + PONTOS_ADERENCIA.com_proposta + PONTOS_ADERENCIA.frete_fechado
             return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
@@ -2227,7 +2248,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           historico: [
             makeHistorico(
               'lance_enviado',
-              `Lance vencedor (modo Oferta) — ${cargaOk.numero}`,
+              `Lance vencedor (aceitou oferta) — ${cargaOk.numero}`,
               {
                 carga_id: cargaId,
                 transportador_id: tid,
@@ -2246,7 +2267,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
 
       const existing = base.lances.find(
-        (l) => l.carga_id === cargaId && l.transportador_id === tid && l.status === 'ativo',
+        (l) =>
+          l.carga_id === cargaId &&
+          sameTransportadorId(l.transportador_id, tid) &&
+          l.status === 'ativo',
       )
       let lances: Lance[]
       let historicoPropostas = base.historicoPropostas ?? []
@@ -2264,7 +2288,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
           ...historicoPropostas,
         ]
         lances = base.lances.map((l) =>
-          l.id === existing.id ? { ...l, valor, updated_at: agora } : l,
+          l.id === existing.id
+            ? { ...l, valor, transportador_id: tid, updated_at: agora }
+            : l.carga_id === cargaId &&
+                sameTransportadorId(l.transportador_id, tid) &&
+                l.status === 'ativo' &&
+                l.id !== existing.id
+              ? { ...l, status: 'cancelado' as const, updated_at: agora }
+              : l,
         )
       } else {
         const lanceId = uid('lance')
@@ -2302,7 +2333,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       )
       const transportadores = isNew
         ? base.transportadores.map((t) => {
-            if (t.id !== tid) return t
+            if (!sameTransportadorId(t.id, tid)) return t
             const pontuacao = t.pontuacao + PONTOS_ADERENCIA.com_proposta
             return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
           })

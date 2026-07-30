@@ -150,10 +150,8 @@ export function BidModal({
   function handleAccept() {
     const aceito = roundMoney(freteRef)
     setValor(formatMoneyInput(aceito))
-    // Em Oferta, “Aceitar oferta” fecha o frete; em Leilão só registra o lance no valor da oferta
-    submitValor(aceito, {
-      aceitarOferta: live!.modo_publicacao === 'oferta',
-    })
+    // Aceita a oferta/contra-proposta e fecha o frete nesse valor
+    submitValor(aceito, { aceitarOferta: true })
   }
 
   return (
@@ -213,8 +211,8 @@ export function BidModal({
             {live.modo_publicacao === 'leilao' && (
               <p className="text-xs font-medium text-ink">
                 Modo Leilão: você pode atualizar o lance até o fim do prazo. Em empate de valor,
-                vence o mais antigo (ou o embarcador decide manualmente). Use “Aceitar oferta” para
-                propor exatamente o frete oferta ({formatCurrency(freteRef)}).
+                vence o mais antigo (ou o embarcador decide manualmente). “Aceitar oferta” fecha o
+                frete no valor da oferta/contra-proposta ({formatCurrency(freteRef)}).
               </p>
             )}
             {suspensa && (
