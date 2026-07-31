@@ -15,6 +15,9 @@ import {
   type PerfilPublicoTransportador,
 } from '../../lib/perfilPublicoTransportador'
 import '../../styles/cadastro.css'
+import '../../styles/perfil.css'
+
+type AbaConfig = 'geral' | 'portfolio'
 
 function Hint({ children }: { children: ReactNode }) {
   return <p className="text-[12px] leading-relaxed text-ink-muted">{children}</p>
@@ -69,6 +72,7 @@ export function ConfiguracoesTransportadorPage() {
   const [msg, setMsg] = useState('')
   const [perfil, setPerfil] = useState<PerfilPublicoTransportador>(EMPTY_PERFIL_PUBLICO)
   const [previewPerfil, setPreviewPerfil] = useState(false)
+  const [aba, setAba] = useState<AbaConfig>('geral')
 
   useEffect(() => {
     const cfg = configTransportador ?? DEFAULT_CONFIG_TRANSPORTADOR
@@ -120,7 +124,7 @@ export function ConfiguracoesTransportadorPage() {
         perfil_publico: normalizePerfilPublico(perfil),
       })
     }
-    setMsg('Configurações e perfil público salvos.')
+    setMsg(aba === 'portfolio' ? 'Portfólio salvo.' : 'Configurações salvas.')
   }
 
   if (!tid) {
@@ -140,12 +144,40 @@ export function ConfiguracoesTransportadorPage() {
         <h1 className="cadastro-page-title">Configurações</h1>
         <p className="text-sm text-ink-muted">
           Preferências de {empresa?.nome_fantasia || 'sua transportadora'} — negociação,
-          notificações, operação e perfil público.
+          notificações, operação e portfólio.
         </p>
       </header>
 
+      <div className="perfil-tabs" role="tablist" aria-label="Seções de configurações">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={aba === 'geral'}
+          className={aba === 'geral' ? 'is-active' : undefined}
+          onClick={() => {
+            setAba('geral')
+            setMsg('')
+          }}
+        >
+          Geral
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={aba === 'portfolio'}
+          className={aba === 'portfolio' ? 'is-active' : undefined}
+          onClick={() => {
+            setAba('portfolio')
+            setMsg('')
+          }}
+        >
+          Portfólio
+        </button>
+      </div>
+
+      {aba === 'geral' ? (
       <div className="space-y-4">
-        {/* 3 · Negociação */}
+        {/* 1 · Negociação */}
         <section className="space-y-3 rounded-xl border border-ink/10 bg-white p-4">
           <div>
             <h2 className="font-display text-base font-semibold">1. Negociação e lances</h2>
@@ -332,11 +364,13 @@ export function ConfiguracoesTransportadorPage() {
             hint="A placa passa a ficar no destino da carga no Mapa da Frota (endereço + coordenadas)."
           />
         </section>
-
+      </div>
+      ) : (
+      <div className="space-y-4">
         <section className="space-y-3 rounded-xl border border-ink/10 bg-white p-4">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
-              <h2 className="font-display text-base font-semibold">4. Perfil público</h2>
+              <h2 className="font-display text-base font-semibold">Portfólio</h2>
               <Hint>
                 Página da sua transportadora (estilo site). Preencha apresentação, serviços e
                 referências — o embarcador e o mapa usam estes dados.
@@ -359,6 +393,7 @@ export function ConfiguracoesTransportadorPage() {
           />
         </section>
       </div>
+      )}
 
       {previewPerfil && empresa ? (
         <TransportadorPerfilSite
@@ -381,7 +416,7 @@ export function ConfiguracoesTransportadorPage() {
 
       <div className="sticky bottom-3 mt-5">
         <Button variant="success" className="w-full sm:w-auto" onClick={save}>
-          Salvar configurações
+          {aba === 'portfolio' ? 'Salvar portfólio' : 'Salvar configurações'}
         </Button>
       </div>
     </div>
