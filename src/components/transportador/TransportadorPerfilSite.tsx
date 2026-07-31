@@ -222,7 +222,7 @@ export function TransportadorPerfilSite({
                   lat={lat}
                   lng={lng}
                   raioKm={Number(t.raio_km) > 0 ? Number(t.raio_km) : null}
-                  height={280}
+                  height={480}
                   className="tv-perfil__mapa-preview"
                 />
                 <p className="tv-perfil__mapa-meta">

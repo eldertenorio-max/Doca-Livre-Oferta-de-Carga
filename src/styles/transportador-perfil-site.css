@@ -151,7 +151,7 @@
 .tv-perfil__body {
   padding: 8px 28px 28px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 28px;
   align-items: start;
 }
@@ -164,6 +164,9 @@
   min-width: 0;
   position: sticky;
   top: 16px;
+  height: min(70vh, 640px);
+  display: flex;
+  flex-direction: column;
 }
 
 .tv-perfil__mapa-card {
@@ -172,6 +175,10 @@
   background: #fff;
   box-shadow: 0 8px 24px rgb(15 23 42 / 0.06);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .tv-perfil__mapa-head {
