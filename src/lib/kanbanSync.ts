@@ -203,6 +203,36 @@ function preservarFotosLocais(locais: Veiculo[], remoto: Veiculo): Veiculo {
   return { ...remoto, fotos, foto_url: remoto.foto_url || local.foto_url }
 }
 
+/** Não deixa sync remoto sem coords apagar localização salva na placa. */
+function preservarLocalizacaoVeiculo(locais: Veiculo[], remoto: Veiculo): Veiculo {
+  const local = locais.find((v) => v.id === remoto.id)
+  if (!local) return remoto
+  const remotoTem =
+    remoto.origem_lat != null &&
+    remoto.origem_lng != null &&
+    Number.isFinite(Number(remoto.origem_lat)) &&
+    Number.isFinite(Number(remoto.origem_lng))
+  const localTem =
+    local.origem_lat != null &&
+    local.origem_lng != null &&
+    Number.isFinite(Number(local.origem_lat)) &&
+    Number.isFinite(Number(local.origem_lng))
+  if (remotoTem || !localTem) return remoto
+  return {
+    ...remoto,
+    origem_cep: local.origem_cep ?? remoto.origem_cep,
+    origem_cidade: local.origem_cidade ?? remoto.origem_cidade,
+    origem_uf: local.origem_uf ?? remoto.origem_uf,
+    origem_endereco: local.origem_endereco ?? remoto.origem_endereco,
+    origem_numero: local.origem_numero ?? remoto.origem_numero,
+    origem_bairro: local.origem_bairro ?? remoto.origem_bairro,
+    origem_complemento: local.origem_complemento ?? remoto.origem_complemento,
+    origem_lat: local.origem_lat,
+    origem_lng: local.origem_lng,
+    raio_km: local.raio_km ?? remoto.raio_km,
+  }
+}
+
 /** Mescla remoto sem apagar publicações locais mais novas. */
 export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: KanbanSyncSlice): T {
   const remoteCargas = Array.isArray(slice.cargas) ? slice.cargas : []
@@ -254,7 +284,8 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
     motoristas_excluidos: motoristasExcluidos,
     veiculos: mergeById(prev.veiculos ?? [], slice.veiculos ?? [])
       .filter((v) => !vExcluidos.has(v.id))
-      .map((v) => preservarFotosLocais(prev.veiculos ?? [], v)),
+      .map((v) => preservarFotosLocais(prev.veiculos ?? [], v))
+      .map((v) => preservarLocalizacaoVeiculo(prev.veiculos ?? [], v)),
     motoristas: mergeById(prev.motoristas ?? [], slice.motoristas ?? [])
       .filter((m) => !mExcluidos.has(m.id))
       .map((m) => (m.veiculo_id && vExcluidos.has(m.veiculo_id) ? { ...m, veiculo_id: null } : m))

@@ -74,22 +74,29 @@ export function LocalizacaoVeiculoModal({
   const coordsManuais = useRef(false)
   const reverseTimer = useRef(0)
   const reverseSeq = useRef(0)
+  /** Evita CEP/geocode apagarem o endereço recém-carregado do veículo. */
+  const ignorarCepAuto = useRef(false)
+  const ignorarGeoAuto = useRef(false)
 
   useEffect(() => {
     if (!open || !veiculo) return
     const o = fromVeiculo(veiculo)
+    ignorarCepAuto.current = true
+    ignorarGeoAuto.current = true
+    coordsManuais.current = Boolean(o.lat != null && o.lng != null)
+    ultimoCep.current = (o.cep || '').replace(/\D/g, '')
     setOrigem(o)
     setLatStr(o.lat != null ? o.lat.toFixed(6) : '')
     setLngStr(o.lng != null ? o.lng.toFixed(6) : '')
+    const temEndereco = Boolean(
+      o.endereco.trim() || o.cidade.trim() || (o.lat != null && o.lng != null),
+    )
     setInfo(
-      o.lat != null && o.lng != null
-        ? 'Localização atual do veículo carregada.'
-        : '',
+      temEndereco
+        ? 'Localização salva do veículo carregada.'
+        : 'Nenhuma localização salva nesta placa ainda.',
     )
     setErro('')
-    coordsManuais.current = Boolean(o.lat != null && o.lng != null)
-    ultimoCep.current = (o.cep || '').replace(/\D/g, '')
-    // Inclui coords/endereço para reabrir com dados já salvos
   }, [
     open,
     veiculo?.id,
@@ -101,12 +108,17 @@ export function LocalizacaoVeiculoModal({
     veiculo?.origem_uf,
     veiculo?.origem_numero,
     veiculo?.origem_bairro,
+    veiculo?.origem_complemento,
     veiculo?.raio_km,
     veiculo?.updated_at,
   ])
 
   useEffect(() => {
     if (!open) return
+    if (ignorarCepAuto.current) {
+      ignorarCepAuto.current = false
+      return
+    }
     const cep = origem.cep.replace(/\D/g, '')
     if (cep.length !== 8) {
       setBuscandoCep(false)
@@ -146,7 +158,17 @@ export function LocalizacaoVeiculoModal({
   }, [open, origem.cep])
 
   useEffect(() => {
-    if (!open || !enderecoProntoParaGeocode(origem)) {
+    if (!open) {
+      setGeocoding(false)
+      return
+    }
+    // Sempre consome o flag após hidratar — mesmo se o endereço ainda não está “pronto”
+    if (ignorarGeoAuto.current) {
+      ignorarGeoAuto.current = false
+      setGeocoding(false)
+      return
+    }
+    if (!enderecoProntoParaGeocode(origem) || coordsManuais.current) {
       setGeocoding(false)
       return
     }

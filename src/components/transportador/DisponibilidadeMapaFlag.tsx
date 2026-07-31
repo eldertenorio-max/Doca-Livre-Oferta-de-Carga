@@ -149,10 +149,23 @@ export function DisponibilidadeMapaFlag({ transportadorId, variant = 'panel' }: 
                       }
                       aria-label={`Alterar localização do veículo ${v.placa}`}
                       onClick={() => {
-                        // Usa o registro mais recente (com origem_* já salva)
+                        // Snapshot completo da localização salva (não perde no reopen)
                         const fresh =
                           (veiculos ?? []).find((x) => x.id === v.id) ?? v
-                        setLocVeiculo({ ...fresh })
+                        setLocVeiculo({
+                          ...fresh,
+                          origem_cep: fresh.origem_cep,
+                          origem_cidade: fresh.origem_cidade,
+                          origem_uf: fresh.origem_uf,
+                          origem_endereco: fresh.origem_endereco,
+                          origem_numero: fresh.origem_numero,
+                          origem_bairro: fresh.origem_bairro,
+                          origem_complemento: fresh.origem_complemento,
+                          origem_lat: fresh.origem_lat ?? null,
+                          origem_lng: fresh.origem_lng ?? null,
+                          raio_km: fresh.raio_km,
+                          updated_at: fresh.updated_at ?? new Date().toISOString(),
+                        })
                       }}
                     >
                       <MapPin size={16} aria-hidden />
@@ -167,13 +180,46 @@ export function DisponibilidadeMapaFlag({ transportadorId, variant = 'panel' }: 
     </div>
   )
 
+  // Prefere o que está no state; se o sync remoto veio sem coords, mantém o snapshot do clique
   const veiculoModal = useMemo(() => {
     if (!locVeiculo) return null
-    return (veiculos ?? []).find((x) => x.id === locVeiculo.id) ?? locVeiculo
+    const live = (veiculos ?? []).find((x) => x.id === locVeiculo.id)
+    if (!live) return locVeiculo
+    const liveTem =
+      live.origem_lat != null &&
+      live.origem_lng != null &&
+      Number.isFinite(live.origem_lat) &&
+      Number.isFinite(live.origem_lng)
+    const snapTem =
+      locVeiculo.origem_lat != null &&
+      locVeiculo.origem_lng != null &&
+      Number.isFinite(locVeiculo.origem_lat) &&
+      Number.isFinite(locVeiculo.origem_lng)
+    if (!liveTem && snapTem) {
+      return {
+        ...live,
+        origem_cep: locVeiculo.origem_cep ?? live.origem_cep,
+        origem_cidade: locVeiculo.origem_cidade ?? live.origem_cidade,
+        origem_uf: locVeiculo.origem_uf ?? live.origem_uf,
+        origem_endereco: locVeiculo.origem_endereco ?? live.origem_endereco,
+        origem_numero: locVeiculo.origem_numero ?? live.origem_numero,
+        origem_bairro: locVeiculo.origem_bairro ?? live.origem_bairro,
+        origem_complemento: locVeiculo.origem_complemento ?? live.origem_complemento,
+        origem_lat: locVeiculo.origem_lat,
+        origem_lng: locVeiculo.origem_lng,
+        raio_km: locVeiculo.raio_km ?? live.raio_km,
+      }
+    }
+    return live
   }, [locVeiculo, veiculos])
 
   const modalLoc = (
     <LocalizacaoVeiculoModal
+      key={
+        veiculoModal
+          ? `${veiculoModal.id}-${veiculoModal.updated_at ?? ''}-${veiculoModal.origem_lat ?? ''}-${veiculoModal.origem_lng ?? ''}`
+          : 'loc-closed'
+      }
       open={Boolean(locVeiculo)}
       veiculo={veiculoModal}
       transportador={
@@ -184,11 +230,13 @@ export function DisponibilidadeMapaFlag({ transportadorId, variant = 'panel' }: 
       onClose={() => setLocVeiculo(null)}
       onSave={(patch) => {
         if (!veiculoModal) return
-        salvarVeiculo({
+        const salvo = {
           ...veiculoModal,
           ...patch,
           updated_at: new Date().toISOString(),
-        })
+        }
+        salvarVeiculo(salvo)
+        setLocVeiculo(salvo)
         setLocVeiculo(null)
       }}
     />

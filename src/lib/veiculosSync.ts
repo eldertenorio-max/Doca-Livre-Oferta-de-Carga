@@ -124,7 +124,40 @@ export function mergeVeiculosLocalRemote(local: Veiculo[], remote: Veiculo[]): V
       byId.delete(id)
     }
     const prev = byId.get(r.id)
-    byId.set(r.id, prev ? { ...prev, ...r, id: r.id } : r)
+    if (!prev) {
+      byId.set(r.id, r)
+      continue
+    }
+    // Remoto sem coords não apaga localização local já salva
+    const remotoTem =
+      r.origem_lat != null &&
+      r.origem_lng != null &&
+      Number.isFinite(Number(r.origem_lat)) &&
+      Number.isFinite(Number(r.origem_lng))
+    const localTem =
+      prev.origem_lat != null &&
+      prev.origem_lng != null &&
+      Number.isFinite(Number(prev.origem_lat)) &&
+      Number.isFinite(Number(prev.origem_lng))
+    if (!remotoTem && localTem) {
+      byId.set(r.id, {
+        ...prev,
+        ...r,
+        id: r.id,
+        origem_cep: prev.origem_cep ?? r.origem_cep,
+        origem_cidade: prev.origem_cidade ?? r.origem_cidade,
+        origem_uf: prev.origem_uf ?? r.origem_uf,
+        origem_endereco: prev.origem_endereco ?? r.origem_endereco,
+        origem_numero: prev.origem_numero ?? r.origem_numero,
+        origem_bairro: prev.origem_bairro ?? r.origem_bairro,
+        origem_complemento: prev.origem_complemento ?? r.origem_complemento,
+        origem_lat: prev.origem_lat,
+        origem_lng: prev.origem_lng,
+        raio_km: prev.raio_km ?? r.raio_km,
+      })
+    } else {
+      byId.set(r.id, { ...prev, ...r, id: r.id })
+    }
   }
 
   return Array.from(byId.values())
