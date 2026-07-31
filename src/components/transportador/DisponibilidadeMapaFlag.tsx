@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { MapPin } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { LocalizacaoVeiculoModal } from '../veiculos/LocalizacaoVeiculoModal'
-import type { Veiculo } from '../../types'
+import type { Transportador, Veiculo } from '../../types'
 import '../../styles/mapa-frota.css'
 
 type Props = {
@@ -13,6 +13,26 @@ type Props = {
 
 const EXPLICACAO =
   'Clique em Disponível para ver as placas cadastradas e marcar cada uma como disponível ou indisponível no Mapa da Frota.'
+
+/** ~80 m — considera mesma origem da transportadora. */
+const TOLERANCIA_COORD = 0.0008
+
+function locDiferenteDaOrigem(v: Veiculo, t: Transportador | undefined): boolean {
+  const vLat = v.origem_lat
+  const vLng = v.origem_lng
+  if (vLat == null || vLng == null || !Number.isFinite(vLat) || !Number.isFinite(vLng)) {
+    return false
+  }
+  const tLat = t?.origem_lat
+  const tLng = t?.origem_lng
+  if (tLat == null || tLng == null || !Number.isFinite(tLat) || !Number.isFinite(tLng)) {
+    // Tem localização própria e a empresa não tem origem cadastrada → destaca
+    return true
+  }
+  return (
+    Math.abs(vLat - tLat) > TOLERANCIA_COORD || Math.abs(vLng - tLng) > TOLERANCIA_COORD
+  )
+}
 
 /** Disponibilidade por placa no Mapa da Frota. */
 export function DisponibilidadeMapaFlag({ transportadorId, variant = 'panel' }: Props) {
@@ -93,6 +113,7 @@ export function DisponibilidadeMapaFlag({ transportadorId, variant = 'panel' }: 
           <ul className="disp-placas__list">
             {placas.map((v) => {
               const on = v.disponivel_mapa !== false
+              const foraDaOrigem = locDiferenteDaOrigem(v, t)
               return (
                 <li key={v.id} className="disp-placas__row">
                   <div className="disp-placas__meta">
@@ -120,10 +141,19 @@ export function DisponibilidadeMapaFlag({ transportadorId, variant = 'panel' }: 
                     </div>
                     <button
                       type="button"
-                      className="disp-placas__loc"
-                      title="Alterar localização do veículo"
+                      className={`disp-placas__loc${foraDaOrigem ? ' is-away' : ''}`}
+                      title={
+                        foraDaOrigem
+                          ? 'Localização diferente da origem — alterar localização do veículo'
+                          : 'Alterar localização do veículo'
+                      }
                       aria-label={`Alterar localização do veículo ${v.placa}`}
-                      onClick={() => setLocVeiculo(v)}
+                      onClick={() => {
+                        // Usa o registro mais recente (com origem_* já salva)
+                        const fresh =
+                          (veiculos ?? []).find((x) => x.id === v.id) ?? v
+                        setLocVeiculo({ ...fresh })
+                      }}
                     >
                       <MapPin size={16} aria-hidden />
                     </button>
@@ -137,20 +167,25 @@ export function DisponibilidadeMapaFlag({ transportadorId, variant = 'panel' }: 
     </div>
   )
 
+  const veiculoModal = useMemo(() => {
+    if (!locVeiculo) return null
+    return (veiculos ?? []).find((x) => x.id === locVeiculo.id) ?? locVeiculo
+  }, [locVeiculo, veiculos])
+
   const modalLoc = (
     <LocalizacaoVeiculoModal
       open={Boolean(locVeiculo)}
-      veiculo={locVeiculo}
+      veiculo={veiculoModal}
       transportador={
-        locVeiculo?.transportador_id
-          ? transportadorById(locVeiculo.transportador_id) ?? t ?? null
+        veiculoModal?.transportador_id
+          ? transportadorById(veiculoModal.transportador_id) ?? t ?? null
           : t ?? null
       }
       onClose={() => setLocVeiculo(null)}
       onSave={(patch) => {
-        if (!locVeiculo) return
+        if (!veiculoModal) return
         salvarVeiculo({
-          ...locVeiculo,
+          ...veiculoModal,
           ...patch,
           updated_at: new Date().toISOString(),
         })

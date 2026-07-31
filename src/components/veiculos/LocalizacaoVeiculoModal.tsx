@@ -81,11 +81,29 @@ export function LocalizacaoVeiculoModal({
     setOrigem(o)
     setLatStr(o.lat != null ? o.lat.toFixed(6) : '')
     setLngStr(o.lng != null ? o.lng.toFixed(6) : '')
-    setInfo('')
+    setInfo(
+      o.lat != null && o.lng != null
+        ? 'Localização atual do veículo carregada.'
+        : '',
+    )
     setErro('')
     coordsManuais.current = Boolean(o.lat != null && o.lng != null)
     ultimoCep.current = (o.cep || '').replace(/\D/g, '')
-  }, [open, veiculo?.id])
+    // Inclui coords/endereço para reabrir com dados já salvos
+  }, [
+    open,
+    veiculo?.id,
+    veiculo?.origem_lat,
+    veiculo?.origem_lng,
+    veiculo?.origem_cep,
+    veiculo?.origem_endereco,
+    veiculo?.origem_cidade,
+    veiculo?.origem_uf,
+    veiculo?.origem_numero,
+    veiculo?.origem_bairro,
+    veiculo?.raio_km,
+    veiculo?.updated_at,
+  ])
 
   useEffect(() => {
     if (!open) return
