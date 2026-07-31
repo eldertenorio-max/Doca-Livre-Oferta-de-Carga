@@ -5,7 +5,8 @@ import { appStoreGet, appStoreGetCached, appStoreSet } from './appStore'
 export interface ConfigTransportador {
   // 3 · Negociação e lances
   frete_minimo_empresa: number | null
-  frete_maximo_empresa: number | null
+  /** % aceita acima/abaixo do frete oferta (ex.: 10 = até 10%). */
+  porcentagem_aceita: number | null
   tipos_veiculo_preferidos: string[]
   aceita_carga_retorno: boolean
   aceita_retorna_origem: boolean
@@ -28,7 +29,7 @@ export interface ConfigTransportador {
 
 export const DEFAULT_CONFIG_TRANSPORTADOR: ConfigTransportador = {
   frete_minimo_empresa: null,
-  frete_maximo_empresa: null,
+  porcentagem_aceita: null,
   tipos_veiculo_preferidos: [],
   aceita_carga_retorno: true,
   aceita_retorna_origem: true,
@@ -64,9 +65,9 @@ export function normalizeConfigTransportador(
       p.frete_minimo_empresa != null && Number.isFinite(Number(p.frete_minimo_empresa))
         ? Number(p.frete_minimo_empresa)
         : null,
-    frete_maximo_empresa:
-      p.frete_maximo_empresa != null && Number.isFinite(Number(p.frete_maximo_empresa))
-        ? Number(p.frete_maximo_empresa)
+    porcentagem_aceita:
+      p.porcentagem_aceita != null && Number.isFinite(Number(p.porcentagem_aceita))
+        ? Number(p.porcentagem_aceita)
         : null,
     tipos_veiculo_preferidos: Array.isArray(p.tipos_veiculo_preferidos)
       ? p.tipos_veiculo_preferidos.map(String).filter(Boolean)

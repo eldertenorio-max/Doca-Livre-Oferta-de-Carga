@@ -58,7 +58,6 @@ export function ConfiguracoesTransportadorPage() {
     configTransportador ?? DEFAULT_CONFIG_TRANSPORTADOR,
   )
   const [freteMinStr, setFreteMinStr] = useState('')
-  const [freteMaxStr, setFreteMaxStr] = useState('')
   const [msg, setMsg] = useState('')
 
   useEffect(() => {
@@ -67,11 +66,6 @@ export function ConfiguracoesTransportadorPage() {
     setFreteMinStr(
       cfg.frete_minimo_empresa != null && cfg.frete_minimo_empresa > 0
         ? formatMoneyInput(cfg.frete_minimo_empresa)
-        : '',
-    )
-    setFreteMaxStr(
-      cfg.frete_maximo_empresa != null && cfg.frete_maximo_empresa > 0
-        ? formatMoneyInput(cfg.frete_maximo_empresa)
         : '',
     )
   }, [configTransportador, tid])
@@ -96,15 +90,15 @@ export function ConfiguracoesTransportadorPage() {
       return
     }
     const min = freteMinStr.trim() ? parseMoneyInput(freteMinStr) : null
-    const max = freteMaxStr.trim() ? parseMoneyInput(freteMaxStr) : null
-    if (min != null && max != null && min > max) {
-      setMsg('O frete mínimo da empresa não pode ser maior que o máximo.')
+    const pct = form.porcentagem_aceita
+    if (pct != null && (!Number.isFinite(pct) || pct < 0 || pct > 100)) {
+      setMsg('Informe uma porcentagem aceita entre 0 e 100.')
       return
     }
     salvarConfigTransportador({
       ...form,
       frete_minimo_empresa: min != null && Number.isFinite(min) ? min : null,
-      frete_maximo_empresa: max != null && Number.isFinite(max) ? max : null,
+      porcentagem_aceita: pct != null && Number.isFinite(pct) ? pct : null,
     })
     setMsg('Configurações salvas.')
   }
@@ -137,7 +131,7 @@ export function ConfiguracoesTransportadorPage() {
             <h2 className="font-display text-base font-semibold">1. Negociação e lances</h2>
             <Hint>Limites e preferências ao ofertar frete nas cargas.</Hint>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid max-w-md gap-3">
             <Field label="Frete mínimo da empresa (R$)">
               <input
                 className={inputClass}
@@ -154,21 +148,30 @@ export function ConfiguracoesTransportadorPage() {
                 }}
               />
             </Field>
-            <Field label="Frete máximo da empresa (R$)">
-              <input
-                className={inputClass}
-                inputMode="decimal"
-                placeholder="Opcional"
-                value={freteMaxStr}
-                onChange={(e) => {
-                  const digits = e.target.value.replace(/\D/g, '')
-                  if (!digits) {
-                    setFreteMaxStr('')
-                    return
+            <Field label="Porcentagem aceita (%)">
+              <div className="flex items-center gap-2">
+                <input
+                  className={inputClass}
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  placeholder="ex.: 10"
+                  value={form.porcentagem_aceita ?? ''}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      porcentagem_aceita:
+                        e.target.value === '' ? null : Number(e.target.value),
+                    })
                   }
-                  setFreteMaxStr(moneyFromDigits(digits).display)
-                }}
-              />
+                />
+                <span className="shrink-0 text-xs text-ink-muted">%</span>
+              </div>
+              <p className="mt-1 text-[11px] text-ink-muted">
+                Margem percentual que você aceita negociar em relação ao frete
+                oferta.
+              </p>
             </Field>
           </div>
           <SimNao
