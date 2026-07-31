@@ -1451,6 +1451,42 @@
   overflow: visible;
 }
 
+.frota-modal__panel--avaliacoes {
+  width: min(520px, 100%);
+  max-height: min(88vh, 720px);
+}
+
+.frota-avaliacoes-resumo {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.frota-avaliacoes-resumo > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 8px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  text-align: center;
+}
+
+.frota-avaliacoes-resumo strong {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.frota-avaliacoes-resumo span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
 .frota-modal__close {
   position: absolute;
   top: 8px;

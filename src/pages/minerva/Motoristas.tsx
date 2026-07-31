@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useData } from '../../context/DataContext'
 import { CadastroStatsCards } from '../../components/cadastro/CadastroStatsCards'
+import { MotoristaAvaliacoesModal } from '../../components/motorista/MotoristaAvaliacoesModal'
 import { inputClass } from '../../components/ui/Modal'
 import type { Motorista } from '../../types'
 import '../../styles/cadastro.css'
@@ -26,6 +27,7 @@ export function MotoristasPage() {
     motoristas,
     veiculos,
     transportadores,
+    cargas,
     salvarMotorista,
     excluirMotorista,
     transportadorById,
@@ -36,6 +38,7 @@ export function MotoristasPage() {
   const [form, setForm] = useState<Partial<Motorista>>(emptyForm)
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
+  const [avaliacoesDe, setAvaliacoesDe] = useState<Motorista | null>(null)
 
   const lista = motoristas ?? []
   const listaVeiculos = veiculos ?? []
@@ -276,13 +279,20 @@ export function MotoristasPage() {
                       </td>
                       <td className="p-3">{m.telefone ?? '—'}</td>
                       <td className="p-3 capitalize">{m.situacao}</td>
-                      <td className="p-3 text-right space-x-2">
+                      <td className="p-3 text-right space-x-2 whitespace-nowrap">
                         <button
                           type="button"
                           className="text-xs font-bold text-ink hover:underline"
                           onClick={() => openEdit(m)}
                         >
                           Editar
+                        </button>
+                        <button
+                          type="button"
+                          className="text-xs font-bold text-ink hover:underline"
+                          onClick={() => setAvaliacoesDe(m)}
+                        >
+                          Ver avaliações
                         </button>
                         <button
                           type="button"
@@ -475,6 +485,14 @@ export function MotoristasPage() {
           </div>
         </>
       )}
+
+      {avaliacoesDe ? (
+        <MotoristaAvaliacoesModal
+          motorista={avaliacoesDe}
+          cargas={cargas ?? []}
+          onClose={() => setAvaliacoesDe(null)}
+        />
+      ) : null}
     </div>
   )
 }

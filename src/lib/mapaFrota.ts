@@ -231,6 +231,44 @@ export function listarAvaliacoesDemo(
   return out
 }
 
+function formatDataAvaliacao(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleDateString('pt-BR')
+}
+
+/**
+ * Avaliações reais das viagens finalizadas; se ainda não houver, usa a lista demo
+ * alinhada à média/total do cadastro do motorista.
+ */
+export function listarAvaliacoesMotorista(
+  motorista: Pick<Motorista, 'id' | 'avaliacao' | 'total_avaliacoes'>,
+  cargas: Carga[],
+): AvaliacaoItem[] {
+  const reais = cargas
+    .filter(
+      (c) =>
+        c.motorista_id === motorista.id &&
+        c.avaliacao_motorista != null &&
+        Number.isFinite(c.avaliacao_motorista) &&
+        Boolean(c.avaliado_em),
+    )
+    .map((c) => ({
+      id: `carga-${c.id}`,
+      nota: Math.min(5, Math.max(1, Number(c.avaliacao_motorista))),
+      texto: (c.avaliacao_comentario || '').trim() || 'Sem comentário.',
+      autor: c.numero ? `Viagem ${c.numero}` : 'Embarcador',
+      data: formatDataAvaliacao(c.avaliado_em!),
+      _ts: c.avaliado_em!,
+    }))
+    .sort((a, b) => (a._ts < b._ts ? 1 : a._ts > b._ts ? -1 : 0))
+    .map(({ _ts: _, ...item }) => item)
+
+  if (reais.length > 0) return reais
+  const av = avaliacaoDoMotorista(motorista)
+  return listarAvaliacoesDemo(motorista.id, av.nota, av.total)
+}
+
 export function iniciaisNome(nome: string): string {
   const parts = nome.trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return '?'
