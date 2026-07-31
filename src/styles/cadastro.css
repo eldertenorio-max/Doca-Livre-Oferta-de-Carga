@@ -702,6 +702,27 @@
   margin-bottom: 14px;
 }
 
+.cadastro-filtros--linha {
+  flex-wrap: nowrap;
+  align-items: center;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cadastro-filtros--linha .cadastro-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.cadastro-filtros__sep {
+  flex-shrink: 0;
+  width: 1px;
+  height: 22px;
+  background: #cbd5e1;
+  margin: 0 2px;
+}
+
 .revisao-dl {
   display: grid;
   gap: 12px;

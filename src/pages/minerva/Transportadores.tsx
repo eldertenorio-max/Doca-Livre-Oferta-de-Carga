@@ -921,7 +921,10 @@ export function TransportadoresPage() {
           </button>
         </div>
 
-        <div className="cadastro-filtros">
+        <div
+          className="cadastro-filtros cadastro-filtros--linha"
+          aria-label="Filtros de situação e origem do cadastro"
+        >
           {(
             [
               ['todos', 'Todos'],
@@ -932,7 +935,7 @@ export function TransportadoresPage() {
             ] as const
           ).map(([id, label]) => (
             <button
-              key={id}
+              key={`sit-${id}`}
               type="button"
               className={`cadastro-btn ${filtro === id ? 'cadastro-btn--primary' : 'cadastro-btn--ghost'}`}
               onClick={() => setFiltro(id)}
@@ -940,9 +943,7 @@ export function TransportadoresPage() {
               {label}
             </button>
           ))}
-        </div>
-
-        <div className="cadastro-filtros" aria-label="Filtro por origem do cadastro">
+          <span className="cadastro-filtros__sep" aria-hidden />
           {(
             [
               ['todos', 'Cadastro: todos'],
@@ -951,7 +952,7 @@ export function TransportadoresPage() {
             ] as const
           ).map(([id, label]) => (
             <button
-              key={id}
+              key={`ori-${id}`}
               type="button"
               className={`cadastro-btn ${filtroOrigem === id ? 'cadastro-btn--primary' : 'cadastro-btn--ghost'}`}
               onClick={() => setFiltroOrigem(id)}
