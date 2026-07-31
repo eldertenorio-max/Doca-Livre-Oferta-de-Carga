@@ -25,7 +25,7 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 
 do $$ begin
-  create type modo_publicacao as enum ('leilao', 'oferta');
+  create type modo_publicacao as enum ('leilao', 'oferta', 'negociacao_direta');
 exception when duplicate_object then null; end $$;
 
 do $$ begin
@@ -207,6 +207,7 @@ create table if not exists cargas (
   justificativa_motivo text,
   justificativa_obs text,
   grupo_ids uuid[] not null default '{}',
+  transportador_direto_ids uuid[] not null default '{}',
   grupos_notificados uuid[] not null default '{}',
   transportador_vencedor_id uuid references transportadores(id),
   frete_fechado numeric(12,2),

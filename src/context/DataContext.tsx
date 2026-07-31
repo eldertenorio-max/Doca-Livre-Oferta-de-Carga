@@ -156,6 +156,8 @@ interface PublishPayload {
   observacao?: string
   /** Se true, só o 1º grupo vê agora; demais na metade do prazo. */
   escalonarGrupos?: boolean
+  /** Destinatários no modo Negociação Direta. */
+  transportadorDiretoIds?: string[]
 }
 
 interface DataState {
@@ -476,6 +478,7 @@ export function montarNovaCarga(
     justificativa_obs: null,
     grupo_ids: [],
     grupos_notificados: [],
+    transportador_direto_ids: [],
     transportador_vencedor_id: null,
     frete_fechado: null,
     placa: null,
@@ -625,6 +628,8 @@ function normalizeCargasNegociacao(
   const now = Date.now()
   return cargas.map((c) => {
     if (!['negociando', 'propostas', 'suspensas'].includes(c.status)) return c
+    // Negociação direta não usa grupos — não preencher grupo_ids automaticamente
+    if (c.modo_publicacao === 'negociacao_direta') return c
     let grupo_ids = c.grupo_ids ?? []
     let grupos_notificados = c.grupos_notificados ?? []
     // Cargas publicadas sem grupo (dados antigos) — abre para todos os grupos ativos
@@ -2049,7 +2054,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
             : 'Justificativa obrigatória para prioridade alta',
         }
       }
-      if (payload.grupoIds.length === 0) {
+      const diretoIds = (payload.transportadorDiretoIds ?? []).filter(Boolean)
+      const isDireta = modo === 'negociacao_direta'
+      if (isDireta) {
+        if (diretoIds.length === 0) {
+          return {
+            ok: false,
+            error: 'Selecione ao menos uma transportadora para negociação direta',
+          }
+        }
+      } else if (payload.grupoIds.length === 0) {
         return { ok: false, error: 'Selecione ao menos um grupo de transportadores' }
       }
       if (payload.prazoLeilaoMinutos < config.prazo_oferta_minimo_minutos) {
@@ -2065,7 +2079,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const escalonar = Boolean(payload.escalonarGrupos) && payload.grupoIds.length > 1
+      const escalonar =
+        !isDireta && Boolean(payload.escalonarGrupos) && payload.grupoIds.length > 1
       const prev = stateRef.current
       const cargaAtual = prev.cargas.find((c) => c.id === payload.cargaId)
       if (!cargaAtual) return { ok: false, error: 'Carga não encontrada' }
@@ -2078,6 +2093,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       )
       const lim = limitesLance(freteOferta, config)
       const actor = userRef.current
+      const grupoIdsPub = isDireta ? [] : payload.grupoIds
+      const gruposNotif = isDireta
+        ? []
+        : escalonar
+          ? [payload.grupoIds[0]]
+          : [...payload.grupoIds]
 
       const cargas = prev.cargas.map((c) => {
         if (c.id !== payload.cargaId) return c
@@ -2087,8 +2108,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
           frete_oferta: freteOferta,
           frete_minimo: lim.min,
           frete_maximo: lim.max,
-          grupo_ids: payload.grupoIds,
-          grupos_notificados: escalonar ? [payload.grupoIds[0]] : [...payload.grupoIds],
+          grupo_ids: grupoIdsPub,
+          grupos_notificados: gruposNotif,
+          transportador_direto_ids: isDireta ? [...diretoIds] : [],
           prazo_leilao_minutos: payload.prazoLeilaoMinutos,
           prazo_alocacao_minutos: payload.prazoAlocacaoMinutos,
           prioridade,
@@ -2117,21 +2139,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
       // Republicar/publicar de novo = zera propostas; Kanban volta a Nova Carga
       const lances = cancelarLancesDaCarga(prev.lances, payload.cargaId, nowIso)
       const carga = cargas.find((c) => c.id === payload.cargaId)
+      const destDetalhe = isDireta
+        ? `${diretoIds.length} transportadora(s)`
+        : `${payload.grupoIds.length} grupo(s)`
       const hist = makeHistorico(
         'carga_publicada',
         `Carga ${carga?.numero ?? ''} publicada`,
         {
           carga_id: payload.cargaId,
-          detalhe: `${modo} · ${prioridade} · ${payload.prazoLeilaoMinutos} min · ${payload.grupoIds.length} grupo(s)`,
+          detalhe: `${modo} · ${prioridade} · ${payload.prazoLeilaoMinutos} min · ${destDetalhe}`,
         },
         actor,
       )
-      const gruposNotif = escalonar ? [payload.grupoIds[0]] : [...payload.grupoIds]
-      const tidsPush = tidsAtivosDosGrupos(
-        prev.grupos,
-        gruposNotif,
-        prev.transportadores,
-      )
+      const tidsPush = isDireta
+        ? diretoIds.filter((tid) => {
+            const t = prev.transportadores.find((x) => sameTransportadorId(x.id, tid))
+            return t && t.situacao !== 'inativo'
+          })
+        : tidsAtivosDosGrupos(prev.grupos, gruposNotif, prev.transportadores)
       const msgPush = textoPushNovaCarga({
         numero: carga?.numero,
         origem: carga?.origem,
@@ -2186,7 +2211,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         ok: true,
         pushAviso:
           tidsPush.length === 0
-            ? 'Nenhum transportador ativo nos grupos — push não enviado.'
+            ? isDireta
+              ? 'Nenhuma transportadora ativa selecionada — push não enviado.'
+              : 'Nenhum transportador ativo nos grupos — push não enviado.'
             : undefined,
       }
     },
@@ -2294,19 +2321,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Escalonar: só grupos já notificados; senão todos os da publicação
-      const gruposOk =
-        (cargaOk.grupos_notificados?.length ?? 0) > 0
-          ? cargaOk.grupos_notificados!
-          : (cargaOk.grupo_ids ?? [])
-      const autorizado =
-        gruposOk.length === 0 ||
-        prev.grupos.some(
-          (g) =>
-            g.situacao !== 'inativo' &&
-            gruposOk.includes(g.id) &&
-            (g.transportador_ids ?? []).some((id) => sameTransportadorId(id, tid)),
+      // Negociação direta: só IDs escolhidos. Grupos: escalonar / notificados.
+      let autorizado = false
+      if (cargaOk.modo_publicacao === 'negociacao_direta') {
+        autorizado = (cargaOk.transportador_direto_ids ?? []).some((id) =>
+          sameTransportadorId(id, tid),
         )
+      } else {
+        const gruposOk =
+          (cargaOk.grupos_notificados?.length ?? 0) > 0
+            ? cargaOk.grupos_notificados!
+            : (cargaOk.grupo_ids ?? [])
+        autorizado =
+          gruposOk.length === 0 ||
+          prev.grupos.some(
+            (g) =>
+              g.situacao !== 'inativo' &&
+              gruposOk.includes(g.id) &&
+              (g.transportador_ids ?? []).some((id) => sameTransportadorId(id, tid)),
+          )
+      }
       if (!autorizado) {
         return { ok: false, error: 'Você ainda não foi chamado para negociar esta carga' }
       }
@@ -2317,8 +2351,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
           sameTransportadorId(l.transportador_id, tid) &&
           l.status === 'ativo',
       )
-      if (jaTemLance && cargaOk.modo_publicacao === 'oferta' && !opts?.aceitarOferta) {
-        return { ok: false, error: 'No modo Oferta não é permitido alterar a proposta.' }
+      if (
+        jaTemLance &&
+        (cargaOk.modo_publicacao === 'oferta' ||
+          cargaOk.modo_publicacao === 'negociacao_direta') &&
+        !opts?.aceitarOferta
+      ) {
+        return {
+          ok: false,
+          error:
+            cargaOk.modo_publicacao === 'negociacao_direta'
+              ? 'Na Negociação direta não é permitido alterar a proposta.'
+              : 'No modo Oferta não é permitido alterar a proposta.',
+        }
       }
 
       const userNow = userRef.current
@@ -4962,6 +5007,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
         if (!['negociando', 'propostas', 'suspensas'].includes(c.status)) return false
         if (!c.publicado_em) return false
+
+        // Negociação direta: só as transportadoras escolhidas na publicação
+        if (c.modo_publicacao === 'negociacao_direta') {
+          return (c.transportador_direto_ids ?? []).some((id) =>
+            sameTransportadorId(id, transportadorId),
+          )
+        }
 
         // Escalonar: só quem já foi notificado; sem escalonar, grupos_notificados = todos
         const candidatos =

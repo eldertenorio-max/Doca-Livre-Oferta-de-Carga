@@ -458,10 +458,12 @@ export function CargoCard({
   bidMelhor,
   ofertasCount,
 }: CargoCardProps) {
-  const { tick, mensagensNaoLidasDaCarga } = useData()
+  const { tick, mensagensNaoLidasDaCarga, transportadorById } = useData()
   const [chatOpen, setChatOpen] = useState(false)
+  const [diretosOpen, setDiretosOpen] = useState(false)
   void tick
   const chatNaoLidas = mensagensNaoLidasDaCarga(carga.id)
+  const diretosIds = carga.transportador_direto_ids ?? []
 
   // Transportador sempre vê frete oferta/tabela no card (mesmo em Nova Carga).
   const frete =
@@ -641,9 +643,58 @@ export function CargoCard({
             </p>
           )}
           {mode === 'minerva' && carga.modo_publicacao && ofertasCount == null && (
-            <span className="text-[10px] font-bold uppercase text-ink-muted">
-              {carga.modo_publicacao === 'oferta' ? 'Oferta' : 'Leilão'}
-            </span>
+            <div className="relative">
+              {carga.modo_publicacao === 'negociacao_direta' ? (
+                <button
+                  type="button"
+                  className="rounded bg-blue-700 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white hover:bg-blue-800"
+                  title="Ver para quem foi enviada"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setDiretosOpen((v) => !v)
+                  }}
+                >
+                  Negociação direta
+                </button>
+              ) : (
+                <span className="text-[10px] font-bold uppercase text-ink-muted">
+                  {carga.modo_publicacao === 'oferta' ? 'Oferta' : 'Leilão'}
+                </span>
+              )}
+              {diretosOpen && carga.modo_publicacao === 'negociacao_direta' ? (
+                <div
+                  className="absolute right-0 z-30 mt-1 w-56 rounded-lg border border-ink/15 bg-white p-2 shadow-lg"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-ink-muted">
+                    Enviado para ({diretosIds.length})
+                  </p>
+                  {diretosIds.length === 0 ? (
+                    <p className="text-[11px] text-ink-muted">Nenhuma transportadora.</p>
+                  ) : (
+                    <ul className="max-h-40 space-y-1 overflow-y-auto text-[11px] font-semibold text-ink">
+                      {diretosIds.map((id) => (
+                        <li key={id}>
+                          {transportadorById(id)?.nome_fantasia ||
+                            transportadorById(id)?.razao_social ||
+                            id}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <button
+                    type="button"
+                    className="mt-2 text-[10px] font-bold text-ink-muted hover:underline"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setDiretosOpen(false)
+                    }}
+                  >
+                    Fechar
+                  </button>
+                </div>
+              ) : null}
+            </div>
           )}
         </div>
         {isCargaRetorno(carga) ? (

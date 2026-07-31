@@ -213,11 +213,13 @@ export function BidModal({
               />
             </Field>
 
-            {live.modo_publicacao === 'oferta' && (
+            {(live.modo_publicacao === 'oferta' ||
+              live.modo_publicacao === 'negociacao_direta') && (
               <p className="text-xs font-medium text-ink">
-                Modo Oferta: “Enviar lance” vai para Propostas e aguarda o embarcador. “Aceitar
-                oferta” fecha o frete no valor da oferta ({formatCurrency(freteRef)}). Após enviar,
-                o valor não pode ser alterado.
+                {live.modo_publicacao === 'negociacao_direta' ? 'Negociação direta' : 'Modo Oferta'}
+                : “Enviar lance” vai para Propostas e aguarda o embarcador. “Aceitar oferta” fecha o
+                frete no valor da oferta ({formatCurrency(freteRef)}). Após enviar, o valor não pode
+                ser alterado.
               </p>
             )}
             {live.modo_publicacao === 'leilao' && (
@@ -297,7 +299,13 @@ export function BidModal({
             )}
             <Detail
               label="Modo"
-              value={live.modo_publicacao === 'oferta' ? 'Oferta' : 'Leilão'}
+              value={
+                live.modo_publicacao === 'negociacao_direta'
+                  ? 'Negociação direta'
+                  : live.modo_publicacao === 'oferta'
+                    ? 'Oferta'
+                    : 'Leilão'
+              }
             />
             <Detail label="Prioridade" value={live.prioridade ?? '—'} />
             {meuLance && (

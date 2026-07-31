@@ -21,6 +21,9 @@ export function normalizeCarga(c: Carga): Carga {
     ...c,
     grupo_ids: Array.isArray(c.grupo_ids) ? c.grupo_ids : [],
     grupos_notificados: Array.isArray(c.grupos_notificados) ? c.grupos_notificados : [],
+    transportador_direto_ids: Array.isArray(c.transportador_direto_ids)
+      ? c.transportador_direto_ids
+      : [],
     recusado_por_ids: Array.isArray(c.recusado_por_ids) ? c.recusado_por_ids : [],
     carrocerias: Array.isArray(c.carrocerias)
       ? c.carrocerias
@@ -109,6 +112,7 @@ export function resetNegociacaoFields(_c?: Carga): Partial<Carga> {
     justificativa_obs: null,
     grupo_ids: [],
     grupos_notificados: [],
+    transportador_direto_ids: [],
     transportador_vencedor_id: null,
     frete_fechado: null,
     frete_oferta: null,

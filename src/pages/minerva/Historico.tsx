@@ -398,6 +398,8 @@ export function HistoricoPage() {
                             <span className="mt-0.5 block text-[10px] text-ink-muted">
                               {carga.modo_publicacao === 'oferta'
                                 ? 'Oferta'
+                                : carga.modo_publicacao === 'negociacao_direta'
+                                  ? 'Negociação direta'
                                 : carga.modo_publicacao === 'leilao'
                                   ? 'Leilão'
                                   : '—'}

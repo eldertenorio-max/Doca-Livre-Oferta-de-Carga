@@ -3,7 +3,7 @@ export type UserRole = 'minerva' | 'transportador' | 'super'
 export type ClassificacaoRota = 'A' | 'B' | 'C'
 export type ClassificacaoTransportador = 'ouro' | 'prata' | 'bronze'
 export type Prioridade = 'alta' | 'media' | 'baixa'
-export type ModoPublicacao = 'leilao' | 'oferta'
+export type ModoPublicacao = 'leilao' | 'oferta' | 'negociacao_direta'
 
 export type StatusCargaMinerva =
   | 'nova_carga'
@@ -353,6 +353,8 @@ export interface Carga {
   justificativa_obs: string | null
   grupo_ids: string[]
   grupos_notificados: string[]
+  /** Destinatários quando modo_publicacao === 'negociacao_direta'. */
+  transportador_direto_ids?: string[]
   transportador_vencedor_id: string | null
   frete_fechado: number | null
   placa: string | null

@@ -147,6 +147,10 @@ export function PublishPanel({
   const [gruposSelectAberto, setGruposSelectAberto] = useState(false)
   const [buscaGrupos, setBuscaGrupos] = useState('')
   const gruposSelectRef = useRef<HTMLDivElement>(null)
+  const [transportadorDiretoIds, setTransportadorDiretoIds] = useState<string[]>([])
+  const [diretosSelectAberto, setDiretosSelectAberto] = useState(false)
+  const [buscaDiretos, setBuscaDiretos] = useState('')
+  const diretosSelectRef = useRef<HTMLDivElement>(null)
   const [escalonar, setEscalonar] = useState(false)
   const [prazoLeilao, setPrazoLeilao] = useState(config.prazo_oferta_padrao_minutos)
   const [prazoAlocacao, setPrazoAlocacao] = useState(config.prazo_alocacao_padrao_minutos)
@@ -171,10 +175,19 @@ export function PublishPanel({
     setMargem(m[1] ?? m[0])
     const ativos = grupos.filter((g) => g.situacao === 'ativo').map((g) => g.id)
     setGrupoIds(carga.grupo_ids.length ? carga.grupo_ids : ativos)
+    setTransportadorDiretoIds(
+      Array.isArray(carga.transportador_direto_ids) ? [...carga.transportador_direto_ids] : [],
+    )
     setEscalonar(false)
     setPrazoLeilao(carga.prazo_leilao_minutos ?? config.prazo_oferta_padrao_minutos)
     setPrazoAlocacao(carga.prazo_alocacao_minutos ?? config.prazo_alocacao_padrao_minutos)
-    setModoOverride(usarRegra ? null : (config.modo_padrao ?? 'leilao'))
+    setModoOverride(
+      carga.modo_publicacao === 'negociacao_direta'
+        ? 'negociacao_direta'
+        : usarRegra
+          ? null
+          : (config.modo_padrao ?? 'leilao'),
+    )
     setPrioridadeManual(usarRegra ? null : (config.prioridade_padrao ?? 'media'))
     setError('')
     setMotivo(carga.justificativa_motivo ?? '')
@@ -331,6 +344,41 @@ export function PublishPanel({
     return `${nomes.slice(0, 2).join(', ')} +${nomes.length - 2}`
   }, [grupoIds, gruposAtivos])
 
+  const transportadoresAtivos = useMemo(
+    () =>
+      transportadores
+        .filter((t) => t.situacao === 'ativo')
+        .slice()
+        .sort((a, b) =>
+          (a.nome_fantasia || a.razao_social).localeCompare(
+            b.nome_fantasia || b.razao_social,
+            'pt-BR',
+          ),
+        ),
+    [transportadores],
+  )
+
+  const transportadoresDiretosFiltrados = useMemo(() => {
+    const q = buscaDiretos.trim().toLowerCase()
+    if (!q) return transportadoresAtivos
+    return transportadoresAtivos.filter((t) => {
+      const nome = `${t.nome_fantasia} ${t.razao_social} ${t.cidade ?? ''} ${t.uf ?? ''}`.toLowerCase()
+      return nome.includes(q) || (t.cnpj ?? '').includes(q)
+    })
+  }, [transportadoresAtivos, buscaDiretos])
+
+  const rotuloDiretos = useMemo(() => {
+    if (transportadorDiretoIds.length === 0) return 'Selecione as transportadoras…'
+    const nomes = transportadorDiretoIds
+      .map((id) => {
+        const t = transportadoresAtivos.find((x) => x.id === id)
+        return t?.nome_fantasia || t?.razao_social
+      })
+      .filter(Boolean) as string[]
+    if (nomes.length <= 2) return nomes.join(', ')
+    return `${nomes.slice(0, 2).join(', ')} +${nomes.length - 2}`
+  }, [transportadorDiretoIds, transportadoresAtivos])
+
   useEffect(() => {
     if (!gruposSelectAberto) return
     const onDoc = (e: MouseEvent) => {
@@ -342,6 +390,18 @@ export function PublishPanel({
     document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
   }, [gruposSelectAberto])
+
+  useEffect(() => {
+    if (!diretosSelectAberto) return
+    const onDoc = (e: MouseEvent) => {
+      if (!diretosSelectRef.current?.contains(e.target as Node)) {
+        setDiretosSelectAberto(false)
+        setBuscaDiretos('')
+      }
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [diretosSelectAberto])
 
   const lances = carga ? lancesDaCarga(carga.id) : []
   const isNova = carga?.status === 'nova_carga'
@@ -442,16 +502,23 @@ export function PublishPanel({
     setGrupoIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   }
 
+  function toggleDireto(id: string) {
+    setTransportadorDiretoIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    )
+  }
+
   function doPublicar(justificativa?: { motivo: string; obs?: string }) {
     setError('')
     if (!canEdit) {
       setError('Seu perfil não permite publicar.')
       return false
     }
+    const isDireta = modo === 'negociacao_direta'
     const res = publicarCarga({
       cargaId: carga!.id,
       margemPercentual: margem,
-      grupoIds,
+      grupoIds: isDireta ? [] : grupoIds,
       prazoLeilaoMinutos: prazoLeilao,
       prazoAlocacaoMinutos: prazoAlocacao,
       modoPublicacao: modo,
@@ -459,7 +526,8 @@ export function PublishPanel({
       justificativaMotivo: justificativa?.motivo || motivo || undefined,
       justificativaObs: (justificativa?.obs ?? obs) || undefined,
       observacao: observacao.trim() || undefined,
-      escalonarGrupos: escalonar,
+      escalonarGrupos: isDireta ? false : escalonar,
+      transportadorDiretoIds: isDireta ? transportadorDiretoIds : [],
     })
     if (!res.ok) {
       setError(res.error ?? 'Erro ao publicar')
@@ -477,7 +545,12 @@ export function PublishPanel({
       setTab('dados')
       return
     }
-    if (grupoIds.length === 0) {
+    if (modo === 'negociacao_direta') {
+      if (transportadorDiretoIds.length === 0) {
+        setError('Selecione ao menos uma transportadora para negociação direta.')
+        return
+      }
+    } else if (grupoIds.length === 0) {
       setError('Selecione quem vai negociar: ao menos um grupo.')
       return
     }
@@ -738,7 +811,12 @@ export function PublishPanel({
               {carga.modo_publicacao && (
                 <>
                   {' '}
-                  · {carga.modo_publicacao === 'oferta' ? 'Oferta' : 'Leilão'}
+                  ·{' '}
+                  {carga.modo_publicacao === 'negociacao_direta'
+                    ? 'Negociação direta'
+                    : carga.modo_publicacao === 'oferta'
+                      ? 'Oferta'
+                      : 'Leilão'}
                 </>
               )}
               {carga.expira_em && !carga.transportador_vencedor_id && (
@@ -1159,135 +1237,256 @@ export function PublishPanel({
                 </p>
               )}
 
-              <Field label="Quem vai negociar? (grupos)">
-                {gruposAtivos.length === 0 ? (
-                  <p className="text-xs text-brand">Cadastre grupos em Menu → Grupos.</p>
-                ) : (
-                  <div ref={gruposSelectRef} className="relative">
-                    <button
-                      type="button"
-                      className={`${inputClass} flex w-full items-center justify-between gap-2 text-left`}
-                      onClick={() => setGruposSelectAberto((v) => !v)}
-                      aria-expanded={gruposSelectAberto}
-                      aria-haspopup="listbox"
-                    >
-                      <span
-                        className={
-                          grupoIds.length === 0
-                            ? 'truncate text-ink-muted'
-                            : 'truncate text-ink'
-                        }
-                      >
-                        {rotuloGrupos}
-                      </span>
-                      <ChevronDown
-                        size={16}
-                        className={`shrink-0 text-ink-muted transition ${
-                          gruposSelectAberto ? 'rotate-180' : ''
-                        }`}
-                      />
-                    </button>
-                    {gruposSelectAberto ? (
-                      <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-40 overflow-hidden rounded-lg border border-ink/15 bg-white shadow-lg">
-                        <input
-                          className="w-full border-0 border-b border-ink/10 px-3 py-2 text-sm outline-none"
-                          value={buscaGrupos}
-                          onChange={(e) => setBuscaGrupos(e.target.value)}
-                          placeholder="Digite para filtrar…"
-                          autoFocus
-                        />
-                        <ul
-                          className="max-h-56 overflow-y-auto py-1"
-                          role="listbox"
-                          aria-multiselectable="true"
+              {modo === 'negociacao_direta' ? (
+                <>
+                  <Field label="Transportadoras (negociação direta)">
+                    {transportadoresAtivos.length === 0 ? (
+                      <p className="text-xs text-brand">
+                        Nenhuma transportadora ativa cadastrada.
+                      </p>
+                    ) : (
+                      <div ref={diretosSelectRef} className="relative">
+                        <button
+                          type="button"
+                          className={`${inputClass} flex w-full items-center justify-between gap-2 text-left`}
+                          onClick={() => setDiretosSelectAberto((v) => !v)}
+                          aria-expanded={diretosSelectAberto}
+                          aria-haspopup="listbox"
                         >
-                          {gruposFiltrados.length === 0 ? (
-                            <li className="px-3 py-2 text-xs text-ink-muted">
-                              Nenhum grupo encontrado.
-                            </li>
-                          ) : (
-                            gruposFiltrados.map((g) => {
-                              const on = grupoIds.includes(g.id)
-                              const qtd = g.transportador_ids.length
-                              return (
-                                <li key={g.id} role="option" aria-selected={on}>
-                                  <button
-                                    type="button"
-                                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-ink/5 ${
-                                      on ? 'bg-ink/5 font-semibold' : ''
-                                    }`}
-                                    onClick={() => toggleGrupo(g.id)}
-                                  >
-                                    <span
-                                      className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] ${
-                                        on
-                                          ? 'border-ink bg-ink text-white'
-                                          : 'border-ink/30 bg-white text-transparent'
-                                      }`}
-                                      aria-hidden
-                                    >
-                                      ✓
-                                    </span>
-                                    <span className="min-w-0 flex-1 truncate">
-                                      {g.descricao}
-                                      <span className="ml-1 font-normal text-ink-muted">
-                                        ({qtd})
-                                      </span>
-                                    </span>
-                                  </button>
+                          <span
+                            className={
+                              transportadorDiretoIds.length === 0
+                                ? 'truncate text-ink-muted'
+                                : 'truncate text-ink'
+                            }
+                          >
+                            {rotuloDiretos}
+                          </span>
+                          <ChevronDown
+                            size={16}
+                            className={`shrink-0 text-ink-muted transition ${
+                              diretosSelectAberto ? 'rotate-180' : ''
+                            }`}
+                          />
+                        </button>
+                        {diretosSelectAberto ? (
+                          <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-40 overflow-hidden rounded-lg border border-ink/15 bg-white shadow-lg">
+                            <input
+                              className="w-full border-0 border-b border-ink/10 px-3 py-2 text-sm outline-none"
+                              value={buscaDiretos}
+                              onChange={(e) => setBuscaDiretos(e.target.value)}
+                              placeholder="Buscar por nome, cidade ou CNPJ…"
+                              autoFocus
+                            />
+                            <ul
+                              className="max-h-56 overflow-y-auto py-1"
+                              role="listbox"
+                              aria-multiselectable="true"
+                            >
+                              {transportadoresDiretosFiltrados.length === 0 ? (
+                                <li className="px-3 py-2 text-xs text-ink-muted">
+                                  Nenhuma transportadora encontrada.
                                 </li>
-                              )
-                            })
-                          )}
-                        </ul>
+                              ) : (
+                                transportadoresDiretosFiltrados.map((t) => {
+                                  const on = transportadorDiretoIds.includes(t.id)
+                                  const local = [t.origem_cidade || t.cidade, t.origem_uf || t.uf]
+                                    .filter(Boolean)
+                                    .join('/')
+                                  return (
+                                    <li key={t.id} role="option" aria-selected={on}>
+                                      <button
+                                        type="button"
+                                        className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-ink/5 ${
+                                          on ? 'bg-ink/5 font-semibold' : ''
+                                        }`}
+                                        onClick={() => toggleDireto(t.id)}
+                                      >
+                                        <span
+                                          className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] ${
+                                            on
+                                              ? 'border-ink bg-ink text-white'
+                                              : 'border-ink/30 bg-white text-transparent'
+                                          }`}
+                                          aria-hidden
+                                        >
+                                          ✓
+                                        </span>
+                                        <span className="min-w-0 flex-1 truncate">
+                                          {t.nome_fantasia || t.razao_social}
+                                          {local ? (
+                                            <span className="ml-1 font-normal text-ink-muted">
+                                              ({local})
+                                            </span>
+                                          ) : null}
+                                        </span>
+                                      </button>
+                                    </li>
+                                  )
+                                })
+                              )}
+                            </ul>
+                          </div>
+                        ) : null}
                       </div>
-                    ) : null}
-                  </div>
-                )}
-              </Field>
-
-              <label className="flex items-start gap-2 text-xs text-ink-muted">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  checked={escalonar}
-                  onChange={(e) => setEscalonar(e.target.checked)}
-                  disabled={grupoIds.length < 2}
-                />
-                <span>
-                  Escalonar: notificar só o 1º grupo agora; os demais entram na metade do prazo.
-                </span>
-              </label>
-
-              <div className="rounded-lg border border-ink/10 bg-white p-2 text-xs">
-                <p className="mb-1 font-semibold text-ink">
-                  Recebem agora ({previewTransportadores.agora.length})
-                </p>
-                {previewTransportadores.agora.length === 0 ? (
-                  <p className="text-ink-muted">Nenhum — selecione um grupo.</p>
-                ) : (
-                  <ul className="list-inside list-disc text-ink-muted">
-                    {previewTransportadores.agora.map((t) => (
-                      <li key={t.id}>
-                        {t.nome_fantasia}{' '}
-                        <span className="uppercase">({t.classificacao})</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {previewTransportadores.depois.length > 0 && (
-                  <>
-                    <p className="mb-1 mt-2 font-semibold text-ink">
-                      Entram depois ({previewTransportadores.depois.length})
+                    )}
+                  </Field>
+                  <div className="rounded-lg border border-ink/10 bg-white p-2 text-xs">
+                    <p className="mb-1 font-semibold text-ink">
+                      Recebem a proposta ({transportadorDiretoIds.length})
                     </p>
-                    <ul className="list-inside list-disc text-ink-muted">
-                      {previewTransportadores.depois.map((t) => (
-                        <li key={t.id}>{t.nome_fantasia}</li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-              </div>
+                    {transportadorDiretoIds.length === 0 ? (
+                      <p className="text-ink-muted">Nenhuma — selecione as transportadoras.</p>
+                    ) : (
+                      <ul className="list-inside list-disc text-ink-muted">
+                        {transportadorDiretoIds.map((id) => {
+                          const t = transportadoresAtivos.find((x) => x.id === id)
+                          return (
+                            <li key={id}>
+                              {t?.nome_fantasia || t?.razao_social || id}
+                              {t?.classificacao ? (
+                                <span className="uppercase"> ({t.classificacao})</span>
+                              ) : null}
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Field label="Quem vai negociar? (grupos)">
+                    {gruposAtivos.length === 0 ? (
+                      <p className="text-xs text-brand">Cadastre grupos em Menu → Grupos.</p>
+                    ) : (
+                      <div ref={gruposSelectRef} className="relative">
+                        <button
+                          type="button"
+                          className={`${inputClass} flex w-full items-center justify-between gap-2 text-left`}
+                          onClick={() => setGruposSelectAberto((v) => !v)}
+                          aria-expanded={gruposSelectAberto}
+                          aria-haspopup="listbox"
+                        >
+                          <span
+                            className={
+                              grupoIds.length === 0
+                                ? 'truncate text-ink-muted'
+                                : 'truncate text-ink'
+                            }
+                          >
+                            {rotuloGrupos}
+                          </span>
+                          <ChevronDown
+                            size={16}
+                            className={`shrink-0 text-ink-muted transition ${
+                              gruposSelectAberto ? 'rotate-180' : ''
+                            }`}
+                          />
+                        </button>
+                        {gruposSelectAberto ? (
+                          <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-40 overflow-hidden rounded-lg border border-ink/15 bg-white shadow-lg">
+                            <input
+                              className="w-full border-0 border-b border-ink/10 px-3 py-2 text-sm outline-none"
+                              value={buscaGrupos}
+                              onChange={(e) => setBuscaGrupos(e.target.value)}
+                              placeholder="Digite para filtrar…"
+                              autoFocus
+                            />
+                            <ul
+                              className="max-h-56 overflow-y-auto py-1"
+                              role="listbox"
+                              aria-multiselectable="true"
+                            >
+                              {gruposFiltrados.length === 0 ? (
+                                <li className="px-3 py-2 text-xs text-ink-muted">
+                                  Nenhum grupo encontrado.
+                                </li>
+                              ) : (
+                                gruposFiltrados.map((g) => {
+                                  const on = grupoIds.includes(g.id)
+                                  const qtd = g.transportador_ids.length
+                                  return (
+                                    <li key={g.id} role="option" aria-selected={on}>
+                                      <button
+                                        type="button"
+                                        className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-ink/5 ${
+                                          on ? 'bg-ink/5 font-semibold' : ''
+                                        }`}
+                                        onClick={() => toggleGrupo(g.id)}
+                                      >
+                                        <span
+                                          className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] ${
+                                            on
+                                              ? 'border-ink bg-ink text-white'
+                                              : 'border-ink/30 bg-white text-transparent'
+                                          }`}
+                                          aria-hidden
+                                        >
+                                          ✓
+                                        </span>
+                                        <span className="min-w-0 flex-1 truncate">
+                                          {g.descricao}
+                                          <span className="ml-1 font-normal text-ink-muted">
+                                            ({qtd})
+                                          </span>
+                                        </span>
+                                      </button>
+                                    </li>
+                                  )
+                                })
+                              )}
+                            </ul>
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+                  </Field>
+
+                  <label className="flex items-start gap-2 text-xs text-ink-muted">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={escalonar}
+                      onChange={(e) => setEscalonar(e.target.checked)}
+                      disabled={grupoIds.length < 2}
+                    />
+                    <span>
+                      Escalonar: notificar só o 1º grupo agora; os demais entram na metade do prazo.
+                    </span>
+                  </label>
+
+                  <div className="rounded-lg border border-ink/10 bg-white p-2 text-xs">
+                    <p className="mb-1 font-semibold text-ink">
+                      Recebem agora ({previewTransportadores.agora.length})
+                    </p>
+                    {previewTransportadores.agora.length === 0 ? (
+                      <p className="text-ink-muted">Nenhum — selecione um grupo.</p>
+                    ) : (
+                      <ul className="list-inside list-disc text-ink-muted">
+                        {previewTransportadores.agora.map((t) => (
+                          <li key={t.id}>
+                            {t.nome_fantasia}{' '}
+                            <span className="uppercase">({t.classificacao})</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {previewTransportadores.depois.length > 0 && (
+                      <>
+                        <p className="mb-1 mt-2 font-semibold text-ink">
+                          Entram depois ({previewTransportadores.depois.length})
+                        </p>
+                        <ul className="list-inside list-disc text-ink-muted">
+                          {previewTransportadores.depois.map((t) => (
+                            <li key={t.id}>{t.nome_fantasia}</li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
 
               <div className="grid grid-cols-2 gap-2">
                 <Field label="Prazo da negociação">
@@ -1390,6 +1589,19 @@ export function PublishPanel({
                     >
                       Oferta
                     </button>
+                    <button
+                      type="button"
+                      disabled={!canEdit}
+                      onClick={() => setModoOverride('negociacao_direta')}
+                      title="Envia a proposta só para transportadoras escolhidas"
+                      className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${
+                        modo === 'negociacao_direta'
+                          ? 'bg-blue-700 text-white'
+                          : 'text-ink-muted hover:bg-sand-light hover:text-ink'
+                      }`}
+                    >
+                      Negociação Direta
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1480,11 +1692,33 @@ export function PublishPanel({
                 <Detail
                   label="Modo"
                   value={
-                    carga.modo_publicacao === 'oferta'
-                      ? 'Oferta — proposta única (embarcador aceita)'
-                      : 'Leilão — melhor ao fim / aceite manual'
+                    carga.modo_publicacao === 'negociacao_direta'
+                      ? `Negociação direta — ${(carga.transportador_direto_ids ?? []).length} transportadora(s)`
+                      : carga.modo_publicacao === 'oferta'
+                        ? 'Oferta — proposta única (embarcador aceita)'
+                        : 'Leilão — melhor ao fim / aceite manual'
                   }
                 />
+                {carga.modo_publicacao === 'negociacao_direta' ? (
+                  <div className="mt-2 rounded-md border border-blue-200 bg-blue-50/80 px-2 py-1.5">
+                    <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-blue-900">
+                      Enviado para
+                    </p>
+                    {(carga.transportador_direto_ids ?? []).length === 0 ? (
+                      <p className="text-[11px] text-ink-muted">Nenhuma transportadora.</p>
+                    ) : (
+                      <ul className="list-inside list-disc text-[11px] text-ink">
+                        {(carga.transportador_direto_ids ?? []).map((id) => (
+                          <li key={id}>
+                            {transportadorById(id)?.nome_fantasia ||
+                              transportadorById(id)?.razao_social ||
+                              id}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ) : null}
                 <Detail label="Prioridade" value={carga.prioridade ?? '—'} />
                 {!carga.transportador_vencedor_id && carga.expira_em && (
                   <Detail label="Tempo restante" value={tempoRestante(carga.expira_em)} />
