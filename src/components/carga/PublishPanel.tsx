@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Check,
   ChevronDown,
@@ -144,6 +144,9 @@ export function PublishPanel({
   const [buscaFavoritas, setBuscaFavoritas] = useState('')
   const [margem, setMargem] = useState(margens[1])
   const [grupoIds, setGrupoIds] = useState<string[]>([])
+  const [gruposSelectAberto, setGruposSelectAberto] = useState(false)
+  const [buscaGrupos, setBuscaGrupos] = useState('')
+  const gruposSelectRef = useRef<HTMLDivElement>(null)
   const [escalonar, setEscalonar] = useState(false)
   const [prazoLeilao, setPrazoLeilao] = useState(config.prazo_oferta_padrao_minutos)
   const [prazoAlocacao, setPrazoAlocacao] = useState(config.prazo_alocacao_padrao_minutos)
@@ -307,6 +310,38 @@ export function PublishPanel({
         : []
     return { agora, depois }
   }, [grupoIds, escalonar, grupos, transportadores])
+
+  const gruposAtivos = useMemo(
+    () => grupos.filter((g) => g.situacao === 'ativo'),
+    [grupos],
+  )
+
+  const gruposFiltrados = useMemo(() => {
+    const q = buscaGrupos.trim().toLowerCase()
+    if (!q) return gruposAtivos
+    return gruposAtivos.filter((g) => g.descricao.toLowerCase().includes(q))
+  }, [gruposAtivos, buscaGrupos])
+
+  const rotuloGrupos = useMemo(() => {
+    if (grupoIds.length === 0) return 'Selecione os grupos…'
+    const nomes = grupoIds
+      .map((id) => gruposAtivos.find((g) => g.id === id)?.descricao)
+      .filter(Boolean) as string[]
+    if (nomes.length <= 2) return nomes.join(', ')
+    return `${nomes.slice(0, 2).join(', ')} +${nomes.length - 2}`
+  }, [grupoIds, gruposAtivos])
+
+  useEffect(() => {
+    if (!gruposSelectAberto) return
+    const onDoc = (e: MouseEvent) => {
+      if (!gruposSelectRef.current?.contains(e.target as Node)) {
+        setGruposSelectAberto(false)
+        setBuscaGrupos('')
+      }
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [gruposSelectAberto])
 
   const lances = carga ? lancesDaCarga(carga.id) : []
   const isNova = carga?.status === 'nova_carga'
@@ -1125,33 +1160,90 @@ export function PublishPanel({
               )}
 
               <Field label="Quem vai negociar? (grupos)">
-                <div className="flex flex-col gap-1 rounded-lg border border-ink/15 bg-white p-2">
-                  {grupos.filter((g) => g.situacao === 'ativo').length === 0 ? (
-                    <p className="text-xs text-brand">Cadastre grupos em Menu → Grupos.</p>
-                  ) : (
-                    grupos
-                      .filter((g) => g.situacao === 'ativo')
-                      .map((g) => {
-                        const qtd = g.transportador_ids.length
-                        return (
-                          <label key={g.id} className="flex items-start gap-2 text-xs">
-                            <input
-                              type="checkbox"
-                              className="mt-0.5"
-                              checked={grupoIds.includes(g.id)}
-                              onChange={() => toggleGrupo(g.id)}
-                            />
-                            <span>
-                              <strong>{g.descricao}</strong>
-                              <span className="block text-ink-muted">
-                                {qtd} transportador{qtd === 1 ? '' : 'es'}
-                              </span>
-                            </span>
-                          </label>
-                        )
-                      })
-                  )}
-                </div>
+                {gruposAtivos.length === 0 ? (
+                  <p className="text-xs text-brand">Cadastre grupos em Menu → Grupos.</p>
+                ) : (
+                  <div ref={gruposSelectRef} className="relative">
+                    <button
+                      type="button"
+                      className={`${inputClass} flex w-full items-center justify-between gap-2 text-left`}
+                      onClick={() => setGruposSelectAberto((v) => !v)}
+                      aria-expanded={gruposSelectAberto}
+                      aria-haspopup="listbox"
+                    >
+                      <span
+                        className={
+                          grupoIds.length === 0
+                            ? 'truncate text-ink-muted'
+                            : 'truncate text-ink'
+                        }
+                      >
+                        {rotuloGrupos}
+                      </span>
+                      <ChevronDown
+                        size={16}
+                        className={`shrink-0 text-ink-muted transition ${
+                          gruposSelectAberto ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+                    {gruposSelectAberto ? (
+                      <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-40 overflow-hidden rounded-lg border border-ink/15 bg-white shadow-lg">
+                        <input
+                          className="w-full border-0 border-b border-ink/10 px-3 py-2 text-sm outline-none"
+                          value={buscaGrupos}
+                          onChange={(e) => setBuscaGrupos(e.target.value)}
+                          placeholder="Digite para filtrar…"
+                          autoFocus
+                        />
+                        <ul
+                          className="max-h-56 overflow-y-auto py-1"
+                          role="listbox"
+                          aria-multiselectable="true"
+                        >
+                          {gruposFiltrados.length === 0 ? (
+                            <li className="px-3 py-2 text-xs text-ink-muted">
+                              Nenhum grupo encontrado.
+                            </li>
+                          ) : (
+                            gruposFiltrados.map((g) => {
+                              const on = grupoIds.includes(g.id)
+                              const qtd = g.transportador_ids.length
+                              return (
+                                <li key={g.id} role="option" aria-selected={on}>
+                                  <button
+                                    type="button"
+                                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-ink/5 ${
+                                      on ? 'bg-ink/5 font-semibold' : ''
+                                    }`}
+                                    onClick={() => toggleGrupo(g.id)}
+                                  >
+                                    <span
+                                      className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] ${
+                                        on
+                                          ? 'border-ink bg-ink text-white'
+                                          : 'border-ink/30 bg-white text-transparent'
+                                      }`}
+                                      aria-hidden
+                                    >
+                                      ✓
+                                    </span>
+                                    <span className="min-w-0 flex-1 truncate">
+                                      {g.descricao}
+                                      <span className="ml-1 font-normal text-ink-muted">
+                                        ({qtd})
+                                      </span>
+                                    </span>
+                                  </button>
+                                </li>
+                              )
+                            })
+                          )}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
               </Field>
 
               <label className="flex items-start gap-2 text-xs text-ink-muted">
