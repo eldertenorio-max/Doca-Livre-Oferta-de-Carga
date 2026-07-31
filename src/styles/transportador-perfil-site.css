@@ -222,10 +222,17 @@
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid #e2e8f0;
+  flex: 1;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
 }
 
 .tv-perfil__mapa-preview .ponto-map-preview__map {
   border-radius: 10px;
+  flex: 1 !important;
+  height: 100% !important;
+  min-height: 320px;
 }
 
 .tv-perfil__mapa-meta {
