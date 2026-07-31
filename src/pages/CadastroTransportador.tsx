@@ -307,13 +307,13 @@ export function CadastroTransportadorPage() {
     setOrigem((prev) => ({ ...prev, lat, lng }))
     setLatStr(lat.toFixed(6))
     setLngStr(lng.toFixed(6))
-    setOrigemInfo(`Localização ajustada: ${lat.toFixed(5)}, ${lng.toFixed(5)}. Buscando endereço…`)
+    setOrigemInfo('Buscando endereço deste ponto no mapa…')
+    setOrigemReverseBusy(true)
 
     window.clearTimeout(reverseTimer.current)
     const seq = ++reverseSeq.current
     reverseTimer.current = window.setTimeout(() => {
       void (async () => {
-        setOrigemReverseBusy(true)
         const res = await enderecoPorCoordenadas(lat, lng)
         if (seq !== reverseSeq.current) return
         setOrigemReverseBusy(false)
@@ -325,23 +325,40 @@ export function CadastroTransportadorPage() {
         }
         const cepDigits = (res.dados.cep || '').replace(/\D/g, '')
         if (cepDigits.length === 8) ultimoCepOrigem.current = cepDigits
+        else ultimoCepOrigem.current = ''
         coordsManuais.current = true
         setOrigem((prev) => ({
           ...prev,
           lat,
           lng,
-          cep: res.dados.cep ?? '',
-          cidade: res.dados.cidade ?? '',
+          cep: res.dados.cep || '',
+          cidade: res.dados.cidade || '',
           uf: res.dados.uf || prev.uf || 'SP',
-          endereco: res.dados.endereco ?? '',
-          numero: res.dados.numero ?? '',
-          bairro: res.dados.bairro ?? '',
+          endereco: res.dados.endereco || '',
+          numero: res.dados.numero || '',
+          bairro: res.dados.bairro || '',
         }))
+        const resumo = [
+          res.dados.endereco,
+          res.dados.numero,
+          res.dados.bairro,
+          res.dados.cidade,
+          res.dados.uf,
+          res.dados.cep,
+        ]
+          .filter(Boolean)
+          .join(' · ')
         setOrigemInfo(
-          `Endereço atualizado pelas coordenadas: ${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+          `Endereço preenchido pelo mapa: ${resumo || `${lat.toFixed(5)}, ${lng.toFixed(5)}`}`,
         )
+        // Leva o usuário aos campos preenchidos (acima do mapa)
+        window.requestAnimationFrame(() => {
+          document
+            .getElementById('origem-endereco-campos')
+            ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        })
       })()
-    }, 450)
+    }, 200)
   }
 
   function parseCoordInput(raw: string): number | null {
@@ -845,7 +862,7 @@ export function CadastroTransportadorPage() {
                   Endereço preenche as coordenadas automaticamente; se você editar latitude/longitude
                   ou mover o pin, o endereço é atualizado pelas coordenadas.
                 </p>
-                <div className="form-fields">
+                <div className="form-fields" id="origem-endereco-campos">
                   <Field label="CEP da origem">
                     <input
                       value={origem.cep}

@@ -156,19 +156,26 @@ type NominatimHit = {
   lat?: string
   lon?: string
   display_name?: string
+  name?: string
   address?: {
     road?: string
     pedestrian?: string
+    path?: string
+    residential?: string
     house_number?: string
     suburb?: string
     neighbourhood?: string
     city_district?: string
+    quarter?: string
     city?: string
     town?: string
     village?: string
     municipality?: string
+    county?: string
+    state_district?: string
     state?: string
     postcode?: string
+    'ISO3166-2-lvl4'?: string
   }
 }
 
@@ -253,15 +260,155 @@ export function ufDoEstado(estado: string | undefined | null): string {
   return UF_POR_ESTADO[normalizarSemAcento(limparEstado(raw))] || ''
 }
 
+function dadosDeNominatimReverse(
+  data: NominatimHit,
+): { dados: EnderecoCampos; display?: string } | null {
+  const a = data.address
+  if (!a && !(data.display_name || '').trim()) return null
+
+  const cidade = (
+    a?.city ||
+    a?.town ||
+    a?.village ||
+    a?.municipality ||
+    a?.county ||
+    ''
+  ).trim()
+
+  let uf = ufDoEstado(a?.state)
+  const iso = (a?.['ISO3166-2-lvl4'] || '').trim().toUpperCase()
+  if (!uf && /^BR-[A-Z]{2}$/.test(iso)) uf = iso.slice(3)
+
+  const cep = a?.postcode ? formatCepBr(a.postcode) : ''
+  let endereco = (
+    a?.road ||
+    a?.pedestrian ||
+    a?.path ||
+    a?.residential ||
+    ''
+  ).trim()
+  const numero = (a?.house_number || '').trim()
+  const bairro = (
+    a?.suburb ||
+    a?.neighbourhood ||
+    a?.city_district ||
+    a?.quarter ||
+    ''
+  ).trim()
+
+  // Área rural / sem rua: usa o nome do lugar para não deixar o campo vazio
+  if (!endereco) {
+    const nome = (data.name || '').trim()
+    if (nome && nome.toLowerCase() !== cidade.toLowerCase()) endereco = nome
+    else if (cidade) endereco = `Zona rural — ${cidade}`
+  }
+
+  if (!cidade && !endereco && !cep) {
+    // Fallback: tenta extrair cidade/UF do display_name ("Salto do Céu, Mato Grosso, …")
+    const parts = (data.display_name || '')
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean)
+    if (parts.length >= 2) {
+      const cidadeDisp = parts[0]
+      const ufDisp = ufDoEstado(parts[1])
+      if (!cidadeDisp) return null
+      return {
+        dados: {
+          cep: '',
+          cidade: cidadeDisp,
+          uf: ufDisp || 'SP',
+          endereco: `Zona rural — ${cidadeDisp}`,
+          numero: '',
+          bairro: '',
+        },
+        display: data.display_name,
+      }
+    }
+    return null
+  }
+
+  return {
+    dados: {
+      cep,
+      cidade,
+      uf: uf || 'SP',
+      endereco,
+      numero,
+      bairro,
+    },
+    display: (data.display_name || '').trim() || undefined,
+  }
+}
+
+async function reverseNominatim(
+  lat: number,
+  lng: number,
+  zoom: number,
+): Promise<NominatimHit | null> {
+  const url = new URL('https://nominatim.openstreetmap.org/reverse')
+  url.searchParams.set('format', 'jsonv2')
+  url.searchParams.set('lat', String(lat))
+  url.searchParams.set('lon', String(lng))
+  url.searchParams.set('addressdetails', '1')
+  url.searchParams.set('zoom', String(zoom))
+  url.searchParams.set('accept-language', 'pt-BR')
+
+  const res = await fetch(url.toString(), {
+    headers: {
+      Accept: 'application/json',
+    },
+  })
+  if (!res.ok) return null
+  const data = (await res.json()) as NominatimHit & { error?: string }
+  if (data.error) return null
+  return data
+}
+
+async function reversePhoton(
+  lat: number,
+  lng: number,
+): Promise<Partial<EnderecoCampos> | null> {
+  try {
+    const url = new URL('https://photon.komoot.io/reverse')
+    url.searchParams.set('lat', String(lat))
+    url.searchParams.set('lon', String(lng))
+    url.searchParams.set('lang', 'en')
+    const res = await fetch(url.toString(), { headers: { Accept: 'application/json' } })
+    if (!res.ok) return null
+    const body = (await res.json()) as { features?: PhotonFeature[] }
+    const f = body.features?.[0]
+    if (!f?.properties) return null
+    const p = f.properties
+    const cidade = (p.city || p.town || p.county || '').trim()
+    const uf = ufDoEstado(p.state)
+    const endereco = (p.street || p.name || '').trim()
+    const numero = (p.housenumber || '').trim()
+    const bairro = (p.district || p.suburb || p.neighbourhood || '').trim()
+    const cep = p.postcode ? formatCepBr(p.postcode) : ''
+    if (!cidade && !endereco && !cep) return null
+    return {
+      cep,
+      cidade,
+      uf: uf || undefined,
+      endereco: endereco || (cidade ? `Zona rural — ${cidade}` : ''),
+      numero,
+      bairro,
+    }
+  } catch {
+    return null
+  }
+}
+
 /**
- * Reverse geocode: lat/lng → campos de endereço (Nominatim).
+ * Reverse geocode: lat/lng → campos de endereço (Nominatim + Photon).
  * Usado quando o transportador aponta o pin ou edita as coordenadas.
  */
 export async function enderecoPorCoordenadas(
   lat: number,
   lng: number,
 ): Promise<
-  | { ok: true; dados: Partial<EnderecoCampos>; display?: string }
+  | { ok: true; dados: EnderecoCampos; display?: string }
   | { ok: false; erro: string }
 > {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
@@ -272,54 +419,32 @@ export async function enderecoPorCoordenadas(
   }
 
   try {
-    const url = new URL('https://nominatim.openstreetmap.org/reverse')
-    url.searchParams.set('format', 'jsonv2')
-    url.searchParams.set('lat', String(lat))
-    url.searchParams.set('lon', String(lng))
-    url.searchParams.set('addressdetails', '1')
-    url.searchParams.set('zoom', '18')
-    url.searchParams.set('accept-language', 'pt-BR')
-
-    const res = await fetch(url.toString(), {
-      headers: { Accept: 'application/json' },
-    })
-    if (!res.ok) return { ok: false, erro: 'Falha ao consultar endereço no mapa.' }
-
-    const data = (await res.json()) as NominatimHit & { error?: string }
-    if (data.error || !data.address) {
-      return { ok: false, erro: 'Não foi possível obter o endereço deste ponto.' }
+    // zoom 18 = rua; zoom 14 = município (melhor em área rural)
+    for (const zoom of [18, 16, 14, 12]) {
+      const data = await reverseNominatim(lat, lng, zoom)
+      if (!data) continue
+      const parsed = dadosDeNominatimReverse(data)
+      if (parsed) {
+        return { ok: true, dados: parsed.dados, display: parsed.display }
+      }
     }
 
-    const a = data.address
-    const cidade = (
-      a.city ||
-      a.town ||
-      a.village ||
-      a.municipality ||
-      ''
-    ).trim()
-    const uf = ufDoEstado(a.state)
-    const cep = a.postcode ? formatCepBr(a.postcode) : ''
-    const endereco = (a.road || a.pedestrian || '').trim()
-    const numero = (a.house_number || '').trim()
-    const bairro = (a.suburb || a.neighbourhood || a.city_district || '').trim()
-
-    if (!cidade && !endereco && !cep) {
-      return { ok: false, erro: 'Não foi possível obter o endereço deste ponto.' }
+    const photon = await reversePhoton(lat, lng)
+    if (photon && (photon.cidade || photon.endereco || photon.cep)) {
+      return {
+        ok: true,
+        dados: {
+          cep: photon.cep ?? '',
+          cidade: photon.cidade ?? '',
+          uf: photon.uf || 'SP',
+          endereco: photon.endereco ?? '',
+          numero: photon.numero ?? '',
+          bairro: photon.bairro ?? '',
+        },
+      }
     }
 
-    return {
-      ok: true,
-      dados: {
-        cep,
-        cidade,
-        uf: uf || undefined,
-        endereco,
-        numero,
-        bairro,
-      },
-      display: (data.display_name || '').trim() || undefined,
-    }
+    return { ok: false, erro: 'Não foi possível obter o endereço deste ponto.' }
   } catch {
     return { ok: false, erro: 'Não foi possível obter o endereço deste ponto.' }
   }
