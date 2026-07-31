@@ -41,6 +41,43 @@ function coordsDe(t: Transportador): { lat: number; lng: number } | null {
   return { lat, lng }
 }
 
+function escapeHtml(s: string) {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function localLabel(t: Transportador) {
+  const cidade = (t.origem_cidade || t.cidade || '').trim()
+  const uf = (t.origem_uf || t.uf || '').trim().toUpperCase()
+  if (cidade && uf) return `${cidade}/${uf}`
+  return cidade || uf || 'Sem cidade'
+}
+
+/** Pin customizado — o ícone padrão do Leaflet quebra no Vite (aparece "Marker"). */
+function pinIcon(ativo: boolean) {
+  return L.divIcon({
+    className: 'transp-kanban-pin',
+    html: `<span class="transp-kanban-pin__mark${ativo ? ' is-on' : ''}" aria-hidden="true"></span>`,
+    iconSize: [28, 36],
+    iconAnchor: [14, 34],
+    popupAnchor: [0, -30],
+  })
+}
+
+function popupHtml(t: Transportador) {
+  const nome = escapeHtml(t.nome_fantasia || t.razao_social)
+  const local = escapeHtml(localLabel(t))
+  const raio = Number(t.raio_km) > 0 ? `${Number(t.raio_km)} km de raio` : ''
+  return `<div class="transp-kanban-popup">
+    <strong>${nome}</strong>
+    <span>${local}</span>
+    ${raio ? `<em>${escapeHtml(raio)}</em>` : ''}
+  </div>`
+}
+
 export function TransportadorasKanbanView({
   transportadores,
   veiculosPorTransportador,
@@ -48,8 +85,10 @@ export function TransportadorasKanbanView({
   tituloCidade,
 }: Props) {
   const mapEl = useRef<HTMLDivElement>(null)
+  const mapWrapRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const markersRef = useRef<Map<string, L.Marker>>(new Map())
+  const raioRef = useRef<L.Circle | null>(null)
   const [selecionadoId, setSelecionadoId] = useState<string | null>(null)
   const [perfilId, setPerfilId] = useState<string | null>(null)
   const [cotacaoIds, setCotacaoIds] = useState<string[]>(() => loadCotacaoIds())
@@ -74,8 +113,8 @@ export function TransportadorasKanbanView({
   useEffect(() => {
     if (!mapEl.current || mapRef.current) return
     const map = L.map(mapEl.current, {
-      center: [-23.55, -46.63],
-      zoom: 5,
+      center: [-22.9, -47.06],
+      zoom: 6,
       zoomControl: true,
     })
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -86,10 +125,25 @@ export function TransportadorasKanbanView({
     const t = window.setTimeout(() => map.invalidateSize(), 80)
     return () => {
       window.clearTimeout(t)
+      if (raioRef.current) {
+        map.removeLayer(raioRef.current)
+        raioRef.current = null
+      }
       map.remove()
       mapRef.current = null
       markersRef.current.clear()
     }
+  }, [])
+
+  useEffect(() => {
+    const el = mapWrapRef.current
+    const map = mapRef.current
+    if (!el || !map || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => {
+      map.invalidateSize({ animate: false })
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
   }, [])
 
   useEffect(() => {
@@ -108,24 +162,50 @@ export function TransportadorasKanbanView({
     for (const t of comCoords) {
       const c = coordsDe(t)!
       bounds.push([c.lat, c.lng])
+      const ativo = selecionadoId === t.id
       let m = markersRef.current.get(t.id)
       if (!m) {
         m = L.marker([c.lat, c.lng], {
-          title: t.nome_fantasia,
+          icon: pinIcon(ativo),
+          title: t.nome_fantasia || t.razao_social,
+          riseOnHover: true,
         })
-        m.bindPopup(`<strong>${t.nome_fantasia}</strong><br/>${t.cidade}/${t.uf}`)
+        m.bindPopup(popupHtml(t), { className: 'transp-kanban-leaflet-popup' })
         m.on('click', () => setSelecionadoId(t.id))
         m.addTo(map)
         markersRef.current.set(t.id, m)
       } else {
         m.setLatLng([c.lat, c.lng])
+        m.setIcon(pinIcon(ativo))
+        m.setPopupContent(popupHtml(t))
+      }
+    }
+
+    if (raioRef.current) {
+      map.removeLayer(raioRef.current)
+      raioRef.current = null
+    }
+    if (selecionadoId) {
+      const sel = comCoords.find((t) => t.id === selecionadoId)
+      const c = sel ? coordsDe(sel) : null
+      if (sel && c) {
+        const raioKm = Number(sel.raio_km) || 0
+        if (raioKm > 0) {
+          raioRef.current = L.circle([c.lat, c.lng], {
+            radius: raioKm * 1000,
+            color: '#2563eb',
+            weight: 2,
+            fillColor: '#3b82f6',
+            fillOpacity: 0.12,
+          }).addTo(map)
+        }
       }
     }
 
     if (!selecionadoId) {
-      if (bounds.length === 1) map.setView(bounds[0], 10)
+      if (bounds.length === 1) map.setView(bounds[0], 11)
       else if (bounds.length > 1) {
-        map.fitBounds(L.latLngBounds(bounds), { padding: [36, 36], maxZoom: 11 })
+        map.fitBounds(L.latLngBounds(bounds), { padding: [40, 40], maxZoom: 11 })
       }
     }
 
@@ -137,8 +217,13 @@ export function TransportadorasKanbanView({
     const map = mapRef.current
     const m = markersRef.current.get(selecionadoId)
     if (!map || !m) return
-    map.setView(m.getLatLng(), Math.max(map.getZoom(), 12), { animate: true })
-    m.openPopup()
+    const ll = m.getLatLng()
+    map.invalidateSize()
+    map.setView(ll, Math.max(map.getZoom(), 12), { animate: true })
+    window.setTimeout(() => {
+      m.openPopup()
+      map.panTo(ll, { animate: true })
+    }, 80)
   }, [selecionadoId])
 
   function flash(text: string) {
@@ -163,12 +248,6 @@ export function TransportadorasKanbanView({
       return
     }
     setSelecionadoId(t.id)
-    const map = mapRef.current
-    const m = markersRef.current.get(t.id)
-    if (map && m) {
-      map.setView([c.lat, c.lng], 12, { animate: true })
-      m.openPopup()
-    }
   }
 
   return (
@@ -286,7 +365,7 @@ export function TransportadorasKanbanView({
           )}
         </div>
 
-        <div className="transp-kanban__map-wrap">
+        <div ref={mapWrapRef} className="transp-kanban__map-wrap">
           <div ref={mapEl} className="transp-kanban__map" />
           <p className="transp-kanban__map-hint">
             Clique em “localizar no mapa” no card para centralizar a transportadora.
