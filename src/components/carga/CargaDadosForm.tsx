@@ -143,6 +143,7 @@ export function CargaDadosForm({
   );
   const [salvarFavorita, setSalvarFavorita] = useState(false);
   const [cargaRetorno, setCargaRetorno] = useState(Boolean(carga.carga_retorno));
+  const [retornaOrigem, setRetornaOrigem] = useState(Boolean(carga.retorna_origem));
   const [rotaId, setRotaId] = useState(carga.rota_id ?? "");
   const [pedido, setPedido] = useState(carga.pedido);
   const [tipoCarga, setTipoCarga] = useState(carga.tipo_carga);
@@ -324,6 +325,7 @@ export function CargaDadosForm({
     setClassificacao(carga.classificacao_rota ?? "B");
     setSalvarFavorita(false);
     setCargaRetorno(Boolean(carga.carga_retorno));
+    setRetornaOrigem(Boolean(carga.retorna_origem));
     setRotaId(carga.rota_id ?? "");
     setPedido(carga.pedido);
     setTipoCarga(carga.tipo_carga);
@@ -538,6 +540,7 @@ export function CargaDadosForm({
       destino: destinoFinal,
       complemento: complementoFinal,
       carga_retorno: cargaRetorno,
+      retorna_origem: retornaOrigem,
       gerenciamento_risco: riscoFinal,
       frete_tabela: freteFinal,
       antt: anttInfo,
@@ -586,6 +589,10 @@ export function CargaDadosForm({
         <Row label="Pedido" value={carga.pedido || "—"} />
         <Row label="Origem" value={carga.origem || "—"} />
         <Row label="Destino" value={carga.destino || "—"} />
+        <Row
+          label="Retorna para origem"
+          value={carga.retorna_origem ? "Sim" : "Não"}
+        />
         <Row label="Carga retorno" value={carga.carga_retorno ? "Sim" : "Não"} />
         <Row
           label="Complemento"
@@ -750,25 +757,37 @@ export function CargaDadosForm({
               placeholder="Digite o endereço como no Google Maps"
             />
           </Field>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 sm:col-span-12">
-            <label className="inline-flex items-center gap-2 text-[12px] font-bold text-black">
-              <input
-                type="checkbox"
-                checked={cargaRetorno}
-                onChange={(e) => setCargaRetorno(e.target.checked)}
-              />
-              <span>Carga retorno</span>
-            </label>
-            <label className="inline-flex items-center gap-2 text-[12px] font-bold text-black">
-              <input
-                type="checkbox"
-                checked={salvarFavorita}
-                onChange={(e) => setSalvarFavorita(e.target.checked)}
-              />
-              <span>
-                Salvar esta rota na aba <strong>Rotas</strong> para reutilizar
-              </span>
-            </label>
+          <div className="grid gap-1.5 sm:col-span-12 sm:grid-cols-3">
+            <Field label="Retorna para origem">
+              <select
+                className={inputClass}
+                value={retornaOrigem ? "sim" : "nao"}
+                onChange={(e) => setRetornaOrigem(e.target.value === "sim")}
+              >
+                <option value="nao">Não</option>
+                <option value="sim">Sim</option>
+              </select>
+            </Field>
+            <Field label="Carga retorno">
+              <select
+                className={inputClass}
+                value={cargaRetorno ? "sim" : "nao"}
+                onChange={(e) => setCargaRetorno(e.target.value === "sim")}
+              >
+                <option value="nao">Não</option>
+                <option value="sim">Sim</option>
+              </select>
+            </Field>
+            <Field label="Salvar rota na aba Rotas">
+              <select
+                className={inputClass}
+                value={salvarFavorita ? "sim" : "nao"}
+                onChange={(e) => setSalvarFavorita(e.target.value === "sim")}
+              >
+                <option value="nao">Não</option>
+                <option value="sim">Sim</option>
+              </select>
+            </Field>
           </div>
         </div>
       </section>

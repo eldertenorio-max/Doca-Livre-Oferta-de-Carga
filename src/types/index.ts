@@ -289,6 +289,8 @@ export interface Carga {
   complemento?: 'sim' | 'nao' | 'ambos'
   /** Marca a oferta como carga de retorno (volta). */
   carga_retorno?: boolean
+  /** Veículo retorna para a origem após a entrega. */
+  retorna_origem?: boolean
   /** Gerenciamento de risco: exige rastreador e/ou localizador */
   gerenciamento_risco?: 'rastreador' | 'localizador' | 'ambos' | 'nao'
   destinatario: string

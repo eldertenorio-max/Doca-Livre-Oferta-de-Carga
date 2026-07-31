@@ -17,6 +17,7 @@ export function normalizeCarga(c: Carga): Carga {
         ? c.complemento
         : undefined,
     carga_retorno: Boolean(c.carga_retorno),
+    retorna_origem: Boolean(c.retorna_origem),
     gerenciamento_risco:
       c.gerenciamento_risco === 'rastreador' ||
       c.gerenciamento_risco === 'localizador' ||
