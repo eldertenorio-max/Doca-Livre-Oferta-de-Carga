@@ -102,9 +102,9 @@ function IconWallet() {
 }
 
 const minervaLinks: NavItem[] = [
-  { to: '/embarcador', label: 'Kanban Cargas', icon: <IconGrid />, end: true },
-  { to: '/embarcador/tarefas', label: 'Kanban Tarefas', icon: <IconGrid /> },
-  { to: '/embarcador/viagens', label: 'Kanban Viagens', icon: <IconTruck /> },
+  { to: '/embarcador', label: 'Cargas', icon: <IconGrid />, end: true },
+  { to: '/embarcador/tarefas', label: 'Tarefas', icon: <IconGrid /> },
+  { to: '/embarcador/viagens', label: 'Viagens', icon: <IconTruck /> },
   { to: '/embarcador/mapa-frota', label: 'Mapa da Frota', icon: <IconMap /> },
   { to: '/embarcador/rotas', label: 'Rotas', icon: <IconMap /> },
   { to: '/embarcador/transportadores', label: 'Transportadoras', icon: <IconUsers /> },
@@ -120,8 +120,8 @@ const minervaLinks: NavItem[] = [
 
 const transportadorLinks: NavItem[] = [
   { to: '/transportador/painel', label: 'Painel', icon: <IconChart /> },
-  { to: '/transportador', label: 'Kanban Ofertas', icon: <IconGrid />, end: true },
-  { to: '/transportador/viagens', label: 'Kanban Viagens', icon: <IconTruck /> },
+  { to: '/transportador', label: 'Ofertas', icon: <IconGrid />, end: true },
+  { to: '/transportador/viagens', label: 'Viagens', icon: <IconTruck /> },
   { to: '/transportador/veiculos', label: 'Meus Veículos', icon: <IconTruck /> },
   { to: '/transportador/motoristas', label: 'Meus Motoristas', icon: <IconUsers /> },
   { to: '/transportador/configuracoes', label: 'Configurações', icon: <IconShield /> },
@@ -369,8 +369,8 @@ export function AppLayout() {
       return [
         ...minervaLinks,
         { to: '/transportador/painel', label: 'Painel Transportador', icon: <IconChart /> },
-        { to: '/transportador', label: 'Kanban Transportador', icon: <IconGrid />, end: true },
-        { to: '/transportador/viagens', label: 'Kanban Viagens Transportador', icon: <IconTruck /> },
+        { to: '/transportador', label: 'Ofertas', icon: <IconGrid />, end: true },
+        { to: '/transportador/viagens', label: 'Viagens', icon: <IconTruck /> },
       ]
     }
     // Só transportador (demos / cadastro público) — sem equipe Minerva
