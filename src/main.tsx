@@ -13,6 +13,14 @@ const updateSW = registerSW({
   onNeedRefresh() {
     void updateSW(true)
   },
+  onRegisteredSW(_url, registration) {
+    // Revisa atualização com frequência (PWA costuma ficar presa em build antigo).
+    if (!registration) return
+    void registration.update()
+    window.setInterval(() => {
+      void registration.update()
+    }, 60_000)
+  },
 })
 
 // HashRouter: F5 em /#/login funciona no Render Static Site sem rewrite no painel.
