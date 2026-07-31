@@ -22,6 +22,8 @@ export type AnttPracaPedagio = {
   valor: number
   tipo?: string
   free_flow?: boolean
+  lat?: number
+  lng?: number
 }
 
 export type AnttRotaCustos = {

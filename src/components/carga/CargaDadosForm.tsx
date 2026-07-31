@@ -793,6 +793,7 @@ export function CargaDadosForm({
         <RotaMapPreview
           origem={origem}
           destino={destino}
+          veiculo={veiculo}
           className="h-[155px] min-h-[155px] w-full"
         />
       </section>

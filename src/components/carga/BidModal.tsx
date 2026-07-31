@@ -347,6 +347,7 @@ export function BidModal({
               key={`bid-map-${live.id}`}
               origem={live.origem}
               destino={live.destino}
+              veiculo={live.veiculo}
               className="h-[220px] min-h-[220px] w-full"
             />
           )}

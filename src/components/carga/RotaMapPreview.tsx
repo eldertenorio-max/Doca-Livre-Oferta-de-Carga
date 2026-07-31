@@ -1,13 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { formatCurrency } from '../../lib/businessRules'
+import { eixosDoVeiculo, estimarCustosRota } from '../../lib/anttFrete'
 import { geocodificarConsulta } from '../../lib/geocodeEndereco'
-import { rotaOsrmComGeometria } from '../../lib/anttPedagioAberto'
+import {
+  calcularPedagioNaRota,
+  rotaOsrmComGeometria,
+} from '../../lib/anttPedagioAberto'
 
 type Props = {
   origem: string
   destino: string
   className?: string
+  /** Tipo de veículo da carga — define eixos do pedágio. */
+  veiculo?: string
+  eixos?: number
 }
 
 function pinIcon(label: string, color: string) {
@@ -24,6 +32,30 @@ function pinIcon(label: string, color: string) {
   })
 }
 
+function pedagioIcon(valorLabel: string) {
+  return L.divIcon({
+    className: 'rota-map-pedagio',
+    html: `<div style="
+      display:flex;flex-direction:column;align-items:center;gap:2px;
+      transform:translateY(-4px);
+    ">
+      <span style="
+        display:inline-flex;align-items:center;justify-content:center;
+        width:28px;height:28px;border-radius:50%;
+        background:#ea580c;color:#fff;font:800 12px/1 system-ui,sans-serif;
+        border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);
+      ">P</span>
+      <span style="
+        white-space:nowrap;padding:2px 6px;border-radius:999px;
+        background:#fff;color:#9a3412;font:800 10px/1.2 system-ui,sans-serif;
+        border:1px solid #fdba74;box-shadow:0 1px 3px rgba(0,0,0,.2);
+      ">${valorLabel}</span>
+    </div>`,
+    iconSize: [72, 48],
+    iconAnchor: [36, 40],
+  })
+}
+
 function formatKm(km: number) {
   return `${km.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km`
 }
@@ -35,7 +67,23 @@ function formatDur(min: number) {
   return `${h} h ${m.toString().padStart(2, '0')} min`
 }
 
-export function RotaMapPreview({ origem, destino, className = '' }: Props) {
+type MetaRota = {
+  km: number
+  dur: number
+  pedagio: number
+  combustivel: number
+  custo: number
+  eixos: number
+  pracas: number
+}
+
+export function RotaMapPreview({
+  origem,
+  destino,
+  className = '',
+  veiculo,
+  eixos: eixosProp,
+}: Props) {
   const mapEl = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const layerRef = useRef<L.LayerGroup | null>(null)
@@ -43,7 +91,7 @@ export function RotaMapPreview({ origem, destino, className = '' }: Props) {
 
   const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'erro'>('idle')
   const [msg, setMsg] = useState('Informe origem e destino para ver o trajeto')
-  const [meta, setMeta] = useState<{ km: number; dur: number } | null>(null)
+  const [meta, setMeta] = useState<MetaRota | null>(null)
 
   useEffect(() => {
     if (!mapEl.current || mapRef.current) return
@@ -96,8 +144,12 @@ export function RotaMapPreview({ origem, destino, className = '' }: Props) {
     }
 
     setStatus('loading')
-    setMsg('Calculando trajeto…')
+    setMsg('Calculando trajeto e pedágios…')
     const id = ++reqId.current
+    const eixos =
+      eixosProp && eixosProp > 0
+        ? Math.round(eixosProp)
+        : eixosDoVeiculo(veiculo || 'Carreta')
 
     const timer = window.setTimeout(() => {
       void (async () => {
@@ -131,11 +183,40 @@ export function RotaMapPreview({ origem, destino, className = '' }: Props) {
           return
         }
 
+        let ped = {
+          pedagio: 0,
+          combustivel: 0,
+          custo: 0,
+          pracas: [] as Awaited<ReturnType<typeof calcularPedagioNaRota>>['pracas'],
+        }
+        try {
+          const pedRes = await calcularPedagioNaRota(rota.polyline, eixos)
+          const custos = estimarCustosRota(rota.distanciaKm, eixos, rota.duracaoMin)
+          const pedagio =
+            pedRes.pracas.length > 0 ? pedRes.pedagio : custos.pedagio
+          const combustivel = custos.combustivel
+          ped = {
+            pedagio,
+            combustivel,
+            custo: Math.round((pedagio + combustivel) * 100) / 100,
+            pracas: pedRes.pracas,
+          }
+        } catch {
+          const custos = estimarCustosRota(rota.distanciaKm, eixos, rota.duracaoMin)
+          ped = {
+            pedagio: custos.pedagio,
+            combustivel: custos.combustivel,
+            custo: custos.custo_total,
+            pracas: [],
+          }
+        }
+        if (id !== reqId.current) return
+
         layer.clearLayers()
         const latlngs = rota.polyline.map((p) => [p.lat, p.lng] as L.LatLngExpression)
         const line = L.polyline(latlngs, {
-          color: '#111',
-          weight: 4,
+          color: '#2563eb',
+          weight: 5,
           opacity: 0.9,
         }).addTo(layer)
 
@@ -149,17 +230,41 @@ export function RotaMapPreview({ origem, destino, className = '' }: Props) {
           title: 'Destino',
         }).addTo(layer)
 
-        map.fitBounds(line.getBounds(), { padding: [28, 28], maxZoom: 12 })
+        for (const p of ped.pracas) {
+          if (p.lat == null || p.lng == null) continue
+          const valorLabel = formatCurrency(p.valor)
+          L.marker([p.lat, p.lng], {
+            icon: pedagioIcon(valorLabel),
+            title: `${p.nome}: ${valorLabel}`,
+            zIndexOffset: 200,
+          })
+            .bindPopup(
+              `<strong>${p.nome}</strong><br/>Pedágio: <b>${valorLabel}</b>${
+                p.tipo ? `<br/><span style="color:#64748b">${p.tipo}</span>` : ''
+              }`,
+            )
+            .addTo(layer)
+        }
+
+        map.fitBounds(line.getBounds(), { padding: [36, 36], maxZoom: 12 })
         window.setTimeout(() => map.invalidateSize(), 60)
 
-        setMeta({ km: rota.distanciaKm, dur: rota.duracaoMin })
+        setMeta({
+          km: rota.distanciaKm,
+          dur: rota.duracaoMin,
+          pedagio: ped.pedagio,
+          combustivel: ped.combustivel,
+          custo: ped.custo,
+          eixos,
+          pracas: ped.pracas.length,
+        })
         setStatus('ok')
         setMsg('')
       })()
     }, 550)
 
     return () => window.clearTimeout(timer)
-  }, [origem, destino])
+  }, [origem, destino, veiculo, eixosProp])
 
   return (
     <div
@@ -173,13 +278,24 @@ export function RotaMapPreview({ origem, destino, className = '' }: Props) {
               status === 'erro' ? 'text-red-700' : 'text-ink-muted'
             }`}
           >
-            {status === 'loading' ? 'Calculando trajeto…' : msg}
+            {status === 'loading' ? 'Calculando trajeto e pedágios…' : msg}
           </p>
         </div>
       )}
       {status === 'ok' && meta && (
-        <div className="absolute bottom-2 left-2 z-10 rounded-md bg-white/95 px-2 py-1 text-[10px] font-bold text-ink shadow-sm ring-1 ring-ink/10">
-          {formatKm(meta.km)} · {formatDur(meta.dur)}
+        <div className="absolute bottom-2 left-2 z-10 max-w-[min(100%,220px)] rounded-lg bg-white/95 px-2.5 py-2 text-[11px] text-ink shadow-md ring-1 ring-ink/10">
+          <p className="text-sm font-extrabold text-blue-700">{formatDur(meta.dur)}</p>
+          <p className="font-semibold tabular-nums">{formatKm(meta.km)}</p>
+          <p className="mt-0.5 font-bold text-orange-700 tabular-nums">
+            {formatCurrency(meta.pedagio)} Pedágio
+            {meta.pracas > 0 ? ` · ${meta.pracas} praça${meta.pracas === 1 ? '' : 's'}` : ''}
+          </p>
+          <p className="font-semibold text-ink/80 tabular-nums">
+            {formatCurrency(meta.combustivel)} Comb.
+          </p>
+          <p className="mt-1 border-t border-ink/10 pt-1 font-extrabold tabular-nums">
+            {formatCurrency(meta.custo)} · {meta.eixos} eixos
+          </p>
         </div>
       )}
     </div>

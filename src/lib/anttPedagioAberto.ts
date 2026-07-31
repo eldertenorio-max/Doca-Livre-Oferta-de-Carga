@@ -213,6 +213,8 @@ export async function calcularPedagioNaRota(
       valor,
       tipo: p.free_flow ? 'Free Flow / OCR' : 'Praça convencional',
       free_flow: Boolean(p.free_flow),
+      lat: p.lat,
+      lng: p.lng,
     })
   }
 
