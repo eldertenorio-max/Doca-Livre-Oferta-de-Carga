@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowUpDown, Calculator, Fuel, Minus, Plus } from 'lucide-react'
 import { formatCurrency, roundMoney } from '../../lib/businessRules'
 import {
@@ -19,6 +19,16 @@ type Props = {
   onClose: () => void
 }
 
+type CalcParams = {
+  origem: string
+  destino: string
+  eixos: number
+  consumo: string
+  preco: string
+  volta: boolean
+  pref: PreferenciaRota
+}
+
 function parseNumBr(raw: string, fallback: number): number {
   const n = Number(String(raw).trim().replace(/\./g, '').replace(',', '.'))
   return Number.isFinite(n) && n > 0 ? n : fallback
@@ -30,48 +40,14 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
   const [eixos, setEixos] = useState(5)
   const [consumo, setConsumo] = useState('3,2')
   const [precoDiesel, setPrecoDiesel] = useState('6,50')
-  const [idaEVolta, setIdaEVolta] = useState(true)
+  const [idaEVolta, setIdaEVolta] = useState(false)
   const [preferencia, setPreferencia] = useState<PreferenciaRota>('eficiente')
   const [busy, setBusy] = useState(false)
   const [erro, setErro] = useState('')
   const [calc, setCalc] = useState<AnttCalculo | null>(null)
+  const reqId = useRef(0)
 
-  useEffect(() => {
-    if (!open || !carga) return
-    setOrigem(carga.origem || '')
-    setDestino(carga.destino || '')
-    const ex = eixosDoVeiculo(carga.veiculo || 'Carreta')
-    setEixos(ex)
-    setConsumo(String(consumoPadraoKmL(ex)).replace('.', ','))
-    setPrecoDiesel('6,50')
-    setIdaEVolta(true)
-    setPreferencia('eficiente')
-    setErro('')
-    setCalc(null)
-    // Auto-puxa ao abrir com origem/destino da carga
-    if ((carga.origem || '').trim().length >= 3 && (carga.destino || '').trim().length >= 3) {
-      void calcular({
-        origem: carga.origem || '',
-        destino: carga.destino || '',
-        eixos: ex,
-        consumo: String(consumoPadraoKmL(ex)).replace('.', ','),
-        preco: '6,50',
-        volta: true,
-        pref: 'eficiente',
-      })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, carga?.id])
-
-  async function calcular(override?: {
-    origem: string
-    destino: string
-    eixos: number
-    consumo: string
-    preco: string
-    volta: boolean
-    pref: PreferenciaRota
-  }) {
+  async function calcular(override?: Partial<CalcParams>) {
     const o = override?.origem ?? origem
     const d = override?.destino ?? destino
     const ex = override?.eixos ?? eixos
@@ -80,6 +56,12 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
     const volta = override?.volta ?? idaEVolta
     const pref = override?.pref ?? preferencia
 
+    if (o.trim().length < 3 || d.trim().length < 3) {
+      setErro('Informe origem e destino.')
+      return
+    }
+
+    const id = ++reqId.current
     setBusy(true)
     setErro('')
     const res = await calcularRotaOperacional({
@@ -93,6 +75,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
       tabela: carga?.antt?.tabela ?? 'A',
       categoriaId: carga?.antt?.categoria_id ?? null,
     })
+    if (id !== reqId.current) return
     setBusy(false)
     if (!res.ok) {
       setErro(res.erro)
@@ -100,6 +83,41 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
       return
     }
     setCalc(res.data)
+  }
+
+  useEffect(() => {
+    if (!open || !carga) return
+    const o = carga.origem || ''
+    const d = carga.destino || ''
+    const ex = eixosDoVeiculo(carga.veiculo || 'Carreta')
+    const cons = String(consumoPadraoKmL(ex)).replace('.', ',')
+    setOrigem(o)
+    setDestino(d)
+    setEixos(ex)
+    setConsumo(cons)
+    setPrecoDiesel('6,50')
+    setIdaEVolta(false)
+    setPreferencia('eficiente')
+    setErro('')
+    setCalc(null)
+    if (o.trim().length >= 3 && d.trim().length >= 3) {
+      void calcular({
+        origem: o,
+        destino: d,
+        eixos: ex,
+        consumo: cons,
+        preco: '6,50',
+        volta: false,
+        pref: 'eficiente',
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, carga?.id])
+
+  function alternarIdaEVolta() {
+    const next = !idaEVolta
+    setIdaEVolta(next)
+    void calcular({ volta: next })
   }
 
   function trocarPontos() {
@@ -206,14 +224,23 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
               type="button"
               role="switch"
               aria-checked={idaEVolta}
-              onClick={() => setIdaEVolta((v) => !v)}
-              className={`flex h-10 w-full min-w-0 items-center justify-between gap-2 rounded-lg border px-3 text-sm font-semibold ${
+              disabled={busy}
+              onClick={alternarIdaEVolta}
+              className={`flex h-10 w-full min-w-0 items-center justify-between gap-2 rounded-lg border px-3 text-sm font-semibold disabled:opacity-60 ${
                 idaEVolta
                   ? 'border-brand/40 bg-brand/10 text-ink'
                   : 'border-ink/15 bg-white text-ink-muted'
               }`}
             >
-              <span className="truncate">{idaEVolta ? 'Sim' : 'Não'}</span>
+              <span className="truncate">
+                {busy
+                  ? idaEVolta
+                    ? 'Calculando ida e volta…'
+                    : 'Calculando só ida…'
+                  : idaEVolta
+                    ? 'Sim'
+                    : 'Não'}
+              </span>
               <span
                 className={`relative h-5 w-9 shrink-0 rounded-full transition ${
                   idaEVolta ? 'bg-brand' : 'bg-ink/20'
@@ -256,8 +283,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
                   checked={preferencia === id}
                   onChange={() => {
                     setPreferencia(id)
-                    setCalc(null)
-                    setErro('')
+                    void calcular({ pref: id })
                   }}
                 />
                 {label}

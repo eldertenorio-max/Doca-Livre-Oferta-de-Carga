@@ -190,8 +190,10 @@ export async function calcularRotaOperacional(params: {
   const { rotaOsrmComGeometria, calcularPedagioNaRota } = await import('./anttPedagioAberto')
   const preferencia = params.preferencia ?? 'eficiente'
   const evitar = preferencia === 'evitar_pedagio'
-  const rotaGeo = await rotaOsrmComGeometria(o.coords, d.coords, { preferencia })
-  if (!rotaGeo) {
+  const idaEVolta = Boolean(params.idaEVolta)
+
+  const rotaIda = await rotaOsrmComGeometria(o.coords, d.coords, { preferencia })
+  if (!rotaIda) {
     if (evitar) {
       return {
         ok: false,
@@ -201,9 +203,22 @@ export async function calcularRotaOperacional(params: {
     return { ok: false, erro: 'Não foi possível calcular a rota entre origem e destino.' }
   }
 
-  const fator = params.idaEVolta ? 2 : 1
-  const distKm = rotaGeo.distanciaKm * fator
-  const durMin = rotaGeo.duracaoMin * fator
+  // Ida e volta = soma ida (O→D) + volta (D→O). Nunca pode sair mais barato que só a ida.
+  let distKm = rotaIda.distanciaKm
+  let durMin = rotaIda.duracaoMin
+  let polylineVolta: Array<{ lat: number; lng: number }> | null = null
+  if (idaEVolta) {
+    const rotaVolta = await rotaOsrmComGeometria(d.coords, o.coords, { preferencia })
+    if (rotaVolta) {
+      distKm += rotaVolta.distanciaKm
+      durMin += rotaVolta.duracaoMin
+      polylineVolta = rotaVolta.polyline
+    } else {
+      distKm += rotaIda.distanciaKm
+      durMin += rotaIda.duracaoMin
+      polylineVolta = [...rotaIda.polyline].reverse()
+    }
+  }
 
   const tabela = params.tabela ?? 'A'
   const { pisos, eixosUtilizados } = listarPisosAntt(tabela, eixos, distKm)
@@ -214,10 +229,18 @@ export async function calcularRotaOperacional(params: {
 
   let pedFonte = 'estimativa por km'
   try {
-    const ped = await calcularPedagioNaRota(rotaGeo.polyline, eixosUtilizados)
+    const pedIdaRes = await calcularPedagioNaRota(rotaIda.polyline, eixosUtilizados)
+    const pedVoltaRes =
+      idaEVolta && polylineVolta
+        ? await calcularPedagioNaRota(polylineVolta, eixosUtilizados)
+        : null
+
+    const pracasIda = pedIdaRes.pracas
+    const pracasVolta = pedVoltaRes?.pracas ?? []
+    const temPracas = pracasIda.length + pracasVolta.length > 0
+
     if (evitar) {
-      // Se ainda há praças na “rota sem pedágio”, o OSRM não conseguiu evitar
-      if (ped.pracas.length > 0) {
+      if (temPracas) {
         return {
           ok: false,
           erro: 'Não foi possível calcular rota entre origem e destino sem pedágio.',
@@ -229,29 +252,30 @@ export async function calcularRotaOperacional(params: {
       rota.pracas = []
       rota.custo_total = rota.combustivel
       rota.provedor = 'local'
-      pedFonte = 'rota sem pedágio (OSRM exclude=toll)'
-    } else if (ped.pracas.length > 0) {
-      const pedIda = ped.pedagio
-      const pedVolta = params.idaEVolta ? pedIda : 0
-      rota.pedagio = roundMoney(pedIda + pedVolta)
-      rota.pedagio_por_eixo = roundMoney(rota.pedagio / Math.max(1, eixosUtilizados))
-      rota.vale_pedagio = rota.pedagio
-      rota.pracas = params.idaEVolta
-        ? [
-            ...ped.pracas.map((p) => ({ ...p, nome: `${p.nome} (ida)` })),
-            ...ped.pracas.map((p) => ({ ...p, nome: `${p.nome} (volta)` })),
-          ]
-        : ped.pracas
-      rota.free_flow = ped.free_flow
+      pedFonte =
+        'rota sem pedágio (OSRM exclude=toll)' + (idaEVolta ? ' · ida e volta' : '')
+    } else if (temPracas) {
+      const pedTotal = roundMoney(pedIdaRes.pedagio + (pedVoltaRes?.pedagio ?? 0))
+      rota.pedagio = pedTotal
+      rota.pedagio_por_eixo = roundMoney(pedTotal / Math.max(1, eixosUtilizados))
+      rota.vale_pedagio = pedTotal
+      rota.pracas = [
+        ...pracasIda.map((p) =>
+          idaEVolta ? { ...p, nome: `${p.nome} (ida)` } : p,
+        ),
+        ...pracasVolta.map((p) => ({ ...p, nome: `${p.nome} (volta)` })),
+      ]
+      rota.free_flow = Boolean(pedIdaRes.free_flow || pedVoltaRes?.free_flow)
       rota.custo_total = roundMoney(rota.pedagio + rota.combustivel)
       rota.provedor = 'antt_aberto'
-      pedFonte = ped.fonte + (params.idaEVolta ? ' · ida e volta' : '')
+      pedFonte = pedIdaRes.fonte + (idaEVolta ? ' · ida e volta' : '')
     } else {
+      // Pedágio estimado por km já usa a distância total (ida + volta)
       rota.vale_pedagio = rota.pedagio
       rota.provedor = 'local'
       pedFonte =
         'nenhuma praça ANTT cruzou a rota — pedágio estimado por km' +
-        (params.idaEVolta ? ' · ida e volta' : '')
+        (idaEVolta ? ' · ida e volta' : '')
     }
   } catch {
     if (evitar) {
@@ -262,7 +286,9 @@ export async function calcularRotaOperacional(params: {
     }
     rota.vale_pedagio = rota.pedagio
     rota.provedor = 'local'
-    pedFonte = 'falha ao carregar praças ANTT — pedágio estimado por km'
+    pedFonte =
+      'falha ao carregar praças ANTT — pedágio estimado por km' +
+      (idaEVolta ? ' · ida e volta' : '')
   }
 
   const rotuloPref =
