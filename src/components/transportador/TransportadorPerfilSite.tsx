@@ -41,7 +41,10 @@ export function TransportadorPerfilSite({
   const temReferencias = Boolean(perfil.referencias.trim())
 
   const content = (
-    <article className="tv-perfil" onClick={(e) => e.stopPropagation()}>
+    <article
+      className={`tv-perfil${asModal ? ' tv-perfil--fullscreen' : ' tv-perfil--embed'}`}
+      onClick={(e) => e.stopPropagation()}
+    >
       <header className="tv-perfil__top">
         {asModal ? (
           <button type="button" className="tv-perfil__close" aria-label="Fechar" onClick={onClose}>
