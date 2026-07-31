@@ -219,9 +219,7 @@ export function PublishPanel({
     const defaultTab: PanelTab =
       carga.status !== 'nova_carga'
         ? 'publicar'
-        : prefillDireta
-          ? 'publicar'
-          : (initialTab ?? 'dados')
+        : (initialTab ?? 'dados')
     setTab(defaultTab)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao abrir outra carga / prefill
   }, [carga?.id, initialTab, usarRegra, prefillPublicacao])

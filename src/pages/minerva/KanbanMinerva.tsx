@@ -160,9 +160,7 @@ export function KanbanMinerva() {
     setEphemeral(draft)
     setSelected(draft)
     setPrefillPublicacao(prefill ?? null)
-    setInitialTab(
-      prefill?.modo === 'negociacao_direta' ? 'publicar' : 'dados',
-    )
+    setInitialTab('dados')
     setPanelOpen(true)
   }
 
