@@ -41,6 +41,7 @@ import type {
   Carga,
   ClassificacaoTransportador,
   ModoPublicacao,
+  Prioridade,
   Rota,
   Transportador,
 } from '../../types'
@@ -156,6 +157,9 @@ export function PublishPanel({
   const [contraValor, setContraValor] = useState('')
   /** null = segue sugestão do prazo; valor = escolha manual Leilão/Oferta */
   const [modoOverride, setModoOverride] = useState<ModoPublicacao | null>(null)
+  const [prioridadeManual, setPrioridadeManual] = useState<Prioridade | null>(null)
+
+  const usarRegra = config.usar_regra_prioridade_modo !== false
 
   // Reset do formulário só ao trocar de carga (sync de grupos não pode resetar a aba)
   useEffect(() => {
@@ -167,7 +171,8 @@ export function PublishPanel({
     setEscalonar(false)
     setPrazoLeilao(carga.prazo_leilao_minutos ?? config.prazo_oferta_padrao_minutos)
     setPrazoAlocacao(carga.prazo_alocacao_minutos ?? config.prazo_alocacao_padrao_minutos)
-    setModoOverride(null)
+    setModoOverride(usarRegra ? null : (config.modo_padrao ?? 'leilao'))
+    setPrioridadeManual(usarRegra ? null : (config.prioridade_padrao ?? 'media'))
     setError('')
     setMotivo(carga.justificativa_motivo ?? '')
     setObs(carga.justificativa_obs ?? '')
@@ -179,7 +184,7 @@ export function PublishPanel({
         : (initialTab ?? 'dados')
     setTab(defaultTab)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao abrir outra carga
-  }, [carga?.id, initialTab])
+  }, [carga?.id, initialTab, usarRegra])
 
   // Carga publicada: mantém sempre na aba Negociação
   useEffect(() => {
@@ -276,11 +281,19 @@ export function PublishPanel({
     [carga, margem],
   )
 
-  const { prioridade, modo: modoSugerido, exigeJustificativa } = useMemo(
+  const sugerido = useMemo(
     () => calcularPrioridadeEModo(prazoLeilao, config.limite_urgencia_minutos),
     [prazoLeilao, config.limite_urgencia_minutos],
   )
-  const modo = modoOverride ?? modoSugerido
+  const prioridade: Prioridade = usarRegra
+    ? sugerido.prioridade
+    : (prioridadeManual ?? config.prioridade_padrao ?? sugerido.prioridade)
+  const modo: ModoPublicacao = usarRegra
+    ? (modoOverride ?? sugerido.modo)
+    : (modoOverride ?? config.modo_padrao ?? sugerido.modo)
+  const exigeJustificativa = usarRegra
+    ? sugerido.exigeJustificativa
+    : prioridade === 'alta'
 
   const previewTransportadores = useMemo(() => {
     const notificadosAgora =
@@ -399,6 +412,7 @@ export function PublishPanel({
       prazoLeilaoMinutos: prazoLeilao,
       prazoAlocacaoMinutos: prazoAlocacao,
       modoPublicacao: modo,
+      prioridade,
       justificativaMotivo: justificativa?.motivo || motivo || undefined,
       justificativaObs: (justificativa?.obs ?? obs) || undefined,
       observacao: observacao.trim() || undefined,
@@ -1216,21 +1230,40 @@ export function PublishPanel({
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <p className="mb-1 text-xs text-ink-muted">Prioridade</p>
-                  <span
-                    className={`inline-block rounded-lg px-3 py-2 text-xs font-bold capitalize text-white ${
-                      prioridade === 'alta'
-                        ? 'bg-brand'
-                        : prioridade === 'media'
-                          ? 'bg-amber-500'
-                          : 'bg-emerald-600'
-                    }`}
-                  >
-                    {prioridade}
-                  </span>
+                  <p className="mb-1 text-xs text-ink-muted">
+                    Prioridade{usarRegra ? ' (regra)' : ''}
+                  </p>
+                  {usarRegra ? (
+                    <span
+                      className={`inline-block rounded-lg px-3 py-2 text-xs font-bold capitalize text-white ${
+                        prioridade === 'alta'
+                          ? 'bg-brand'
+                          : prioridade === 'media'
+                            ? 'bg-amber-500'
+                            : 'bg-emerald-600'
+                      }`}
+                    >
+                      {prioridade}
+                    </span>
+                  ) : (
+                    <select
+                      className={inputClass}
+                      disabled={!canEdit}
+                      value={prioridade}
+                      onChange={(e) =>
+                        setPrioridadeManual(e.target.value as Prioridade)
+                      }
+                    >
+                      <option value="alta">Alta</option>
+                      <option value="media">Média</option>
+                      <option value="baixa">Baixa</option>
+                    </select>
+                  )}
                 </div>
                 <div>
-                  <p className="mb-1 text-xs text-ink-muted">Modo</p>
+                  <p className="mb-1 text-xs text-ink-muted">
+                    Modo{usarRegra ? '' : ' (manual)'}
+                  </p>
                   <div className="inline-flex rounded-lg border border-ink/15 bg-white p-0.5">
                     <button
                       type="button"
@@ -1847,7 +1880,9 @@ export function PublishPanel({
       >
         <div className="space-y-3">
           <p className="text-sm text-ink-muted">
-            Prazo ≤ {config.limite_urgencia_minutos} min define prioridade alta. Informe o motivo.
+            {usarRegra
+              ? `Prazo ≤ ${config.limite_urgencia_minutos} min define prioridade alta. Informe o motivo.`
+              : 'Prioridade alta exige justificativa. Informe o motivo.'}
           </p>
           <Field label="Motivo">
             <select className={inputClass} value={motivo} onChange={(e) => setMotivo(e.target.value)}>

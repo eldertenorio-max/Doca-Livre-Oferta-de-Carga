@@ -1,4 +1,4 @@
-import type { ClassificacaoRota } from '../types'
+import type { ClassificacaoRota, ModoPublicacao, Prioridade } from '../types'
 import { appStoreGet, appStoreGetCached, appStoreSet, migrateLocalKeyToAppStore } from './appStore'
 
 /** Configurações operacionais (PPT §5 / §20) — persistidas no Supabase. */
@@ -9,6 +9,14 @@ export interface ConfigNegocio {
   prazo_alocacao_padrao_minutos: number
   /** Limite em minutos para prioridade alta + modo Oferta */
   limite_urgencia_minutos: number
+  /**
+   * Se true, prioridade/modo saem do prazo (regra automática).
+   * Se false, usa prioridade_padrao / modo_padrao (escolha manual).
+   */
+  usar_regra_prioridade_modo: boolean
+  /** Usado quando usar_regra_prioridade_modo = false */
+  prioridade_padrao: Prioridade
+  modo_padrao: ModoPublicacao
   margens: Record<ClassificacaoRota, number[]>
   /**
    * % sobre frete_oferta para piso/teto de lance.
@@ -29,6 +37,9 @@ export const DEFAULT_CONFIG_NEGOCIO: ConfigNegocio = {
   prazo_oferta_maximo_minutos: 4320,
   prazo_alocacao_padrao_minutos: 10,
   limite_urgencia_minutos: 30,
+  usar_regra_prioridade_modo: true,
+  prioridade_padrao: 'media',
+  modo_padrao: 'leilao',
   margens: {
     A: [-7, -8, -9],
     B: [-4, -5, -6],
@@ -44,13 +55,27 @@ export const DEFAULT_CONFIG_NEGOCIO: ConfigNegocio = {
 const STORE_KEY = 'config_negocio'
 const LEGACY_KEY = 'doca-livre-config-negocio-v1'
 
+function asPrioridade(raw: unknown): Prioridade {
+  if (raw === 'alta' || raw === 'media' || raw === 'baixa') return raw
+  return DEFAULT_CONFIG_NEGOCIO.prioridade_padrao
+}
+
+function asModo(raw: unknown): ModoPublicacao {
+  if (raw === 'oferta' || raw === 'leilao') return raw
+  return DEFAULT_CONFIG_NEGOCIO.modo_padrao
+}
+
 function normalize(parsed: Partial<ConfigNegocio> | null | undefined): ConfigNegocio {
+  const p = parsed ?? {}
   return {
     ...DEFAULT_CONFIG_NEGOCIO,
-    ...(parsed ?? {}),
+    ...p,
+    usar_regra_prioridade_modo: p.usar_regra_prioridade_modo !== false,
+    prioridade_padrao: asPrioridade(p.prioridade_padrao),
+    modo_padrao: asModo(p.modo_padrao),
     margens: {
       ...DEFAULT_CONFIG_NEGOCIO.margens,
-      ...(parsed?.margens ?? {}),
+      ...(p.margens ?? {}),
     },
   }
 }

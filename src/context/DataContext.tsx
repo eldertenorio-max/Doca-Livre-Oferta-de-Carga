@@ -53,6 +53,7 @@ import type {
   ModoPublicacao,
   Motorista,
   NotificacaoInApp,
+  Prioridade,
   Profile,
   Rota,
   TipoHistorico,
@@ -134,6 +135,8 @@ interface PublishPayload {
   prazoAlocacaoMinutos: number
   /** Escolha manual na UI; se omitido, segue a regra do prazo. */
   modoPublicacao?: ModoPublicacao
+  /** Escolha manual quando a regra automática está desligada. */
+  prioridade?: Prioridade
   justificativaMotivo?: string
   justificativaObs?: string
   observacao?: string
@@ -1952,15 +1955,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const publicarCarga = useCallback(
     (payload: PublishPayload) => {
-      const { prioridade, modo: modoSugerido, exigeJustificativa } = calcularPrioridadeEModo(
+      const regra = config.usar_regra_prioridade_modo !== false
+      const sugerido = calcularPrioridadeEModo(
         payload.prazoLeilaoMinutos,
         config.limite_urgencia_minutos,
       )
-      const modo = payload.modoPublicacao ?? modoSugerido
+      const prioridade = regra
+        ? sugerido.prioridade
+        : (payload.prioridade ?? config.prioridade_padrao ?? sugerido.prioridade)
+      const modo = regra
+        ? (payload.modoPublicacao ?? sugerido.modo)
+        : (payload.modoPublicacao ?? config.modo_padrao ?? sugerido.modo)
+      const exigeJustificativa = regra
+        ? sugerido.exigeJustificativa
+        : prioridade === 'alta'
       if (exigeJustificativa && !payload.justificativaMotivo) {
         return {
           ok: false,
-          error: `Justificativa obrigatória para prazo ≤ ${config.limite_urgencia_minutos} minutos`,
+          error: regra
+            ? `Justificativa obrigatória para prazo ≤ ${config.limite_urgencia_minutos} minutos`
+            : 'Justificativa obrigatória para prioridade alta',
         }
       }
       if (payload.grupoIds.length === 0) {

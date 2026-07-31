@@ -108,47 +108,120 @@ export function ConfiguracoesPage() {
           </div>
         </section>
 
-        {/* 2. Prioridade / Modo — a parte que mais confunde */}
+        {/* 2. Prioridade / Modo */}
         <section className="rounded-xl border border-ink/10 bg-white p-4 space-y-3">
           <div>
             <h2 className="font-display text-base font-semibold">2. Prioridade e modo</h2>
             <Hint>
-              Não se escolhe na mão. O sistema define conforme o prazo da negociação.
+              {form.usar_regra_prioridade_modo
+                ? 'Com a regra ligada, o sistema define prioridade e modo conforme o prazo.'
+                : 'Com a regra desligada, você escolhe prioridade e modo na publicação.'}
             </Hint>
           </div>
 
-          <Field label="A partir de quantos minutos vira urgente (Oferta)?">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap gap-4 rounded-lg border border-ink/10 bg-sand-light/40 px-3 py-2.5">
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
               <input
-                type="number"
-                min={1}
-                className={inputClass}
+                type="radio"
+                name="usar_regra_prioridade_modo"
                 disabled={!canEdit}
-                value={form.limite_urgencia_minutos}
-                onChange={(e) =>
-                  setForm({ ...form, limite_urgencia_minutos: Number(e.target.value) })
-                }
+                checked={form.usar_regra_prioridade_modo}
+                onChange={() => setForm({ ...form, usar_regra_prioridade_modo: true })}
               />
-              <span className="shrink-0 text-xs text-ink-muted">min</span>
-            </div>
-          </Field>
-
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div className="rounded-lg border border-brand/30 bg-brand/5 px-3 py-2.5 text-xs">
-              <p className="font-bold text-brand">Prazo ≤ {resumoPrioridade.limLabel}</p>
-              <p className="mt-1 text-ink">
-                Prioridade <strong>Alta</strong> · Modo <strong>Oferta</strong>
-              </p>
-              <p className="mt-0.5 text-ink-muted">Primeiro lance válido fecha. Pede justificativa.</p>
-            </div>
-            <div className="rounded-lg border border-ink/15 bg-sand-light/60 px-3 py-2.5 text-xs">
-              <p className="font-bold text-ink">Prazo &gt; {resumoPrioridade.limLabel}</p>
-              <p className="mt-1 text-ink">
-                Prioridade <strong>Média/Baixa</strong> · Modo <strong>Leilão</strong>
-              </p>
-              <p className="mt-0.5 text-ink-muted">Recebe várias propostas até o fim do prazo.</p>
-            </div>
+              Usar regra
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
+              <input
+                type="radio"
+                name="usar_regra_prioridade_modo"
+                disabled={!canEdit}
+                checked={!form.usar_regra_prioridade_modo}
+                onChange={() => setForm({ ...form, usar_regra_prioridade_modo: false })}
+              />
+              Não usar regra
+            </label>
           </div>
+
+          {form.usar_regra_prioridade_modo ? (
+            <>
+              <Field label="A partir de quantos minutos vira urgente (Oferta)?">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    className={inputClass}
+                    disabled={!canEdit}
+                    value={form.limite_urgencia_minutos}
+                    onChange={(e) =>
+                      setForm({ ...form, limite_urgencia_minutos: Number(e.target.value) })
+                    }
+                  />
+                  <span className="shrink-0 text-xs text-ink-muted">min</span>
+                </div>
+              </Field>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="rounded-lg border border-brand/30 bg-brand/5 px-3 py-2.5 text-xs">
+                  <p className="font-bold text-brand">Prazo ≤ {resumoPrioridade.limLabel}</p>
+                  <p className="mt-1 text-ink">
+                    Prioridade <strong>Alta</strong> · Modo <strong>Oferta</strong>
+                  </p>
+                  <p className="mt-0.5 text-ink-muted">
+                    Primeiro lance válido fecha. Pede justificativa.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-ink/15 bg-sand-light/60 px-3 py-2.5 text-xs">
+                  <p className="font-bold text-ink">Prazo &gt; {resumoPrioridade.limLabel}</p>
+                  <p className="mt-1 text-ink">
+                    Prioridade <strong>Média/Baixa</strong> · Modo <strong>Leilão</strong>
+                  </p>
+                  <p className="mt-0.5 text-ink-muted">
+                    Recebe várias propostas até o fim do prazo.
+                  </p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Prioridade padrão">
+                <select
+                  className={inputClass}
+                  disabled={!canEdit}
+                  value={form.prioridade_padrao}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      prioridade_padrao: e.target.value as 'alta' | 'media' | 'baixa',
+                    })
+                  }
+                >
+                  <option value="alta">Alta</option>
+                  <option value="media">Média</option>
+                  <option value="baixa">Baixa</option>
+                </select>
+              </Field>
+              <Field label="Modo padrão">
+                <select
+                  className={inputClass}
+                  disabled={!canEdit}
+                  value={form.modo_padrao}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      modo_padrao: e.target.value as 'oferta' | 'leilao',
+                    })
+                  }
+                >
+                  <option value="leilao">Leilão</option>
+                  <option value="oferta">Oferta</option>
+                </select>
+              </Field>
+              <p className="text-[12px] text-ink-muted sm:col-span-2">
+                Na publicação você ainda pode alterar prioridade e modo. Prioridade alta pede
+                justificativa.
+              </p>
+            </div>
+          )}
         </section>
 
         {/* 3. Lances */}
