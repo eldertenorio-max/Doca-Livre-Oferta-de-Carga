@@ -1039,7 +1039,7 @@ export function CargaDadosForm({
           origem={origem}
           destino={destino}
           veiculo={veiculo}
-          className="h-[155px] min-h-[155px] w-full"
+          className="h-[220px] min-h-[220px] w-full"
         />
       </section>
 

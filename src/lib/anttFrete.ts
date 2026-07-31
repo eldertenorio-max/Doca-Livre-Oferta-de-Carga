@@ -276,7 +276,7 @@ export async function calcularRotaOperacional(params: {
       rota.vale_pedagio = rota.pedagio
       rota.provedor = 'local'
       pedFonte =
-        'nenhuma praça ANTT cruzou a rota — pedágio estimado por km' +
+        'nenhuma praça cruzou a rota — pedágio estimado por km' +
         (idaEVolta ? ' · ida e volta' : '')
     }
   } catch {
@@ -289,7 +289,7 @@ export async function calcularRotaOperacional(params: {
     rota.vale_pedagio = rota.pedagio
     rota.provedor = 'local'
     pedFonte =
-      'falha ao carregar praças ANTT — pedágio estimado por km' +
+      'falha ao carregar praças — pedágio estimado por km' +
       (idaEVolta ? ' · ida e volta' : '')
   }
 
@@ -385,12 +385,12 @@ export async function calcularAnttCompleto(params: {
       rota.vale_pedagio = rota.pedagio
       rota.provedor = 'local'
       pedFonte =
-        'nenhuma praça ANTT cruzou a rota — pedágio estimado por km (estaduais/municipais podem não estar na base federal)'
+        'nenhuma praça cruzou a rota — pedágio estimado por km'
     }
   } catch {
     rota.vale_pedagio = rota.pedagio
     rota.provedor = 'local'
-    pedFonte = 'falha ao carregar praças ANTT — pedágio estimado por km'
+    pedFonte = 'falha ao carregar praças — pedágio estimado por km'
   }
 
   const cat =

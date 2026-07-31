@@ -243,7 +243,9 @@ export function AnttFretePanel({
                 </div>
                 <p className="mt-2 text-[10px] text-ink-muted">
                   Eixos: {calc.eixos_utilizados}
-                  {rota.provedor === 'antt_aberto' ? ' · praças ANTT na rota' : ' · pedágio estimado'}
+                  {rota.provedor === 'antt_aberto'
+                    ? ' · praças na rota'
+                    : ' · pedágio estimado'}
                   {rota.free_flow ? ' · Free Flow/OCR na base' : ''}
                   {calc.piso_selecionado != null && (
                     <>

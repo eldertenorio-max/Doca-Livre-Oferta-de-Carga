@@ -20,7 +20,7 @@ type Props = {
 
 function pinIcon(label: string, color: string) {
   return L.divIcon({
-    className: 'rota-map-pin',
+    className: 'rota-map-pin leaflet-div-icon--clean',
     html: `<span style="
       display:inline-flex;align-items:center;justify-content:center;
       width:26px;height:26px;border-radius:50%;
@@ -34,7 +34,7 @@ function pinIcon(label: string, color: string) {
 
 function pedagioIcon(valorLabel: string) {
   return L.divIcon({
-    className: 'rota-map-pedagio',
+    className: 'rota-map-pedagio leaflet-div-icon--clean',
     html: `<div style="
       display:flex;flex-direction:column;align-items:center;gap:2px;
       transform:translateY(-4px);
