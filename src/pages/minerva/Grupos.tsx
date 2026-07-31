@@ -4,6 +4,10 @@ import { canonicalTransportadorId, sameTransportadorId } from '../../lib/transpo
 import type { GrupoTransportador, Transportador } from '../../types'
 import { Button, Field, inputClass } from '../../components/ui/Modal'
 
+function nomeFantasiaCadastro(t: Transportador): string {
+  return (t.nome_fantasia || t.razao_social || t.cnpj || t.id).trim()
+}
+
 function dedupeTransportadores(list: Transportador[]): Transportador[] {
   const map = new Map<string, Transportador>()
   for (const t of list) {
@@ -19,7 +23,7 @@ function dedupeTransportadores(list: Transportador[]): Transportador[] {
     }
   }
   return Array.from(map.values()).sort((a, b) =>
-    a.nome_fantasia.localeCompare(b.nome_fantasia, 'pt-BR'),
+    nomeFantasiaCadastro(a).localeCompare(nomeFantasiaCadastro(b), 'pt-BR'),
   )
 }
 
@@ -32,6 +36,7 @@ export function GruposPage() {
     transportador_ids: [],
   })
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [buscaTransp, setBuscaTransp] = useState('')
 
   const opcoes = useMemo(
     () =>
@@ -40,6 +45,12 @@ export function GruposPage() {
       ),
     [transportadores],
   )
+
+  const opcoesFiltradas = useMemo(() => {
+    const q = buscaTransp.trim().toLowerCase()
+    if (!q) return opcoes
+    return opcoes.filter((t) => nomeFantasiaCadastro(t).toLowerCase().includes(q))
+  }, [opcoes, buscaTransp])
 
   function isSelected(id: string) {
     return (form.transportador_ids ?? []).some((x) => sameTransportadorId(x, id))
@@ -79,6 +90,7 @@ export function GruposPage() {
     }
     salvarGrupo(g)
     setEditingId(null)
+    setBuscaTransp('')
     setForm({ descricao: '', situacao: 'ativo', observacao: '', transportador_ids: [] })
   }
 
@@ -111,7 +123,7 @@ export function GruposPage() {
             <ul className="mt-1 text-xs text-ink-muted">
               {g.transportador_ids.map((id) => {
                 const t = transportadores.find((x) => sameTransportadorId(x.id, id))
-                return <li key={id}>• {t?.nome_fantasia ?? id}</li>
+                return <li key={id}>• {t ? nomeFantasiaCadastro(t) : id}</li>
               })}
             </ul>
             <button
@@ -169,25 +181,34 @@ export function GruposPage() {
             />
           </Field>
           <Field label="Transportadores do grupo" className="sm:col-span-2">
-            <p className="mb-2 text-[11px] text-ink-muted">
-              Marque quem entra neste grupo. O rótulo entre parênteses (ouro/prata/bronze) é a
-              classificação por pontuação — não é o grupo.
-            </p>
-            <div className="grid gap-1 rounded-lg border border-ink/15 p-3 sm:grid-cols-2">
-              {opcoes.map((t) => (
-                <label key={canonicalTransportadorId(t.id) ?? t.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={isSelected(t.id)}
-                    onChange={() => toggleMember(t.id)}
-                  />
-                  {t.nome_fantasia}{' '}
-                  <span className="text-xs capitalize text-ink-muted">
-                    (classificação: {t.classificacao})
-                  </span>
-                </label>
-              ))}
+            <input
+              className={`${inputClass} mb-2`}
+              value={buscaTransp}
+              onChange={(e) => setBuscaTransp(e.target.value)}
+              placeholder="Buscar pelo nome fantasia…"
+            />
+            <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-ink/15 p-3">
+              {opcoesFiltradas.length === 0 ? (
+                <p className="text-xs text-ink-muted">Nenhum transportador encontrado.</p>
+              ) : (
+                opcoesFiltradas.map((t) => (
+                  <label
+                    key={canonicalTransportadorId(t.id) ?? t.id}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected(t.id)}
+                      onChange={() => toggleMember(t.id)}
+                    />
+                    <span>{nomeFantasiaCadastro(t)}</span>
+                  </label>
+                ))
+              )}
             </div>
+            <p className="mt-1.5 text-[11px] text-ink-muted">
+              {(form.transportador_ids ?? []).length} selecionado(s)
+            </p>
           </Field>
         </div>
         <Button variant="success" className="mt-4" onClick={save}>
@@ -199,6 +220,7 @@ export function GruposPage() {
             className="ml-3 mt-4 text-xs font-semibold text-ink-muted hover:underline"
             onClick={() => {
               setEditingId(null)
+              setBuscaTransp('')
               setForm({ descricao: '', situacao: 'ativo', observacao: '', transportador_ids: [] })
             }}
           >
