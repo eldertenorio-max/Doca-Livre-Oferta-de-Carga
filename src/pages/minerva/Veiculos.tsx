@@ -19,6 +19,7 @@ import { newVeiculoId } from '../../lib/veiculosSync'
 import { CarroceriaSuggestInput } from '../../components/ui/CarroceriaSuggestInput'
 import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
 import { ImportarVeiculosModal } from '../../components/veiculos/ImportarVeiculosModal'
+import { LocalizacaoVeiculoModal } from '../../components/veiculos/LocalizacaoVeiculoModal'
 import type { FotoVeiculoSlot, FotosVeiculo, Veiculo } from '../../types'
 import '../../styles/cadastro.css'
 
@@ -74,6 +75,7 @@ export function VeiculosPage() {
   const [error, setError] = useState('')
   const [dicaFoto, setDicaFoto] = useState<FotoVeiculoSlot | null>(null)
   const [importOpen, setImportOpen] = useState(false)
+  const [locVeiculo, setLocVeiculo] = useState<Veiculo | null>(null)
 
   const listaVeiculos = veiculos ?? []
   const listaTransportadores = transportadores ?? []
@@ -309,6 +311,17 @@ export function VeiculosPage() {
       rastreador_dados: risco === 'rastreador' ? dadosRastreador : undefined,
       situacao: (form.situacao as 'ativo' | 'inativo') ?? 'ativo',
       created_at: form.created_at ?? new Date().toISOString(),
+      // Preserva localização do veículo (editada em “Alterar localização”)
+      origem_cep: form.origem_cep,
+      origem_endereco: form.origem_endereco,
+      origem_numero: form.origem_numero,
+      origem_complemento: form.origem_complemento,
+      origem_bairro: form.origem_bairro,
+      origem_cidade: form.origem_cidade,
+      origem_uf: form.origem_uf,
+      origem_lat: form.origem_lat,
+      origem_lng: form.origem_lng,
+      raio_km: form.raio_km,
     }
     salvarVeiculo(v)
     setMode('lista')
@@ -384,6 +397,26 @@ export function VeiculosPage() {
           }}
         />
 
+        <LocalizacaoVeiculoModal
+          open={Boolean(locVeiculo)}
+          veiculo={locVeiculo}
+          transportador={
+            locVeiculo?.transportador_id
+              ? transportadorById(locVeiculo.transportador_id) ?? null
+              : null
+          }
+          onClose={() => setLocVeiculo(null)}
+          onSave={(patch) => {
+            if (!locVeiculo) return
+            salvarVeiculo({
+              ...locVeiculo,
+              ...patch,
+              updated_at: new Date().toISOString(),
+            })
+            setLocVeiculo(null)
+          }}
+        />
+
         <div className="cadastro-table-wrap">
           {filtered.length === 0 ? (
             <p className="cadastro-empty">Nenhum veículo encontrado.</p>
@@ -437,9 +470,16 @@ export function VeiculosPage() {
                         {v.situacao}
                       </span>
                     </td>
-                    <td style={{ display: 'flex', gap: 10 }}>
+                    <td style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                       <button type="button" className="cadastro-link" onClick={() => openEdit(v)}>
                         Editar
+                      </button>
+                      <button
+                        type="button"
+                        className="cadastro-link"
+                        onClick={() => setLocVeiculo(v)}
+                      >
+                        Alterar localização
                       </button>
                       <button
                         type="button"

@@ -165,6 +165,18 @@ export interface Veiculo {
    * Default: true.
    */
   disponivel_mapa?: boolean
+  /** Localização da placa no Mapa da Frota (não usa mais a origem da transportadora). */
+  origem_cep?: string
+  origem_cidade?: string
+  origem_uf?: string
+  origem_endereco?: string
+  origem_numero?: string
+  origem_bairro?: string
+  origem_complemento?: string
+  origem_lat?: number | null
+  origem_lng?: number | null
+  /** Raio de pesquisa (km) a partir da localização do veículo. */
+  raio_km?: number
   usa_manobrista: boolean
   padiado: boolean
   /** Gerenciamento de risco do veículo */

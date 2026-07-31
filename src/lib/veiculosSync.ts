@@ -64,6 +64,22 @@ export function mapVeiculoRow(row: Record<string, unknown>): Veiculo {
     eixos: row.eixos != null ? Number(row.eixos) : undefined,
     frete_minimo: Number(row.frete_minimo) || 0,
     disponivel_mapa: row.disponivel_mapa !== false,
+    origem_cep: (row.origem_cep as string) || undefined,
+    origem_cidade: (row.origem_cidade as string) || undefined,
+    origem_uf: (row.origem_uf as string) || undefined,
+    origem_endereco: (row.origem_endereco as string) || undefined,
+    origem_numero: (row.origem_numero as string) || undefined,
+    origem_bairro: (row.origem_bairro as string) || undefined,
+    origem_complemento: (row.origem_complemento as string) || undefined,
+    origem_lat:
+      row.origem_lat != null && Number.isFinite(Number(row.origem_lat))
+        ? Number(row.origem_lat)
+        : null,
+    origem_lng:
+      row.origem_lng != null && Number.isFinite(Number(row.origem_lng))
+        ? Number(row.origem_lng)
+        : null,
+    raio_km: row.raio_km != null ? Number(row.raio_km) : undefined,
     usa_manobrista: Boolean(row.usa_manobrista),
     padiado: Boolean(row.padiado),
     gerenciamento_risco: mapGerenciamentoRisco(row.gerenciamento_risco),
@@ -156,6 +172,16 @@ export async function upsertVeiculoRemote(
         : null,
     situacao: limpo.situacao,
     disponivel_mapa: limpo.disponivel_mapa !== false,
+    origem_cep: limpo.origem_cep ?? null,
+    origem_cidade: limpo.origem_cidade ?? null,
+    origem_uf: limpo.origem_uf ?? null,
+    origem_endereco: limpo.origem_endereco ?? null,
+    origem_numero: limpo.origem_numero ?? null,
+    origem_bairro: limpo.origem_bairro ?? null,
+    origem_complemento: limpo.origem_complemento ?? null,
+    origem_lat: limpo.origem_lat ?? null,
+    origem_lng: limpo.origem_lng ?? null,
+    raio_km: limpo.raio_km ?? null,
     updated_at: limpo.updated_at ?? new Date().toISOString(),
   }
   const { error } = await supabase.from('veiculos').upsert(row)
@@ -171,6 +197,23 @@ export async function upsertVeiculoRemote(
   }
   if (/gerenciamento_risco|rastreador_dados/i.test(error.message)) {
     const { gerenciamento_risco: _g, rastreador_dados: _r, ...rest } = retryRow
+    retryRow = rest
+    stripped = true
+  }
+  if (/origem_|raio_km/i.test(error.message)) {
+    const {
+      origem_cep: _c,
+      origem_cidade: _ci,
+      origem_uf: _u,
+      origem_endereco: _e,
+      origem_numero: _n,
+      origem_bairro: _b,
+      origem_complemento: _co,
+      origem_lat: _la,
+      origem_lng: _ln,
+      raio_km: _r,
+      ...rest
+    } = retryRow
     retryRow = rest
     stripped = true
   }

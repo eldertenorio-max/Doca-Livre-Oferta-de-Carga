@@ -270,14 +270,15 @@ export function montarPontosFrota(
     const t = transpById.get(m.transportador_id)
     if (!v || v.situacao !== 'ativo') continue
     if (!t || t.situacao !== 'ativo') continue
-    const lat = t.origem_lat
-    const lng = t.origem_lng
+    // Mapa da frota: só localização cadastrada no veículo
+    const lat = v.origem_lat
+    const lng = v.origem_lng
     if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) continue
 
     const { grupo, emoji } = classificarIconeVeiculo(v.tipo)
     const av = avaliacaoDoMotorista(m)
-    const cidade = (t.origem_cidade || t.cidade || '').trim()
-    const uf = (t.origem_uf || t.uf || '').trim().toUpperCase()
+    const cidade = (v.origem_cidade || t.origem_cidade || t.cidade || '').trim()
+    const uf = (v.origem_uf || t.origem_uf || t.uf || '').trim().toUpperCase()
     veiculosComMotorista.add(v.id)
     // Foto: motorista → logo/foto da transportadora → foto do veículo
     const fotoPerfil =
@@ -312,7 +313,7 @@ export function montarPontosFrota(
       emoji,
       cidade,
       uf,
-      raioKm: Number(t.raio_km) || 0,
+      raioKm: Number(v.raio_km) || Number(t.raio_km) || 0,
     })
   }
 
@@ -322,12 +323,12 @@ export function montarPontosFrota(
     if (v.situacao !== 'ativo' || !v.transportador_id) continue
     const t = transpById.get(v.transportador_id)
     if (!t || t.situacao !== 'ativo') continue
-    const lat = t.origem_lat
-    const lng = t.origem_lng
+    const lat = v.origem_lat
+    const lng = v.origem_lng
     if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) continue
     const { grupo, emoji } = classificarIconeVeiculo(v.tipo)
-    const cidade = (t.origem_cidade || t.cidade || '').trim()
-    const uf = (t.origem_uf || t.uf || '').trim().toUpperCase()
+    const cidade = (v.origem_cidade || t.origem_cidade || t.cidade || '').trim()
+    const uf = (v.origem_uf || t.origem_uf || t.uf || '').trim().toUpperCase()
     const nome = (v.condutor || '').trim() || v.placa
     const fotoPerfil =
       (t.logo_url || '').trim() ||
@@ -357,7 +358,7 @@ export function montarPontosFrota(
       emoji,
       cidade,
       uf,
-      raioKm: Number(t.raio_km) || 0,
+      raioKm: Number(v.raio_km) || Number(t.raio_km) || 0,
     })
   }
 
