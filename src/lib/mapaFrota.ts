@@ -1,6 +1,37 @@
-import type { FotosVeiculo, Motorista, Transportador, Veiculo } from '../types'
+import type { Carga, FotosVeiculo, Motorista, Transportador, Veiculo } from '../types'
 import { frotaIconeHtml, type FrotaIconeGrupo } from './frotaIcones'
 import { normalizeFotosVeiculo } from './veiculoFotos'
+
+function normPlacaFrota(placa?: string | null): string {
+  return (placa || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+}
+
+/** Conta rotas finalizadas por veículo (id) e por placa (quando sem veiculo_id). */
+export function indexCorridasPorVeiculo(cargas: Carga[]): {
+  byId: Map<string, number>
+  byPlaca: Map<string, number>
+} {
+  const byId = new Map<string, number>()
+  const byPlaca = new Map<string, number>()
+  for (const c of cargas) {
+    if (c.status_viagem !== 'rota_finalizada') continue
+    if (c.veiculo_id) {
+      byId.set(c.veiculo_id, (byId.get(c.veiculo_id) || 0) + 1)
+      continue
+    }
+    const pl = normPlacaFrota(c.placa)
+    if (pl) byPlaca.set(pl, (byPlaca.get(pl) || 0) + 1)
+  }
+  return { byId, byPlaca }
+}
+
+function corridasDoVeiculo(
+  index: ReturnType<typeof indexCorridasPorVeiculo>,
+  veiculoId: string,
+  placa: string,
+): number {
+  return (index.byId.get(veiculoId) || 0) + (index.byPlaca.get(normPlacaFrota(placa)) || 0)
+}
 
 export type { FrotaIconeGrupo }
 
@@ -41,6 +72,8 @@ export type PontoFrota = {
   largura_m?: number
   altura_m?: number
   cubagem_m3?: number
+  /** Quantidade de rotas (corridas) finalizadas por esta placa. */
+  totalCorridas: number
 }
 
 /** Chave estável para agrupar pins na mesma coordenada. */
@@ -265,9 +298,11 @@ export function montarPontosFrota(
   motoristas: Motorista[],
   veiculos: Veiculo[],
   transportadores: Transportador[],
+  cargas: Carga[] = [],
 ): PontoFrota[] {
   const veiculoById = new Map(veiculos.map((v) => [v.id, v]))
   const transpById = new Map(transportadores.map((t) => [t.id, t]))
+  const corridasIndex = indexCorridasPorVeiculo(cargas)
   const pontos: PontoFrota[] = []
   const veiculosComMotorista = new Set<string>()
 
@@ -328,6 +363,7 @@ export function montarPontosFrota(
       largura_m: v.largura_m,
       altura_m: v.altura_m,
       cubagem_m3: v.cubagem_m3,
+      totalCorridas: corridasDoVeiculo(corridasIndex, v.id, v.placa),
     })
   }
 
@@ -379,6 +415,7 @@ export function montarPontosFrota(
       largura_m: v.largura_m,
       altura_m: v.altura_m,
       cubagem_m3: v.cubagem_m3,
+      totalCorridas: corridasDoVeiculo(corridasIndex, v.id, v.placa),
     })
   }
 

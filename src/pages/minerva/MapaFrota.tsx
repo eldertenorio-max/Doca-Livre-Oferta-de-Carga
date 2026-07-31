@@ -220,6 +220,7 @@ function popupHtml(p: PontoFrota): string {
           <dt>Veículo</dt>
           <dd><span class="frota-ficha__veiculo">${frotaIconeHtml(p.icone, 'frota-ficha__veiculo-ico')}${escapeHtml(p.tipoVeiculo)}</span></dd>
         </div>
+        <div><dt>Corridas</dt><dd>${p.totalCorridas} rota${p.totalCorridas === 1 ? '' : 's'}</dd></div>
         <div><dt>Placa</dt><dd>${escapeHtml(p.placa)}</dd></div>
         <div><dt>Marca / modelo</dt><dd>${escapeHtml(marcaModelo)}</dd></div>
         <div><dt>Frete mínimo</dt><dd class="frota-ficha__frete">${escapeHtml(frete)}</dd></div>
@@ -321,11 +322,12 @@ function pontoUiKey(p: PontoFrota): string {
     p.cidade,
     p.uf,
     p.raioKm,
+    p.totalCorridas,
   ].join('|')
 }
 
 export function MapaFrotaPage() {
-  const { motoristas, veiculos, transportadores } = useData()
+  const { motoristas, veiculos, transportadores, cargas } = useData()
   const mapEl = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const layerRef = useRef<L.LayerGroup | null>(null)
@@ -434,8 +436,8 @@ export function MapaFrotaPage() {
   )
 
   const pontos = useMemo(
-    () => montarPontosFrota(motoristas, veiculos, transportadores),
-    [motoristas, veiculos, transportadores],
+    () => montarPontosFrota(motoristas, veiculos, transportadores, cargas),
+    [motoristas, veiculos, transportadores, cargas],
   )
 
   useEffect(() => {
