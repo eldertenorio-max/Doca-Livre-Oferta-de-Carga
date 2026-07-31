@@ -21,6 +21,7 @@ import { KanbanTransportador } from './pages/transportador/KanbanTransportador'
 import { KanbanTarefasPage } from './pages/transportador/KanbanTarefas'
 import { ViagensTransportadorPage } from './pages/transportador/Viagens'
 import { PainelTransportadorPage } from './pages/transportador/Painel'
+import { ConfiguracoesTransportadorPage } from './pages/transportador/Configuracoes'
 import { MapaFrotaPage } from './pages/minerva/MapaFrota'
 import { PerfilPage } from './pages/Perfil'
 import { PwaInstallBanner } from './components/PwaInstallBanner'
@@ -242,6 +243,14 @@ export default function App() {
           element={
             <Protected role={['transportador', 'super']}>
               <MotoristasPage />
+            </Protected>
+          }
+        />
+        <Route
+          path="/transportador/configuracoes"
+          element={
+            <Protected role={['transportador', 'super']}>
+              <ConfiguracoesTransportadorPage />
             </Protected>
           }
         />

@@ -124,6 +124,7 @@ const transportadorLinks: NavItem[] = [
   { to: '/transportador/viagens', label: 'Kanban Viagens', icon: <IconTruck /> },
   { to: '/transportador/veiculos', label: 'Meus Veículos', icon: <IconTruck /> },
   { to: '/transportador/motoristas', label: 'Meus Motoristas', icon: <IconUsers /> },
+  { to: '/transportador/configuracoes', label: 'Configurações', icon: <IconShield /> },
 ]
 
 function formatClock(now: Date) {

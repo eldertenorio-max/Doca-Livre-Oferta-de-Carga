@@ -32,6 +32,13 @@ import {
   type ConfigNegocio,
 } from '../lib/configNegocio'
 import {
+  hydrateConfigTransportador,
+  loadConfigTransportador,
+  saveConfigTransportador,
+  type ConfigTransportador,
+} from '../lib/configTransportador'
+import { montarPatchLocalizacaoAposViagem } from '../lib/atualizarLocalizacaoViagem'
+import {
   lanceNaRodadaAtual,
   makeHist,
   normalizeCarga,
@@ -187,6 +194,9 @@ interface DataContextValue extends DataState, AuthState {
   tick: number
   config: ConfigNegocio
   salvarConfig: (cfg: ConfigNegocio) => void
+  /** Preferências da transportadora logada (ou “ver como”). */
+  configTransportador: ConfigTransportador
+  salvarConfigTransportador: (cfg: ConfigTransportador) => void
   publicarCarga: (
     payload: PublishPayload,
   ) => { ok: boolean; error?: string; pushEnviados?: number; pushAviso?: string }
@@ -537,8 +547,11 @@ async function dispararPushNovaCarga(
   titulo = 'Nova oferta de carga',
 ): Promise<{ enviados: number; erro?: string }> {
   if (tids.length === 0) return { enviados: 0 }
+  // Respeita preferência “Nova oferta” de cada transportadora
+  const filtrados = tids.filter((tid) => loadConfigTransportador(tid).notif_nova_oferta)
+  if (filtrados.length === 0) return { enviados: 0 }
   const res = await enviarPushCarga({
-    transportadorIds: tids,
+    transportadorIds: filtrados,
     titulo,
     mensagem: textoPushNovaCarga(carga),
     cargaId: carga.id,
@@ -1103,6 +1116,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Profile | null>(loadAuth)
   const [tick, setTick] = useState(0)
   const [config, setConfig] = useState<ConfigNegocio>(loadConfigNegocio)
+  const [configTransportador, setConfigTransportador] = useState<ConfigTransportador>(
+    () => loadConfigTransportador(null),
+  )
   const [actingTransportadorId, setActingTransportadorId] = useState<string | null>(null)
   /** Snapshot síncrono — evita depender do updater do setState para retornar ok/erro */
   const stateRef = useRef(state)
@@ -1501,6 +1517,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
     saveConfigNegocio(config)
   }, [config])
 
+  const tidConfig =
+    actingTransportadorId ||
+    (user?.role === 'transportador' ? user.transportador_id : null) ||
+    null
+
+  useEffect(() => {
+    if (!tidConfig) {
+      setConfigTransportador(loadConfigTransportador(null))
+      return
+    }
+    setConfigTransportador(loadConfigTransportador(tidConfig))
+    let cancelled = false
+    void hydrateConfigTransportador(tidConfig).then((cfg) => {
+      if (!cancelled) setConfigTransportador(cfg)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [tidConfig])
+
   useEffect(() => {
     persistAuthProfile(user)
   }, [user])
@@ -1533,6 +1569,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const salvarConfig = useCallback((cfg: ConfigNegocio) => {
     setConfig(cfg)
   }, [])
+
+  const salvarConfigTransportador = useCallback(
+    (cfg: ConfigTransportador) => {
+      setConfigTransportador(cfg)
+      if (tidConfig) saveConfigTransportador(tidConfig, cfg)
+    },
+    [tidConfig],
+  )
 
   // Timer: metade do prazo → notifica demais grupos; fim do prazo → fecha leilão; alocação expira
   useEffect(() => {
@@ -3464,6 +3508,55 @@ export function DataProvider({ children }: { children: ReactNode }) {
         flushKanbanPush(next)
         return next
       })
+
+      // Atualiza localização da placa para o destino (se ligado nas configs do transportador)
+      void (async () => {
+        try {
+          const veiculo = (stateRef.current.veiculos ?? []).find(
+            (v) => v.id === base.veiculo_id,
+          )
+          const rota = base.rota_id
+            ? stateRef.current.rotas.find((r) => r.id === base.rota_id)
+            : undefined
+          const patch = await montarPatchLocalizacaoAposViagem({
+            carga: base,
+            veiculo,
+            rota,
+          })
+          if (!patch || !veiculo) return
+          const atualizado = {
+            ...veiculo,
+            ...patch,
+            updated_at: new Date().toISOString(),
+          }
+          setState((prev) => {
+            const next = {
+              ...prev,
+              veiculos: (prev.veiculos ?? []).map((v) =>
+                v.id === atualizado.id ? atualizado : v,
+              ),
+              historico: [
+                makeHistorico(
+                  'viagem_finalizada',
+                  `Localização da placa atualizada — ${base.placa || atualizado.placa}`,
+                  {
+                    carga_id: cargaId,
+                    transportador_id: base.transportador_vencedor_id,
+                    detalhe: `Nova posição: ${base.destino}`,
+                  },
+                ),
+                ...prev.historico,
+              ].slice(0, 2000),
+            }
+            flushKanbanPush(next)
+            return next
+          })
+          void upsertVeiculoRemote(atualizado)
+        } catch (e) {
+          console.warn('[finalizarViagem] localização:', e)
+        }
+      })()
+
       return { ok: true }
     },
     [flushKanbanPush],
@@ -4848,6 +4941,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       tick,
       config,
       salvarConfig,
+      configTransportador,
+      salvarConfigTransportador,
       user,
       login,
       logout,
@@ -4922,6 +5017,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       tick,
       config,
       salvarConfig,
+      configTransportador,
+      salvarConfigTransportador,
       user,
       login,
       logout,

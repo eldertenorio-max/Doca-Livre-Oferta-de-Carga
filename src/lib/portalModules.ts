@@ -19,6 +19,7 @@ export type OfertaModuloId =
   | 'permissoes'
   | 'kanban_transportador'
   | 'viagens_transportador'
+  | 'configuracoes_transportador'
   | 'tarefas'
 
 export type OfertaPermissao = {
@@ -44,6 +45,7 @@ export const OFERTA_MODULOS_CATALOGO: { id: OfertaModuloId; label: string; role?
   { id: 'permissoes', label: 'Permissões', role: 'minerva' },
   { id: 'kanban_transportador', label: 'Kanban Ofertas', role: 'transportador' },
   { id: 'viagens_transportador', label: 'Kanban Viagens', role: 'transportador' },
+  { id: 'configuracoes_transportador', label: 'Configurações', role: 'transportador' },
 ]
 
 export const DEFAULT_PERMISSAO_MINERVA: OfertaPermissao = {
@@ -71,6 +73,7 @@ export const DEFAULT_PERMISSAO_TRANSPORTADOR: OfertaPermissao = {
     viagens_transportador: 'editar',
     veiculos: 'editar',
     motoristas: 'editar',
+    configuracoes_transportador: 'editar',
   },
 }
 
@@ -121,6 +124,7 @@ export function moduloFromPath(pathname: string): OfertaModuloId | null {
   if (p.startsWith('/embarcador/grupos')) return 'grupos'
   if (p.startsWith('/embarcador/indicadores')) return 'indicadores'
   if (p.startsWith('/embarcador/configuracoes')) return 'configuracoes'
+  if (p.startsWith('/transportador/configuracoes')) return 'configuracoes_transportador'
   if (p.startsWith('/embarcador/historico')) return 'historico'
   if (p.startsWith('/embarcador/hierarquia')) return 'hierarquia'
   if (p.startsWith('/embarcador/permissoes') || p.startsWith('/embarcador/config'))
