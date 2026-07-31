@@ -270,13 +270,13 @@ export function GridViagens({
                             Iniciar
                           </button>
                         ) : null}
-                        {coluna === 'rota_iniciada' && mode === 'transportador' && onFinalizar ? (
+                        {coluna === 'rota_iniciada' && onFinalizar ? (
                           <button
                             type="button"
                             className="grid-cargas__btn"
                             onClick={() => onFinalizar(c)}
                           >
-                            Finalizar
+                            Finalizar rota
                           </button>
                         ) : null}
                         {(coluna === 'aguardando_inicio' || coluna === 'rota_iniciada') &&

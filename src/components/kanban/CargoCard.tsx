@@ -706,6 +706,54 @@ export function CargoCard({
               <IconTruck />
             </IconBtn>
           )}
+          {onIniciarViagem && (
+            <button
+              type="button"
+              className="rounded-md bg-[#2f9e6a] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[#268556]"
+              onClick={(e) => {
+                e.stopPropagation()
+                onIniciarViagem()
+              }}
+            >
+              Iniciar viagem
+            </button>
+          )}
+          {onFinalizarViagem && (
+            <button
+              type="button"
+              className="rounded-md bg-[#3b82f6] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[#2563eb]"
+              onClick={(e) => {
+                e.stopPropagation()
+                onFinalizarViagem()
+              }}
+            >
+              Finalizar rota
+            </button>
+          )}
+          {onCancelarViagem && (
+            <button
+              type="button"
+              className="rounded-md bg-[#64748b] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[#475569]"
+              onClick={(e) => {
+                e.stopPropagation()
+                onCancelarViagem()
+              }}
+            >
+              Cancelar
+            </button>
+          )}
+          {onAvaliarViagem && (
+            <button
+              type="button"
+              className="rounded-md bg-amber-500 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-amber-600"
+              onClick={(e) => {
+                e.stopPropagation()
+                onAvaliarViagem()
+              }}
+            >
+              {carga.avaliado_em ? 'Ver avaliação' : 'Avaliar ★'}
+            </button>
+          )}
           <IconBtn
             title={
               chatNaoLidas > 0
@@ -719,51 +767,6 @@ export function CargoCard({
             <IconChat />
           </IconBtn>
         </div>
-
-        {(onIniciarViagem || onFinalizarViagem || onCancelarViagem || onAvaliarViagem) && (
-          <div
-            className="mt-2 flex flex-wrap gap-1.5"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
-          >
-            {onIniciarViagem && (
-              <button
-                type="button"
-                className="rounded-md bg-[#2f9e6a] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[#268556]"
-                onClick={onIniciarViagem}
-              >
-                Iniciar viagem
-              </button>
-            )}
-            {onFinalizarViagem && (
-              <button
-                type="button"
-                className="rounded-md bg-[#3b82f6] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[#2563eb]"
-                onClick={onFinalizarViagem}
-              >
-                Finalizar
-              </button>
-            )}
-            {onCancelarViagem && (
-              <button
-                type="button"
-                className="rounded-md bg-[#64748b] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[#475569]"
-                onClick={onCancelarViagem}
-              >
-                Cancelar
-              </button>
-            )}
-            {onAvaliarViagem && (
-              <button
-                type="button"
-                className="rounded-md bg-amber-500 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-amber-600"
-                onClick={onAvaliarViagem}
-              >
-                {carga.avaliado_em ? 'Ver avaliação' : 'Avaliar ★'}
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
       {chatOpen ? (

@@ -147,8 +147,8 @@ export function ViagensBoard({ mode, transportadorId }: Props) {
       {vista === 'quadro' ? (
         <p className="shrink-0 text-[11px] text-ink-muted">
           {mode === 'transportador'
-            ? 'Suas viagens: inicie em Aguardando início → finalize em Rota iniciada. Cancelamento no meio do percurso vai para Cancelada.'
-            : 'Todas as viagens: após finalizada, avalie motorista e veículo (1 a 5 estrelas + comentário).'}
+            ? 'Suas viagens: inicie em Aguardando início → Finalizar rota em Rota iniciada (tempo fica gravado). Cancelamento no meio do percurso vai para Cancelada.'
+            : 'Em Rota iniciada use Finalizar rota — o tempo para e o card vai para Rota finalizada. Depois avalie motorista e veículo.'}
         </p>
       ) : null}
 
@@ -159,7 +159,7 @@ export function ViagensBoard({ mode, transportadorId }: Props) {
             cargas={lista}
             transportadorId={transportadorId}
             onIniciar={mode === 'transportador' ? onIniciar : undefined}
-            onFinalizar={mode === 'transportador' ? onFinalizar : undefined}
+            onFinalizar={onFinalizar}
             onCancelar={onCancelar}
             onAvaliar={mode === 'minerva' ? (c) => setAvaliarCarga(c) : undefined}
           />
@@ -194,9 +194,7 @@ export function ViagensBoard({ mode, transportadorId }: Props) {
                           : undefined
                       }
                       onFinalizarViagem={
-                        col.key === 'rota_iniciada' && mode === 'transportador'
-                          ? () => onFinalizar(c)
-                          : undefined
+                        col.key === 'rota_iniciada' ? () => onFinalizar(c) : undefined
                       }
                       onCancelarViagem={
                         col.key === 'aguardando_inicio' || col.key === 'rota_iniciada'
