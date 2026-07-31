@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { canonicalTransportadorId, sameTransportadorId } from '../../lib/transportadorIds'
 import type { GrupoTransportador, Transportador } from '../../types'
@@ -36,7 +37,9 @@ export function GruposPage() {
     transportador_ids: [],
   })
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [aberto, setAberto] = useState(false)
   const [buscaTransp, setBuscaTransp] = useState('')
+  const selectRef = useRef<HTMLDivElement>(null)
 
   const opcoes = useMemo(
     () =>
@@ -52,15 +55,40 @@ export function GruposPage() {
     return opcoes.filter((t) => nomeFantasiaCadastro(t).toLowerCase().includes(q))
   }, [opcoes, buscaTransp])
 
+  const selecionados = form.transportador_ids ?? []
+
+  const rotuloCampo = useMemo(() => {
+    if (selecionados.length === 0) return 'Selecione os transportadores…'
+    const nomes = selecionados
+      .map((id) => {
+        const t = opcoes.find((x) => sameTransportadorId(x.id, id))
+        return t ? nomeFantasiaCadastro(t) : null
+      })
+      .filter(Boolean) as string[]
+    if (nomes.length <= 2) return nomes.join(', ')
+    return `${nomes.slice(0, 2).join(', ')} +${nomes.length - 2}`
+  }, [selecionados, opcoes])
+
+  useEffect(() => {
+    if (!aberto) return
+    const onDoc = (e: MouseEvent) => {
+      if (!selectRef.current?.contains(e.target as Node)) {
+        setAberto(false)
+        setBuscaTransp('')
+      }
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [aberto])
+
   function isSelected(id: string) {
-    return (form.transportador_ids ?? []).some((x) => sameTransportadorId(x, id))
+    return selecionados.some((x) => sameTransportadorId(x, id))
   }
 
   function toggleMember(id: string) {
     const ids = form.transportador_ids ?? []
     const canon = canonicalTransportadorId(id) ?? id
     if (isSelected(id)) {
-      // Remove todas as formas do mesmo transportador (legado t1 + UUID)
       setForm({
         ...form,
         transportador_ids: ids.filter((x) => !sameTransportadorId(x, id)),
@@ -90,6 +118,7 @@ export function GruposPage() {
     }
     salvarGrupo(g)
     setEditingId(null)
+    setAberto(false)
     setBuscaTransp('')
     setForm({ descricao: '', situacao: 'ativo', observacao: '', transportador_ids: [] })
   }
@@ -181,33 +210,79 @@ export function GruposPage() {
             />
           </Field>
           <Field label="Transportadores do grupo" className="sm:col-span-2">
-            <input
-              className={`${inputClass} mb-2`}
-              value={buscaTransp}
-              onChange={(e) => setBuscaTransp(e.target.value)}
-              placeholder="Buscar pelo nome fantasia…"
-            />
-            <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-ink/15 p-3">
-              {opcoesFiltradas.length === 0 ? (
-                <p className="text-xs text-ink-muted">Nenhum transportador encontrado.</p>
-              ) : (
-                opcoesFiltradas.map((t) => (
-                  <label
-                    key={canonicalTransportadorId(t.id) ?? t.id}
-                    className="flex items-center gap-2 text-sm"
+            <div ref={selectRef} className="relative">
+              <button
+                type="button"
+                className={`${inputClass} flex w-full items-center justify-between gap-2 text-left`}
+                onClick={() => setAberto((v) => !v)}
+                aria-expanded={aberto}
+                aria-haspopup="listbox"
+              >
+                <span
+                  className={
+                    selecionados.length === 0 ? 'truncate text-ink-muted' : 'truncate text-ink'
+                  }
+                >
+                  {rotuloCampo}
+                </span>
+                <ChevronDown
+                  size={16}
+                  className={`shrink-0 text-ink-muted transition ${aberto ? 'rotate-180' : ''}`}
+                />
+              </button>
+              {aberto ? (
+                <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 overflow-hidden rounded-lg border border-ink/15 bg-white shadow-lg">
+                  <input
+                    className="w-full border-0 border-b border-ink/10 px-3 py-2 text-sm outline-none"
+                    value={buscaTransp}
+                    onChange={(e) => setBuscaTransp(e.target.value)}
+                    placeholder="Digite para filtrar…"
+                    autoFocus
+                  />
+                  <ul
+                    className="max-h-56 overflow-y-auto py-1"
+                    role="listbox"
+                    aria-multiselectable="true"
                   >
-                    <input
-                      type="checkbox"
-                      checked={isSelected(t.id)}
-                      onChange={() => toggleMember(t.id)}
-                    />
-                    <span>{nomeFantasiaCadastro(t)}</span>
-                  </label>
-                ))
-              )}
+                    {opcoesFiltradas.length === 0 ? (
+                      <li className="px-3 py-2 text-xs text-ink-muted">
+                        Nenhum transportador encontrado.
+                      </li>
+                    ) : (
+                      opcoesFiltradas.map((t) => {
+                        const id = canonicalTransportadorId(t.id) ?? t.id
+                        const on = isSelected(t.id)
+                        return (
+                          <li key={id} role="option" aria-selected={on}>
+                            <button
+                              type="button"
+                              className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-ink/5 ${
+                                on ? 'bg-ink/5 font-semibold' : ''
+                              }`}
+                              onClick={() => toggleMember(t.id)}
+                            >
+                              <span
+                                className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[10px] ${
+                                  on
+                                    ? 'border-ink bg-ink text-white'
+                                    : 'border-ink/30 bg-white text-transparent'
+                                }`}
+                                aria-hidden
+                              >
+                                ✓
+                              </span>
+                              <span className="truncate">{nomeFantasiaCadastro(t)}</span>
+                            </button>
+                          </li>
+                        )
+                      })
+                    )}
+                  </ul>
+                </div>
+              ) : null}
             </div>
             <p className="mt-1.5 text-[11px] text-ink-muted">
-              {(form.transportador_ids ?? []).length} selecionado(s)
+              {selecionados.length} selecionado(s)
             </p>
           </Field>
         </div>
@@ -220,6 +295,7 @@ export function GruposPage() {
             className="ml-3 mt-4 text-xs font-semibold text-ink-muted hover:underline"
             onClick={() => {
               setEditingId(null)
+              setAberto(false)
               setBuscaTransp('')
               setForm({ descricao: '', situacao: 'ativo', observacao: '', transportador_ids: [] })
             }}
