@@ -38,6 +38,20 @@ function IconMap() {
   )
 }
 
+function IconLocation() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 21s7-5.5 7-12a7 7 0 1 0-14 0c0 6.5 7 12 7 12z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.75" />
+    </svg>
+  )
+}
+
 function IconUsers() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -105,7 +119,7 @@ const minervaLinks: NavItem[] = [
   { to: '/embarcador', label: 'Cargas', icon: <IconGrid />, end: true },
   { to: '/embarcador/viagens', label: 'Viagens', icon: <IconTruck /> },
   { to: '/embarcador/mapa-frota', label: 'Mapa da Frota', icon: <IconMap /> },
-  { to: '/embarcador/rotas', label: 'Rotas', icon: <IconMap /> },
+  { to: '/embarcador/rotas', label: 'Rotas', icon: <IconLocation /> },
   { to: '/embarcador/transportadores', label: 'Transportadoras', icon: <IconUsers /> },
   { to: '/embarcador/veiculos', label: 'Veículos', icon: <IconTruck /> },
   { to: '/embarcador/motoristas', label: 'Motoristas', icon: <IconUsers /> },
