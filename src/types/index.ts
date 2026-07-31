@@ -156,6 +156,10 @@ export interface Veiculo {
   qtd_pallets?: number
   aclimatacao?: string
   capacidade_kg?: number
+  /** Dimensões do baú/carroceria (metros) — cubagem = C × L × A. */
+  comprimento_m?: number
+  largura_m?: number
+  altura_m?: number
   cubagem_m3?: number
   eixos?: number
   /** Frete mínimo que este veículo/categoria aceita (R$). */

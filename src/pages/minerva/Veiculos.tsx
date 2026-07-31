@@ -54,6 +54,9 @@ const emptyForm = (): Partial<Veiculo> => ({
   qtd_pallets: undefined,
   aclimatacao: '',
   capacidade_kg: undefined,
+  comprimento_m: undefined,
+  largura_m: undefined,
+  altura_m: undefined,
   cubagem_m3: undefined,
   eixos: undefined,
   frete_minimo: 0,
@@ -204,6 +207,22 @@ export function VeiculosPage() {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
+  function setDimensaoBau(
+    key: 'comprimento_m' | 'largura_m' | 'altura_m',
+    value: number | undefined,
+  ) {
+    setForm((prev) => {
+      const next = { ...prev, [key]: value }
+      const c = Number(next.comprimento_m)
+      const l = Number(next.largura_m)
+      const a = Number(next.altura_m)
+      if (c > 0 && l > 0 && a > 0) {
+        next.cubagem_m3 = Math.round(c * l * a * 100) / 100
+      }
+      return next
+    })
+  }
+
   function onFreteMinimoChange(raw: string) {
     const { display, value } = moneyFromDigits(raw)
     setFreteMinimoTxt(display)
@@ -301,6 +320,9 @@ export function VeiculosPage() {
       qtd_pallets: form.qtd_pallets != null ? Number(form.qtd_pallets) : undefined,
       aclimatacao: form.aclimatacao,
       capacidade_kg: form.capacidade_kg != null ? Number(form.capacidade_kg) : undefined,
+      comprimento_m: form.comprimento_m != null ? Number(form.comprimento_m) : undefined,
+      largura_m: form.largura_m != null ? Number(form.largura_m) : undefined,
+      altura_m: form.altura_m != null ? Number(form.altura_m) : undefined,
       cubagem_m3: form.cubagem_m3 != null ? Number(form.cubagem_m3) : undefined,
       eixos: form.eixos != null ? Number(form.eixos) : undefined,
       frete_minimo: roundMoney(freteMin),
@@ -806,14 +828,69 @@ export function VeiculosPage() {
                   }
                 />
               </Field>
+              <Field label="Comprimento (m)">
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  inputMode="decimal"
+                  placeholder="Ex.: 14,00"
+                  value={form.comprimento_m ?? ''}
+                  onChange={(e) =>
+                    setDimensaoBau(
+                      'comprimento_m',
+                      e.target.value === '' ? undefined : Number(e.target.value),
+                    )
+                  }
+                />
+              </Field>
+              <Field label="Largura (m)">
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  inputMode="decimal"
+                  placeholder="Ex.: 2,60"
+                  value={form.largura_m ?? ''}
+                  onChange={(e) =>
+                    setDimensaoBau(
+                      'largura_m',
+                      e.target.value === '' ? undefined : Number(e.target.value),
+                    )
+                  }
+                />
+              </Field>
+              <Field label="Altura (m)">
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  inputMode="decimal"
+                  placeholder="Ex.: 2,70"
+                  value={form.altura_m ?? ''}
+                  onChange={(e) =>
+                    setDimensaoBau(
+                      'altura_m',
+                      e.target.value === '' ? undefined : Number(e.target.value),
+                    )
+                  }
+                />
+              </Field>
               <Field label="Cubagem (m³)">
                 <input
                   type="number"
+                  min={0}
+                  step={0.01}
+                  inputMode="decimal"
+                  title="Preenchido automaticamente com Comprimento × Largura × Altura"
                   value={form.cubagem_m3 ?? ''}
                   onChange={(e) =>
                     set('cubagem_m3', e.target.value === '' ? undefined : Number(e.target.value))
                   }
                 />
+                <p className="mt-1 text-[11px] text-ink-muted">
+                  Calculado automático: comprimento × largura × altura.
+                </p>
               </Field>
               <Field label="Eixos (Max 20)">
                 <input
