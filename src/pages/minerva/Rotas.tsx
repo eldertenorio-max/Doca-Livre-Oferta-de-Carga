@@ -101,9 +101,6 @@ export function RotasPage() {
                   </span>
                 </td>
                 <td>{formatCurrency(r.frete_tabela)}</td>
-                <td className="text-xs text-ink-muted">
-                  {MARGENS_POR_ROTA[r.classificacao].join(' / ')}%
-                </td>
                 <td>{r.km}</td>
                 <td className="capitalize">{r.situacao}</td>
                 <td className="px-4">
