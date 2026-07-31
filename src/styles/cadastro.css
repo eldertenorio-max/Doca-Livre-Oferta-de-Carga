@@ -198,6 +198,51 @@
   background: #f8fafc;
 }
 
+.cadastro-table__nome {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.cadastro-table__logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.cadastro-table__logo--empty {
+  display: grid;
+  place-items: center;
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #0f172a;
+  background: #f1f5f9;
+}
+
+.cadastro-table__nome-text {
+  min-width: 0;
+}
+
+.cadastro-table__nome-text strong {
+  display: block;
+  line-height: 1.25;
+}
+
+.cadastro-table__nome-text div {
+  font-size: 0.8rem;
+  color: #1a1d21;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 280px;
+}
+
 .cadastro-link {
   border: 0;
   background: transparent;

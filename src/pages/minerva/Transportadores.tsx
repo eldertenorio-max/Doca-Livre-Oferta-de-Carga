@@ -992,9 +992,25 @@ export function TransportadoresPage() {
                     return (
                       <tr key={t.id}>
                         <td>
-                          <strong>{t.nome_fantasia}</strong>
-                          <div style={{ fontSize: '0.8rem', color: '#1a1d21' }}>
-                            {t.razao_social}
+                          <div className="cadastro-table__nome">
+                            {t.logo_url ? (
+                              <img
+                                className="cadastro-table__logo"
+                                src={t.logo_url}
+                                alt=""
+                              />
+                            ) : (
+                              <span className="cadastro-table__logo cadastro-table__logo--empty" aria-hidden>
+                                {(t.nome_fantasia || t.razao_social || '?')
+                                  .trim()
+                                  .charAt(0)
+                                  .toUpperCase()}
+                              </span>
+                            )}
+                            <div className="cadastro-table__nome-text">
+                              <strong>{t.nome_fantasia}</strong>
+                              <div>{t.razao_social}</div>
+                            </div>
                           </div>
                         </td>
                         <td>{t.cnpj}</td>
