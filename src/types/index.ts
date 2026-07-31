@@ -123,6 +123,20 @@ export interface Transportador {
   contato_telefone?: string
   /** Logo da empresa ou foto do responsável (aparece no perfil). */
   logo_url?: string
+  /**
+   * Conteúdo do perfil público (página estilo site / Transvias).
+   * Editável pelo transportador (Configurações) e pelo embarcador (cadastro).
+   */
+  perfil_publico?: {
+    especialidades: string[]
+    apresentacao: string
+    servicos_intro: string
+    servicos: string[]
+    referencias: string
+    cobertura: string
+    site_url: string
+    galeria: string[]
+  } | null
   motivo_recusa?: string
   created_at?: string
 }

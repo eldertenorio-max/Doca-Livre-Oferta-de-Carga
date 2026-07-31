@@ -1,8 +1,10 @@
 import { createPortal } from 'react-dom'
-import { Briefcase, Mail, MapPin, Phone, X } from 'lucide-react'
+import { ExternalLink, MapPin, X } from 'lucide-react'
 import type { Transportador } from '../../types'
-import { formatPhoneBr } from '../../lib/phoneBr'
 import { formatCnpj } from '../../lib/cnpj'
+import { formatPhoneBr } from '../../lib/phoneBr'
+import { normalizePerfilPublico } from '../../lib/perfilPublicoTransportador'
+import '../../styles/transportador-perfil-site.css'
 
 type Props = {
   transportador: Transportador
@@ -10,15 +12,8 @@ type Props = {
   motoristasCount?: number
   onClose: () => void
   onLocalizar?: () => void
-}
-
-function iniciais(nome: string) {
-  return nome
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? '')
-    .join('')
+  /** Se false, renderiza embutido (sem portal/overlay). */
+  asModal?: boolean
 }
 
 function whatsappLink(raw?: string | null) {
@@ -30,121 +25,152 @@ function whatsappLink(raw?: string | null) {
 
 export function TransportadorPerfilSite({
   transportador: t,
-  veiculosCount = 0,
-  motoristasCount = 0,
   onClose,
   onLocalizar,
+  asModal = true,
 }: Props) {
+  const perfil = normalizePerfilPublico(t.perfil_publico)
+  const cidadeUf = [t.origem_cidade || t.cidade, t.origem_uf || t.uf]
+    .filter(Boolean)
+    .join('-')
+  const titulo = `${t.nome_fantasia || t.razao_social}${cidadeUf ? ` ${cidadeUf}` : ''}`
   const tel = t.contato_telefone || t.telefone
   const wa = whatsappLink(tel)
-  const cidade = [t.origem_cidade || t.cidade, t.origem_uf || t.uf].filter(Boolean).join(' / ')
-  const endereco = [
-    t.origem_endereco || t.endereco,
-    t.origem_numero || t.numero,
-    t.origem_bairro || t.bairro,
-    cidade,
-  ]
-    .filter(Boolean)
-    .join(', ')
+  const temEspecialidades = perfil.especialidades.length > 0
+  const temServicos = perfil.servicos.length > 0
+  const temReferencias = Boolean(perfil.referencias.trim())
 
-  return createPortal(
-    <div className="transp-perfil" role="dialog" aria-modal="true" onClick={onClose}>
-      <article className="transp-perfil__site" onClick={(e) => e.stopPropagation()}>
-        <header className="transp-perfil__hero">
-          <button type="button" className="transp-perfil__close" aria-label="Fechar" onClick={onClose}>
+  const content = (
+    <article className="tv-perfil" onClick={(e) => e.stopPropagation()}>
+      <header className="tv-perfil__top">
+        {asModal ? (
+          <button type="button" className="tv-perfil__close" aria-label="Fechar" onClick={onClose}>
             <X size={18} />
           </button>
-          <div className="transp-perfil__brand">
-            <div className="transp-perfil__logo">
-              {t.logo_url ? (
-                <img src={t.logo_url} alt="" />
-              ) : (
-                <span>{iniciais(t.nome_fantasia || t.razao_social)}</span>
-              )}
+        ) : null}
+        <div className="tv-perfil__brand-row">
+          {t.logo_url ? (
+            <img className="tv-perfil__logo" src={t.logo_url} alt="" />
+          ) : (
+            <div className="tv-perfil__logo tv-perfil__logo--empty" aria-hidden>
+              {(t.nome_fantasia || '?').slice(0, 1).toUpperCase()}
             </div>
-            <div>
-              <h2>{t.nome_fantasia || t.razao_social}</h2>
-              <p>{t.razao_social}</p>
-              <div className="transp-perfil__chips">
-                <span className="transp-perfil__chip">{t.classificacao}</span>
-                <span className="transp-perfil__chip">{t.situacao}</span>
-                {cidade ? <span className="transp-perfil__chip">{cidade}</span> : null}
-                {t.raio_km ? <span className="transp-perfil__chip">Raio {t.raio_km} km</span> : null}
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <div className="transp-perfil__body">
-          <section className="transp-perfil__section">
-            <h3>Sobre a transportadora</h3>
-            <p>
-              {t.nome_fantasia || t.razao_social} atua no transporte de cargas
-              {cidade ? ` com base em ${cidade}` : ''}.
-              {t.raio_km
-                ? ` Atende carregamentos em um raio de até ${t.raio_km} km a partir da origem.`
-                : ''}{' '}
-              Cadastro {t.situacao === 'ativo' ? 'ativo' : t.situacao} na plataforma Doca Livre.
+          )}
+          <div className="tv-perfil__titles">
+            <h1>{titulo}</h1>
+            <p className="tv-perfil__especialidades">
+              {temEspecialidades
+                ? perfil.especialidades.join(' · ')
+                : 'Nenhuma especialidade cadastrada'}
             </p>
-          </section>
-
-          <div className="transp-perfil__grid">
-            <div className="transp-perfil__stat">
-              <strong>{t.pontuacao}</strong>
-              <span>Pontuação</span>
-            </div>
-            <div className="transp-perfil__stat">
-              <strong>{veiculosCount}</strong>
-              <span>Veículos</span>
-            </div>
-            <div className="transp-perfil__stat">
-              <strong>{motoristasCount}</strong>
-              <span>Motoristas</span>
-            </div>
-            <div className="transp-perfil__stat">
-              <strong>{(t.classificacao || '—').toUpperCase()}</strong>
-              <span>Classificação</span>
-            </div>
-          </div>
-
-          <section className="transp-perfil__section">
-            <h3>Contato</h3>
-            <ul>
-              {t.contato_nome ? <li>Contato: {t.contato_nome}</li> : null}
-              {tel ? <li>Telefone / WhatsApp: {formatPhoneBr(tel)}</li> : null}
-              {t.email ? <li>E-mail: {t.email}</li> : null}
-              {t.cnpj ? <li>CNPJ: {formatCnpj(t.cnpj)}</li> : null}
-              {t.rntrc ? <li>RNTRC: {t.rntrc}</li> : null}
-            </ul>
-          </section>
-
-          <section className="transp-perfil__section">
-            <h3>Localização</h3>
-            <p>{endereco || 'Endereço não informado.'}</p>
-          </section>
-
-          <div className="transp-perfil__cta">
-            {wa ? (
-              <a href={wa} target="_blank" rel="noreferrer">
-                <Phone size={16} /> WhatsApp
-              </a>
-            ) : null}
-            {t.email ? (
-              <a href={`mailto:${t.email}`}>
-                <Mail size={16} /> E-mail
-              </a>
-            ) : null}
-            {onLocalizar ? (
-              <button type="button" onClick={onLocalizar}>
-                <MapPin size={16} /> Localizar no mapa
-              </button>
-            ) : null}
-            <button type="button" onClick={onClose}>
-              <Briefcase size={16} /> Fechar perfil
-            </button>
           </div>
         </div>
-      </article>
+        <p className="tv-perfil__meta">
+          <strong>RAZÃO SOCIAL:</strong> {t.razao_social || '—'}
+          {t.cnpj ? (
+            <>
+              {' '}
+              - <strong>CNPJ:</strong> {formatCnpj(t.cnpj)}
+            </>
+          ) : null}
+          {t.inscricao_estadual ? (
+            <>
+              {' '}
+              - <strong>I.E.:</strong> {t.inscricao_estadual}
+            </>
+          ) : null}
+        </p>
+      </header>
+
+      <div className="tv-perfil__body">
+        <section className="tv-perfil__section">
+          <h2>Apresentação</h2>
+          {perfil.apresentacao ? (
+            <p>{perfil.apresentacao}</p>
+          ) : (
+            <p className="tv-perfil__empty">Sem informações</p>
+          )}
+        </section>
+
+        <section className="tv-perfil__section">
+          <h2>Serviços</h2>
+          {perfil.servicos_intro ? <p>{perfil.servicos_intro}</p> : null}
+          {temServicos ? (
+            <ul>
+              {perfil.servicos.map((s) => (
+                <li key={s}>{s}</li>
+              ))}
+            </ul>
+          ) : !perfil.servicos_intro ? (
+            <p className="tv-perfil__empty">Sem informações</p>
+          ) : null}
+        </section>
+
+        {perfil.cobertura ? (
+          <section className="tv-perfil__section">
+            <h2>Cobertura</h2>
+            <p>{perfil.cobertura}</p>
+          </section>
+        ) : null}
+
+        <section className="tv-perfil__section">
+          <h2>Referências</h2>
+          {temReferencias ? (
+            <p className="tv-perfil__pre">{perfil.referencias}</p>
+          ) : (
+            <p className="tv-perfil__empty">Sem informações</p>
+          )}
+        </section>
+
+        <section className="tv-perfil__section">
+          <h2>Contato</h2>
+          <ul className="tv-perfil__contato">
+            {t.contato_nome ? <li>Contato: {t.contato_nome}</li> : null}
+            {tel ? <li>Telefone / WhatsApp: {formatPhoneBr(tel)}</li> : null}
+            {t.email ? <li>E-mail: {t.email}</li> : null}
+            {t.rntrc ? <li>RNTRC: {t.rntrc}</li> : null}
+            {!tel && !t.email && !t.contato_nome ? (
+              <li className="tv-perfil__empty">Sem informações</li>
+            ) : null}
+          </ul>
+        </section>
+
+        <div className="tv-perfil__actions">
+          {wa ? (
+            <a className="tv-perfil__btn tv-perfil__btn--wa" href={wa} target="_blank" rel="noreferrer">
+              WhatsApp
+            </a>
+          ) : null}
+          {perfil.site_url ? (
+            <a
+              className="tv-perfil__btn"
+              href={perfil.site_url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ExternalLink size={14} /> Site
+            </a>
+          ) : null}
+          {onLocalizar ? (
+            <button type="button" className="tv-perfil__btn" onClick={onLocalizar}>
+              <MapPin size={14} /> Localizar no mapa
+            </button>
+          ) : null}
+          {asModal ? (
+            <button type="button" className="tv-perfil__btn tv-perfil__btn--ghost" onClick={onClose}>
+              Fechar
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </article>
+  )
+
+  if (!asModal) return content
+
+  return createPortal(
+    <div className="tv-perfil-overlay" role="dialog" aria-modal="true" onClick={onClose}>
+      {content}
     </div>,
     document.body,
   )

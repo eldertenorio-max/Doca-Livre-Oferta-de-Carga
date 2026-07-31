@@ -4,6 +4,12 @@ import { useData } from '../../context/DataContext'
 import { CadastroStatsCards } from '../../components/cadastro/CadastroStatsCards'
 import { TransportadorPainel } from '../../components/transportador/TransportadorPainel'
 import { TransportadorasKanbanView } from '../../components/transportador/TransportadorasKanbanView'
+import { TransportadorPerfilEditor } from '../../components/transportador/TransportadorPerfilEditor'
+import { TransportadorPerfilSite } from '../../components/transportador/TransportadorPerfilSite'
+import {
+  EMPTY_PERFIL_PUBLICO,
+  normalizePerfilPublico,
+} from '../../lib/perfilPublicoTransportador'
 import { VistaToggle } from '../../components/kanban/GridCargas'
 import { CnpjInput } from '../../components/ui/CnpjInput'
 import { formatCnpj } from '../../lib/cnpj'
@@ -53,6 +59,7 @@ const emptyForm = (): Partial<Transportador> => ({
   email: '',
   contato_nome: '',
   contato_telefone: '',
+  perfil_publico: { ...EMPTY_PERFIL_PUBLICO },
 })
 
 export function TransportadoresPage() {
@@ -106,6 +113,7 @@ export function TransportadoresPage() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [logoRemovida, setLogoRemovida] = useState(false)
   const logoInputRef = useRef<HTMLInputElement>(null)
+  const [previewPerfil, setPreviewPerfil] = useState(false)
 
   useEffect(() => {
     void refreshTransportadores()
@@ -196,7 +204,11 @@ export function TransportadoresPage() {
 
   function openEdit(t: Transportador) {
     setEditingId(t.id)
-    setForm({ ...t, cnpj: formatCnpj(t.cnpj || '') })
+    setForm({
+      ...t,
+      cnpj: formatCnpj(t.cnpj || ''),
+      perfil_publico: normalizePerfilPublico(t.perfil_publico),
+    })
     setError('')
     setLogoFile(null)
     setLogoPreview(t.logo_url ?? null)
@@ -307,6 +319,7 @@ export function TransportadoresPage() {
       contato_nome: form.contato_nome,
       contato_telefone: form.contato_telefone,
       logo_url: logoRemovida ? undefined : (logoPreview ?? form.logo_url),
+      perfil_publico: normalizePerfilPublico(form.perfil_publico),
       created_at: form.created_at ?? new Date().toISOString(),
     }
     salvarTransportador(t)
@@ -424,7 +437,23 @@ export function TransportadoresPage() {
           >
             Editar cadastro
           </button>
+          <button
+            type="button"
+            className="cadastro-btn cadastro-btn--ghost"
+            onClick={() => setPreviewPerfil(true)}
+          >
+            Ver perfil público
+          </button>
         </div>
+
+        {previewPerfil ? (
+          <TransportadorPerfilSite
+            transportador={ficha}
+            veiculosCount={veiculosPorTransportador[ficha.id] ?? 0}
+            motoristasCount={motoristasPorTransportador[ficha.id] ?? 0}
+            onClose={() => setPreviewPerfil(false)}
+          />
+        ) : null}
 
         {fichaTab === 'painel' && (
           <TransportadorPainel transportadorId={ficha.id} compact />
@@ -1335,6 +1364,33 @@ export function TransportadoresPage() {
             </div>
           </div>
         </section>
+
+        <section className="form-card">
+          <header className="form-card__head">
+            <IconBuilding />
+            <h2 className="form-card__title">Perfil público (site)</h2>
+          </header>
+          <div className="form-card__body">
+            <p className="form-hint" style={{ marginBottom: 12 }}>
+              Página da transportadora no estilo site — apresentação, serviços e referências.
+              O transportador também edita isso em Configurações.
+            </p>
+            <TransportadorPerfilEditor
+              value={normalizePerfilPublico(form.perfil_publico)}
+              onChange={(next) => set('perfil_publico', next)}
+              empresa={form as Transportador}
+            />
+            <div style={{ marginTop: 12 }}>
+              <button
+                type="button"
+                className="cadastro-btn cadastro-btn--ghost"
+                onClick={() => setPreviewPerfil(true)}
+              >
+                Ver página do perfil
+              </button>
+            </div>
+          </div>
+        </section>
       </div>
 
       {error && <p style={{ color: '#dc2626', marginTop: 12, textAlign: 'center' }}>{error}</p>}
@@ -1349,6 +1405,33 @@ export function TransportadoresPage() {
           {busy ? 'Salvando…' : 'Salvar Transportadora'}
         </button>
       </div>
+
+      {previewPerfil ? (
+        <TransportadorPerfilSite
+          transportador={{
+            id: editingId ?? 'preview',
+            razao_social: form.razao_social ?? '',
+            nome_fantasia: form.nome_fantasia ?? '',
+            cnpj: form.cnpj ?? '',
+            inscricao_estadual: form.inscricao_estadual,
+            cidade: form.cidade ?? '',
+            uf: form.uf ?? 'SP',
+            origem_cidade: form.origem_cidade,
+            origem_uf: form.origem_uf,
+            telefone: form.telefone,
+            email: form.email,
+            contato_nome: form.contato_nome,
+            contato_telefone: form.contato_telefone,
+            rntrc: form.rntrc,
+            logo_url: logoRemovida ? undefined : (logoPreview ?? form.logo_url),
+            classificacao: (form.classificacao as ClassificacaoTransportador) ?? 'bronze',
+            pontuacao: Number(form.pontuacao) || 0,
+            situacao: (form.situacao as SituacaoTransportador) ?? 'ativo',
+            perfil_publico: normalizePerfilPublico(form.perfil_publico),
+          }}
+          onClose={() => setPreviewPerfil(false)}
+        />
+      ) : null}
     </div>
   )
 }

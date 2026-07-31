@@ -7,6 +7,13 @@ import {
 import { formatMoneyInput, moneyFromDigits, parseMoneyInput } from '../../lib/businessRules'
 import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
 import { Button, Field, inputClass } from '../../components/ui/Modal'
+import { TransportadorPerfilEditor } from '../../components/transportador/TransportadorPerfilEditor'
+import { TransportadorPerfilSite } from '../../components/transportador/TransportadorPerfilSite'
+import {
+  EMPTY_PERFIL_PUBLICO,
+  normalizePerfilPublico,
+  type PerfilPublicoTransportador,
+} from '../../lib/perfilPublicoTransportador'
 import '../../styles/cadastro.css'
 
 function Hint({ children }: { children: ReactNode }) {
@@ -49,6 +56,7 @@ export function ConfiguracoesTransportadorPage() {
   const {
     configTransportador,
     salvarConfigTransportador,
+    salvarTransportador,
     effectiveTransportadorId,
     transportadorById,
   } = useData()
@@ -59,6 +67,8 @@ export function ConfiguracoesTransportadorPage() {
   )
   const [freteMinStr, setFreteMinStr] = useState('')
   const [msg, setMsg] = useState('')
+  const [perfil, setPerfil] = useState<PerfilPublicoTransportador>(EMPTY_PERFIL_PUBLICO)
+  const [previewPerfil, setPreviewPerfil] = useState(false)
 
   useEffect(() => {
     const cfg = configTransportador ?? DEFAULT_CONFIG_TRANSPORTADOR
@@ -69,6 +79,10 @@ export function ConfiguracoesTransportadorPage() {
         : '',
     )
   }, [configTransportador, tid])
+
+  useEffect(() => {
+    setPerfil(normalizePerfilPublico(empresa?.perfil_publico))
+  }, [empresa?.id, empresa?.perfil_publico])
 
   const tiposSelecionados = useMemo(
     () => new Set(form.tipos_veiculo_preferidos),
@@ -100,7 +114,13 @@ export function ConfiguracoesTransportadorPage() {
       frete_minimo_empresa: min != null && Number.isFinite(min) ? min : null,
       porcentagem_aceita: pct != null && Number.isFinite(pct) ? pct : null,
     })
-    setMsg('Configurações salvas.')
+    if (empresa) {
+      salvarTransportador({
+        ...empresa,
+        perfil_publico: normalizePerfilPublico(perfil),
+      })
+    }
+    setMsg('Configurações e perfil público salvos.')
   }
 
   if (!tid) {
@@ -120,7 +140,7 @@ export function ConfiguracoesTransportadorPage() {
         <h1 className="cadastro-page-title">Configurações</h1>
         <p className="text-sm text-ink-muted">
           Preferências de {empresa?.nome_fantasia || 'sua transportadora'} — negociação,
-          notificações e operação.
+          notificações, operação e perfil público.
         </p>
       </header>
 
@@ -312,7 +332,40 @@ export function ConfiguracoesTransportadorPage() {
             hint="A placa passa a ficar no destino da carga no Mapa da Frota (endereço + coordenadas)."
           />
         </section>
+
+        <section className="space-y-3 rounded-xl border border-ink/10 bg-white p-4">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h2 className="font-display text-base font-semibold">4. Perfil público</h2>
+              <Hint>
+                Página da sua transportadora (estilo site). Preencha apresentação, serviços e
+                referências — o embarcador e o mapa usam estes dados.
+              </Hint>
+            </div>
+            <button
+              type="button"
+              className="cadastro-btn cadastro-btn--ghost"
+              style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+              onClick={() => setPreviewPerfil(true)}
+              disabled={!empresa}
+            >
+              Ver página do perfil
+            </button>
+          </div>
+          <TransportadorPerfilEditor
+            value={perfil}
+            onChange={setPerfil}
+            empresa={empresa}
+          />
+        </section>
       </div>
+
+      {previewPerfil && empresa ? (
+        <TransportadorPerfilSite
+          transportador={{ ...empresa, perfil_publico: normalizePerfilPublico(perfil) }}
+          onClose={() => setPreviewPerfil(false)}
+        />
+      ) : null}
 
       {msg ? (
         <p

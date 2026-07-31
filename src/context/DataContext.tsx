@@ -87,9 +87,11 @@ import {
 import {
   atualizarLogoTransportadorRemoto,
   carregarTransportadoresDoSupabase,
+  salvarPerfilPublicoRemoto,
   submeterCadastroTransportador,
   type CadastroTransportadorInput,
 } from '../lib/cadastroTransportador'
+import { normalizePerfilPublico } from '../lib/perfilPublicoTransportador'
 import { atualizarAvatarUsuarioRemoto, buscarAvatarUsuarioRemoto } from '../lib/userAvatar'
 import { canonicalTransportadorId, sameTransportadorId } from '../lib/transportadorIds'
 import { portalEmailRecusaCadastro } from '../lib/portalApi'
@@ -3774,29 +3776,47 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [flushKanbanPush])
 
   const salvarTransportador = useCallback((t: Transportador) => {
-    if (t.situacao === 'ativo') setPortalAccountAtivoPorTransportador(t.id, true)
-    if (t.situacao === 'pendente' || t.situacao === 'recusado' || t.situacao === 'inativo') {
-      setPortalAccountAtivoPorTransportador(t.id, false)
+    const perfil = t.perfil_publico
+      ? normalizePerfilPublico(t.perfil_publico)
+      : t.perfil_publico === null
+        ? normalizePerfilPublico(null)
+        : t.perfil_publico
+    const salvo: Transportador = {
+      ...t,
+      perfil_publico: perfil ?? t.perfil_publico,
+    }
+    if (salvo.situacao === 'ativo') setPortalAccountAtivoPorTransportador(salvo.id, true)
+    if (
+      salvo.situacao === 'pendente' ||
+      salvo.situacao === 'recusado' ||
+      salvo.situacao === 'inativo'
+    ) {
+      setPortalAccountAtivoPorTransportador(salvo.id, false)
     }
     setState((prev) => {
-      const exists = prev.transportadores.some((x) => x.id === t.id)
-      return {
+      const exists = prev.transportadores.some((x) => x.id === salvo.id)
+      const next = {
         ...prev,
         transportadores: exists
-          ? prev.transportadores.map((x) => (x.id === t.id ? t : x))
-          : [...prev.transportadores, t],
+          ? prev.transportadores.map((x) => (x.id === salvo.id ? salvo : x))
+          : [...prev.transportadores, salvo],
       }
+      flushKanbanPush(next)
+      return next
     })
-    if (t.situacao === 'inativo' || t.situacao === 'recusado') {
-      removeTransportadoraDaHierarquia(t.id)
+    if (salvo.situacao === 'inativo' || salvo.situacao === 'recusado') {
+      removeTransportadoraDaHierarquia(salvo.id)
     } else {
       syncTransportadoraNaHierarquia({
-        id: t.id,
-        nome_fantasia: t.nome_fantasia,
-        cnpj: t.cnpj,
+        id: salvo.id,
+        nome_fantasia: salvo.nome_fantasia,
+        cnpj: salvo.cnpj,
       })
     }
-  }, [])
+    if (salvo.perfil_publico) {
+      void salvarPerfilPublicoRemoto(salvo.id, salvo.perfil_publico)
+    }
+  }, [flushKanbanPush])
 
   const atualizarLogoTransportador = useCallback(
     async (transportadorId: string, file: File | null) => {

@@ -272,6 +272,7 @@ const COLUNAS_OPCIONAIS_TRANSPORTADOR = [
   'contato_nome',
   'contato_telefone',
   'logo_url',
+  'perfil_publico',
   'motivo_recusa',
 ] as const
 
@@ -838,9 +839,28 @@ function mapTransportadorRow(row: Record<string, unknown>): Transportador {
     contato_nome: (row.contato_nome as string | null) ?? undefined,
     contato_telefone: (row.contato_telefone as string | null) ?? undefined,
     logo_url: (row.logo_url as string | null) ?? undefined,
+    perfil_publico:
+      row.perfil_publico && typeof row.perfil_publico === 'object'
+        ? (row.perfil_publico as Transportador['perfil_publico'])
+        : undefined,
     motivo_recusa: (row.motivo_recusa as string | null) ?? undefined,
     created_at: (row.created_at as string | null) ?? undefined,
   }
+}
+
+/** Persiste o perfil público no Supabase (fallback se a coluna ainda não existir). */
+export async function salvarPerfilPublicoRemoto(
+  transportadorId: string,
+  perfil: Transportador['perfil_publico'],
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  if (!isSupabaseConfigured || !supabase) return { ok: true }
+  const up = await upsertTransportadorComFallback(
+    'update',
+    { perfil_publico: perfil ?? {} },
+    transportadorId,
+  )
+  if (!up.ok) return { ok: false, erro: up.erro }
+  return { ok: true }
 }
 
 /** Canal de cadastro para exibição (com heurística para registros antigos). */
