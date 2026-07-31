@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { ExternalLink, Mail, MapPin, X } from 'lucide-react'
 import type { Transportador } from '../../types'
@@ -39,6 +40,15 @@ export function TransportadorPerfilSite({
   const temEspecialidades = perfil.especialidades.length > 0
   const temServicos = perfil.servicos.length > 0
   const temReferencias = Boolean(perfil.referencias.trim())
+
+  useEffect(() => {
+    if (!asModal) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [asModal])
 
   const content = (
     <article

@@ -2,10 +2,15 @@
   position: fixed;
   inset: 0;
   z-index: 13000;
-  display: flex;
-  flex-direction: column;
+  width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
   padding: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   background: #fff;
 }
 
@@ -26,19 +31,46 @@
   margin: 0;
   border-radius: 0;
   box-shadow: none;
+  overflow: visible;
 }
 
 .tv-perfil--fullscreen .tv-perfil__top,
 .tv-perfil--fullscreen .tv-perfil__body {
-  width: min(960px, 100%);
-  margin-left: auto;
-  margin-right: auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding-left: clamp(24px, 5vw, 80px);
+  padding-right: clamp(56px, 6vw, 96px);
+}
+
+.tv-perfil--fullscreen .tv-perfil__top {
+  padding-top: clamp(28px, 4vh, 48px);
+  padding-bottom: 22px;
+}
+
+.tv-perfil--fullscreen .tv-perfil__body {
+  padding-top: 12px;
+  padding-bottom: clamp(48px, 8vh, 96px);
+}
+
+.tv-perfil--fullscreen .tv-perfil__titles h1 {
+  font-size: clamp(1.6rem, 2.4vw, 2.25rem);
+}
+
+.tv-perfil--fullscreen .tv-perfil__logo {
+  width: 104px;
+  height: 104px;
+}
+
+.tv-perfil--fullscreen .tv-perfil__section h2 {
+  font-size: 1.3rem;
 }
 
 .tv-perfil--fullscreen .tv-perfil__close {
   position: fixed;
   top: 16px;
   right: 16px;
+  z-index: 13001;
 }
 
 .tv-perfil__close {
