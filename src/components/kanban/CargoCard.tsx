@@ -645,6 +645,9 @@ export function CargoCard({
             </span>
           )}
         </div>
+        {carga.carga_retorno ? (
+          <p className="mb-2 text-[13px] font-bold text-red-600">Retorno</p>
+        ) : null}
 
         <div className="cargo-card__actions">
           {onView && (
