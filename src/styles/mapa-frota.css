@@ -1452,8 +1452,56 @@
 }
 
 .frota-modal__panel--avaliacoes {
-  width: min(520px, 100%);
-  max-height: min(88vh, 720px);
+  width: min(560px, 100%);
+  max-height: min(90vh, 780px);
+}
+
+.frota-avaliacoes-perfil {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 28px 14px 0;
+  padding: 12px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.frota-avaliacoes-perfil__foto {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #f9db00;
+  background: #0f172a;
+  flex-shrink: 0;
+}
+
+.frota-avaliacoes-perfil__foto--empty {
+  display: grid;
+  place-items: center;
+  color: #f9db00;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.frota-avaliacoes-perfil__info {
+  min-width: 0;
+}
+
+.frota-avaliacoes-perfil__info strong {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 2px;
+}
+
+.frota-avaliacoes-perfil__info > p {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 600;
 }
 
 .frota-avaliacoes-resumo {

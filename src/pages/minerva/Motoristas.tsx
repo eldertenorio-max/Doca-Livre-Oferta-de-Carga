@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useData } from '../../context/DataContext'
 import { CadastroStatsCards } from '../../components/cadastro/CadastroStatsCards'
 import { MotoristaAvaliacoesModal } from '../../components/motorista/MotoristaAvaliacoesModal'
 import { inputClass } from '../../components/ui/Modal'
+import { fileToDataUrl, isAcceptedImageFile } from '../../lib/veiculoFotos'
+import { iniciaisNome } from '../../lib/mapaFrota'
 import type { Motorista } from '../../types'
 import '../../styles/cadastro.css'
 
@@ -19,6 +21,7 @@ const emptyForm = (): Partial<Motorista> => ({
   categoria_cnh: 'E',
   validade_cnh: '',
   telefone: '',
+  foto_url: '',
   situacao: 'ativo',
 })
 
@@ -39,6 +42,7 @@ export function MotoristasPage() {
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
   const [avaliacoesDe, setAvaliacoesDe] = useState<Motorista | null>(null)
+  const fotoInputRef = useRef<HTMLInputElement>(null)
 
   const lista = motoristas ?? []
   const listaVeiculos = veiculos ?? []
@@ -191,10 +195,28 @@ export function MotoristasPage() {
       categoria_cnh: form.categoria_cnh?.trim() || undefined,
       validade_cnh: form.validade_cnh || undefined,
       telefone: form.telefone?.trim() || undefined,
+      foto_url: (form.foto_url || '').trim() || undefined,
+      avaliacao: form.avaliacao,
+      total_avaliacoes: form.total_avaliacoes,
       situacao: form.situacao ?? 'ativo',
       created_at: form.created_at ?? now,
     })
     setMode('lista')
+  }
+
+  async function onFotoChange(file: File | undefined) {
+    if (!file) return
+    if (!isAcceptedImageFile(file)) {
+      setError('Use JPG, PNG ou WEBP para a foto.')
+      return
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      setError('A foto deve ter no máximo 4 MB.')
+      return
+    }
+    setError('')
+    const dataUrl = await fileToDataUrl(file)
+    set('foto_url', dataUrl)
   }
 
   return (
@@ -264,9 +286,28 @@ export function MotoristasPage() {
               <tbody>
                 {filtered.map((m) => {
                   const placa = listaVeiculos.find((v) => v.id === m.veiculo_id)?.placa
+                  const foto = (m.foto_url || '').trim()
                   return (
                     <tr key={m.id} className="border-b border-ink/5">
-                      <td className="p-3 font-medium">{m.nome}</td>
+                      <td className="p-3 font-medium">
+                        <span className="inline-flex items-center gap-2">
+                          {foto ? (
+                            <img
+                              src={foto}
+                              alt=""
+                              className="h-8 w-8 shrink-0 rounded-full object-cover border border-ink/10"
+                            />
+                          ) : (
+                            <span
+                              className="inline-grid h-8 w-8 shrink-0 place-items-center rounded-full bg-ink text-[10px] font-extrabold text-brand"
+                              aria-hidden
+                            >
+                              {iniciaisNome(m.nome)}
+                            </span>
+                          )}
+                          {m.nome}
+                        </span>
+                      </td>
                       <td className="p-3 font-semibold tabular-nums">{placa ?? '—'}</td>
                       <td className="p-3">
                         {m.autonomo
@@ -331,6 +372,60 @@ export function MotoristasPage() {
           </header>
 
           <div className="max-w-xl space-y-3 rounded-xl border border-ink/10 bg-white p-4">
+            <div className="flex flex-wrap items-center gap-4 rounded-lg border border-ink/10 bg-sand-light/40 px-3 py-3">
+              <input
+                ref={fotoInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ''
+                  void onFotoChange(file)
+                }}
+              />
+              {(form.foto_url || '').trim() ? (
+                <img
+                  src={form.foto_url}
+                  alt=""
+                  className="h-[84px] w-[84px] shrink-0 rounded-full border-2 border-brand object-cover"
+                />
+              ) : (
+                <span
+                  className="inline-grid h-[84px] w-[84px] shrink-0 place-items-center rounded-full border-2 border-brand bg-ink text-xl font-extrabold text-brand"
+                  aria-hidden
+                >
+                  {iniciaisNome(form.nome || '?')}
+                </span>
+              )}
+              <div className="min-w-0 space-y-2">
+                <p className="text-sm font-semibold text-ink">Foto do motorista</p>
+                <p className="text-[12px] text-ink-muted">
+                  JPG, PNG ou WEBP · máx. 4 MB. Aparece no mapa e nas avaliações.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="cadastro-btn cadastro-btn--ghost"
+                    style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                    onClick={() => fotoInputRef.current?.click()}
+                  >
+                    {(form.foto_url || '').trim() ? 'Trocar foto' : 'Enviar foto'}
+                  </button>
+                  {(form.foto_url || '').trim() ? (
+                    <button
+                      type="button"
+                      className="cadastro-btn cadastro-btn--ghost"
+                      style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                      onClick={() => set('foto_url', '')}
+                    >
+                      Remover
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
             {!isTransportador && (
               <label className="flex items-center gap-2 text-sm">
                 <input

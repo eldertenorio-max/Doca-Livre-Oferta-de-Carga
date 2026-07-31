@@ -207,8 +207,10 @@ export function listarAvaliacoesDemo(
   motoristaId: string,
   notaMedia: number,
   total: number,
+  /** Limite de itens; padrão 12 (mapa). Use o total para listar todas. */
+  maxItems = 12,
 ): AvaliacaoItem[] {
-  const n = Math.min(12, Math.max(0, total || 0))
+  const n = Math.min(Math.max(0, maxItems), Math.max(0, total || 0))
   if (n === 0) return []
   let h = 0
   for (const c of motoristaId) h = (h * 33 + c.charCodeAt(0)) >>> 0
@@ -266,7 +268,8 @@ export function listarAvaliacoesMotorista(
 
   if (reais.length > 0) return reais
   const av = avaliacaoDoMotorista(motorista)
-  return listarAvaliacoesDemo(motorista.id, av.nota, av.total)
+  // Cadastro / modal: mostra todas as entradas (não só um recorte)
+  return listarAvaliacoesDemo(motorista.id, av.nota, av.total, av.total)
 }
 
 export function iniciaisNome(nome: string): string {

@@ -1,6 +1,7 @@
 import type { Carga, Motorista } from '../../types'
 import {
   avaliacaoDoMotorista,
+  iniciaisNome,
   listarAvaliacoesMotorista,
 } from '../../lib/mapaFrota'
 import '../../styles/mapa-frota.css'
@@ -21,6 +22,11 @@ export function MotoristaAvaliacoesModal({ motorista, cargas, onClose }: Props) 
           (itens.reduce((s, a) => s + a.nota, 0) / totalExibido) * 10,
         ) / 10
       : resumo.nota
+  const foto = (motorista.foto_url || '').trim()
+  const comComentario = itens.filter(
+    (a) => a.texto && a.texto !== 'Sem comentário.',
+  ).length
+  const total = resumo.total || totalExibido
 
   return (
     <div
@@ -43,20 +49,49 @@ export function MotoristaAvaliacoesModal({ motorista, cargas, onClose }: Props) 
           ×
         </button>
         <h2 className="frota-modal__title">Avaliações</h2>
-        <p className="frota-modal__sub">
-          {motorista.nome}
-          {mediaExibida > 0
-            ? ` · ${mediaExibida.toFixed(1).replace('.', ',')} ★`
-            : ''}
-          {` · ${resumo.total || totalExibido} no total`}
-          {totalExibido > 0 && totalExibido !== resumo.total
-            ? ` · ${totalExibido} exibida${totalExibido === 1 ? '' : 's'}`
-            : ''}
-        </p>
+
+        <div className="frota-avaliacoes-perfil">
+          {foto ? (
+            <img className="frota-avaliacoes-perfil__foto" src={foto} alt="" />
+          ) : (
+            <span className="frota-avaliacoes-perfil__foto frota-avaliacoes-perfil__foto--empty" aria-hidden>
+              {iniciaisNome(motorista.nome)}
+            </span>
+          )}
+          <div className="frota-avaliacoes-perfil__info">
+            <strong>{motorista.nome}</strong>
+            <div
+              className="frota-avaliacoes-list__stars"
+              aria-label={
+                mediaExibida > 0 ? `${mediaExibida} de 5` : 'Sem nota'
+              }
+            >
+              {Array.from({ length: 5 }, (_, i) => (
+                <span
+                  key={i}
+                  className={i < Math.round(mediaExibida) ? 'is-on' : ''}
+                >
+                  ★
+                </span>
+              ))}
+              <em>
+                {mediaExibida > 0
+                  ? mediaExibida.toFixed(1).replace('.', ',')
+                  : '—'}
+              </em>
+            </div>
+            <p>
+              {total.toLocaleString('pt-BR')} avaliação
+              {total === 1 ? '' : 'ões'}
+              {motorista.categoria_cnh ? ` · CNH ${motorista.categoria_cnh}` : ''}
+              {motorista.telefone ? ` · ${motorista.telefone}` : ''}
+            </p>
+          </div>
+        </div>
 
         <div className="frota-avaliacoes-resumo" aria-label="Resumo">
           <div>
-            <strong>{(resumo.total || totalExibido).toLocaleString('pt-BR')}</strong>
+            <strong>{total.toLocaleString('pt-BR')}</strong>
             <span>Entradas</span>
           </div>
           <div>
@@ -66,7 +101,7 @@ export function MotoristaAvaliacoesModal({ motorista, cargas, onClose }: Props) 
             <span>Média</span>
           </div>
           <div>
-            <strong>{itens.filter((a) => a.texto && a.texto !== 'Sem comentário.').length}</strong>
+            <strong>{comComentario}</strong>
             <span>Com comentário</span>
           </div>
         </div>
