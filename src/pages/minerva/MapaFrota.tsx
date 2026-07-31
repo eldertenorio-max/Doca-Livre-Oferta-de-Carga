@@ -23,6 +23,8 @@ import {
   type RegiaoBr,
 } from '../../lib/mapaFrota'
 import { frotaIconeSvgRaw } from '../../lib/frotaIcones'
+import { listarFotosVeiculoDisponiveis } from '../../lib/veiculoFotos'
+import { FrotaGaleriaVeiculoModal } from '../../components/mapa/FrotaGaleriaVeiculoModal'
 import '../../styles/cadastro.css'
 import '../../styles/mapa-frota.css'
 
@@ -163,6 +165,16 @@ function popupHtml(p: PontoFrota): string {
   const local = [p.cidade, p.uf].filter(Boolean).join(' / ') || '—'
   const raio = p.raioKm > 0 ? `${p.raioKm} km` : '—'
   const whatsDd = whatsappDdHtml(p.motoristaTelefone)
+  const qtdFotos = listarFotosVeiculoDisponiveis(p.veiculoFotos).length
+  const galeriaBtn = `
+    <button type="button" class="frota-ficha__galeria-btn js-frota-galeria" title="Ver fotos do veículo" aria-label="Ver fotos do veículo">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="5" width="18" height="14" rx="2"/>
+        <circle cx="8.5" cy="10.5" r="1.5"/>
+        <path d="M21 16l-5-5-4 4-2-2-5 5"/>
+      </svg>
+      <span>${qtdFotos > 0 ? `${qtdFotos} foto${qtdFotos === 1 ? '' : 's'}` : 'Fotos'}</span>
+    </button>`
 
   return `
     <div class="frota-popup">
@@ -177,9 +189,14 @@ function popupHtml(p: PontoFrota): string {
           <span class="frota-ficha__status frota-ficha__status--${status}">${statusLabel}</span>
         </div>
       </div>
+      <div class="frota-ficha__topo-grid">
+        <dl class="frota-ficha__dl frota-ficha__dl--compact">
+          <div><dt>Transportadora</dt><dd>${escapeHtml(p.transportadorNome)}</dd></div>
+          <div><dt>Origem</dt><dd>${escapeHtml(local)}</dd></div>
+        </dl>
+        ${galeriaBtn}
+      </div>
       <dl class="frota-ficha__dl">
-        <div><dt>Transportadora</dt><dd>${escapeHtml(p.transportadorNome)}</dd></div>
-        <div><dt>Origem</dt><dd>${escapeHtml(local)}</dd></div>
         <div><dt>Raio de pesquisa</dt><dd>${escapeHtml(raio)}</dd></div>
         <div><dt>WhatsApp</dt><dd>${whatsDd}</dd></div>
         <div><dt>CNH</dt><dd>${escapeHtml(cnh)}</dd></div>
@@ -200,6 +217,7 @@ function ligarAcoesPopup(
   p: PontoFrota,
   onFoto: (p: PontoFrota) => void,
   onAvaliacoes: (p: PontoFrota) => void,
+  onGaleria: (p: PontoFrota) => void,
 ) {
   if (!popupEl) return
   popupEl.querySelector('.js-frota-foto')?.addEventListener('click', (ev) => {
@@ -211,6 +229,11 @@ function ligarAcoesPopup(
     ev.preventDefault()
     ev.stopPropagation()
     onAvaliacoes(p)
+  })
+  popupEl.querySelector('.js-frota-galeria')?.addEventListener('click', (ev) => {
+    ev.preventDefault()
+    ev.stopPropagation()
+    onGaleria(p)
   })
 }
 
@@ -257,6 +280,7 @@ function restaurarScrollPopup(map: L.Map, scrollTop: number) {
 
 /** Campos exibidos no pin/popup — evita recriar HTML se nada mudou. */
 function pontoUiKey(p: PontoFrota): string {
+  const nFotos = listarFotosVeiculoDisponiveis(p.veiculoFotos).length
   return [
     p.id,
     p.lat.toFixed(5),
@@ -267,6 +291,9 @@ function pontoUiKey(p: PontoFrota): string {
     p.placa,
     p.tipoVeiculo,
     p.icone,
+    `f${nFotos}`,
+    p.comprimento_m ?? '',
+    p.cubagem_m3 ?? '',
     p.freteMinimo,
     p.avaliacao,
     p.totalAvaliacoes,
@@ -330,6 +357,7 @@ export function MapaFrotaPage() {
   /** Tipo vindo do anúncio do Kanban — só informa; o usuário pode mudar a categoria. */
   const [tipoDoAnuncio, setTipoDoAnuncio] = useState<string | null>(null)
   const [modalFoto, setModalFoto] = useState<PontoFrota | null>(null)
+  const [modalGaleria, setModalGaleria] = useState<PontoFrota | null>(null)
   const [modalAvaliacoes, setModalAvaliacoes] = useState<PontoFrota | null>(null)
   const [pesquisaAberta, setPesquisaAberta] = useState(() => {
     try {
@@ -340,7 +368,9 @@ export function MapaFrotaPage() {
   })
   const abrirFotoRef = useRef<(p: PontoFrota) => void>(() => {})
   const abrirAvaliacoesRef = useRef<(p: PontoFrota) => void>(() => {})
+  const abrirGaleriaRef = useRef<(p: PontoFrota) => void>(() => {})
   abrirFotoRef.current = (p) => setModalFoto(p)
+  abrirGaleriaRef.current = (p) => setModalGaleria(p)
   abrirAvaliacoesRef.current = (p) => setModalAvaliacoes(p)
   clicarOrigemRef.current = clicarOrigem
 
@@ -676,6 +706,7 @@ export function MapaFrotaPage() {
           p,
           (pt) => abrirFotoRef.current(pt),
           (pt) => abrirAvaliacoesRef.current(pt),
+          (pt) => abrirGaleriaRef.current(pt),
         )
         window.requestAnimationFrame(() => encaixarPopupNoMapa(map, e.popup))
       })
@@ -1350,6 +1381,10 @@ export function MapaFrotaPage() {
           </div>
         </div>
       )}
+
+      {modalGaleria ? (
+        <FrotaGaleriaVeiculoModal ponto={modalGaleria} onClose={() => setModalGaleria(null)} />
+      ) : null}
 
       {modalAvaliacoes && (
         <div

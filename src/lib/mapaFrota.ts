@@ -1,5 +1,6 @@
-import type { Motorista, Transportador, Veiculo } from '../types'
+import type { FotosVeiculo, Motorista, Transportador, Veiculo } from '../types'
 import { frotaIconeHtml, type FrotaIconeGrupo } from './frotaIcones'
+import { normalizeFotosVeiculo } from './veiculoFotos'
 
 export type { FrotaIconeGrupo }
 
@@ -33,6 +34,13 @@ export type PontoFrota = {
   uf: string
   /** Raio de pesquisa cadastrado pelo transportador (km). */
   raioKm: number
+  /** Fotos do veículo (galeria no popup). */
+  veiculoFotos?: FotosVeiculo
+  tipoCarroceria?: string
+  comprimento_m?: number
+  largura_m?: number
+  altura_m?: number
+  cubagem_m3?: number
 }
 
 /** Chave estável para agrupar pins na mesma coordenada. */
@@ -314,6 +322,12 @@ export function montarPontosFrota(
       cidade,
       uf,
       raioKm: Number(v.raio_km) || Number(t.raio_km) || 0,
+      veiculoFotos: normalizeFotosVeiculo(v.fotos, v.foto_url),
+      tipoCarroceria: v.tipo_carroceria,
+      comprimento_m: v.comprimento_m,
+      largura_m: v.largura_m,
+      altura_m: v.altura_m,
+      cubagem_m3: v.cubagem_m3,
     })
   }
 
@@ -359,6 +373,12 @@ export function montarPontosFrota(
       cidade,
       uf,
       raioKm: Number(v.raio_km) || Number(t.raio_km) || 0,
+      veiculoFotos: normalizeFotosVeiculo(v.fotos, v.foto_url),
+      tipoCarroceria: v.tipo_carroceria,
+      comprimento_m: v.comprimento_m,
+      largura_m: v.largura_m,
+      altura_m: v.altura_m,
+      cubagem_m3: v.cubagem_m3,
     })
   }
 

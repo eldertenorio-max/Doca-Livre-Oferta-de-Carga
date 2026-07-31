@@ -58,6 +58,32 @@ export function normalizeFotosVeiculo(
   return base
 }
 
+/** Slots em que a carroceria aparece — exibem medidas/cubagem na galeria. */
+export const SLOTS_COM_MEDIDAS_CARROCERIA: FotoVeiculoSlot[] = [
+  'lateral_esquerda',
+  'lateral_direita',
+  'traseira_aberta',
+  'interior',
+]
+
+export function slotMostraMedidasCarroceria(slot: FotoVeiculoSlot): boolean {
+  return SLOTS_COM_MEDIDAS_CARROCERIA.includes(slot)
+}
+
+export function listarFotosVeiculoDisponiveis(
+  fotos?: FotosVeiculo | null,
+  fotoUrlLegacy?: string | null,
+): Array<FotoVeiculoItem & { url: string }> {
+  const norm = normalizeFotosVeiculo(fotos, fotoUrlLegacy)
+  const out: Array<FotoVeiculoItem & { url: string }> = []
+  for (const item of FOTOS_VEICULO_ROTEIRO) {
+    const url = (norm[item.slot] || '').trim()
+    if (!url) continue
+    out.push({ ...item, url })
+  }
+  return out
+}
+
 export function isAcceptedImageFile(file: File): boolean {
   if (['image/jpeg', 'image/png', 'image/webp', 'image/jpg'].includes(file.type)) return true
   return /\.(jpe?g|png|webp)$/i.test(file.name)
