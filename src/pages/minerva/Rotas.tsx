@@ -568,6 +568,15 @@ export function RotasPage() {
         {geoInfo ? (
           <p className="mt-2 text-xs text-ink-muted">{geoInfo}</p>
         ) : null}
+        <div className="mt-4">
+          <p className="mb-2 text-xs font-bold text-ink">Mapa da rota</p>
+          <RotaMapPreview
+            key={`${editingId ?? 'nova'}|${form.origem ?? ''}|${form.destino ?? ''}|${form.origem_lat ?? ''}|${form.destino_lat ?? ''}`}
+            origem={form.origem ?? ''}
+            destino={form.destino ?? ''}
+            className="h-[280px] min-h-[280px] w-full"
+          />
+        </div>
         <Button variant="success" className="mt-4" onClick={save}>
           {editingId ? 'Salvar' : 'Adicionar'}
         </Button>
