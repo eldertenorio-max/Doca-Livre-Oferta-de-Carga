@@ -8,18 +8,40 @@ import './index.css'
 
 // Service worker cedo — necessário para o Chrome oferecer “Instalar app”.
 // onNeedRefresh: força atualização assim que houver build novo (evita tela travada em versão antiga).
+const BUILD_STAMP = 'oferta7-20260731'
+
+async function hardRefreshApp() {
+  const key = `doca-sw-refreshed:${BUILD_STAMP}`
+  try {
+    if (sessionStorage.getItem(key)) return
+    sessionStorage.setItem(key, '1')
+  } catch {
+    /* ignore */
+  }
+  try {
+    if ('caches' in window) {
+      const keys = await caches.keys()
+      await Promise.all(keys.map((k) => caches.delete(k)))
+    }
+  } catch {
+    /* ignore */
+  }
+  window.location.reload()
+}
+
 const updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
-    void updateSW(true)
+    void updateSW(true).then(() => {
+      void hardRefreshApp()
+    })
   },
   onRegisteredSW(_url, registration) {
-    // Revisa atualização com frequência (PWA costuma ficar presa em build antigo).
     if (!registration) return
     void registration.update()
     window.setInterval(() => {
       void registration.update()
-    }, 60_000)
+    }, 30_000)
   },
 })
 

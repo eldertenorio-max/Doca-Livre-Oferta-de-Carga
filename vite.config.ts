@@ -40,25 +40,25 @@ export default defineConfig({
         categories: ['business', 'logistics'],
         icons: [
           {
-            src: 'icon-192.png?v=oferta6',
+            src: 'icon-192.png?v=oferta7',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any',
           },
           {
-            src: 'icon-512.png?v=oferta6',
+            src: 'icon-512.png?v=oferta7',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any',
           },
           {
-            src: 'icon-512.png?v=oferta6',
+            src: 'icon-512.png?v=oferta7',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
           },
           {
-            src: 'apple-touch-icon.png?v=oferta6',
+            src: 'apple-touch-icon.png?v=oferta7',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any',
