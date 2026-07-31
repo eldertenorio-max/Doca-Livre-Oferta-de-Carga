@@ -207,6 +207,124 @@ function limparEstado(uf: string): string {
     .trim()
 }
 
+const UF_POR_ESTADO: Record<string, string> = {
+  acre: 'AC',
+  alagoas: 'AL',
+  amapa: 'AP',
+  amazonas: 'AM',
+  bahia: 'BA',
+  ceara: 'CE',
+  'distrito federal': 'DF',
+  'espirito santo': 'ES',
+  goias: 'GO',
+  maranhao: 'MA',
+  'mato grosso': 'MT',
+  'mato grosso do sul': 'MS',
+  'minas gerais': 'MG',
+  para: 'PA',
+  paraiba: 'PB',
+  parana: 'PR',
+  pernambuco: 'PE',
+  piaui: 'PI',
+  'rio de janeiro': 'RJ',
+  'rio grande do norte': 'RN',
+  'rio grande do sul': 'RS',
+  rondonia: 'RO',
+  roraima: 'RR',
+  'santa catarina': 'SC',
+  'sao paulo': 'SP',
+  sergipe: 'SE',
+  tocantins: 'TO',
+}
+
+function normalizarSemAcento(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+/** Converte "São Paulo" / "SP" → sigla UF. */
+export function ufDoEstado(estado: string | undefined | null): string {
+  const raw = (estado || '').trim()
+  if (!raw) return ''
+  if (/^[A-Za-z]{2}$/.test(raw)) return raw.toUpperCase()
+  return UF_POR_ESTADO[normalizarSemAcento(limparEstado(raw))] || ''
+}
+
+/**
+ * Reverse geocode: lat/lng → campos de endereço (Nominatim).
+ * Usado quando o transportador aponta o pin ou edita as coordenadas.
+ */
+export async function enderecoPorCoordenadas(
+  lat: number,
+  lng: number,
+): Promise<
+  | { ok: true; dados: Partial<EnderecoCampos>; display?: string }
+  | { ok: false; erro: string }
+> {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return { ok: false, erro: 'Coordenadas inválidas.' }
+  }
+  if (lat < -35 || lat > 6 || lng < -75 || lng > -30) {
+    return { ok: false, erro: 'Coordenadas fora do Brasil.' }
+  }
+
+  try {
+    const url = new URL('https://nominatim.openstreetmap.org/reverse')
+    url.searchParams.set('format', 'jsonv2')
+    url.searchParams.set('lat', String(lat))
+    url.searchParams.set('lon', String(lng))
+    url.searchParams.set('addressdetails', '1')
+    url.searchParams.set('zoom', '18')
+    url.searchParams.set('accept-language', 'pt-BR')
+
+    const res = await fetch(url.toString(), {
+      headers: { Accept: 'application/json' },
+    })
+    if (!res.ok) return { ok: false, erro: 'Falha ao consultar endereço no mapa.' }
+
+    const data = (await res.json()) as NominatimHit & { error?: string }
+    if (data.error || !data.address) {
+      return { ok: false, erro: 'Não foi possível obter o endereço deste ponto.' }
+    }
+
+    const a = data.address
+    const cidade = (
+      a.city ||
+      a.town ||
+      a.village ||
+      a.municipality ||
+      ''
+    ).trim()
+    const uf = ufDoEstado(a.state)
+    const cep = a.postcode ? formatCepBr(a.postcode) : ''
+    const endereco = (a.road || a.pedestrian || '').trim()
+    const numero = (a.house_number || '').trim()
+    const bairro = (a.suburb || a.neighbourhood || a.city_district || '').trim()
+
+    if (!cidade && !endereco && !cep) {
+      return { ok: false, erro: 'Não foi possível obter o endereço deste ponto.' }
+    }
+
+    return {
+      ok: true,
+      dados: {
+        cep,
+        cidade,
+        uf: uf || undefined,
+        endereco,
+        numero,
+        bairro,
+      },
+      display: (data.display_name || '').trim() || undefined,
+    }
+  } catch {
+    return { ok: false, erro: 'Não foi possível obter o endereço deste ponto.' }
+  }
+}
+
 function montarLabelMaps(parts: {
   rua: string
   numero?: string

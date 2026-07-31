@@ -23,6 +23,7 @@ import { cnpjDigits, formatCnpj, isValidCnpj } from '../lib/cnpj'
 import { buscarDadosPorCnpj } from '../lib/cnpjLookup'
 import {
   buscarEnderecoPorCep,
+  enderecoPorCoordenadas,
   enderecoProntoParaGeocode,
   formatCepBr,
   geocodificarEndereco,
@@ -100,8 +101,11 @@ export function CadastroTransportadorPage() {
   const [origemGeocoding, setOrigemGeocoding] = useState(false)
   const [latStr, setLatStr] = useState('')
   const [lngStr, setLngStr] = useState('')
+  const [origemReverseBusy, setOrigemReverseBusy] = useState(false)
   const ultimoCepOrigem = useRef('')
   const coordsManuais = useRef(false)
+  const reverseTimer = useRef(0)
+  const reverseSeq = useRef(0)
 
   const [docs, setDocs] = useState<DocState>({})
   const [logo, setLogo] = useState<{
@@ -303,7 +307,41 @@ export function CadastroTransportadorPage() {
     setOrigem((prev) => ({ ...prev, lat, lng }))
     setLatStr(lat.toFixed(6))
     setLngStr(lng.toFixed(6))
-    setOrigemInfo(`Localização ajustada: ${lat.toFixed(5)}, ${lng.toFixed(5)}`)
+    setOrigemInfo(`Localização ajustada: ${lat.toFixed(5)}, ${lng.toFixed(5)}. Buscando endereço…`)
+
+    window.clearTimeout(reverseTimer.current)
+    const seq = ++reverseSeq.current
+    reverseTimer.current = window.setTimeout(() => {
+      void (async () => {
+        setOrigemReverseBusy(true)
+        const res = await enderecoPorCoordenadas(lat, lng)
+        if (seq !== reverseSeq.current) return
+        setOrigemReverseBusy(false)
+        if (!res.ok) {
+          setOrigemInfo(
+            `Coordenadas: ${lat.toFixed(5)}, ${lng.toFixed(5)}. ${res.erro} Preencha o endereço manualmente.`,
+          )
+          return
+        }
+        const cepDigits = (res.dados.cep || '').replace(/\D/g, '')
+        if (cepDigits.length === 8) ultimoCepOrigem.current = cepDigits
+        coordsManuais.current = true
+        setOrigem((prev) => ({
+          ...prev,
+          lat,
+          lng,
+          cep: res.dados.cep ?? '',
+          cidade: res.dados.cidade ?? '',
+          uf: res.dados.uf || prev.uf || 'SP',
+          endereco: res.dados.endereco ?? '',
+          numero: res.dados.numero ?? '',
+          bairro: res.dados.bairro ?? '',
+        }))
+        setOrigemInfo(
+          `Endereço atualizado pelas coordenadas: ${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+        )
+      })()
+    }, 450)
   }
 
   function parseCoordInput(raw: string): number | null {
@@ -804,8 +842,8 @@ export function CadastroTransportadorPage() {
               <div className="form-card__body">
                 <p className="cadastro-publico__hint">
                   Endereço onde você realmente mora (residência) — não use o endereço do CNPJ.
-                  Informe o CEP ou cidade, rua e número; as coordenadas são preenchidas
-                  automaticamente. Você pode editar latitude/longitude ou ajustar o pin no mapa.
+                  Endereço preenche as coordenadas automaticamente; se você editar latitude/longitude
+                  ou mover o pin, o endereço é atualizado pelas coordenadas.
                 </p>
                 <div className="form-fields">
                   <Field label="CEP da origem">
@@ -929,15 +967,18 @@ export function CadastroTransportadorPage() {
                     />
                   </div>
                 </div>
-                {(origemBuscandoCep || origemGeocoding || origemInfo) && (
+                {(origemBuscandoCep ||
+                  origemGeocoding ||
+                  origemReverseBusy ||
+                  origemInfo) && (
                   <p
                     style={{
                       marginTop: 10,
                       fontSize: 12,
                       color:
-                        origem.lat != null
+                        origem.lat != null && !origemReverseBusy
                           ? '#047857'
-                          : origemBuscandoCep || origemGeocoding
+                          : origemBuscandoCep || origemGeocoding || origemReverseBusy
                             ? '#64748b'
                             : '#b45309',
                     }}
@@ -946,7 +987,9 @@ export function CadastroTransportadorPage() {
                       ? 'Consultando CEP…'
                       : origemGeocoding
                         ? 'Localizando coordenadas…'
-                        : origemInfo}
+                        : origemReverseBusy
+                          ? 'Atualizando endereço pelas coordenadas…'
+                          : origemInfo}
                   </p>
                 )}
               </div>
