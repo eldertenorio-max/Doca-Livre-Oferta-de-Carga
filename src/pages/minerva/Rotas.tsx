@@ -55,6 +55,26 @@ export function RotasPage() {
   const [geoInfo, setGeoInfo] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [mapaRota, setMapaRota] = useState<Rota | null>(null)
+  const [search, setSearch] = useState('')
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return rotas
+    return rotas.filter((r) => {
+      const frete = String(r.frete_tabela ?? '')
+      const km = String(r.km ?? '')
+      return (
+        r.descricao.toLowerCase().includes(q) ||
+        r.origem.toLowerCase().includes(q) ||
+        r.destino.toLowerCase().includes(q) ||
+        `rota ${r.classificacao}`.toLowerCase().includes(q) ||
+        r.classificacao.toLowerCase().includes(q) ||
+        r.situacao.toLowerCase().includes(q) ||
+        frete.includes(q) ||
+        km.includes(q)
+      )
+    })
+  }, [rotas, search])
 
   const skipGeoOrigem = useRef(false)
   const skipGeoDestino = useRef(false)
@@ -329,11 +349,20 @@ export function RotasPage() {
         </p>
       </header>
 
-      <div className="overflow-hidden rounded-xl border border-ink/10 bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-ink text-left text-xs text-sand-light">
+      <div className="cadastro-toolbar">
+        <input
+          className="cadastro-search"
+          placeholder="Pesquisar rota..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      <div className="cadastro-table-wrap cadastro-table-wrap--scroll">
+        <table className="cadastro-table">
+          <thead>
             <tr>
-              <th className="px-4 py-3">Descrição</th>
+              <th>Descrição</th>
               <th>Classificação</th>
               <th>Frete Sugestão</th>
               <th>KM</th>
@@ -342,9 +371,9 @@ export function RotasPage() {
             </tr>
           </thead>
           <tbody>
-            {rotas.map((r) => (
-              <tr key={r.id} className="border-t border-ink/5">
-                <td className="px-4 py-3">
+            {filtered.map((r) => (
+              <tr key={r.id}>
+                <td>
                   <p className="font-medium">{r.descricao}</p>
                   <p className="text-xs text-ink-muted">
                     {r.origem} → {r.destino}
@@ -366,7 +395,7 @@ export function RotasPage() {
                 <td>{formatCurrency(r.frete_tabela)}</td>
                 <td>{r.km}</td>
                 <td className="capitalize">{r.situacao}</td>
-                <td className="px-4">
+                <td>
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     <button
                       type="button"
@@ -389,6 +418,13 @@ export function RotasPage() {
                 </td>
               </tr>
             ))}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-ink-muted">
+                  Nenhuma rota encontrada.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
