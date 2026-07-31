@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight, Images, Minus, Plus, X, ZoomIn } from 'lucide-react'
 import type { PontoFrota } from '../../lib/mapaFrota'
 import {
@@ -62,7 +63,7 @@ export function FrotaGaleriaVeiculoModal({ ponto, onClose }: Props) {
         : null
   const temMedidas = Boolean(c || l || a || cub)
 
-  return (
+  return createPortal(
     <div
       className="frota-galeria"
       role="dialog"
@@ -187,6 +188,7 @@ export function FrotaGaleriaVeiculoModal({ ponto, onClose }: Props) {
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

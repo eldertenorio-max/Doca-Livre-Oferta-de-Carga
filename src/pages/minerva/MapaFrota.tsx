@@ -150,10 +150,10 @@ function popupHtml(p: PontoFrota): string {
     p.totalAvaliacoes > 0 ? `${p.totalAvaliacoes} avaliação(ões)` : 'Sem avaliações ainda'
   const avatarNome = p.transportadorNome || p.motoristaNome
   const avatar = p.motoristaFoto
-    ? `<button type="button" class="frota-ficha__foto-btn js-frota-foto" title="Ver foto / logo" aria-label="Ver foto / logo">
+    ? `<button type="button" class="frota-ficha__foto-btn js-frota-foto" data-frota-id="${escapeHtml(p.id)}" title="Ver foto / logo" aria-label="Ver foto / logo">
          <img src="${escapeHtml(p.motoristaFoto)}" alt="" class="frota-ficha__foto" />
        </button>`
-    : `<button type="button" class="frota-ficha__foto-btn js-frota-foto" title="Sem logo — envie na edição da transportadora" aria-label="Sem logo">
+    : `<button type="button" class="frota-ficha__foto-btn js-frota-foto" data-frota-id="${escapeHtml(p.id)}" title="Sem logo — envie na edição da transportadora" aria-label="Sem logo">
          <span class="frota-ficha__avatar" aria-hidden>${escapeHtml(iniciaisNome(avatarNome))}</span>
        </button>`
   const marcaModelo =
@@ -167,7 +167,7 @@ function popupHtml(p: PontoFrota): string {
   const whatsDd = whatsappDdHtml(p.motoristaTelefone)
   const qtdFotos = listarFotosVeiculoDisponiveis(p.veiculoFotos).length
   const galeriaBtn = `
-    <button type="button" class="frota-ficha__galeria-btn js-frota-galeria" title="Ver fotos do veículo" aria-label="Ver fotos do veículo">
+    <button type="button" class="frota-ficha__galeria-btn js-frota-galeria" data-frota-id="${escapeHtml(p.id)}" title="Ver fotos do veículo" aria-label="Ver fotos do veículo">
       <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="5" width="18" height="14" rx="2"/>
         <circle cx="8.5" cy="10.5" r="1.5"/>
@@ -177,13 +177,13 @@ function popupHtml(p: PontoFrota): string {
     </button>`
 
   return `
-    <div class="frota-popup">
+    <div class="frota-popup" data-frota-id="${escapeHtml(p.id)}">
       <div class="frota-ficha__hero">
         ${avatar}
         <div class="frota-ficha__hero-text">
           <h2>${escapeHtml(p.motoristaNome)}</h2>
           ${starsHtml(p.avaliacao)}
-          <button type="button" class="frota-ficha__avaliacoes-btn js-frota-avaliacoes" title="Ver avaliações">
+          <button type="button" class="frota-ficha__avaliacoes-btn js-frota-avaliacoes" data-frota-id="${escapeHtml(p.id)}" title="Ver avaliações">
             ${escapeHtml(avaliacoes)}
           </button>
           <span class="frota-ficha__status frota-ficha__status--${status}">${statusLabel}</span>
@@ -220,21 +220,21 @@ function ligarAcoesPopup(
   onGaleria: (p: PontoFrota) => void,
 ) {
   if (!popupEl) return
-  popupEl.querySelector('.js-frota-foto')?.addEventListener('click', (ev) => {
-    ev.preventDefault()
-    ev.stopPropagation()
-    onFoto(p)
-  })
-  popupEl.querySelector('.js-frota-avaliacoes')?.addEventListener('click', (ev) => {
-    ev.preventDefault()
-    ev.stopPropagation()
-    onAvaliacoes(p)
-  })
-  popupEl.querySelector('.js-frota-galeria')?.addEventListener('click', (ev) => {
-    ev.preventDefault()
-    ev.stopPropagation()
-    onGaleria(p)
-  })
+  const bind = (sel: string, fn: () => void) => {
+    const el = popupEl.querySelector(sel) as HTMLElement | null
+    if (!el) return
+    // Impede o Leaflet de engolir o clique / fechar o popup sem abrir o modal
+    L.DomEvent.disableClickPropagation(el)
+    L.DomEvent.disableScrollPropagation(el)
+    el.addEventListener('click', (ev) => {
+      ev.preventDefault()
+      ev.stopPropagation()
+      fn()
+    })
+  }
+  bind('.js-frota-foto', () => onFoto(p))
+  bind('.js-frota-avaliacoes', () => onAvaliacoes(p))
+  bind('.js-frota-galeria', () => onGaleria(p))
 }
 
 function makeIcon(p: PontoFrota) {
@@ -369,6 +369,7 @@ export function MapaFrotaPage() {
   const abrirFotoRef = useRef<(p: PontoFrota) => void>(() => {})
   const abrirAvaliacoesRef = useRef<(p: PontoFrota) => void>(() => {})
   const abrirGaleriaRef = useRef<(p: PontoFrota) => void>(() => {})
+  const pontosByIdRef = useRef<Map<string, PontoFrota>>(new Map())
   abrirFotoRef.current = (p) => setModalFoto(p)
   abrirGaleriaRef.current = (p) => setModalGaleria(p)
   abrirAvaliacoesRef.current = (p) => setModalAvaliacoes(p)
@@ -397,6 +398,12 @@ export function MapaFrotaPage() {
     () => montarPontosFrota(motoristas, veiculos, transportadores),
     [motoristas, veiculos, transportadores],
   )
+
+  useEffect(() => {
+    const byId = new Map<string, PontoFrota>()
+    for (const p of pontos) byId.set(p.id, p)
+    pontosByIdRef.current = byId
+  }, [pontos])
 
   const opcoesCidade = useMemo(() => {
     const set = new Set<string>()
@@ -600,6 +607,29 @@ export function MapaFrotaPage() {
       if (expandedClusterRef.current) setExpandedCluster(null)
     })
 
+    // Delegação: sobrevive quando o Leaflet recria o HTML do popup
+    const onPopupActionClick = (ev: MouseEvent) => {
+      const target = ev.target as HTMLElement | null
+      if (!target?.closest) return
+      const galeria = target.closest('.js-frota-galeria') as HTMLElement | null
+      const foto = target.closest('.js-frota-foto') as HTMLElement | null
+      const avaliacoes = target.closest('.js-frota-avaliacoes') as HTMLElement | null
+      const btn = galeria || foto || avaliacoes
+      if (!btn || !map.getContainer().contains(btn)) return
+      const id =
+        btn.getAttribute('data-frota-id') ||
+        btn.closest('[data-frota-id]')?.getAttribute('data-frota-id')
+      if (!id) return
+      const ponto = pontosByIdRef.current.get(id)
+      if (!ponto) return
+      ev.preventDefault()
+      ev.stopPropagation()
+      if (galeria) abrirGaleriaRef.current(ponto)
+      else if (foto) abrirFotoRef.current(ponto)
+      else abrirAvaliacoesRef.current(ponto)
+    }
+    map.getContainer().addEventListener('click', onPopupActionClick, true)
+
     // Mantém o espaçamento em pixels ao zoomar com o leque aberto
     const onViewChange = () => {
       if (expandedClusterRef.current) setSpiderTick((n) => n + 1)
@@ -610,6 +640,7 @@ export function MapaFrotaPage() {
     const t = window.setTimeout(() => map.invalidateSize(), 80)
     return () => {
       window.clearTimeout(t)
+      map.getContainer().removeEventListener('click', onPopupActionClick, true)
       map.off('zoomend', onViewChange)
       map.off('moveend', onViewChange)
       map.remove()
@@ -770,8 +801,16 @@ export function MapaFrotaPage() {
           ligarPopup(m, p)
           markersUiRef.current.set(p.id, uiKey)
           if (popupAberto) {
+            // setPopupContent não dispara popupopen — reatacha ações no HTML novo
+            const popup = m.getPopup()
+            ligarAcoesPopup(
+              popup?.getElement() ?? undefined,
+              p,
+              (pt) => abrirFotoRef.current(pt),
+              (pt) => abrirAvaliacoesRef.current(pt),
+              (pt) => abrirGaleriaRef.current(pt),
+            )
             window.requestAnimationFrame(() => {
-              const popup = m!.getPopup()
               if (popup) encaixarPopupNoMapa(map, popup)
               restaurarScrollPopup(map, scrollKeep)
             })
