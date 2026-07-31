@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
 import { CadastroStatsCards } from '../../components/cadastro/CadastroStatsCards'
 import { TransportadorPainel } from '../../components/transportador/TransportadorPainel'
+import { TransportadorasKanbanView } from '../../components/transportador/TransportadorasKanbanView'
+import { VistaToggle } from '../../components/kanban/GridCargas'
 import { CnpjInput } from '../../components/ui/CnpjInput'
 import { formatCnpj } from '../../lib/cnpj'
 import { formatPhoneBr } from '../../lib/phoneBr'
@@ -12,6 +14,7 @@ import { urlDocumentoTransportador, origemCadastroDe, labelOrigemCadastro } from
 import { isAcceptedImageFile, fileToDataUrl } from '../../lib/veiculoFotos'
 import type { ClassificacaoTransportador, SituacaoTransportador, Transportador } from '../../types'
 import '../../styles/cadastro.css'
+import '../../styles/grid-cargas.css'
 
 type FilterSit = 'todos' | SituacaoTransportador
 type FilterOrigem = 'todos' | 'link' | 'painel'
@@ -55,6 +58,8 @@ const emptyForm = (): Partial<Transportador> => ({
 export function TransportadoresPage() {
   const {
     transportadores,
+    veiculos,
+    motoristas,
     salvarTransportador,
     atualizarLogoTransportador,
     excluirTransportador,
@@ -72,6 +77,15 @@ export function TransportadoresPage() {
     refreshTransportadores,
   } = useData()
   const [mode, setMode] = useState<'lista' | 'form' | 'revisao' | 'ficha'>('lista')
+  const [vista, setVista] = useState<'quadro' | 'grid'>(() => {
+    try {
+      return sessionStorage.getItem('doca-livre-transportadoras-vista') === 'quadro'
+        ? 'quadro'
+        : 'grid'
+    } catch {
+      return 'grid'
+    }
+  })
   const [editingId, setEditingId] = useState<string | null>(null)
   const [revisaoId, setRevisaoId] = useState<string | null>(null)
   const [fichaId, setFichaId] = useState<string | null>(null)
@@ -137,6 +151,35 @@ export function TransportadoresPage() {
     const inativos = transportadores.filter((t) => t.situacao === 'inativo').length
     return { total, ativos, inativos }
   }, [transportadores])
+
+  const veiculosPorTransportador = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const v of veiculos ?? []) {
+      if (!v.transportador_id) continue
+      map[v.transportador_id] = (map[v.transportador_id] ?? 0) + 1
+    }
+    return map
+  }, [veiculos])
+
+  const motoristasPorTransportador = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const m of motoristas ?? []) {
+      if (!m.transportador_id) continue
+      map[m.transportador_id] = (map[m.transportador_id] ?? 0) + 1
+    }
+    return map
+  }, [motoristas])
+
+  const tituloKanban = useMemo(() => {
+    const cidades = new Set(
+      filtered
+        .map((t) => (t.origem_cidade || t.cidade || '').trim())
+        .filter(Boolean),
+    )
+    if (cidades.size === 1) return `Transportadoras em ${[...cidades][0]}`
+    if (filtro === 'ativo') return 'Transportadoras ativas'
+    return 'Transportadoras'
+  }, [filtered, filtro])
 
   const revisao = revisaoId ? transportadores.find((t) => t.id === revisaoId) : null
   const docsRevisao = revisaoId ? documentosDoTransportador(revisaoId) : []
@@ -811,6 +854,17 @@ export function TransportadoresPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          <VistaToggle
+            value={vista}
+            onChange={(v) => {
+              setVista(v)
+              try {
+                sessionStorage.setItem('doca-livre-transportadoras-vista', v)
+              } catch {
+                /* ignore */
+              }
+            }}
+          />
           <button type="button" className="cadastro-btn cadastro-btn--primary" onClick={openNew}>
             + Nova Transportadora
           </button>
@@ -878,74 +932,97 @@ export function TransportadoresPage() {
           ))}
         </div>
 
-        <div className="cadastro-table-wrap">
-          {filtered.length === 0 ? (
-            <p className="cadastro-empty">Nenhuma transportadora encontrada.</p>
-          ) : (
-            <table className="cadastro-table">
-              <thead>
-                <tr>
-                  <th>Nome</th>
-                  <th>CNPJ</th>
-                  <th>Cidade</th>
-                  <th>Classificação</th>
-                  <th>Cadastro</th>
-                  <th>Situação</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((t) => {
-                  const origem = origemCadastroDe(t)
-                  return (
-                  <tr key={t.id}>
-                    <td>
-                      <strong>{t.nome_fantasia}</strong>
-                      <div style={{ fontSize: '0.8rem', color: '#1a1d21' }}>{t.razao_social}</div>
-                    </td>
-                    <td>{t.cnpj}</td>
-                    <td>
-                      {t.cidade}/{t.uf}
-                    </td>
-                    <td>{t.classificacao}</td>
-                    <td>
-                      <span className={`badge-origem badge-origem--${origem}`}>
-                        {labelOrigemCadastro(origem)}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`badge-situacao badge-situacao--${t.situacao}`}>
-                        {t.situacao}
-                      </span>
-                    </td>
-                    <td style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                      {(t.situacao === 'pendente' || t.situacao === 'recusado') && (
-                        <button type="button" className="cadastro-link" onClick={() => openRevisao(t)}>
-                          Revisar
-                        </button>
-                      )}
-                      <button type="button" className="cadastro-link" onClick={() => openFicha(t)}>
-                        Painel
-                      </button>
-                      <button type="button" className="cadastro-link" onClick={() => openEdit(t)}>
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        className="cadastro-link"
-                        style={{ color: '#b91c1c' }}
-                        onClick={() => confirmarExclusao(t)}
-                      >
-                        Excluir
-                      </button>
-                    </td>
+        {vista === 'quadro' ? (
+          <TransportadorasKanbanView
+            transportadores={filtered}
+            veiculosPorTransportador={veiculosPorTransportador}
+            motoristasPorTransportador={motoristasPorTransportador}
+            tituloCidade={tituloKanban}
+          />
+        ) : (
+          <div className="cadastro-table-wrap">
+            {filtered.length === 0 ? (
+              <p className="cadastro-empty">Nenhuma transportadora encontrada.</p>
+            ) : (
+              <table className="cadastro-table">
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>CNPJ</th>
+                    <th>Cidade</th>
+                    <th>Classificação</th>
+                    <th>Cadastro</th>
+                    <th>Situação</th>
+                    <th />
                   </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
+                </thead>
+                <tbody>
+                  {filtered.map((t) => {
+                    const origem = origemCadastroDe(t)
+                    return (
+                      <tr key={t.id}>
+                        <td>
+                          <strong>{t.nome_fantasia}</strong>
+                          <div style={{ fontSize: '0.8rem', color: '#1a1d21' }}>
+                            {t.razao_social}
+                          </div>
+                        </td>
+                        <td>{t.cnpj}</td>
+                        <td>
+                          {t.cidade}/{t.uf}
+                        </td>
+                        <td>{t.classificacao}</td>
+                        <td>
+                          <span className={`badge-origem badge-origem--${origem}`}>
+                            {labelOrigemCadastro(origem)}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`badge-situacao badge-situacao--${t.situacao}`}>
+                            {t.situacao}
+                          </span>
+                        </td>
+                        <td style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                          {(t.situacao === 'pendente' || t.situacao === 'recusado') && (
+                            <button
+                              type="button"
+                              className="cadastro-link"
+                              onClick={() => openRevisao(t)}
+                            >
+                              Revisar
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="cadastro-link"
+                            onClick={() => openFicha(t)}
+                          >
+                            Painel
+                          </button>
+                          <button
+                            type="button"
+                            className="cadastro-link"
+                            onClick={() => openEdit(t)}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            className="cadastro-link"
+                            style={{ color: '#b91c1c' }}
+                            onClick={() => confirmarExclusao(t)}
+                          >
+                            Excluir
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
       </div>
     )
   }
