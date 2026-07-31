@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom'
-import { ExternalLink, MapPin, X } from 'lucide-react'
+import { ExternalLink, Mail, MapPin, X } from 'lucide-react'
 import type { Transportador } from '../../types'
 import { formatCnpj } from '../../lib/cnpj'
 import { formatPhoneBr } from '../../lib/phoneBr'
@@ -139,6 +139,16 @@ export function TransportadorPerfilSite({
           {wa ? (
             <a className="tv-perfil__btn tv-perfil__btn--wa" href={wa} target="_blank" rel="noreferrer">
               WhatsApp
+            </a>
+          ) : null}
+          {t.email ? (
+            <a
+              className="tv-perfil__btn tv-perfil__btn--mail"
+              href={`mailto:${t.email}?subject=${encodeURIComponent(
+                `Contato — ${t.nome_fantasia || t.razao_social}`,
+              )}`}
+            >
+              <Mail size={14} /> Enviar e-mail
             </a>
           ) : null}
           {perfil.site_url ? (

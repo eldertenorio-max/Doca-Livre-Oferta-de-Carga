@@ -698,6 +698,11 @@ function ensureDemoFrotaMapa(state: DataState): DataState {
       tMap.set(s.id, s)
       continue
     }
+    const perfilVazio =
+      !cur.perfil_publico ||
+      (!(cur.perfil_publico.apresentacao || '').trim() &&
+        !(cur.perfil_publico.servicos?.length) &&
+        !(cur.perfil_publico.especialidades?.length))
     tMap.set(s.id, {
       ...s,
       ...cur,
@@ -709,6 +714,11 @@ function ensureDemoFrotaMapa(state: DataState): DataState {
       raio_km: cur.raio_km ?? s.raio_km,
       disponivel_mapa: cur.disponivel_mapa ?? s.disponivel_mapa,
       situacao: cur.situacao === 'inativo' ? 'ativo' : cur.situacao,
+      // Contas demo sem perfil preenchido recebem o conteúdo fictício do seed
+      perfil_publico: perfilVazio ? s.perfil_publico : cur.perfil_publico,
+      contato_nome: cur.contato_nome || s.contato_nome,
+      contato_telefone: cur.contato_telefone || s.contato_telefone,
+      inscricao_estadual: cur.inscricao_estadual || s.inscricao_estadual,
     })
   }
 

@@ -60,12 +60,30 @@ export const SEED_TRANSPORTADORES: Transportador[] = [
     email: 'santos@transportes.com',
     contato_nome: 'João Santos',
     contato_telefone: '(13) 99999-0001',
+    perfil_publico: {
+      especialidades: ['Carga Lotação', 'Carga Fracionada', 'Baú', 'Sider'],
+      apresentacao:
+        'Desde 2008 atuamos no porto de Santos e região metropolitana. Nossa frota própria e equipe experiente garantem prazos confiáveis e atendimento próximo ao embarcador, com foco em segurança e transparência na negociação.',
+      servicos_intro: 'Transportamos cargas com segurança para SP, RJ e Sul do Brasil.',
+      servicos: [
+        'Carga Lotação',
+        'Carga Fracionada',
+        'Entregas Urgentes',
+        'Coleta no porto e centros de distribuição',
+      ],
+      referencias:
+        'Atendemos indústrias e trading do litoral paulista. Clientes recorrentes em granéis e cargas gerais valorizam nossa pontualidade nas janelas de embarque.',
+      cobertura: 'Santos, Baixada Santista e interior de SP — raio operacional de até 120 km a partir da base.',
+      site_url: 'https://exemplo-santos-transportes.demo',
+      galeria: [],
+    },
   },
   {
     id: TID_NOVAERA,
     razao_social: 'Log Nova Era LTDA',
     nome_fantasia: 'Log Nova Era',
     cnpj: '23.456.789/0001-01',
+    inscricao_estadual: '192.168.0.10',
     cidade: 'Campinas',
     uf: 'SP',
     origem_cidade: 'Campinas',
@@ -80,12 +98,32 @@ export const SEED_TRANSPORTADORES: Transportador[] = [
     disponivel_mapa: true,
     telefone: '(19) 3000-0002',
     email: 'novaera@log.com',
+    contato_nome: 'Marina Costa',
+    contato_telefone: '(19) 98888-0002',
+    perfil_publico: {
+      especialidades: ['Baú Frigorífico', 'Baú Refrigerado', 'Carga Fracionada'],
+      apresentacao:
+        'A Log Nova Era nasceu em Campinas para atender o eixo Campinas–São Paulo com agilidade. Especialistas em carga refrigerada e fracionada, com monitoramento e comunicação em tempo real.',
+      servicos_intro: 'Soluções logísticas para o interior e capital paulista.',
+      servicos: [
+        'Baú frigorífico e refrigerado',
+        'Carga fracionada B2B',
+        'Distribuição urbana',
+        'Armazenagem temporária',
+      ],
+      referencias:
+        'Parceiros do agronegócio e do varejo alimentar da região de Campinas. Avaliações positivas em pontualidade e cuidado com a carga sensível à temperatura.',
+      cobertura: 'Campinas, Americana, Jundiaí e Grande SP — raio de até 150 km.',
+      site_url: '',
+      galeria: [],
+    },
   },
   {
     id: 't3',
     razao_social: 'SafraLog Transportes SA',
     nome_fantasia: 'SafraLog',
     cnpj: '34.567.890/0001-12',
+    inscricao_estadual: '126.323.100.110',
     cidade: 'Ribeirão Preto',
     uf: 'SP',
     origem_cidade: 'Ribeirão Preto',
@@ -100,6 +138,25 @@ export const SEED_TRANSPORTADORES: Transportador[] = [
     disponivel_mapa: false,
     telefone: '(16) 3000-0003',
     email: 'frete@safralog.com',
+    contato_nome: 'Ricardo Safra',
+    contato_telefone: '(16) 99777-0003',
+    perfil_publico: {
+      especialidades: ['Graneleiro', 'Carga Lotação', 'Prancha'],
+      apresentacao:
+        'Desde 2015 atuamos no mercado de carga no interior paulista. Com experiência adquirida no agronegócio, oferecemos serviço sério e atendimento próximo, buscando sempre a satisfação dos clientes.',
+      servicos_intro: 'Transportando cargas com segurança para todo o Brasil.',
+      servicos: [
+        'Carga Fracionada',
+        'Carga Lotação',
+        'Entregas Urgentes',
+        'Armazenagem',
+      ],
+      referencias:
+        'Cooperativas e tradings da região de Ribeirão Preto. Reconhecidos pela flexibilidade em safras e janelas curtas de carregamento.',
+      cobertura: 'Ribeirão Preto e circunvizinhas — raio de até 100 km; rotas interestaduais sob consulta.',
+      site_url: '',
+      galeria: [],
+    },
   },
   {
     id: 't4',
@@ -120,6 +177,25 @@ export const SEED_TRANSPORTADORES: Transportador[] = [
     disponivel_mapa: true,
     telefone: '(11) 3000-0004',
     email: 'ops@transbrasil.com',
+    contato_nome: 'Fernanda Alves',
+    contato_telefone: '(11) 99666-0004',
+    perfil_publico: {
+      especialidades: ['Sider', 'Baú', 'Entregas Urgentes', 'Plataforma'],
+      apresentacao:
+        'A TransBrasil opera ao lado do aeroporto e dos principais CDs de Guarulhos. Frota moderna, gestão de risco e equipe comercial ágil para fechar fretes no mesmo dia.',
+      servicos_intro: 'Logística rápida para a Grande São Paulo e litoral.',
+      servicos: [
+        'Carga lotação sider e baú',
+        'Entregas urgentes',
+        'Transferências entre CDs',
+        'Apoio a e-commerce B2B',
+      ],
+      referencias:
+        'Centros de distribuição e indústrias da região de Guarulhos e Arujá. Nota alta em SLA de coleta e comunicação operacional.',
+      cobertura: 'Guarulhos, Zona Norte/Leste de SP e Vale do Paraíba — raio de até 80 km.',
+      site_url: 'https://exemplo-transbrasil.demo',
+      galeria: [],
+    },
   },
   {
     id: 't5',
@@ -140,6 +216,25 @@ export const SEED_TRANSPORTADORES: Transportador[] = [
     disponivel_mapa: true,
     telefone: '(41) 3000-0005',
     email: 'contato@rodosul.com',
+    contato_nome: 'Paulo Rodo',
+    contato_telefone: '(41) 99555-0005',
+    perfil_publico: {
+      especialidades: ['Bitrem', 'Graneleiro', 'Carga Lotação'],
+      apresentacao:
+        'A RodoSul conecta o Paraná ao Sudeste com frota pesada e equipe acostumada a longas distâncias. Priorizamos segurança viária, documentação em dia e previsibilidade de entrega.',
+      servicos_intro: 'Transporte rodoviário de cargas gerais e granéis no Sul e Sudeste.',
+      servicos: [
+        'Carga lotação',
+        'Graneleiro',
+        'Rotas Paraná ↔ São Paulo',
+        'Operações com bitrem',
+      ],
+      referencias:
+        'Embarcadores do agronegócio e indústria metalomecânica no Paraná. Parceiros recorrentes em linhas Curitiba–Campinas e Curitiba–Santos.',
+      cobertura: 'Curitiba e interior do PR — raio de até 200 km; linhas regulares para SP e SC.',
+      site_url: '',
+      galeria: [],
+    },
   },
 ]
 
