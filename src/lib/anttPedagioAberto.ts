@@ -1,6 +1,7 @@
 /**
- * Pedágio gratuito com Dados Abertos da ANTT (praças + coords) + rota OSRM.
- * Fonte: https://dados.antt.gov.br/dataset/praca-de-pedagio (atualização mensal, CC-BY).
+ * Pedágio gratuito com Dados Abertos da ANTT (praças + coords) + OpenStreetMap + rota OSRM.
+ * Fonte ANTT: https://dados.antt.gov.br/dataset/praca-de-pedagio (atualização mensal, CC-BY).
+ * Complemento OSM: barrier=toll_booth / highway=toll_gantry (cobre pedágios estaduais, ex. ARTESP).
  * Tarifas por eixo: estimativa operacional a partir da tarifa-base típica por rodovia
  * (a ANTT não publica API REST de tarifas vigentes por categoria).
  */
@@ -8,11 +9,20 @@
 import { roundMoney } from './businessRules'
 import type { AnttPracaPedagio } from './anttFrete'
 
-const ANTT_PRACAS_URL =
-  'https://dados.antt.gov.br/dataset/a7e1e12d-f8e8-40cd-bc1f-57973a4a4a6d/resource/83d29bc8-0fdd-49a2-9fe9-023ace398c35/download/dados-dos-praas-de-pedgio.json'
+const ANTT_PACKAGE_API =
+  'https://dados.antt.gov.br/api/3/action/package_show?id=praca-de-pedagio'
 
-const CACHE_KEY = 'doca-livre-antt-pracas-v1'
+/** Fallbacks caso a API CKAN falhe — o resource id muda quando a ANTT republica o arquivo. */
+const ANTT_PRACAS_URL_FALLBACKS = [
+  'https://dados.antt.gov.br/dataset/a7e1e12d-f8e8-40cd-bc1f-57973a4a4a6d/resource/d400debd-8058-4971-9625-8b614b08cf9c/download/dados-dos-pracas-de-pedagio6_2026.json',
+  'https://dados.antt.gov.br/dataset/a7e1e12d-f8e8-40cd-bc1f-57973a4a4a6d/resource/5e57925f-b4b5-4bc3-ab23-8ee41346e472/download/dados_das_pracas_de_pedagio.json',
+]
+
+const CACHE_KEY = 'doca-livre-antt-pracas-v3'
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
+const OSM_CACHE_PREFIX = 'doca-livre-osm-tolls-v1:'
+const OSM_CACHE_TTL_MS = 24 * 60 * 60 * 1000
+const FETCH_UA = 'DocaLivre/1.0 (https://docalivre.com; contato@docalivre.com)'
 
 export type PracaAntt = {
   nome: string
@@ -39,6 +49,34 @@ function haversineM(a: { lat: number; lng: number }, b: { lat: number; lng: numb
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)))
 }
 
+/** Distância mínima do ponto a um segmento (projeção equiretangular local), em metros. */
+function distPontoSegmentoM(
+  p: { lat: number; lng: number },
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const lat0 = toRad((a.lat + b.lat + p.lat) / 3)
+  const cos = Math.cos(lat0) || 1e-6
+  const x = (lng: number) => toRad(lng) * cos
+  const y = (lat: number) => toRad(lat)
+  const ax = x(a.lng)
+  const ay = y(a.lat)
+  const bx = x(b.lng)
+  const by = y(b.lat)
+  const px = x(p.lng)
+  const py = y(p.lat)
+  const dx = bx - ax
+  const dy = by - ay
+  const len2 = dx * dx + dy * dy
+  let t = len2 === 0 ? 0 : ((px - ax) * dx + (py - ay) * dy) / len2
+  t = Math.max(0, Math.min(1, t))
+  return haversineM(p, {
+    lat: (ay + t * dy) * (180 / Math.PI),
+    lng: ((ax + t * dx) / cos) * (180 / Math.PI),
+  })
+}
+
 /** Distância mínima do ponto à polilinha (m). */
 function distPontoPolilinhaM(
   p: { lat: number; lng: number },
@@ -46,16 +84,7 @@ function distPontoPolilinhaM(
 ): number {
   let min = Infinity
   for (let i = 0; i < line.length - 1; i++) {
-    const a = line[i]
-    const b = line[i + 1]
-    // amostra 3 pontos do segmento
-    for (const t of [0, 0.5, 1]) {
-      const q = {
-        lat: a.lat + (b.lat - a.lat) * t,
-        lng: a.lng + (b.lng - a.lng) * t,
-      }
-      min = Math.min(min, haversineM(p, q))
-    }
+    min = Math.min(min, distPontoSegmentoM(p, line[i], line[i + 1]))
   }
   return min
 }
@@ -98,13 +127,49 @@ function normalizarPracas(raw: unknown): PracaAntt[] {
   return out
 }
 
+async function resolverUrlPracasAntt(): Promise<string[]> {
+  const urls = [...ANTT_PRACAS_URL_FALLBACKS]
+  try {
+    const res = await fetch(ANTT_PACKAGE_API, {
+      headers: { Accept: 'application/json', 'User-Agent': FETCH_UA },
+    })
+    if (!res.ok) return urls
+    const data = (await res.json()) as {
+      success?: boolean
+      result?: {
+        resources?: Array<{ format?: string; url?: string; name?: string }>
+      }
+    }
+    const resources = data.result?.resources ?? []
+    const jsonUrls = resources
+      .filter(
+        (r) =>
+          String(r.format || '').toUpperCase() === 'JSON' &&
+          String(r.url || '').includes('/download/'),
+      )
+      .map((r) => String(r.url))
+      .filter(Boolean)
+    // Preferir o recurso mais recente (geralmente o último da lista)
+    for (let i = jsonUrls.length - 1; i >= 0; i--) {
+      if (!urls.includes(jsonUrls[i])) urls.unshift(jsonUrls[i])
+    }
+  } catch {
+    /* usa fallbacks */
+  }
+  return urls
+}
+
 export async function carregarPracasAntt(force = false): Promise<PracaAntt[]> {
   if (!force && typeof localStorage !== 'undefined') {
     try {
       const raw = localStorage.getItem(CACHE_KEY)
       if (raw) {
         const blob = JSON.parse(raw) as CacheBlob
-        if (Date.now() - blob.at < CACHE_TTL_MS && Array.isArray(blob.pracas)) {
+        if (
+          Date.now() - blob.at < CACHE_TTL_MS &&
+          Array.isArray(blob.pracas) &&
+          blob.pracas.length > 0
+        ) {
           return blob.pracas
         }
       }
@@ -113,19 +178,120 @@ export async function carregarPracasAntt(force = false): Promise<PracaAntt[]> {
     }
   }
 
-  const res = await fetch(ANTT_PRACAS_URL, { headers: { Accept: 'application/json' } })
-  if (!res.ok) throw new Error(`ANTT praças HTTP ${res.status}`)
-  const json = await res.json()
-  const pracas = normalizarPracas(json)
-
-  if (typeof localStorage !== 'undefined') {
+  const urls = await resolverUrlPracasAntt()
+  let lastErr: Error | null = null
+  for (const url of urls) {
     try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), pracas } satisfies CacheBlob))
-    } catch {
-      /* ignore quota */
+      const res = await fetch(url, {
+        headers: { Accept: 'application/json', 'User-Agent': FETCH_UA },
+      })
+      if (!res.ok) {
+        lastErr = new Error(`ANTT praças HTTP ${res.status}`)
+        continue
+      }
+      const json = await res.json()
+      const pracas = normalizarPracas(json)
+      if (pracas.length === 0) {
+        lastErr = new Error('ANTT praças vazias')
+        continue
+      }
+      if (typeof localStorage !== 'undefined') {
+        try {
+          localStorage.setItem(
+            CACHE_KEY,
+            JSON.stringify({ at: Date.now(), pracas } satisfies CacheBlob),
+          )
+        } catch {
+          /* ignore quota */
+        }
+      }
+      return pracas
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error(String(e))
     }
   }
-  return pracas
+  throw lastErr ?? new Error('Falha ao carregar praças ANTT')
+}
+
+type OsmToll = { nome: string; lat: number; lng: number; free_flow?: boolean }
+
+async function carregarPracasOsmNaBbox(
+  minLat: number,
+  minLng: number,
+  maxLat: number,
+  maxLng: number,
+): Promise<OsmToll[]> {
+  const key =
+    OSM_CACHE_PREFIX +
+    [minLat, minLng, maxLat, maxLng].map((n) => n.toFixed(3)).join('|')
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const raw = localStorage.getItem(key)
+      if (raw) {
+        const blob = JSON.parse(raw) as { at: number; items: OsmToll[] }
+        if (Date.now() - blob.at < OSM_CACHE_TTL_MS && Array.isArray(blob.items)) {
+          return blob.items
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const q = `[out:json][timeout:35];(
+  node["barrier"="toll_booth"](${minLat},${minLng},${maxLat},${maxLng});
+  node["highway"="toll_gantry"](${minLat},${minLng},${maxLat},${maxLng});
+);out body;`
+  const bases = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+  ]
+  for (const base of bases) {
+    try {
+      const res = await fetch(base, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': FETCH_UA,
+        },
+        body: `data=${encodeURIComponent(q)}`,
+      })
+      if (!res.ok) continue
+      const txt = await res.text()
+      if (!txt.trim().startsWith('{')) continue
+      const data = JSON.parse(txt) as {
+        elements?: Array<{
+          lat?: number
+          lon?: number
+          tags?: Record<string, string>
+        }>
+      }
+      const items: OsmToll[] = []
+      for (const el of data.elements ?? []) {
+        if (el.lat == null || el.lon == null) continue
+        const tags = el.tags || {}
+        const nome =
+          tags.name || tags.operator || tags.ref || tags.brand || 'Pedágio'
+        const free_flow =
+          /free.?flow|p[oó]rtico|gantry|eletr[oô]nic/i.test(
+            `${nome} ${tags.highway || ''} ${tags.barrier || ''}`,
+          ) || tags.highway === 'toll_gantry'
+        items.push({ nome, lat: el.lat, lng: el.lon, free_flow })
+      }
+      if (typeof localStorage !== 'undefined') {
+        try {
+          localStorage.setItem(key, JSON.stringify({ at: Date.now(), items }))
+        } catch {
+          /* ignore */
+        }
+      }
+      return items
+    } catch {
+      /* tenta próximo mirror */
+    }
+  }
+  return []
 }
 
 /**
@@ -157,7 +323,7 @@ export type PedagioRotaResultado = {
 }
 
 /**
- * Cruza a polilinha da rota com praças ANTT (raio ~220 m) e estima o pedágio.
+ * Cruza a polilinha da rota com praças ANTT + OSM (raio ~900 m) e estima o pedágio.
  */
 export async function calcularPedagioNaRota(
   polyline: Array<{ lat: number; lng: number }>,
@@ -170,7 +336,7 @@ export async function calcularPedagioNaRota(
       vale_pedagio: 0,
       pracas: [],
       free_flow: false,
-      fonte: 'Dados Abertos ANTT',
+      fonte: 'Dados Abertos ANTT + OpenStreetMap',
     }
   }
 
@@ -185,48 +351,94 @@ export async function calcularPedagioNaRota(
     minLng = Math.min(minLng, p.lng)
     maxLng = Math.max(maxLng, p.lng)
   }
-  const pad = 0.08
+  const pad = 0.06
   minLat -= pad
   maxLat += pad
   minLng -= pad
   maxLng += pad
 
-  const todas = await carregarPracasAntt()
-  const candidatas = todas.filter(
-    (p) => p.lat >= minLat && p.lat <= maxLat && p.lng >= minLng && p.lng <= maxLng,
-  )
-
-  const RAIO_M = 220
+  const RAIO_M = 900
+  const DEDUPE_M = 350
   const hits: AnttPracaPedagio[] = []
-  const seen = new Set<string>()
 
-  for (const p of candidatas) {
-    const d = distPontoPolilinhaM({ lat: p.lat, lng: p.lng }, polyline)
-    if (d > RAIO_M) continue
-    const key = `${p.nome}|${p.rodovia}|${p.lat.toFixed(4)}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    const base = tarifaBaseCarro(p.rodovia)
-    const valor = valorPracaPorEixos(base, eixos)
-    hits.push({
-      nome: `${p.nome} (${p.rodovia}/${p.uf})`,
-      valor,
-      tipo: p.free_flow ? 'Free Flow / OCR' : 'Praça convencional',
-      free_flow: Boolean(p.free_flow),
-      lat: p.lat,
-      lng: p.lng,
-    })
+  function jaTemProximo(lat: number, lng: number): boolean {
+    return hits.some(
+      (h) =>
+        h.lat != null &&
+        h.lng != null &&
+        haversineM({ lat, lng }, { lat: h.lat, lng: h.lng }) < DEDUPE_M,
+    )
+  }
+
+  let fonteAntt = false
+  try {
+    const todas = await carregarPracasAntt()
+    const candidatas = todas.filter(
+      (p) =>
+        p.lat >= minLat &&
+        p.lat <= maxLat &&
+        p.lng >= minLng &&
+        p.lng <= maxLng,
+    )
+    for (const p of candidatas) {
+      const d = distPontoPolilinhaM({ lat: p.lat, lng: p.lng }, polyline)
+      if (d > RAIO_M) continue
+      if (jaTemProximo(p.lat, p.lng)) continue
+      const base = tarifaBaseCarro(p.rodovia)
+      const valor = valorPracaPorEixos(base, eixos)
+      hits.push({
+        nome: `${p.nome} (${p.rodovia}/${p.uf})`,
+        valor,
+        tipo: p.free_flow ? 'Free Flow / OCR' : 'Praça convencional',
+        free_flow: Boolean(p.free_flow),
+        lat: p.lat,
+        lng: p.lng,
+      })
+      fonteAntt = true
+    }
+  } catch {
+    /* ANTT offline/URL antiga — segue com OSM */
+  }
+
+  let fonteOsm = false
+  try {
+    const osm = await carregarPracasOsmNaBbox(minLat, minLng, maxLat, maxLng)
+    for (const p of osm) {
+      const d = distPontoPolilinhaM({ lat: p.lat, lng: p.lng }, polyline)
+      if (d > RAIO_M) continue
+      if (jaTemProximo(p.lat, p.lng)) continue
+      const valor = valorPracaPorEixos(tarifaBaseCarro(''), eixos)
+      hits.push({
+        nome: p.nome,
+        valor,
+        tipo: p.free_flow ? 'Free Flow / OCR (OSM)' : 'Praça (OpenStreetMap)',
+        free_flow: Boolean(p.free_flow),
+        lat: p.lat,
+        lng: p.lng,
+      })
+      fonteOsm = true
+    }
+  } catch {
+    /* OSM indisponível */
   }
 
   const pedagio = roundMoney(hits.reduce((s, h) => s + h.valor, 0))
   const e = Math.max(1, eixos)
+  const fontes = [
+    fonteAntt ? 'ANTT' : null,
+    fonteOsm ? 'OpenStreetMap' : null,
+  ].filter(Boolean)
   return {
     pedagio,
     pedagio_por_eixo: roundMoney(pedagio / e),
     vale_pedagio: pedagio,
     pracas: hits,
     free_flow: hits.some((h) => h.free_flow),
-    fonte: 'Dados Abertos ANTT (praças) + estimativa tarifária por eixos · Res. Vale-Pedágio 6.024/2023',
+    fonte:
+      (fontes.length
+        ? `Praças: ${fontes.join(' + ')}`
+        : 'Sem praças georreferenciadas nesta rota') +
+      ' · estimativa tarifária por eixos · Res. Vale-Pedágio 6.024/2023',
   }
 }
 
@@ -240,7 +452,8 @@ type OsrmRouteRaw = {
 
 function slimPolyline(coords: [number, number][]): Array<{ lat: number; lng: number }> {
   const polyline = coords.map(([lng, lat]) => ({ lat, lng }))
-  const step = Math.max(1, Math.floor(polyline.length / 180))
+  // Mais pontos = melhor cruzamento com praças de pedágio
+  const step = Math.max(1, Math.floor(polyline.length / 500))
   return polyline.filter((_, i) => i % step === 0 || i === polyline.length - 1)
 }
 

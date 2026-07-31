@@ -366,7 +366,9 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
                 Praças na rota ({calc.rota.pracas?.length ?? 0})
               </p>
               {(calc.rota.pracas?.length ?? 0) === 0 ? (
-                <p className="text-xs text-ink-muted">Nenhuma praça ANTT detectada nesta rota.</p>
+                <p className="text-xs text-ink-muted">
+                  Nenhuma praça de pedágio detectada nesta rota.
+                </p>
               ) : (
                 <ul className="space-y-1 text-[11px]">
                   {calc.rota.pracas!.map((p, i) => (
