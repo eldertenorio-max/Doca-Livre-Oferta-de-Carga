@@ -12,6 +12,7 @@ import type { Carga } from '../../types'
 import { AddressSuggestInput } from '../ui/AddressSuggestInput'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
 import { AnttFretePanel } from './AnttFretePanel'
+import { RotaMapPreview } from './RotaMapPreview'
 
 type Props = {
   carga: Carga | null
@@ -174,6 +175,22 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
             />
           </Field>
         </div>
+
+        {open && origem.trim().length >= 3 && destino.trim().length >= 3 ? (
+          <div className="space-y-1.5">
+            <p className="text-[12px] font-bold uppercase tracking-wide text-ink">
+              Mapa da rota
+            </p>
+            <RotaMapPreview
+              key={`calc-map-${carga.id}-${origem}-${destino}-${eixos}`}
+              origem={origem}
+              destino={destino}
+              veiculo={carga.veiculo}
+              eixos={eixos}
+              className="h-[280px] min-h-[280px] w-full"
+            />
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Eixos" className="min-w-0">
