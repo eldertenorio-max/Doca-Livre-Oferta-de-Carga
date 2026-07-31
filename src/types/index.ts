@@ -232,6 +232,10 @@ export interface Rota {
   descricao: string
   origem: string
   destino: string
+  origem_lat?: number | null
+  origem_lng?: number | null
+  destino_lat?: number | null
+  destino_lng?: number | null
   classificacao: ClassificacaoRota
   frete_tabela: number
   km: number

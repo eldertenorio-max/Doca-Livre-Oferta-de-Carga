@@ -64,12 +64,22 @@ export function dedupeRotas(rotas: Rota[]): Rota[] {
   return Array.from(best.values())
 }
 
+function asCoord(raw: unknown): number | null {
+  if (raw == null || raw === '') return null
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : null
+}
+
 export function mapRotaRow(row: Record<string, unknown>): Rota {
   return {
     id: String(row.id),
     descricao: String(row.descricao || ''),
     origem: String(row.origem || ''),
     destino: String(row.destino || ''),
+    origem_lat: asCoord(row.origem_lat),
+    origem_lng: asCoord(row.origem_lng),
+    destino_lat: asCoord(row.destino_lat),
+    destino_lng: asCoord(row.destino_lng),
     classificacao: asClassificacao(row.classificacao),
     frete_tabela: Number(row.frete_tabela) || 0,
     km: Number(row.km) || 0,
@@ -114,22 +124,42 @@ export async function upsertRotaRemote(
 ): Promise<{ ok: true; id: string } | { ok: false; erro: string }> {
   if (!isSupabaseConfigured || !supabase) return { ok: true, id: r.id }
   const id = isUuid(r.id) ? r.id : newRotaId()
-  const row = {
+  const row: Record<string, unknown> = {
     id,
     descricao: r.descricao.trim(),
     origem: r.origem.trim(),
     destino: r.destino.trim(),
+    origem_lat: r.origem_lat ?? null,
+    origem_lng: r.origem_lng ?? null,
+    destino_lat: r.destino_lat ?? null,
+    destino_lng: r.destino_lng ?? null,
     classificacao: asClassificacao(r.classificacao),
     frete_tabela: Number(r.frete_tabela) || 0,
     km: Number(r.km) || 0,
     situacao: r.situacao === 'inativo' ? 'inativo' : 'ativo',
   }
   const { error } = await supabase.from('rotas').upsert(row)
-  if (error) {
-    console.warn('[rotas] falha ao gravar:', error.message)
-    return { ok: false, erro: error.message }
+  if (!error) return { ok: true, id }
+
+  // Colunas de coordenadas ainda não existem no Supabase
+  if (/origem_lat|origem_lng|destino_lat|destino_lng/i.test(error.message)) {
+    const {
+      origem_lat: _ol,
+      origem_lng: _og,
+      destino_lat: _dl,
+      destino_lng: _dg,
+      ...rest
+    } = row
+    const retry = await supabase.from('rotas').upsert(rest)
+    if (retry.error) {
+      console.warn('[rotas] falha ao gravar:', retry.error.message)
+      return { ok: false, erro: retry.error.message }
+    }
+    return { ok: true, id }
   }
-  return { ok: true, id }
+
+  console.warn('[rotas] falha ao gravar:', error.message)
+  return { ok: false, erro: error.message }
 }
 
 /**
