@@ -278,9 +278,9 @@ export function montarPontosFrota(
     const t = transpById.get(m.transportador_id)
     if (!v || v.situacao !== 'ativo') continue
     if (!t || t.situacao !== 'ativo') continue
-    // Mapa da frota: só localização cadastrada no veículo
-    const lat = v.origem_lat
-    const lng = v.origem_lng
+    // Preferência: localização da placa; fallback: origem da transportadora
+    const lat = v.origem_lat ?? t.origem_lat
+    const lng = v.origem_lng ?? t.origem_lng
     if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) continue
 
     const { grupo, emoji } = classificarIconeVeiculo(v.tipo)
@@ -337,8 +337,8 @@ export function montarPontosFrota(
     if (v.situacao !== 'ativo' || !v.transportador_id) continue
     const t = transpById.get(v.transportador_id)
     if (!t || t.situacao !== 'ativo') continue
-    const lat = v.origem_lat
-    const lng = v.origem_lng
+    const lat = v.origem_lat ?? t.origem_lat
+    const lng = v.origem_lng ?? t.origem_lng
     if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) continue
     const { grupo, emoji } = classificarIconeVeiculo(v.tipo)
     const cidade = (v.origem_cidade || t.origem_cidade || t.cidade || '').trim()

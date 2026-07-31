@@ -39,6 +39,11 @@ import {
 } from '../lib/configTransportador'
 import { montarPatchLocalizacaoAposViagem } from '../lib/atualizarLocalizacaoViagem'
 import {
+  localizacaoDaTransportadora,
+  preencherVeiculosComOrigemTransportadora,
+  veiculoSemLocalizacaoMapa,
+} from '../lib/veiculoLocalizacao'
+import {
   lanceNaRodadaAtual,
   makeHist,
   normalizeCarga,
@@ -744,10 +749,16 @@ function ensureDemoFrotaMapa(state: DataState): DataState {
     })
   }
 
+  const transportadores = Array.from(tMap.values())
+  const { veiculos } = preencherVeiculosComOrigemTransportadora(
+    Array.from(vMap.values()),
+    transportadores,
+  )
+
   return {
     ...state,
-    transportadores: Array.from(tMap.values()),
-    veiculos: Array.from(vMap.values()),
+    transportadores,
+    veiculos,
     motoristas: Array.from(mMap.values()),
   }
 }
@@ -4351,13 +4362,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
     // Sempre UUID para sincronizar entre Super e transportador
     const id = isUuid(v.id) ? v.id : newVeiculoId()
     const antigoId = v.id !== id ? v.id : null
-    const salvo: Veiculo = {
+    let base: Veiculo = {
       ...v,
       id,
       placa: (v.placa || '').trim().toUpperCase(),
       disponivel_mapa: v.disponivel_mapa !== false,
       updated_at: new Date().toISOString(),
     }
+    // Sem localização na placa → herda origem da transportadora (aparece no mapa)
+    if (veiculoSemLocalizacaoMapa(base) && base.transportador_id) {
+      const t = stateRef.current.transportadores.find(
+        (x) => x.id === base.transportador_id,
+      )
+      const patch = t ? localizacaoDaTransportadora(t) : null
+      if (patch) {
+        base = {
+          ...base,
+          ...patch,
+          raio_km:
+            base.raio_km != null && Number(base.raio_km) > 0
+              ? Number(base.raio_km)
+              : patch.raio_km,
+        }
+      }
+    }
+    const salvo = base
 
     setState((prev) => {
       const list = (prev.veiculos ?? []).filter((x) => x.id !== antigoId)
