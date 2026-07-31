@@ -13,6 +13,7 @@ import type {
   Veiculo,
 } from '../types'
 import { alinharStatusComLances } from './kanbanColumns'
+import { dedupeRotas } from './rotasSync'
 import { isSupabaseConfigured, supabase } from './supabase'
 import { veiculoParaSync } from './veiculosSync'
 
@@ -79,7 +80,7 @@ export function pickSyncSlice(state: KanbanSyncSlice): KanbanSyncSlice {
     transportadores: state.transportadores,
     veiculos: (state.veiculos ?? []).map(veiculoParaSync),
     motoristas: state.motoristas ?? [],
-    rotas: state.rotas ?? [],
+    rotas: dedupeRotas(state.rotas ?? []),
     notificacoes: state.notificacoes,
     mensagens: state.mensagens,
     historico: state.historico,
@@ -277,8 +278,8 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
       const remote = Array.isArray(slice.rotas) ? slice.rotas : []
       const local = prev.rotas ?? []
       // Remoto sem rotas não apaga cadastros locais (payload antigo / corrida)
-      if (remote.length === 0 && local.length > 0) return local
-      return mergeById(local, remote)
+      if (remote.length === 0 && local.length > 0) return dedupeRotas(local)
+      return dedupeRotas(mergeById(local, remote))
     })(),
     notificacoes: (() => {
       const local = prev.notificacoes ?? []

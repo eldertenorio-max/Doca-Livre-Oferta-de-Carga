@@ -98,8 +98,10 @@ import {
 } from '../lib/veiculosSync'
 import {
   carregarRotasDoSupabase,
+  dedupeRotas,
   mergeRotasLocalRemote,
   newRotaId,
+  rotasPendentesMigracao,
   upsertRotaRemote,
 } from '../lib/rotasSync'
 import {
@@ -955,7 +957,7 @@ function loadState(): DataState {
         : defaults.motoristas,
       documentos: Array.isArray(parsed.documentos) ? parsed.documentos : defaults.documentos,
       grupos,
-      rotas: Array.isArray(parsed.rotas) ? parsed.rotas : defaults.rotas,
+      rotas: dedupeRotas(Array.isArray(parsed.rotas) ? parsed.rotas : defaults.rotas),
       historico: Array.isArray(parsed.historico) ? parsed.historico : [],
       historicoPropostas: Array.isArray(parsed.historicoPropostas)
         ? parsed.historicoPropostas
@@ -1404,9 +1406,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
             ),
           )
         : prev.veiculos
-      const rotas = remoteRotas
-        ? mergeRotasLocalRemote(prev.rotas ?? [], remoteRotas)
-        : prev.rotas
+      const rotasAntes = prev.rotas ?? []
+      const rotas = dedupeRotas(
+        remoteRotas
+          ? mergeRotasLocalRemote(rotasAntes, remoteRotas)
+          : rotasAntes,
+      )
       const next = unificarTransportadoresDuplicados(
         ensureDemoFrotaMapa({
           ...prev,
@@ -1418,7 +1423,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }),
       )
       stateRef.current = next
-      if (notifNova || (remoteRotas && remoteRotas.length > 0)) pushSlice = next
+      if (
+        notifNova ||
+        (remoteRotas && remoteRotas.length > 0) ||
+        rotas.length !== rotasAntes.length
+      ) {
+        pushSlice = next
+      }
       return next
     })
     if (pushSlice) flushKanbanPush(pushSlice)
@@ -1443,16 +1454,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
       })
     }
 
-    // Migra rotas locais (id r-… / seed) para a tabela rotas + sync
-    const rotasLocais = (stateRef.current.rotas ?? []).filter((r) => !isUuid(r.id))
+    // Migra só rotas novas (não seed) que ainda não têm UUID equivalente
+    const rotasLocais = rotasPendentesMigracao(stateRef.current.rotas ?? [])
     for (const r of rotasLocais) {
       const res = await upsertRotaRemote(r)
       if (!res.ok) continue
       setState((prev) => {
-        const rotas = prev.rotas.map((x) =>
-          x.id === r.id ? { ...x, id: res.id } : x,
+        const rotas = dedupeRotas(
+          prev.rotas.map((x) => (x.id === r.id ? { ...x, id: res.id } : x)),
         )
         const next = { ...prev, rotas }
+        stateRef.current = next
+        flushKanbanPush(next)
+        return next
+      })
+    }
+
+    // Limpa duplicatas já persistidas no sync
+    const atuais = stateRef.current.rotas ?? []
+    const limpas = dedupeRotas(atuais)
+    if (limpas.length !== atuais.length) {
+      setState((prev) => {
+        const next = { ...prev, rotas: limpas }
         stateRef.current = next
         flushKanbanPush(next)
         return next
@@ -4321,19 +4344,35 @@ export function DataProvider({ children }: { children: ReactNode }) {
         destino: r.destino.trim(),
       }
       setState((prev) => {
-        const exists = prev.rotas.some((x) => x.id === rota.id || x.id === r.id)
-        const rotas = exists
-          ? prev.rotas.map((x) => (x.id === rota.id || x.id === r.id ? rota : x))
-          : [...prev.rotas, rota]
+        const mesma = prev.rotas.find(
+          (x) =>
+            x.id === rota.id ||
+            x.id === r.id ||
+            (x.origem.trim().toLowerCase() === rota.origem.toLowerCase() &&
+              x.destino.trim().toLowerCase() === rota.destino.toLowerCase()),
+        )
+        const rotas = dedupeRotas(
+          mesma
+            ? prev.rotas.map((x) => (x.id === mesma.id ? { ...rota, id: mesma.id } : x))
+            : [...prev.rotas, rota],
+        )
         const next = { ...prev, rotas }
         stateRef.current = next
         flushKanbanPush(next)
         return next
       })
-      void upsertRotaRemote(rota).then((res) => {
-        if (!res.ok || res.id === rota.id) return
+      const idFinal =
+        stateRef.current.rotas.find(
+          (x) =>
+            x.origem.trim().toLowerCase() === rota.origem.toLowerCase() &&
+            x.destino.trim().toLowerCase() === rota.destino.toLowerCase(),
+        )?.id ?? rota.id
+      void upsertRotaRemote({ ...rota, id: idFinal }).then((res) => {
+        if (!res.ok || res.id === idFinal) return
         setState((prev) => {
-          const rotas = prev.rotas.map((x) => (x.id === rota.id ? { ...x, id: res.id } : x))
+          const rotas = dedupeRotas(
+            prev.rotas.map((x) => (x.id === idFinal ? { ...x, id: res.id } : x)),
+          )
           const next = { ...prev, rotas }
           stateRef.current = next
           flushKanbanPush(next)

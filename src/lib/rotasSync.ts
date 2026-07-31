@@ -6,10 +6,62 @@ export function newRotaId(): string {
   return newVeiculoId()
 }
 
+/** Seeds fixos do demo — não migrar para UUID (evita duplicar a cada refresh). */
+const SEED_ROTA_IDS = new Set(['r1', 'r2', 'r3', 'r4'])
+
+export function isSeedRotaId(id: string): boolean {
+  return SEED_ROTA_IDS.has(id)
+}
+
 function asClassificacao(raw: unknown): ClassificacaoRota {
   const v = String(raw || 'B').toUpperCase()
   if (v === 'A' || v === 'B' || v === 'C') return v
   return 'B'
+}
+
+function normTxt(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+}
+
+/** Chave estável para detectar a mesma rota (origem + destino). */
+export function chaveRota(r: Pick<Rota, 'origem' | 'destino'>): string {
+  return `${normTxt(r.origem)}|${normTxt(r.destino)}`
+}
+
+function scoreRota(x: Rota): number {
+  return (
+    (isUuid(x.id) ? 100 : isSeedRotaId(x.id) ? 10 : 50) +
+    (x.situacao === 'ativo' ? 5 : 0)
+  )
+}
+
+function escolherMelhorRota(a: Rota, b: Rota): Rota {
+  const sa = scoreRota(a)
+  const sb = scoreRota(b)
+  if (sb > sa) return b
+  if (sa > sb) return a
+  if (isUuid(b.id) && !isUuid(a.id)) return b
+  return a
+}
+
+/**
+ * Remove duplicatas da mesma origem→destino.
+ * Prefere: UUID > id local; ativo > inativo.
+ */
+export function dedupeRotas(rotas: Rota[]): Rota[] {
+  const best = new Map<string, Rota>()
+  for (const r of rotas) {
+    const k = chaveRota(r)
+    if (!k || k === '|') continue
+    const prev = best.get(k)
+    best.set(k, prev ? escolherMelhorRota(prev, r) : r)
+  }
+  return Array.from(best.values())
 }
 
 export function mapRotaRow(row: Record<string, unknown>): Rota {
@@ -34,30 +86,27 @@ export async function carregarRotasDoSupabase(): Promise<Rota[] | null> {
     console.warn('[rotas] falha ao listar:', error.message)
     return null
   }
-  return (data ?? []).map((r) => mapRotaRow(r as Record<string, unknown>))
+  return dedupeRotas((data ?? []).map((r) => mapRotaRow(r as Record<string, unknown>)))
 }
 
-/** Une rotas locais com remotas; ids `r-…` / seed cedem ao UUID do servidor por origem+destino. */
+/** Une rotas locais com remotas e remove duplicatas origem→destino. */
 export function mergeRotasLocalRemote(local: Rota[], remote: Rota[]): Rota[] {
   const byId = new Map<string, Rota>()
   for (const r of local) byId.set(r.id, r)
 
-  const chave = (r: Rota) =>
-    `${r.origem.trim().toLowerCase()}|${r.destino.trim().toLowerCase()}|${r.descricao.trim().toLowerCase()}`
-
   for (const rem of remote) {
-    const k = chave(rem)
+    const k = chaveRota(rem)
     for (const [id, loc] of [...byId.entries()]) {
       if (id === rem.id) continue
-      if (isUuid(id)) continue
-      if (chave(loc) !== k) continue
-      byId.delete(id)
+      if (chaveRota(loc) !== k) continue
+      // Remoto UUID ganha de seed / id local antigo
+      if (isUuid(rem.id) || !isUuid(id)) byId.delete(id)
     }
     const prev = byId.get(rem.id)
     byId.set(rem.id, prev ? { ...prev, ...rem, id: rem.id } : rem)
   }
 
-  return Array.from(byId.values())
+  return dedupeRotas(Array.from(byId.values()))
 }
 
 export async function upsertRotaRemote(
@@ -81,4 +130,21 @@ export async function upsertRotaRemote(
     return { ok: false, erro: error.message }
   }
   return { ok: true, id }
+}
+
+/**
+ * Rotas que ainda precisam migrar para UUID/tabela:
+ * — não é seed demo
+ * — não é UUID
+ * — ainda não existe outra rota UUID com a mesma origem/destino
+ */
+export function rotasPendentesMigracao(rotas: Rota[]): Rota[] {
+  const keysComUuid = new Set(
+    rotas.filter((r) => isUuid(r.id)).map((r) => chaveRota(r)),
+  )
+  return rotas.filter((r) => {
+    if (isUuid(r.id) || isSeedRotaId(r.id)) return false
+    if (keysComUuid.has(chaveRota(r))) return false
+    return true
+  })
 }
