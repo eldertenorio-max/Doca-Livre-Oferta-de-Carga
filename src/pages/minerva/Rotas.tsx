@@ -351,7 +351,7 @@ export function RotasPage() {
             <tr>
               <th className="px-4 py-3">Descrição</th>
               <th>Classificação</th>
-              <th>Frete Tabela</th>
+              <th>Frete Sugestão</th>
               <th>KM</th>
               <th>Situação</th>
               <th />
@@ -532,7 +532,7 @@ export function RotasPage() {
               />
             </Field>
           </div>
-          <Field label="Frete Tabela">
+          <Field label="Frete Sugestão">
             <input
               className={inputClass}
               inputMode="decimal"
