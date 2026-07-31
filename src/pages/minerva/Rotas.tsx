@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useData } from '../../context/DataContext'
-import { MARGENS_POR_ROTA, formatCurrency } from '../../lib/businessRules'
+import { formatCurrency } from '../../lib/businessRules'
 import { buscarCidades, filtrarSugestoes } from '../../lib/cidadesBrasil'
 import type { ClassificacaoRota, Rota } from '../../types'
 import { Button, Field, Modal, inputClass } from '../../components/ui/Modal'
@@ -62,7 +62,7 @@ export function RotasPage() {
       <header>
         <h2 className="font-display text-2xl font-bold">Rotas de Frete</h2>
         <p className="text-sm text-ink-muted">
-          Classificação ABC define a faixa de margem de ganho na publicação.
+          Cadastro de rotas de frete com classificação ABC.
         </p>
       </header>
 
@@ -73,7 +73,6 @@ export function RotasPage() {
               <th className="px-4 py-3">Descrição</th>
               <th>Classificação</th>
               <th>Frete Tabela</th>
-              <th>Margens</th>
               <th>KM</th>
               <th>Situação</th>
               <th />
