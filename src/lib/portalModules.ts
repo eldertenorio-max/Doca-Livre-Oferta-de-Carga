@@ -30,8 +30,8 @@ export type OfertaPermissao = {
 
 export const OFERTA_MODULOS_CATALOGO: { id: OfertaModuloId; label: string; role?: 'minerva' | 'transportador' | 'ambos' }[] = [
   { id: 'kanban', label: 'Cargas', role: 'minerva' },
-  { id: 'tarefas', label: 'Tarefas', role: 'minerva' },
   { id: 'viagens', label: 'Viagens', role: 'minerva' },
+  { id: 'tarefas', label: 'Tarefas', role: 'minerva' },
   { id: 'rotas', label: 'Rotas', role: 'minerva' },
   { id: 'transportadoras', label: 'Transportadoras', role: 'minerva' },
   { id: 'veiculos', label: 'Veículos', role: 'ambos' },

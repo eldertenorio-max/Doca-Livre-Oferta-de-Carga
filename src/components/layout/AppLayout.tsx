@@ -103,8 +103,8 @@ function IconWallet() {
 
 const minervaLinks: NavItem[] = [
   { to: '/embarcador', label: 'Cargas', icon: <IconGrid />, end: true },
-  { to: '/embarcador/tarefas', label: 'Tarefas', icon: <IconGrid /> },
   { to: '/embarcador/viagens', label: 'Viagens', icon: <IconTruck /> },
+  { to: '/embarcador/tarefas', label: 'Tarefas', icon: <IconGrid /> },
   { to: '/embarcador/mapa-frota', label: 'Mapa da Frota', icon: <IconMap /> },
   { to: '/embarcador/rotas', label: 'Rotas', icon: <IconMap /> },
   { to: '/embarcador/transportadores', label: 'Transportadoras', icon: <IconUsers /> },
