@@ -1179,12 +1179,39 @@
   color: #1a1d21;
 }
 
+.disp-placas__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .disp-placas__toggle {
   display: inline-flex;
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid #d0d7de;
   flex-shrink: 0;
+}
+
+.disp-placas__loc {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid #d0d7de;
+  background: #fff;
+  color: #0f172a;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.disp-placas__loc:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0ea5e9;
 }
 
 .disp-placas__btn {

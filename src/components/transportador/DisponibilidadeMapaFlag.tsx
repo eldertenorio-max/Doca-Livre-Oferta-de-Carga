@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { MapPin } from 'lucide-react'
 import { useData } from '../../context/DataContext'
+import { LocalizacaoVeiculoModal } from '../veiculos/LocalizacaoVeiculoModal'
+import type { Veiculo } from '../../types'
 import '../../styles/mapa-frota.css'
 
 type Props = {
@@ -13,9 +16,17 @@ const EXPLICACAO =
 
 /** Disponibilidade por placa no Mapa da Frota. */
 export function DisponibilidadeMapaFlag({ transportadorId, variant = 'panel' }: Props) {
-  const { transportadores, veiculos, setDisponivelMapa, setDisponivelMapaVeiculo } = useData()
+  const {
+    transportadores,
+    veiculos,
+    setDisponivelMapa,
+    setDisponivelMapaVeiculo,
+    salvarVeiculo,
+    transportadorById,
+  } = useData()
   const t = transportadores.find((x) => x.id === transportadorId)
   const [open, setOpen] = useState(false)
+  const [locVeiculo, setLocVeiculo] = useState<Veiculo | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
 
   const placas = useMemo(
@@ -34,10 +45,12 @@ export function DisponibilidadeMapaFlag({ transportadorId, variant = 'panel' }: 
   useEffect(() => {
     if (!open) return
     function onDoc(e: MouseEvent) {
+      // Modal de localização é portal — não fecha o painel enquanto ele estiver aberto
+      if (locVeiculo) return
       if (!rootRef.current?.contains(e.target as Node)) setOpen(false)
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key === 'Escape' && !locVeiculo) setOpen(false)
     }
     document.addEventListener('mousedown', onDoc)
     document.addEventListener('keydown', onKey)
@@ -45,7 +58,7 @@ export function DisponibilidadeMapaFlag({ transportadorId, variant = 'panel' }: 
       document.removeEventListener('mousedown', onDoc)
       document.removeEventListener('keydown', onKey)
     }
-  }, [open])
+  }, [open, locVeiculo])
 
   if (!t) return null
 
@@ -86,22 +99,33 @@ export function DisponibilidadeMapaFlag({ transportadorId, variant = 'panel' }: 
                     <strong>{v.placa}</strong>
                     <span>{v.tipo || 'Veículo'}</span>
                   </div>
-                  <div className="disp-placas__toggle" role="group" aria-label={`Status ${v.placa}`}>
+                  <div className="disp-placas__actions">
+                    <div className="disp-placas__toggle" role="group" aria-label={`Status ${v.placa}`}>
+                      <button
+                        type="button"
+                        className={`disp-placas__btn disp-placas__btn--ok${on ? ' is-on' : ''}`}
+                        aria-pressed={on}
+                        onClick={() => void setDisponivelMapaVeiculo(v.id, true)}
+                      >
+                        Disponível
+                      </button>
+                      <button
+                        type="button"
+                        className={`disp-placas__btn disp-placas__btn--off${!on ? ' is-on' : ''}`}
+                        aria-pressed={!on}
+                        onClick={() => void setDisponivelMapaVeiculo(v.id, false)}
+                      >
+                        Indisponível
+                      </button>
+                    </div>
                     <button
                       type="button"
-                      className={`disp-placas__btn disp-placas__btn--ok${on ? ' is-on' : ''}`}
-                      aria-pressed={on}
-                      onClick={() => void setDisponivelMapaVeiculo(v.id, true)}
+                      className="disp-placas__loc"
+                      title="Alterar localização do veículo"
+                      aria-label={`Alterar localização do veículo ${v.placa}`}
+                      onClick={() => setLocVeiculo(v)}
                     >
-                      Disponível
-                    </button>
-                    <button
-                      type="button"
-                      className={`disp-placas__btn disp-placas__btn--off${!on ? ' is-on' : ''}`}
-                      aria-pressed={!on}
-                      onClick={() => void setDisponivelMapaVeiculo(v.id, false)}
-                    >
-                      Indisponível
+                      <MapPin size={16} aria-hidden />
                     </button>
                   </div>
                 </li>
@@ -113,89 +137,117 @@ export function DisponibilidadeMapaFlag({ transportadorId, variant = 'panel' }: 
     </div>
   )
 
+  const modalLoc = (
+    <LocalizacaoVeiculoModal
+      open={Boolean(locVeiculo)}
+      veiculo={locVeiculo}
+      transportador={
+        locVeiculo?.transportador_id
+          ? transportadorById(locVeiculo.transportador_id) ?? t ?? null
+          : t ?? null
+      }
+      onClose={() => setLocVeiculo(null)}
+      onSave={(patch) => {
+        if (!locVeiculo) return
+        salvarVeiculo({
+          ...locVeiculo,
+          ...patch,
+          updated_at: new Date().toISOString(),
+        })
+        setLocVeiculo(null)
+      }}
+    />
+  )
+
   if (variant === 'topbar') {
     return (
-      <div className="app-topbar-disp" ref={rootRef} role="group" aria-label="Disponibilidade no mapa">
-        <div className="app-topbar-disp-toggle">
-          <button
-            type="button"
-            className={`app-topbar-disp-btn app-topbar-disp-btn--ok${open || !nenhumaDisp ? ' is-on' : ''}`}
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            aria-haspopup="dialog"
-            title="Escolher placas disponíveis"
-          >
-            Disponível{placas.length > 0 ? ` (${nDisp})` : ''}
-          </button>
-          <button
-            type="button"
-            className={`app-topbar-disp-btn app-topbar-disp-btn--off${nenhumaDisp && !open ? ' is-on' : ''}`}
-            onClick={() => {
-              void setDisponivelMapa(transportadorId, false)
-              setOpen(false)
-            }}
-            aria-pressed={nenhumaDisp}
-            title="Marcar todas as placas como indisponíveis"
-          >
-            Indisponível
-          </button>
-        </div>
-        <span className="app-topbar-disp-help">
-          <button
-            type="button"
-            className="app-topbar-disp-info"
-            aria-label={EXPLICACAO}
-            title={EXPLICACAO}
-          >
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden>
-              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.75" />
-              <path
-                d="M12 10.5v6M12 7.75h.01"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-          <span className="app-topbar-disp-tip" role="tooltip">
-            {EXPLICACAO}
+      <>
+        <div className="app-topbar-disp" ref={rootRef} role="group" aria-label="Disponibilidade no mapa">
+          <div className="app-topbar-disp-toggle">
+            <button
+              type="button"
+              className={`app-topbar-disp-btn app-topbar-disp-btn--ok${open || !nenhumaDisp ? ' is-on' : ''}`}
+              onClick={() => setOpen((v) => !v)}
+              aria-expanded={open}
+              aria-haspopup="dialog"
+              title="Escolher placas disponíveis"
+            >
+              Disponível{placas.length > 0 ? ` (${nDisp})` : ''}
+            </button>
+            <button
+              type="button"
+              className={`app-topbar-disp-btn app-topbar-disp-btn--off${nenhumaDisp && !open ? ' is-on' : ''}`}
+              onClick={() => {
+                void setDisponivelMapa(transportadorId, false)
+                setOpen(false)
+              }}
+              aria-pressed={nenhumaDisp}
+              title="Marcar todas as placas como indisponíveis"
+            >
+              Indisponível
+            </button>
+          </div>
+          <span className="app-topbar-disp-help">
+            <button
+              type="button"
+              className="app-topbar-disp-info"
+              aria-label={EXPLICACAO}
+              title={EXPLICACAO}
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden>
+                <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.75" />
+                <path
+                  d="M12 10.5v6M12 7.75h.01"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+            <span className="app-topbar-disp-tip" role="tooltip">
+              {EXPLICACAO}
+            </span>
           </span>
-        </span>
-        {open && <div className="app-topbar-disp-panel">{lista}</div>}
-      </div>
+          {open && <div className="app-topbar-disp-panel">{lista}</div>}
+        </div>
+        {modalLoc}
+      </>
     )
   }
 
   return (
-    <div className="disponivel-flag" ref={rootRef} role="group" aria-label="Disponibilidade no mapa">
-      <div className="disponivel-flag__label">
-        <strong>Disponibilidade no Mapa da Frota</strong>
-        <span>
-          Clique em <em>Disponível</em> para ver as placas e marcar cada uma. Só as disponíveis
-          aparecem no filtro padrão do mapa.
-        </span>
+    <>
+      <div className="disponivel-flag" ref={rootRef} role="group" aria-label="Disponibilidade no mapa">
+        <div className="disponivel-flag__label">
+          <strong>Disponibilidade no Mapa da Frota</strong>
+          <span>
+            Clique em <em>Disponível</em> para ver as placas e marcar cada uma. Só as disponíveis
+            aparecem no filtro padrão do mapa.
+          </span>
+        </div>
+        <div className="disponivel-flag__toggle">
+          <button
+            type="button"
+            className={`disponivel-flag__btn disponivel-flag__btn--ok${open || todasDisp ? ' is-on' : ''}`}
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+          >
+            Disponível{placas.length > 0 ? ` (${nDisp}/${placas.length})` : ''}
+          </button>
+          <button
+            type="button"
+            className={`disponivel-flag__btn disponivel-flag__btn--off${nenhumaDisp && !open ? ' is-on' : ''}`}
+            onClick={() => {
+              void setDisponivelMapa(transportadorId, false)
+              setOpen(false)
+            }}
+          >
+            Indisponível
+          </button>
+        </div>
+        {open && <div className="disponivel-flag__panel">{lista}</div>}
       </div>
-      <div className="disponivel-flag__toggle">
-        <button
-          type="button"
-          className={`disponivel-flag__btn disponivel-flag__btn--ok${open || todasDisp ? ' is-on' : ''}`}
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-        >
-          Disponível{placas.length > 0 ? ` (${nDisp}/${placas.length})` : ''}
-        </button>
-        <button
-          type="button"
-          className={`disponivel-flag__btn disponivel-flag__btn--off${nenhumaDisp && !open ? ' is-on' : ''}`}
-          onClick={() => {
-            void setDisponivelMapa(transportadorId, false)
-            setOpen(false)
-          }}
-        >
-          Indisponível
-        </button>
-      </div>
-      {open && <div className="disponivel-flag__panel">{lista}</div>}
-    </div>
+      {modalLoc}
+    </>
   )
 }
