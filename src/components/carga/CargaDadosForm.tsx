@@ -21,6 +21,7 @@ import { CnpjInput } from "../ui/CnpjInput";
 import { SuggestInput } from "../ui/SuggestInput";
 import { AddressSuggestInput } from "../ui/AddressSuggestInput";
 import { joinCarrocerias, parseCarrocerias } from "../../lib/tiposCarroceria";
+import { newRotaId } from "../../lib/rotasSync";
 import { CarroceriaSuggestInput } from "../ui/CarroceriaSuggestInput";
 import { VeiculoSuggestInput } from "../ui/VeiculoSuggestInput";
 import { AnttFretePanel } from "./AnttFretePanel";
@@ -484,7 +485,7 @@ export function CargaDadosForm({
 
     if (salvarFavorita) {
       const novaRota: Rota = {
-        id: `r-${Math.random().toString(36).slice(2, 8)}`,
+        id: newRotaId(),
         descricao: descricaoRota(origemFinal, destinoFinal),
         origem: origemFinal,
         destino: destinoFinal,

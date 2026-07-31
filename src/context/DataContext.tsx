@@ -97,6 +97,12 @@ import {
   upsertVeiculoRemote,
 } from '../lib/veiculosSync'
 import {
+  carregarRotasDoSupabase,
+  mergeRotasLocalRemote,
+  newRotaId,
+  upsertRotaRemote,
+} from '../lib/rotasSync'
+import {
   applySyncSlice,
   loadKanbanBackup,
   pickSyncSlice,
@@ -912,9 +918,17 @@ function loadState(): DataState {
       localStorage.getItem(STORAGE_KEY_LEGACY) ??
       localStorage.getItem(STORAGE_KEY_LEGACY2)
 
-    // Backup da aba (F5): restaura lances/cargas até o pull remoto
+    // Backup da aba (F5): restaura lances/cargas/rotas até o pull remoto
     const backup = loadKanbanBackup()
-    if (!raw && backup && (backup.cargas?.length || backup.lances?.length)) {
+    if (
+      !raw &&
+      backup &&
+      (backup.cargas?.length ||
+        backup.lances?.length ||
+        backup.rotas?.length ||
+        backup.veiculos?.length ||
+        backup.grupos?.length)
+    ) {
       const fromBackup = ensureDemoOfertasVisiveis(
         applySyncSlice(defaults, backup) as DataState,
       )
@@ -1105,13 +1119,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const healRemoteRef = useRef<(() => void) | null>(null)
 
   const flushKanbanPush = useCallback((next: typeof state) => {
-    if (!isSupabaseConfigured) return
-    // Backup local imediato (antes do push) — F5 não perde lance em andamento
+    // Backup local imediato (antes do push) — F5 não perde lance/rota em andamento
     try {
       saveKanbanBackup(pickSyncSlice(next))
     } catch {
       /* ignore */
     }
+    if (!isSupabaseConfigured) return
     if (!kanbanHydratedRef.current) return
     if (applyingRemoteRef.current) {
       pendingPushRef.current = true
@@ -1331,7 +1345,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const refreshTransportadores = useCallback(async () => {
     const remote = await carregarTransportadoresDoSupabase()
     const remoteVeiculos = await carregarVeiculosDoSupabase()
-    if (!remote && !remoteVeiculos) return
+    const remoteRotas = await carregarRotasDoSupabase()
+    if (!remote && !remoteVeiculos && !remoteRotas) return
     let pushSlice: typeof stateRef.current | null = null
     setState((prev) => {
       const excluidos = new Set(prev.transportadores_excluidos ?? [])
@@ -1389,17 +1404,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
             ),
           )
         : prev.veiculos
+      const rotas = remoteRotas
+        ? mergeRotasLocalRemote(prev.rotas ?? [], remoteRotas)
+        : prev.rotas
       const next = unificarTransportadoresDuplicados(
         ensureDemoFrotaMapa({
           ...prev,
           transportadores: Array.from(byId.values()),
           documentos: Array.from(docsById.values()),
           veiculos,
+          rotas,
           notificacoes,
         }),
       )
       stateRef.current = next
-      if (notifNova) pushSlice = next
+      if (notifNova || (remoteRotas && remoteRotas.length > 0)) pushSlice = next
       return next
     })
     if (pushSlice) flushKanbanPush(pushSlice)
@@ -1420,6 +1439,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
         )
         const next = { ...prev, veiculos, motoristas }
         stateRef.current = next
+        return next
+      })
+    }
+
+    // Migra rotas locais (id r-… / seed) para a tabela rotas + sync
+    const rotasLocais = (stateRef.current.rotas ?? []).filter((r) => !isUuid(r.id))
+    for (const r of rotasLocais) {
+      const res = await upsertRotaRemote(r)
+      if (!res.ok) continue
+      setState((prev) => {
+        const rotas = prev.rotas.map((x) =>
+          x.id === r.id ? { ...x, id: res.id } : x,
+        )
+        const next = { ...prev, rotas }
+        stateRef.current = next
+        flushKanbanPush(next)
         return next
       })
     }
@@ -4276,15 +4311,38 @@ export function DataProvider({ children }: { children: ReactNode }) {
     void deleteVeiculoRemote(id)
   }, [flushKanbanPush])
 
-  const salvarRota = useCallback((r: Rota) => {
-    setState((prev) => {
-      const exists = prev.rotas.some((x) => x.id === r.id)
-      return {
-        ...prev,
-        rotas: exists ? prev.rotas.map((x) => (x.id === r.id ? r : x)) : [...prev.rotas, r],
+  const salvarRota = useCallback(
+    (r: Rota) => {
+      const rota: Rota = {
+        ...r,
+        id: isUuid(r.id) ? r.id : newRotaId(),
+        descricao: r.descricao.trim(),
+        origem: r.origem.trim(),
+        destino: r.destino.trim(),
       }
-    })
-  }, [])
+      setState((prev) => {
+        const exists = prev.rotas.some((x) => x.id === rota.id || x.id === r.id)
+        const rotas = exists
+          ? prev.rotas.map((x) => (x.id === rota.id || x.id === r.id ? rota : x))
+          : [...prev.rotas, rota]
+        const next = { ...prev, rotas }
+        stateRef.current = next
+        flushKanbanPush(next)
+        return next
+      })
+      void upsertRotaRemote(rota).then((res) => {
+        if (!res.ok || res.id === rota.id) return
+        setState((prev) => {
+          const rotas = prev.rotas.map((x) => (x.id === rota.id ? { ...x, id: res.id } : x))
+          const next = { ...prev, rotas }
+          stateRef.current = next
+          flushKanbanPush(next)
+          return next
+        })
+      })
+    },
+    [flushKanbanPush],
+  )
 
   const criarCarga = useCallback(
     (partial?: Partial<Carga>) => {

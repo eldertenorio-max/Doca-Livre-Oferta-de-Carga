@@ -8,6 +8,7 @@ import type {
   Lance,
   Motorista,
   NotificacaoInApp,
+  Rota,
   Transportador,
   Veiculo,
 } from '../types'
@@ -28,6 +29,8 @@ export type KanbanSyncSlice = {
   /** Frota replicada para todos (supers e transportadora vinculada) */
   veiculos: Veiculo[]
   motoristas: Motorista[]
+  /** Rotas de frete — precisam sobreviver a F5 / outro aparelho */
+  rotas: Rota[]
   notificacoes: NotificacaoInApp[]
   mensagens: ChatMensagem[]
   historico: HistoricoEvento[]
@@ -76,6 +79,7 @@ export function pickSyncSlice(state: KanbanSyncSlice): KanbanSyncSlice {
     transportadores: state.transportadores,
     veiculos: (state.veiculos ?? []).map(veiculoParaSync),
     motoristas: state.motoristas ?? [],
+    rotas: state.rotas ?? [],
     notificacoes: state.notificacoes,
     mensagens: state.mensagens,
     historico: state.historico,
@@ -269,6 +273,13 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
       ? mergeById(prev.transportadores, slice.transportadores)
       : prev.transportadores
     ).filter((t) => !tExcluidos.has(t.id)),
+    rotas: (() => {
+      const remote = Array.isArray(slice.rotas) ? slice.rotas : []
+      const local = prev.rotas ?? []
+      // Remoto sem rotas não apaga cadastros locais (payload antigo / corrida)
+      if (remote.length === 0 && local.length > 0) return local
+      return mergeById(local, remote)
+    })(),
     notificacoes: (() => {
       const local = prev.notificacoes ?? []
       const remote = slice.notificacoes ?? []

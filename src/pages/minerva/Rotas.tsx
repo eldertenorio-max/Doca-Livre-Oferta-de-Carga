@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useData } from '../../context/DataContext'
 import { formatCurrency } from '../../lib/businessRules'
+import { newRotaId } from '../../lib/rotasSync'
 import { buscarCidades, filtrarSugestoes } from '../../lib/cidadesBrasil'
 import type { ClassificacaoRota, Rota } from '../../types'
 import { Button, Field, Modal, inputClass } from '../../components/ui/Modal'
@@ -35,7 +36,7 @@ export function RotasPage() {
   function save() {
     if (!form.descricao || !form.origem || !form.destino) return
     const rota: Rota = {
-      id: editingId ?? `r-${Math.random().toString(36).slice(2, 8)}`,
+      id: editingId ?? newRotaId(),
       descricao: form.descricao!,
       origem: form.origem!,
       destino: form.destino!,
