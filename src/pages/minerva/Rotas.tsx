@@ -29,13 +29,42 @@ const emptyForm = (): Partial<Rota> => ({
   situacao: 'ativo',
 })
 
-function parseCoord(raw: string): number | null {
-  const n = Number(raw.replace(',', '.').trim())
-  return Number.isFinite(n) ? n : null
+/**
+ * Aceita cola do Google Maps: `-23.5613545,-46.6590692,17`
+ * (latitude, longitude e zoom opcional).
+ */
+function parseMapsCoords(
+  raw: string,
+): { lat: number; lng: number; zoom?: number } | null {
+  const s = raw.trim()
+  if (!s) return null
+  const m = s.match(
+    /^\s*(-?\d+(?:[.,]\d+)?)\s*[,;]\s*(-?\d+(?:[.,]\d+)?)(?:\s*[,;]\s*(\d+(?:[.,]\d+)?))?\s*$/,
+  )
+  if (!m) return null
+  const lat = Number(m[1].replace(',', '.'))
+  const lng = Number(m[2].replace(',', '.'))
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null
+  const zoom =
+    m[3] != null && m[3] !== ''
+      ? Number(m[3].replace(',', '.'))
+      : undefined
+  return {
+    lat,
+    lng,
+    zoom: zoom != null && Number.isFinite(zoom) ? zoom : undefined,
+  }
 }
 
-function fmtCoord(n: number | null | undefined): string {
-  return n != null && Number.isFinite(n) ? n.toFixed(6) : ''
+function fmtMapsCoords(
+  lat: number | null | undefined,
+  lng: number | null | undefined,
+): string {
+  if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return ''
+  }
+  return `${lat.toFixed(7)},${lng.toFixed(7)}`
 }
 
 function labelEndereco(
@@ -58,10 +87,8 @@ export function RotasPage() {
   const [form, setForm] = useState<Partial<Rota>>(emptyForm)
   const [freteStr, setFreteStr] = useState('')
   const [kmStr, setKmStr] = useState('')
-  const [origemLatStr, setOrigemLatStr] = useState('')
-  const [origemLngStr, setOrigemLngStr] = useState('')
-  const [destinoLatStr, setDestinoLatStr] = useState('')
-  const [destinoLngStr, setDestinoLngStr] = useState('')
+  const [origemMapsStr, setOrigemMapsStr] = useState('')
+  const [destinoMapsStr, setDestinoMapsStr] = useState('')
   const [geoInfo, setGeoInfo] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [mapaRota, setMapaRota] = useState<Rota | null>(null)
@@ -82,10 +109,8 @@ export function RotasPage() {
       setForm(emptyForm())
       setFreteStr('')
       setKmStr('')
-      setOrigemLatStr('')
-      setOrigemLngStr('')
-      setDestinoLatStr('')
-      setDestinoLngStr('')
+      setOrigemMapsStr('')
+      setDestinoMapsStr('')
       setGeoInfo('')
       return
     }
@@ -106,10 +131,8 @@ export function RotasPage() {
         : '',
     )
     setKmStr(r.km && r.km > 0 ? String(r.km) : '')
-    setOrigemLatStr(fmtCoord(r.origem_lat))
-    setOrigemLngStr(fmtCoord(r.origem_lng))
-    setDestinoLatStr(fmtCoord(r.destino_lat))
-    setDestinoLngStr(fmtCoord(r.destino_lng))
+    setOrigemMapsStr(fmtMapsCoords(r.origem_lat, r.origem_lng))
+    setDestinoMapsStr(fmtMapsCoords(r.destino_lat, r.destino_lng))
     setGeoInfo('')
   }
 
@@ -143,8 +166,7 @@ export function RotasPage() {
           return
         }
         skipRevOrigem.current = true
-        setOrigemLatStr(res.coords.lat.toFixed(6))
-        setOrigemLngStr(res.coords.lng.toFixed(6))
+        setOrigemMapsStr(fmtMapsCoords(res.coords.lat, res.coords.lng))
         setForm((prev) => ({
           ...prev,
           origem_lat: res.coords.lat,
@@ -178,8 +200,7 @@ export function RotasPage() {
           return
         }
         skipRevDestino.current = true
-        setDestinoLatStr(res.coords.lat.toFixed(6))
-        setDestinoLngStr(res.coords.lng.toFixed(6))
+        setDestinoMapsStr(fmtMapsCoords(res.coords.lat, res.coords.lng))
         setForm((prev) => ({
           ...prev,
           destino_lat: res.coords.lat,
@@ -194,15 +215,15 @@ export function RotasPage() {
     }
   }, [form.destino])
 
-  // Lat/lng origem → endereço
+  // Coordenadas Maps origem → endereço
   useEffect(() => {
     if (skipRevOrigem.current) {
       skipRevOrigem.current = false
       return
     }
-    const lat = parseCoord(origemLatStr)
-    const lng = parseCoord(origemLngStr)
-    if (lat == null || lng == null) return
+    const parsed = parseMapsCoords(origemMapsStr)
+    if (!parsed) return
+    const { lat, lng } = parsed
     let cancelled = false
     const timer = window.setTimeout(() => {
       void (async () => {
@@ -229,17 +250,17 @@ export function RotasPage() {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [origemLatStr, origemLngStr])
+  }, [origemMapsStr])
 
-  // Lat/lng destino → endereço
+  // Coordenadas Maps destino → endereço
   useEffect(() => {
     if (skipRevDestino.current) {
       skipRevDestino.current = false
       return
     }
-    const lat = parseCoord(destinoLatStr)
-    const lng = parseCoord(destinoLngStr)
-    if (lat == null || lng == null) return
+    const parsed = parseMapsCoords(destinoMapsStr)
+    if (!parsed) return
+    const { lat, lng } = parsed
     let cancelled = false
     const timer = window.setTimeout(() => {
       void (async () => {
@@ -266,7 +287,7 @@ export function RotasPage() {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [destinoLatStr, destinoLngStr])
+  }, [destinoMapsStr])
 
   // Origem + destino com coordenadas → KM automático
   useEffect(() => {
@@ -480,58 +501,36 @@ export function RotasPage() {
               placeholder="Digite o endereço como no Google Maps"
             />
           </Field>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Latitude origem">
-              <input
-                className={inputClass}
-                inputMode="decimal"
-                placeholder="-23.550520"
-                value={origemLatStr}
-                onChange={(e) => {
-                  kmManual.current = false
-                  setOrigemLatStr(e.target.value)
-                }}
-              />
-            </Field>
-            <Field label="Longitude origem">
-              <input
-                className={inputClass}
-                inputMode="decimal"
-                placeholder="-46.633308"
-                value={origemLngStr}
-                onChange={(e) => {
-                  kmManual.current = false
-                  setOrigemLngStr(e.target.value)
-                }}
-              />
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Latitude destino">
-              <input
-                className={inputClass}
-                inputMode="decimal"
-                placeholder="-22.906847"
-                value={destinoLatStr}
-                onChange={(e) => {
-                  kmManual.current = false
-                  setDestinoLatStr(e.target.value)
-                }}
-              />
-            </Field>
-            <Field label="Longitude destino">
-              <input
-                className={inputClass}
-                inputMode="decimal"
-                placeholder="-43.172897"
-                value={destinoLngStr}
-                onChange={(e) => {
-                  kmManual.current = false
-                  setDestinoLngStr(e.target.value)
-                }}
-              />
-            </Field>
-          </div>
+          <Field label="Coordenadas origem (Maps)">
+            <input
+              className={inputClass}
+              inputMode="text"
+              placeholder="-23.5613545,-46.6590692,17"
+              value={origemMapsStr}
+              onChange={(e) => {
+                kmManual.current = false
+                setOrigemMapsStr(e.target.value)
+              }}
+            />
+            <p className="mt-1 text-[11px] text-ink-muted">
+              Cole lat,lng ou lat,lng,zoom do Google Maps.
+            </p>
+          </Field>
+          <Field label="Coordenadas destino (Maps)">
+            <input
+              className={inputClass}
+              inputMode="text"
+              placeholder="-22.9068470,-43.1728970,17"
+              value={destinoMapsStr}
+              onChange={(e) => {
+                kmManual.current = false
+                setDestinoMapsStr(e.target.value)
+              }}
+            />
+            <p className="mt-1 text-[11px] text-ink-muted">
+              Cole lat,lng ou lat,lng,zoom do Google Maps.
+            </p>
+          </Field>
           <Field label="Frete Sugestão">
             <input
               className={inputClass}
