@@ -9,6 +9,7 @@ import {
   formatCepBr,
   geocodificarEndereco,
 } from '../../lib/geocodeEndereco'
+import { fmtMapsCoords, parseMapsCoords } from '../../lib/mapsCoords'
 import type { Transportador, Veiculo } from '../../types'
 
 const UFS = [
@@ -63,8 +64,7 @@ export function LocalizacaoVeiculoModal({
   onSave,
 }: Props) {
   const [origem, setOrigem] = useState<OrigemForm>(fromVeiculo(null))
-  const [latStr, setLatStr] = useState('')
-  const [lngStr, setLngStr] = useState('')
+  const [mapsStr, setMapsStr] = useState('')
   const [info, setInfo] = useState('')
   const [buscandoCep, setBuscandoCep] = useState(false)
   const [geocoding, setGeocoding] = useState(false)
@@ -86,8 +86,7 @@ export function LocalizacaoVeiculoModal({
     coordsManuais.current = Boolean(o.lat != null && o.lng != null)
     ultimoCep.current = (o.cep || '').replace(/\D/g, '')
     setOrigem(o)
-    setLatStr(o.lat != null ? o.lat.toFixed(6) : '')
-    setLngStr(o.lng != null ? o.lng.toFixed(6) : '')
+    setMapsStr(fmtMapsCoords(o.lat, o.lng))
     const temEndereco = Boolean(
       o.endereco.trim() || o.cidade.trim() || (o.lat != null && o.lng != null),
     )
@@ -146,8 +145,7 @@ export function LocalizacaoVeiculoModal({
           lat: null,
           lng: null,
         }))
-        setLatStr('')
-        setLngStr('')
+        setMapsStr('')
         setInfo('Endereço preenchido pelo CEP. Aguarde as coordenadas.')
       })()
     }, 350)
@@ -183,8 +181,7 @@ export function LocalizacaoVeiculoModal({
         if (coordsManuais.current) return
         if (!res.ok) {
           setOrigem((prev) => ({ ...prev, lat: null, lng: null }))
-          setLatStr('')
-          setLngStr('')
+          setMapsStr('')
           setInfo(res.erro)
           return
         }
@@ -193,8 +190,7 @@ export function LocalizacaoVeiculoModal({
           lat: res.coords.lat,
           lng: res.coords.lng,
         }))
-        setLatStr(res.coords.lat.toFixed(6))
-        setLngStr(res.coords.lng.toFixed(6))
+        setMapsStr(fmtMapsCoords(res.coords.lat, res.coords.lng))
         setInfo(
           `Coordenadas: ${res.coords.lat.toFixed(5)}, ${res.coords.lng.toFixed(5)}. Você pode ajustar no mapa.`,
         )
@@ -219,8 +215,7 @@ export function LocalizacaoVeiculoModal({
     const limpaCoords = key !== 'lat' && key !== 'lng' && key !== 'raio_km'
     if (limpaCoords) {
       coordsManuais.current = false
-      setLatStr('')
-      setLngStr('')
+      setMapsStr('')
     }
     setOrigem((prev) => {
       const next = { ...prev, [key]: value }
@@ -239,8 +234,7 @@ export function LocalizacaoVeiculoModal({
   function aplicarCoordsManuais(lat: number, lng: number) {
     coordsManuais.current = true
     setOrigem((prev) => ({ ...prev, lat, lng }))
-    setLatStr(lat.toFixed(6))
-    setLngStr(lng.toFixed(6))
+    setMapsStr(fmtMapsCoords(lat, lng))
     setInfo('Buscando endereço deste ponto no mapa…')
     setReverseBusy(true)
     window.clearTimeout(reverseTimer.current)
@@ -271,11 +265,6 @@ export function LocalizacaoVeiculoModal({
         setInfo('Endereço atualizado pelas coordenadas.')
       })()
     }, 200)
-  }
-
-  function parseCoord(raw: string): number | null {
-    const n = Number(raw.replace(',', '.').trim())
-    return Number.isFinite(n) ? n : null
   }
 
   function usarOrigemTransportador() {
@@ -315,8 +304,7 @@ export function LocalizacaoVeiculoModal({
           ? Number(transportador.raio_km)
           : RAIO_DEFAULT_KM,
     })
-    setLatStr(lat != null ? lat.toFixed(6) : '')
-    setLngStr(lng != null ? lng.toFixed(6) : '')
+    setMapsStr(fmtMapsCoords(lat ?? null, lng ?? null))
     setInfo('Localização de origem da transportadora aplicada. Confira e salve.')
   }
 
@@ -433,43 +421,31 @@ export function LocalizacaoVeiculoModal({
               placeholder="Galpão, pátio (opcional)"
             />
           </Field>
-          <Field label="Latitude">
+          <Field label="Coordenadas (Maps)" className="sm:col-span-2">
             <input
               className={inputClass}
-              value={latStr}
+              inputMode="text"
+              placeholder="-23.5613545,-46.6590692,17"
+              value={mapsStr}
               onChange={(e) => {
                 const raw = e.target.value
-                setLatStr(raw)
-                const lat = parseCoord(raw)
-                const lng = parseCoord(lngStr)
-                if (lat != null && lng != null) aplicarCoordsManuais(lat, lng)
-                else {
-                  coordsManuais.current = true
-                  setOrigem((prev) => ({ ...prev, lat }))
+                setMapsStr(raw)
+                const parsed = parseMapsCoords(raw)
+                if (parsed) {
+                  aplicarCoordsManuais(parsed.lat, parsed.lng)
+                  return
                 }
-              }}
-              inputMode="decimal"
-              placeholder="Automático ou edite"
-            />
-          </Field>
-          <Field label="Longitude">
-            <input
-              className={inputClass}
-              value={lngStr}
-              onChange={(e) => {
-                const raw = e.target.value
-                setLngStr(raw)
-                const lng = parseCoord(raw)
-                const lat = parseCoord(latStr)
-                if (lat != null && lng != null) aplicarCoordsManuais(lat, lng)
-                else {
-                  coordsManuais.current = true
-                  setOrigem((prev) => ({ ...prev, lng }))
+                if (!raw.trim()) {
+                  coordsManuais.current = false
+                  setOrigem((prev) => ({ ...prev, lat: null, lng: null }))
+                  return
                 }
+                coordsManuais.current = true
               }}
-              inputMode="decimal"
-              placeholder="Automático ou edite"
             />
+            <p className="mt-1 text-[11px] text-ink-muted">
+              Cole lat,lng ou lat,lng,zoom do Google Maps.
+            </p>
           </Field>
         </div>
 
