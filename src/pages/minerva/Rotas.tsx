@@ -176,9 +176,9 @@ export function RotasPage() {
                 setForm({ ...form, classificacao: e.target.value as ClassificacaoRota })
               }
             >
-              <option value="A">A (margem -7/-8/-9%)</option>
-              <option value="B">B (margem -4/-5/-6%)</option>
-              <option value="C">C (margem -1/-2/-3%)</option>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
             </select>
           </Field>
           <Field label="Origem">
