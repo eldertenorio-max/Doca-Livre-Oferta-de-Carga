@@ -6,6 +6,7 @@ import {
   tempoDecorrido,
   tempoRestante,
 } from '../../lib/businessRules'
+import { isCargaRetorno } from '../../lib/cargaDefaults'
 import type { Carga } from '../../types'
 import { useData } from '../../context/DataContext'
 import { ChatModal } from '../carga/ChatModal'
@@ -645,8 +646,10 @@ export function CargoCard({
             </span>
           )}
         </div>
-        {carga.carga_retorno ? (
-          <p className="mb-2 text-[13px] font-bold text-red-600">Retorno</p>
+        {isCargaRetorno(carga) ? (
+          <p className="mb-2 text-sm font-extrabold uppercase tracking-wide text-red-600">
+            Retorno
+          </p>
         ) : null}
 
         <div className="cargo-card__actions">

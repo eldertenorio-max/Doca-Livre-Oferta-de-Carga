@@ -777,11 +777,53 @@ export function CargaDadosForm({
         <Row label="Pedido" value={carga.pedido || "—"} />
         <Row label="Origem" value={carga.origem || "—"} />
         <Row label="Destino" value={carga.destino || "—"} />
-        <Row
-          label="Retorna para origem"
-          value={carga.retorna_origem ? "Sim" : "Não"}
-        />
-        <Row label="Carga retorno" value={carga.carga_retorno ? "Sim" : "Não"} />
+        {canEdit ? (
+          <div className="grid gap-1.5 py-1 sm:grid-cols-2">
+            <Field label="Retorna para origem">
+              <select
+                className={inputClass}
+                value={carga.retorna_origem ? "sim" : "nao"}
+                onChange={(e) => {
+                  void atualizarCarga(carga.id, {
+                    retorna_origem: e.target.value === "sim",
+                  });
+                }}
+              >
+                <option value="nao">Não</option>
+                <option value="sim">Sim</option>
+              </select>
+            </Field>
+            <Field label="Carga retorno">
+              <select
+                className={inputClass}
+                value={carga.carga_retorno ? "sim" : "nao"}
+                onChange={(e) => {
+                  void atualizarCarga(carga.id, {
+                    carga_retorno: e.target.value === "sim",
+                  });
+                }}
+              >
+                <option value="nao">Não</option>
+                <option value="sim">Sim</option>
+              </select>
+            </Field>
+            <p className="sm:col-span-2 text-[11px] text-ink-muted">
+              Com “Sim”, o card mostra <strong className="text-red-600">Retorno</strong> em
+              vermelho abaixo do frete.
+            </p>
+          </div>
+        ) : (
+          <>
+            <Row
+              label="Retorna para origem"
+              value={carga.retorna_origem ? "Sim" : "Não"}
+            />
+            <Row
+              label="Carga retorno"
+              value={carga.carga_retorno ? "Sim" : "Não"}
+            />
+          </>
+        )}
         <Row
           label="Complemento"
           value={labelComplemento(carga.complemento) || "—"}

@@ -1,6 +1,21 @@
 import { parseCarrocerias } from './tiposCarroceria'
 import type { Carga, HistoricoEvento, Profile, TipoHistorico } from '../types'
 
+/** Aceita true/1/"sim"/"true" — útil após sync JSON antigo. */
+export function flagSim(v: unknown): boolean {
+  if (v === true || v === 1) return true
+  if (typeof v === 'string') {
+    const s = v.trim().toLowerCase()
+    return s === '1' || s === 'true' || s === 'sim' || s === 'yes' || s === 's'
+  }
+  return false
+}
+
+/** Carga marcada como retorno (carga retorno ou retorna à origem). */
+export function isCargaRetorno(c: Pick<Carga, 'carga_retorno' | 'retorna_origem'>): boolean {
+  return flagSim(c.carga_retorno) || flagSim(c.retorna_origem)
+}
+
 export function normalizeCarga(c: Carga): Carga {
   return {
     ...c,
@@ -16,8 +31,8 @@ export function normalizeCarga(c: Carga): Carga {
       c.complemento === 'sim' || c.complemento === 'nao' || c.complemento === 'ambos'
         ? c.complemento
         : undefined,
-    carga_retorno: Boolean(c.carga_retorno),
-    retorna_origem: Boolean(c.retorna_origem),
+    carga_retorno: flagSim(c.carga_retorno),
+    retorna_origem: flagSim(c.retorna_origem),
     origem_lat:
       c.origem_lat != null && Number.isFinite(Number(c.origem_lat))
         ? Number(c.origem_lat)

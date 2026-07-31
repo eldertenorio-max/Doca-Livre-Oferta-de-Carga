@@ -150,6 +150,33 @@ function mergeById<T extends { id: string; updated_at?: string; created_at?: str
   return Array.from(map.values())
 }
 
+/** Merge de cargas: não apaga flags de retorno se o remoto veio sem o campo. */
+function mergeCargas(local: Carga[], remote: Carga[]): Carga[] {
+  const map = new Map<string, Carga>()
+  for (const item of local) map.set(item.id, item)
+  for (const item of remote) {
+    const prev = map.get(item.id)
+    if (!prev) {
+      map.set(item.id, item)
+      continue
+    }
+    const remoteT = ts(item.updated_at) || ts(item.created_at)
+    const localT = ts(prev.updated_at) || ts(prev.created_at)
+    if (remoteT < localT) continue
+    const remotoTemRetorno = Object.prototype.hasOwnProperty.call(item, 'carga_retorno')
+    const remotoTemOrigem = Object.prototype.hasOwnProperty.call(item, 'retorna_origem')
+    map.set(item.id, {
+      ...prev,
+      ...item,
+      carga_retorno: remotoTemRetorno ? Boolean(item.carga_retorno) : Boolean(prev.carga_retorno),
+      retorna_origem: remotoTemOrigem
+        ? Boolean(item.retorna_origem)
+        : Boolean(prev.retorna_origem),
+    })
+  }
+  return Array.from(map.values())
+}
+
 /**
  * Grupos: o remoto só substitui se for claramente mais novo.
  * Em empate (sem updated_at), preserva a lista local de membros — evita
@@ -264,7 +291,7 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
   const cargasMerged =
     remoteCargas.length === 0 && prev.cargas.length > 0
       ? prev.cargas
-      : mergeById(prev.cargas, remoteCargas)
+      : mergeCargas(prev.cargas, remoteCargas)
   const cargas = cargasMerged.filter((c) => !excluidas.has(c.id))
 
   const lancesMerged =

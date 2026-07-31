@@ -4517,7 +4517,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const atual = state.cargas.find((c) => c.id === id)
       if (!atual) return { ok: false, error: 'Carga não encontrada' }
       if (atual.status !== 'nova_carga') {
-        return { ok: false, error: 'Só é possível editar cargas ainda não publicadas' }
+        // Após publicar, só permite ajustar flags de retorno (aparecem no card).
+        const keys = Object.keys(patch).filter((k) => k !== 'updated_at')
+        const soRetorno =
+          keys.length > 0 &&
+          keys.every((k) => k === 'carga_retorno' || k === 'retorna_origem')
+        if (!soRetorno) {
+          return { ok: false, error: 'Só é possível editar cargas ainda não publicadas' }
+        }
       }
       if (!patch.rota_id && !atual.rota_id && !(patch.origem && patch.destino)) {
         /* ok — validação de campos obrigatórios fica na UI */
