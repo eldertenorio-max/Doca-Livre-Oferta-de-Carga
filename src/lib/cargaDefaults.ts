@@ -16,6 +16,7 @@ export function normalizeCarga(c: Carga): Carga {
       c.complemento === 'sim' || c.complemento === 'nao' || c.complemento === 'ambos'
         ? c.complemento
         : undefined,
+    carga_retorno: Boolean(c.carga_retorno),
     gerenciamento_risco:
       c.gerenciamento_risco === 'rastreador' ||
       c.gerenciamento_risco === 'localizador' ||

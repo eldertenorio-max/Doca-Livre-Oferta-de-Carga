@@ -283,6 +283,8 @@ export interface Carga {
   destino: string
   /** Se a carga aceita complemento: sim | nao | ambos */
   complemento?: 'sim' | 'nao' | 'ambos'
+  /** Marca a oferta como carga de retorno (volta). */
+  carga_retorno?: boolean
   /** Gerenciamento de risco: exige rastreador e/ou localizador */
   gerenciamento_risco?: 'rastreador' | 'localizador' | 'ambos' | 'nao'
   destinatario: string

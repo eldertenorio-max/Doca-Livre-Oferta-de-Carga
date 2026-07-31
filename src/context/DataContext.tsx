@@ -418,6 +418,7 @@ export function montarNovaCarga(
     origem: '',
     destino: '',
     complemento: undefined,
+    carga_retorno: false,
     destinatario: '',
     destinatario_cnpj: '',
     destinatario_whatsapp: '',
