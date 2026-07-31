@@ -1489,3 +1489,28 @@
     grid-column: 1 / -1;
   }
 }
+
+/* Mapa da origem no cadastro do transportador */
+.ponto-map-preview {
+  width: 100%;
+}
+
+.ponto-map-preview__map {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #eef2f7;
+  z-index: 0;
+}
+
+.ponto-map-preview__hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.ponto-map-pin {
+  background: transparent !important;
+  border: 0 !important;
+}

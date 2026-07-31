@@ -18,6 +18,7 @@ import {
 import { isAcceptedImageFile } from '../lib/veiculoFotos'
 import type { TipoDocumentoTransportador } from '../types'
 import { CnpjInput } from '../components/ui/CnpjInput'
+import { PontoMapPreview } from '../components/ui/PontoMapPreview'
 import { cnpjDigits, formatCnpj, isValidCnpj } from '../lib/cnpj'
 import { buscarDadosPorCnpj } from '../lib/cnpjLookup'
 import {
@@ -97,7 +98,10 @@ export function CadastroTransportadorPage() {
   const [origemInfo, setOrigemInfo] = useState('')
   const [origemBuscandoCep, setOrigemBuscandoCep] = useState(false)
   const [origemGeocoding, setOrigemGeocoding] = useState(false)
+  const [latStr, setLatStr] = useState('')
+  const [lngStr, setLngStr] = useState('')
   const ultimoCepOrigem = useRef('')
+  const coordsManuais = useRef(false)
 
   const [docs, setDocs] = useState<DocState>({})
   const [logo, setLogo] = useState<{
@@ -209,6 +213,7 @@ export function CadastroTransportadorPage() {
           return
         }
         ultimoCepOrigem.current = cep
+        coordsManuais.current = false
         setOrigem((prev) => ({
           ...prev,
           ...res.dados,
@@ -216,6 +221,8 @@ export function CadastroTransportadorPage() {
           lat: null,
           lng: null,
         }))
+        setLatStr('')
+        setLngStr('')
         setOrigemInfo('Endereço preenchido pelo CEP. Confira e aguarde as coordenadas.')
       })()
     }, 350)
@@ -243,8 +250,11 @@ export function CadastroTransportadorPage() {
         const res = await geocodificarEndereco(origem)
         if (cancelled) return
         setOrigemGeocoding(false)
+        if (coordsManuais.current) return
         if (!res.ok) {
           setOrigem((prev) => ({ ...prev, lat: null, lng: null }))
+          setLatStr('')
+          setLngStr('')
           setOrigemInfo(res.erro)
           return
         }
@@ -253,8 +263,10 @@ export function CadastroTransportadorPage() {
           lat: res.coords.lat,
           lng: res.coords.lng,
         }))
+        setLatStr(res.coords.lat.toFixed(6))
+        setLngStr(res.coords.lng.toFixed(6))
         setOrigemInfo(
-          `Coordenadas encontradas: ${res.coords.lat.toFixed(5)}, ${res.coords.lng.toFixed(5)}`,
+          `Coordenadas encontradas: ${res.coords.lat.toFixed(5)}, ${res.coords.lng.toFixed(5)}. Você pode ajustar no mapa ou nos campos.`,
         )
       })()
     }, 700)
@@ -286,10 +298,61 @@ export function CadastroTransportadorPage() {
     setEmpresa((prev) => ({ ...prev, [key]: value }))
   }
 
+  function aplicarCoordsManuais(lat: number, lng: number) {
+    coordsManuais.current = true
+    setOrigem((prev) => ({ ...prev, lat, lng }))
+    setLatStr(lat.toFixed(6))
+    setLngStr(lng.toFixed(6))
+    setOrigemInfo(`Localização ajustada: ${lat.toFixed(5)}, ${lng.toFixed(5)}`)
+  }
+
+  function parseCoordInput(raw: string): number | null {
+    const n = Number(raw.replace(',', '.').trim())
+    return Number.isFinite(n) ? n : null
+  }
+
+  function onLatChange(raw: string) {
+    setLatStr(raw)
+    const lat = parseCoordInput(raw)
+    const lng = parseCoordInput(lngStr)
+    if (lat == null) {
+      coordsManuais.current = true
+      setOrigem((prev) => ({ ...prev, lat: null }))
+      return
+    }
+    if (lng != null) aplicarCoordsManuais(lat, lng)
+    else {
+      coordsManuais.current = true
+      setOrigem((prev) => ({ ...prev, lat }))
+    }
+  }
+
+  function onLngChange(raw: string) {
+    setLngStr(raw)
+    const lng = parseCoordInput(raw)
+    const lat = parseCoordInput(latStr)
+    if (lng == null) {
+      coordsManuais.current = true
+      setOrigem((prev) => ({ ...prev, lng: null }))
+      return
+    }
+    if (lat != null) aplicarCoordsManuais(lat, lng)
+    else {
+      coordsManuais.current = true
+      setOrigem((prev) => ({ ...prev, lng }))
+    }
+  }
+
   function setOri<K extends keyof typeof origem>(key: K, value: (typeof origem)[K]) {
+    const limpaCoords = key !== 'lat' && key !== 'lng' && key !== 'raio_km'
+    if (limpaCoords) {
+      coordsManuais.current = false
+      setLatStr('')
+      setLngStr('')
+    }
     setOrigem((prev) => {
       const next = { ...prev, [key]: value }
-      if (key !== 'lat' && key !== 'lng' && key !== 'raio_km') {
+      if (limpaCoords) {
         next.lat = null
         next.lng = null
       }
@@ -742,7 +805,7 @@ export function CadastroTransportadorPage() {
                 <p className="cadastro-publico__hint">
                   Endereço onde você realmente mora (residência) — não use o endereço do CNPJ.
                   Informe o CEP ou cidade, rua e número; as coordenadas são preenchidas
-                  automaticamente.
+                  automaticamente. Você pode editar latitude/longitude ou ajustar o pin no mapa.
                 </p>
                 <div className="form-fields">
                   <Field label="CEP da origem">
@@ -806,16 +869,20 @@ export function CadastroTransportadorPage() {
                   </Field>
                   <Field label="Latitude" className="form-field--span2">
                     <input
-                      value={origem.lat != null ? String(origem.lat) : ''}
-                      readOnly
-                      placeholder={origemGeocoding ? 'Buscando…' : 'Automático'}
+                      value={latStr}
+                      onChange={(e) => onLatChange(e.target.value)}
+                      inputMode="decimal"
+                      placeholder={origemGeocoding ? 'Buscando…' : 'Automático ou edite'}
+                      autoComplete="off"
                     />
                   </Field>
                   <Field label="Longitude" className="form-field--span2">
                     <input
-                      value={origem.lng != null ? String(origem.lng) : ''}
-                      readOnly
-                      placeholder={origemGeocoding ? 'Buscando…' : 'Automático'}
+                      value={lngStr}
+                      onChange={(e) => onLngChange(e.target.value)}
+                      inputMode="decimal"
+                      placeholder={origemGeocoding ? 'Buscando…' : 'Automático ou edite'}
+                      autoComplete="off"
                     />
                   </Field>
                   <div className="form-field form-field--span2 raio-pesquisa">
@@ -849,6 +916,18 @@ export function CadastroTransportadorPage() {
                       <span>{RAIO_MAX_KM} km</span>
                     </div>
                   </div>
+                  <div className="form-field form-field--span2">
+                    <label style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>
+                      Mapa da origem
+                    </label>
+                    <PontoMapPreview
+                      lat={origem.lat}
+                      lng={origem.lng}
+                      raioKm={origem.raio_km}
+                      onPick={aplicarCoordsManuais}
+                      height={260}
+                    />
+                  </div>
                 </div>
                 {(origemBuscandoCep || origemGeocoding || origemInfo) && (
                   <p
@@ -868,17 +947,6 @@ export function CadastroTransportadorPage() {
                       : origemGeocoding
                         ? 'Localizando coordenadas…'
                         : origemInfo}
-                  </p>
-                )}
-                {origem.lat != null && origem.lng != null && (
-                  <p style={{ marginTop: 8, fontSize: 12 }}>
-                    <a
-                      href={`https://www.openstreetmap.org/?mlat=${origem.lat}&mlon=${origem.lng}#map=16/${origem.lat}/${origem.lng}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Ver no mapa
-                    </a>
                   </p>
                 )}
               </div>
