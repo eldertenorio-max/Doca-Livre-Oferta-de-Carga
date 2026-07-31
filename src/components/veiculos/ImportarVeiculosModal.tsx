@@ -35,6 +35,8 @@ export function ImportarVeiculosModal({
   const [fileName, setFileName] = useState('')
   const [erro, setErro] = useState('')
   const [concluidoQtd, setConcluidoQtd] = useState<number | null>(null)
+  const [detalheDup, setDetalheDup] = useState(false)
+  const [detalheErro, setDetalheErro] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -45,6 +47,8 @@ export function ImportarVeiculosModal({
     setMissingHeaders([])
     setErro('')
     setConcluidoQtd(null)
+    setDetalheDup(false)
+    setDetalheErro(false)
     if (fileRef.current) fileRef.current.value = ''
   }, [open, transportadorIdFixo])
 
@@ -86,10 +90,25 @@ export function ImportarVeiculosModal({
     () =>
       linhas
         .filter((l) => l.veiculo && placasSet.has(l.veiculo.placa))
-        .map((l) => l.veiculo!.placa),
+        .map((l) => ({ linha: l.linha, placa: l.veiculo!.placa })),
     [linhas, placasSet],
   )
 
+  const duplicadasNoArquivo = useMemo(() => {
+    const byPlaca = new Map<string, number[]>()
+    for (const l of linhas) {
+      const p = l.veiculo?.placa
+      if (!p) continue
+      const arr = byPlaca.get(p) ?? []
+      arr.push(l.linha)
+      byPlaca.set(p, arr)
+    }
+    return [...byPlaca.entries()]
+      .filter(([, nums]) => nums.length > 1)
+      .map(([placa, nums]) => ({ placa, linhas: nums }))
+  }, [linhas])
+
+  const qtdDuplicadas = jaCadastradas.length + duplicadasArquivo.length
   const invalidas = linhas.filter((l) => !l.ok)
 
   function resetFile() {
@@ -105,6 +124,8 @@ export function ImportarVeiculosModal({
     if (!file) return
     setErro('')
     setConcluidoQtd(null)
+    setDetalheDup(false)
+    setDetalheErro(false)
     const name = file.name.toLowerCase()
     if (
       !name.endsWith('.xlsx') &&
@@ -231,25 +252,79 @@ export function ImportarVeiculosModal({
                 </div>
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
                   <p className="font-bold text-amber-900">Já cadastradas / duplicadas</p>
-                  <p className="text-lg font-extrabold text-amber-800">
-                    {jaCadastradas.length + duplicadasArquivo.length}
-                  </p>
+                  <p className="text-lg font-extrabold text-amber-800">{qtdDuplicadas}</p>
+                  {qtdDuplicadas > 0 ? (
+                    <button
+                      type="button"
+                      className="mt-1 text-[11px] font-bold text-amber-950 underline underline-offset-2 hover:no-underline"
+                      onClick={() => {
+                        setDetalheDup((v) => !v)
+                        if (!detalheDup) setDetalheErro(false)
+                      }}
+                    >
+                      {detalheDup ? 'Ocultar detalhes' : 'Mostrar detalhes'}
+                    </button>
+                  ) : null}
                 </div>
                 <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
                   <p className="font-bold text-red-900">Com erro</p>
                   <p className="text-lg font-extrabold text-red-800">{invalidas.length}</p>
+                  {invalidas.length > 0 ? (
+                    <button
+                      type="button"
+                      className="mt-1 text-[11px] font-bold text-red-950 underline underline-offset-2 hover:no-underline"
+                      onClick={() => {
+                        setDetalheErro((v) => !v)
+                        if (!detalheErro) setDetalheDup(false)
+                      }}
+                    >
+                      {detalheErro ? 'Ocultar detalhes' : 'Mostrar detalhes'}
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ) : null}
 
-            {invalidas.length > 0 ? (
-              <div className="max-h-36 overflow-y-auto rounded-lg border border-red-100 bg-red-50/50 p-2 text-[11px] text-red-900">
-                {invalidas.slice(0, 20).map((l) => (
+            {detalheDup && qtdDuplicadas > 0 ? (
+              <div className="max-h-44 overflow-y-auto rounded-lg border border-amber-200 bg-amber-50/70 p-2.5 text-[11px] text-amber-950">
+                <p className="mb-1.5 font-extrabold uppercase tracking-wide">
+                  Já cadastradas / duplicadas
+                </p>
+                {jaCadastradas.length > 0 ? (
+                  <div className="mb-2">
+                    <p className="mb-0.5 font-bold">Já no sistema ({jaCadastradas.length})</p>
+                    {jaCadastradas.map((item) => (
+                      <p key={`cad-${item.linha}-${item.placa}`}>
+                        Linha {item.linha}: placa {item.placa}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
+                {duplicadasNoArquivo.length > 0 ? (
+                  <div>
+                    <p className="mb-0.5 font-bold">
+                      Repetidas na planilha ({duplicadasNoArquivo.length})
+                    </p>
+                    {duplicadasNoArquivo.map((item) => (
+                      <p key={`dup-${item.placa}`}>
+                        Placa {item.placa}: linhas {item.linhas.join(', ')}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {detalheErro && invalidas.length > 0 ? (
+              <div className="max-h-44 overflow-y-auto rounded-lg border border-red-200 bg-red-50/70 p-2.5 text-[11px] text-red-900">
+                <p className="mb-1.5 font-extrabold uppercase tracking-wide">
+                  Com erro ({invalidas.length})
+                </p>
+                {invalidas.map((l) => (
                   <p key={l.linha}>
                     Linha {l.linha}: {l.erros.join('; ')}
                   </p>
                 ))}
-                {invalidas.length > 20 ? <p>… e mais {invalidas.length - 20}</p> : null}
               </div>
             ) : null}
 
