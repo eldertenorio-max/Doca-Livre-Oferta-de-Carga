@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useData } from '../../context/DataContext'
-import { formatCurrency } from '../../lib/businessRules'
+import { formatCurrency, moneyFromDigits } from '../../lib/businessRules'
 import { newRotaId } from '../../lib/rotasSync'
 import { buscarCidades, filtrarSugestoes } from '../../lib/cidadesBrasil'
 import type { ClassificacaoRota, Rota } from '../../types'
@@ -8,19 +8,39 @@ import { Button, Field, Modal, inputClass } from '../../components/ui/Modal'
 import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
 import { RotaMapPreview } from '../../components/carga/RotaMapPreview'
 
+const emptyForm = (): Partial<Rota> => ({
+  descricao: '',
+  origem: '',
+  destino: '',
+  classificacao: 'B',
+  frete_tabela: 0,
+  km: 0,
+  situacao: 'ativo',
+})
+
 export function RotasPage() {
   const { rotas, salvarRota } = useData()
-  const [form, setForm] = useState<Partial<Rota>>({
-    descricao: '',
-    origem: '',
-    destino: '',
-    classificacao: 'B',
-    frete_tabela: 0,
-    km: 0,
-    situacao: 'ativo',
-  })
+  const [form, setForm] = useState<Partial<Rota>>(emptyForm)
+  const [freteStr, setFreteStr] = useState('')
+  const [kmStr, setKmStr] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [mapaRota, setMapaRota] = useState<Rota | null>(null)
+
+  function carregarForm(r?: Partial<Rota> | null) {
+    if (!r) {
+      setForm(emptyForm())
+      setFreteStr('')
+      setKmStr('')
+      return
+    }
+    setForm(r)
+    setFreteStr(
+      r.frete_tabela && r.frete_tabela > 0
+        ? moneyFromDigits(String(Math.round(r.frete_tabela * 100))).display
+        : '',
+    )
+    setKmStr(r.km && r.km > 0 ? String(r.km) : '')
+  }
 
   const sugOrigem = useMemo(
     () => (q: string) =>
@@ -47,15 +67,7 @@ export function RotasPage() {
     }
     salvarRota(rota)
     setEditingId(null)
-    setForm({
-      descricao: '',
-      origem: '',
-      destino: '',
-      classificacao: 'B',
-      frete_tabela: 0,
-      km: 0,
-      situacao: 'ativo',
-    })
+    carregarForm(null)
   }
 
   return (
@@ -118,7 +130,7 @@ export function RotasPage() {
                       className="text-xs font-semibold text-ink hover:underline"
                       onClick={() => {
                         setEditingId(r.id)
-                        setForm(r)
+                        carregarForm(r)
                       }}
                     >
                       Editar
@@ -198,18 +210,35 @@ export function RotasPage() {
           </Field>
           <Field label="Frete Tabela">
             <input
-              type="number"
               className={inputClass}
-              value={form.frete_tabela ?? 0}
-              onChange={(e) => setForm({ ...form, frete_tabela: Number(e.target.value) })}
+              inputMode="decimal"
+              placeholder="0,00"
+              value={freteStr}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, '')
+                if (!digits) {
+                  setFreteStr('')
+                  setForm({ ...form, frete_tabela: 0 })
+                  return
+                }
+                const { display, value } = moneyFromDigits(digits)
+                setFreteStr(display)
+                setForm({ ...form, frete_tabela: value })
+              }}
             />
           </Field>
           <Field label="KM">
             <input
-              type="number"
               className={inputClass}
-              value={form.km ?? 0}
-              onChange={(e) => setForm({ ...form, km: Number(e.target.value) })}
+              inputMode="decimal"
+              placeholder="0"
+              value={kmStr}
+              onChange={(e) => {
+                const raw = e.target.value.replace(/[^\d.,]/g, '')
+                setKmStr(raw)
+                const n = Number(raw.replace(',', '.'))
+                setForm({ ...form, km: Number.isFinite(n) ? n : 0 })
+              }}
             />
           </Field>
         </div>
