@@ -24,9 +24,25 @@ import {
 } from '../../lib/mapaFrota'
 import { frotaIconeSvgRaw } from '../../lib/frotaIcones'
 import { listarFotosVeiculoDisponiveis } from '../../lib/veiculoFotos'
+import {
+  CARROCERIAS_POR_GRUPO,
+  GRUPOS_CARROCERIA,
+  parseCarrocerias,
+  toggleCarroceria,
+} from '../../lib/tiposCarroceria'
 import { FrotaGaleriaVeiculoModal } from '../../components/mapa/FrotaGaleriaVeiculoModal'
 import '../../styles/cadastro.css'
 import '../../styles/mapa-frota.css'
+
+function pontoTemCarroceria(p: PontoFrota, selecionadas: string[]): boolean {
+  if (selecionadas.length === 0) return true
+  const doPonto = parseCarrocerias(p.tipoCarroceria).map((x) => x.toLowerCase())
+  if (doPonto.length === 0) return false
+  return selecionadas.some((s) => {
+    const q = s.toLowerCase()
+    return doPonto.some((x) => x === q || x.includes(q) || q.includes(x))
+  })
+}
 
 const RAIOS_KM = [50, 100, 150, 200, 300, 500] as const
 const RAIO_GEO_MIN_KM = 10
@@ -337,6 +353,7 @@ export function MapaFrotaPage() {
   const [buscaVeiculo, setBuscaVeiculo] = useState('')
   const [buscaTransportadora, setBuscaTransportadora] = useState('')
   const [transportadorFiltroId, setTransportadorFiltroId] = useState('')
+  const [carroceriasFiltro, setCarroceriasFiltro] = useState<string[]>([])
   const [cidade, setCidade] = useState('')
   const [uf, setUf] = useState('')
   const [regiao, setRegiao] = useState<'' | RegiaoBr>('')
@@ -386,6 +403,7 @@ export function MapaFrotaPage() {
         buscaVeiculo: buscaVeiculo.trim().toLowerCase(),
         buscaTransportadora: buscaTransportadora.trim().toLowerCase(),
         transportadorFiltroId,
+        carroceriasFiltro,
         cidade,
         uf,
         regiao,
@@ -403,6 +421,7 @@ export function MapaFrotaPage() {
       buscaVeiculo,
       buscaTransportadora,
       transportadorFiltroId,
+      carroceriasFiltro,
       cidade,
       uf,
       regiao,
@@ -462,12 +481,14 @@ export function MapaFrotaPage() {
       if (raioGeoAtivo && origemRaio) {
         if (distanciaKm(origemRaio.lat, origemRaio.lng, p.lat, p.lng) > raioGeo) return false
       }
+      if (!pontoTemCarroceria(p, carroceriasFiltro)) return false
       if (abaPesquisa === 'veiculo') {
         if (qVeic) {
           const blob = [
             p.motoristaNome,
             p.placa,
             p.tipoVeiculo,
+            p.tipoCarroceria,
             p.veiculoMarca,
             p.veiculoModelo,
             p.cidade,
@@ -495,6 +516,7 @@ export function MapaFrotaPage() {
     buscaVeiculo,
     buscaTransportadora,
     transportadorFiltroId,
+    carroceriasFiltro,
     abaPesquisa,
     origemRaio,
   ])
@@ -528,7 +550,8 @@ export function MapaFrotaPage() {
     Boolean(regiao) ||
     raioMin !== '' ||
     Boolean(origemRaio) ||
-    tipos.length > 0
+    tipos.length > 0 ||
+    carroceriasFiltro.length > 0
 
   function definirOrigem(lat: number, lng: number, label: string) {
     setOrigemRaio({ lat, lng, label })
@@ -617,8 +640,41 @@ export function MapaFrotaPage() {
     setCoordLng('')
     setGeoErro('')
     setTipos([])
+    setCarroceriasFiltro([])
     setTipoDoAnuncio(null)
   }
+
+  function toggleCarroceriaFiltro(item: string) {
+    setCarroceriasFiltro((prev) => toggleCarroceria(prev, item))
+  }
+
+  const blocoCarroceria = (
+    <div className="mapa-frota__carroceria">
+      <p className="mapa-frota__tipos-label">Carroceria</p>
+      {GRUPOS_CARROCERIA.map((grupo) => (
+        <div key={grupo} className="mapa-frota__carroceria-grupo">
+          <p className="mapa-frota__carroceria-grupo-title">{grupo}</p>
+          <ul className="mapa-frota__carroceria-list">
+            {CARROCERIAS_POR_GRUPO[grupo].map((item) => {
+              const on = carroceriasFiltro.includes(item)
+              return (
+                <li key={item}>
+                  <label className={`mapa-frota__carroceria-item${on ? ' is-on' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={() => toggleCarroceriaFiltro(item)}
+                    />
+                    <span>{item}</span>
+                  </label>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      ))}
+    </div>
+  )
 
   /** Clique na categoria: mostra só aquele tipo; clica de novo libera. */
   function filtrarSoTipo(grupo: FrotaIconeGrupo) {
@@ -1185,6 +1241,7 @@ export function MapaFrotaPage() {
                         })}
                       </div>
                     </div>
+                    {blocoCarroceria}
                   </div>
                 ) : (
                   <div className="mapa-frota__tab-panel" role="tabpanel">
@@ -1245,6 +1302,7 @@ export function MapaFrotaPage() {
                           })}
                       </ul>
                     )}
+                    {blocoCarroceria}
                   </div>
                 )}
 

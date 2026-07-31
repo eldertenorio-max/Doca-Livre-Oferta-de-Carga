@@ -292,6 +292,52 @@
   cursor: not-allowed;
 }
 
+.mapa-frota__carroceria {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.mapa-frota__carroceria-grupo-title {
+  margin: 0 0 4px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.mapa-frota__carroceria-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mapa-frota__carroceria-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+}
+
+.mapa-frota__carroceria-item input {
+  width: 15px;
+  height: 15px;
+  accent-color: #0f172a;
+  flex-shrink: 0;
+}
+
+.mapa-frota__carroceria-item.is-on {
+  color: #0f172a;
+  font-weight: 800;
+}
+
 .mapa-frota__tipos-label {
   display: block;
   margin-bottom: 6px;
