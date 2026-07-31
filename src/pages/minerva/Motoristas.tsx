@@ -279,7 +279,7 @@ export function MotoristasPage() {
                       <td className="p-3 text-right space-x-2">
                         <button
                           type="button"
-                          className="text-xs font-bold text-ink hover:underline"
+                          className="text-xs font-bold text-brand hover:underline"
                           onClick={() => openEdit(m)}
                         >
                           Editar
