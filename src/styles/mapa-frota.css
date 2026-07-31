@@ -656,7 +656,7 @@
   box-shadow: 0 4px 14px rgb(15 23 42 / 0.08);
 }
 
-/* Marcadores estilo bolha (ícone + frete) */
+/* Marcadores estilo bolha (Ã­cone + frete) */
 .frota-pin-wrap {
   background: transparent !important;
   border: 0 !important;
@@ -777,7 +777,7 @@
   line-height: 1;
 }
 
-/* Popup Leaflet — abre EMBAIXO do pin */
+/* Popup Leaflet â€” abre EMBAIXO do pin */
 .frota-leaflet-popup .leaflet-popup-content-wrapper {
   border-radius: 16px;
   border: 1px solid #e2e8f0;
@@ -795,7 +795,7 @@
   overscroll-behavior: contain;
 }
 
-/* Leaflet posiciona o card acima do tip; forçamos abaixo do pin */
+/* Leaflet posiciona o card acima do tip; forÃ§amos abaixo do pin */
 .frota-leaflet-popup--below.leaflet-popup {
   bottom: auto !important;
   top: 12px !important;
@@ -1255,7 +1255,7 @@
   color: #0ea5e9;
 }
 
-/* Localização diferente da origem da transportadora */
+/* LocalizaÃ§Ã£o diferente da origem da transportadora */
 .disp-placas__loc.is-away {
   color: #2563eb;
   border-color: #93c5fd;
@@ -1470,7 +1470,7 @@
   }
 }
 
-/* Galeria de fotos do ve�culo (mapa da frota) */
+/* Galeria de fotos do veiculo (mapa da frota) */
 .frota-galeria {
   position: fixed;
   inset: 0;
