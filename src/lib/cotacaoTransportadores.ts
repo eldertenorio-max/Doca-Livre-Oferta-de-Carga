@@ -1,4 +1,12 @@
+import type { ModoPublicacao } from '../types'
+
 const STORAGE_KEY = 'doca-livre-cotacao-transportadores'
+
+/** Prefill da aba Parâmetros e publicação ao abrir Nova carga. */
+export type PrefillPublicacao = {
+  modo?: ModoPublicacao
+  transportadorIds?: string[]
+}
 
 export function loadCotacaoIds(): string[] {
   try {

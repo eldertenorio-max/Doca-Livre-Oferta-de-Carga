@@ -63,6 +63,11 @@ interface Props {
   onClose: () => void
   /** Aba inicial: Nova carga → dados; demais → publicar/negociação */
   initialTab?: PanelTab
+  /** Prefill de Negociação Direta (vindo da cotação de transportadoras). */
+  prefillPublicacao?: {
+    modo?: ModoPublicacao
+    transportadorIds?: string[]
+  } | null
   /** Troca a carga aberta no painel (rascunhos salvos) */
   onSelectCarga?: (carga: Carga) => void
   /** Rascunho efêmero virou carga salva (primeiro Salvar) */
@@ -89,6 +94,7 @@ export function PublishPanel({
   open,
   onClose,
   initialTab,
+  prefillPublicacao,
   onSelectCarga,
   onCargaPersistida,
   onPanelSizeChange,
@@ -175,14 +181,25 @@ export function PublishPanel({
     setMargem(m[1] ?? m[0])
     const ativos = grupos.filter((g) => g.situacao === 'ativo').map((g) => g.id)
     setGrupoIds(carga.grupo_ids.length ? carga.grupo_ids : ativos)
+    const prefillDireta =
+      carga.status === 'nova_carga' &&
+      prefillPublicacao?.modo === 'negociacao_direta'
+    const prefillIds = prefillDireta
+      ? [...new Set((prefillPublicacao?.transportadorIds ?? []).filter(Boolean))]
+      : []
+
     setTransportadorDiretoIds(
-      Array.isArray(carga.transportador_direto_ids) ? [...carga.transportador_direto_ids] : [],
+      prefillIds.length > 0
+        ? prefillIds
+        : Array.isArray(carga.transportador_direto_ids)
+          ? [...carga.transportador_direto_ids]
+          : [],
     )
     setEscalonar(false)
     setPrazoLeilao(carga.prazo_leilao_minutos ?? config.prazo_oferta_padrao_minutos)
     setPrazoAlocacao(carga.prazo_alocacao_minutos ?? config.prazo_alocacao_padrao_minutos)
     setModoOverride(
-      carga.modo_publicacao === 'negociacao_direta'
+      prefillDireta || carga.modo_publicacao === 'negociacao_direta'
         ? 'negociacao_direta'
         : usarRegra
           ? null
@@ -190,6 +207,11 @@ export function PublishPanel({
     )
     setPrioridadeManual(usarRegra ? null : (config.prioridade_padrao ?? 'media'))
     setError('')
+    setInfo(
+      prefillDireta && prefillIds.length > 0
+        ? `Negociação direta pronta com ${prefillIds.length} transportadora(s). Complete os dados e publique.`
+        : '',
+    )
     setMotivo(carga.justificativa_motivo ?? '')
     setObs(carga.justificativa_obs ?? '')
     setObservacao(carga.observacao ?? '')
@@ -197,10 +219,12 @@ export function PublishPanel({
     const defaultTab: PanelTab =
       carga.status !== 'nova_carga'
         ? 'publicar'
-        : (initialTab ?? 'dados')
+        : prefillDireta
+          ? 'publicar'
+          : (initialTab ?? 'dados')
     setTab(defaultTab)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao abrir outra carga
-  }, [carga?.id, initialTab, usarRegra])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao abrir outra carga / prefill
+  }, [carga?.id, initialTab, usarRegra, prefillPublicacao])
 
   // Carga publicada: mantém sempre na aba Negociação
   useEffect(() => {

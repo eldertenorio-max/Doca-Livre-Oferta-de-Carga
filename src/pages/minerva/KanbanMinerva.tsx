@@ -15,6 +15,7 @@ import {
 } from '../../lib/kanbanColumns'
 import { isKanbanSyncReady } from '../../lib/kanbanSync'
 import { loadPanelSize, type PanelSize } from '../../lib/cargasMontadas'
+import type { PrefillPublicacao } from '../../lib/cotacaoTransportadores'
 import type { Carga } from '../../types'
 
 const COLUMNS: {
@@ -88,6 +89,7 @@ export function KanbanMinerva() {
   const [panelOpen, setPanelOpen] = useState(false)
   const [panelSize, setPanelSize] = useState<PanelSize>(() => loadPanelSize())
   const [initialTab, setInitialTab] = useState<'dados' | 'salvas' | 'publicar'>('dados')
+  const [prefillPublicacao, setPrefillPublicacao] = useState<PrefillPublicacao | null>(null)
   const [dragMsg, setDragMsg] = useState<string | null>(null)
   const [syncBusy, setSyncBusy] = useState(false)
   const [isNarrow, setIsNarrow] = useState(
@@ -153,21 +155,28 @@ export function KanbanMinerva() {
     setPanelOpen(true)
   }
 
-  function openNovaCarga() {
+  function openNovaCarga(prefill?: PrefillPublicacao | null) {
     const draft = montarNovaCarga(undefined, user?.id ?? null, { persistir: false })
     setEphemeral(draft)
     setSelected(draft)
-    setInitialTab('dados')
+    setPrefillPublicacao(prefill ?? null)
+    setInitialTab(
+      prefill?.modo === 'negociacao_direta' ? 'publicar' : 'dados',
+    )
     setPanelOpen(true)
   }
 
-  // Topbar “+ Nova carga” navega com state.novaCarga
+  // Topbar “+ Nova carga” ou cotação de transportadora
   useEffect(() => {
-    const st = location.state as { novaCarga?: boolean; abrirCargaId?: string } | null
+    const st = location.state as {
+      novaCarga?: boolean
+      abrirCargaId?: string
+      prefillPublicacao?: PrefillPublicacao
+    } | null
     if (!st?.novaCarga) return
-    openNovaCarga()
+    openNovaCarga(st.prefillPublicacao ?? null)
     navigate(location.pathname, { replace: true, state: null })
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao chegar com o sinal da topbar
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao chegar com o sinal da topbar/cotação
   }, [location.state, location.pathname, navigate])
 
   // Notificação “Nova proposta” / Ver card → abre o painel de negociação da carga
@@ -340,14 +349,16 @@ export function KanbanMinerva() {
 
       {panelOpen && liveSelected && (
         <PublishPanel
-          key={`${liveSelected.id}-${initialTab}`}
+          key={`${liveSelected.id}-${initialTab}-${prefillPublicacao?.modo ?? ''}-${(prefillPublicacao?.transportadorIds ?? []).join(',')}`}
           carga={liveSelected}
           open={panelOpen}
           initialTab={initialTab}
+          prefillPublicacao={prefillPublicacao}
           onPanelSizeChange={setPanelSize}
           onSelectCarga={(c) => {
             setEphemeral(null)
             setSelected(c)
+            setPrefillPublicacao(null)
             setInitialTab('dados')
           }}
           onCargaPersistida={(c) => {
@@ -363,6 +374,7 @@ export function KanbanMinerva() {
             setPanelOpen(false)
             setSelected(null)
             setEphemeral(null)
+            setPrefillPublicacao(null)
           }}
         />
       )}

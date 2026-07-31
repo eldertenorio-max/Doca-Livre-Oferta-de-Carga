@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Briefcase, MapPin, Plus, ShoppingCart } from 'lucide-react'
@@ -84,6 +85,7 @@ export function TransportadorasKanbanView({
   motoristasPorTransportador,
   tituloCidade,
 }: Props) {
+  const navigate = useNavigate()
   const mapEl = useRef<HTMLDivElement>(null)
   const mapWrapRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
@@ -231,14 +233,38 @@ export function TransportadorasKanbanView({
     window.setTimeout(() => setMsg(''), 2500)
   }
 
+  function abrirNovaCargaDireta(transportadorIds: string[]) {
+    const ids = [...new Set(transportadorIds.filter(Boolean))]
+    if (ids.length === 0) return
+    navigate('/embarcador', {
+      state: {
+        novaCarga: true,
+        prefillPublicacao: {
+          modo: 'negociacao_direta' as const,
+          transportadorIds: ids,
+        },
+      },
+    })
+  }
+
   function onAdicionarCotacao(t: Transportador) {
+    const jaTinha = cotacaoIds.includes(t.id)
     const next = toggleCotacaoId(t.id)
     setCotacaoIds(next)
-    flash(
-      next.includes(t.id)
-        ? `${t.nome_fantasia} adicionada à cotação.`
-        : `${t.nome_fantasia} removida da cotação.`,
-    )
+    if (!jaTinha && next.includes(t.id)) {
+      // Abre Nova carga já em Negociação Direta com esta transportadora
+      abrirNovaCargaDireta([t.id])
+      return
+    }
+    flash(`${t.nome_fantasia || t.razao_social} removida da cotação.`)
+  }
+
+  function onSolicitarCotacao() {
+    if (cotacaoIds.length === 0) {
+      flash('Adicione ao menos uma transportadora na cotação.')
+      return
+    }
+    abrirNovaCargaDireta(cotacaoIds)
   }
 
   function onLocalizar(t: Transportador) {
@@ -266,13 +292,8 @@ export function TransportadorasKanbanView({
         <button
           type="button"
           className="transp-kanban__cotacao-btn"
-          onClick={() =>
-            flash(
-              cotacaoIds.length
-                ? `${cotacaoIds.length} transportadora(s) na cotação.`
-                : 'Nenhuma transportadora na cotação ainda.',
-            )
-          }
+          onClick={onSolicitarCotacao}
+          title="Abrir Nova carga em Negociação Direta com as selecionadas"
         >
           <ShoppingCart size={16} />
           Solicitar Cotação
