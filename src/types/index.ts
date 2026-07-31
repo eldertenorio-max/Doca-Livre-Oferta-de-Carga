@@ -285,6 +285,10 @@ export interface Carga {
   remetente_cnpj: string
   origem: string
   destino: string
+  origem_lat?: number | null
+  origem_lng?: number | null
+  destino_lat?: number | null
+  destino_lng?: number | null
   /** Se a carga aceita complemento: sim | nao | ambos */
   complemento?: 'sim' | 'nao' | 'ambos'
   /** Marca a oferta como carga de retorno (volta). */

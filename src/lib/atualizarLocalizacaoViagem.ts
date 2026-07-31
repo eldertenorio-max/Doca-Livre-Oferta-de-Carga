@@ -33,6 +33,8 @@ export async function montarPatchLocalizacaoAposViagem(params: {
   carga: Pick<
     Carga,
     | 'destino'
+    | 'destino_lat'
+    | 'destino_lng'
     | 'rota_id'
     | 'veiculo_id'
     | 'transportador_vencedor_id'
@@ -48,8 +50,8 @@ export async function montarPatchLocalizacaoAposViagem(params: {
   const cfg = loadConfigTransportador(tid)
   if (!cfg.atualizar_localizacao_ao_finalizar) return null
 
-  let lat = rota?.destino_lat ?? null
-  let lng = rota?.destino_lng ?? null
+  let lat = carga.destino_lat ?? rota?.destino_lat ?? null
+  let lng = carga.destino_lng ?? rota?.destino_lng ?? null
   let enderecoTxt = (carga.destino || '').trim()
 
   if (

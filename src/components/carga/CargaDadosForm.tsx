@@ -22,10 +22,28 @@ import { SuggestInput } from "../ui/SuggestInput";
 import { AddressSuggestInput } from "../ui/AddressSuggestInput";
 import { joinCarrocerias, parseCarrocerias } from "../../lib/tiposCarroceria";
 import { newRotaId } from "../../lib/rotasSync";
+import { fmtMapsCoords, parseMapsCoords } from "../../lib/mapsCoords";
+import {
+  enderecoPorCoordenadas,
+  geocodificarConsulta,
+  type EnderecoCampos,
+} from "../../lib/geocodeEndereco";
 import { CarroceriaSuggestInput } from "../ui/CarroceriaSuggestInput";
 import { VeiculoSuggestInput } from "../ui/VeiculoSuggestInput";
 import { AnttFretePanel } from "./AnttFretePanel";
 import { RotaMapPreview } from "./RotaMapPreview";
+
+function labelEndereco(dados: EnderecoCampos, display?: string): string {
+  if (display?.trim()) return display.trim();
+  const rua =
+    dados.endereco && dados.numero
+      ? `${dados.endereco}, ${dados.numero}`
+      : dados.endereco || dados.numero || "";
+  return [rua, dados.bairro, dados.cidade, dados.uf]
+    .map((p) => (p || "").trim())
+    .filter(Boolean)
+    .join(", ");
+}
 
 type ComplementoCarga = NonNullable<Carga["complemento"]>;
 type GerenciamentoRisco = NonNullable<Carga["gerenciamento_risco"]>;
@@ -126,6 +144,28 @@ export function CargaDadosForm({
 
   const [origem, setOrigem] = useState(carga.origem);
   const [destino, setDestino] = useState(carga.destino);
+  const [origemLat, setOrigemLat] = useState<number | null>(
+    carga.origem_lat ?? null,
+  );
+  const [origemLng, setOrigemLng] = useState<number | null>(
+    carga.origem_lng ?? null,
+  );
+  const [destinoLat, setDestinoLat] = useState<number | null>(
+    carga.destino_lat ?? null,
+  );
+  const [destinoLng, setDestinoLng] = useState<number | null>(
+    carga.destino_lng ?? null,
+  );
+  const [origemMapsStr, setOrigemMapsStr] = useState(
+    fmtMapsCoords(carga.origem_lat, carga.origem_lng),
+  );
+  const [destinoMapsStr, setDestinoMapsStr] = useState(
+    fmtMapsCoords(carga.destino_lat, carga.destino_lng),
+  );
+  const skipGeoOrigem = useRef(false);
+  const skipGeoDestino = useRef(false);
+  const skipRevOrigem = useRef(false);
+  const skipRevDestino = useRef(false);
   const [complementoTxt, setComplementoTxt] = useState(() =>
     labelComplemento(carga.complemento),
   );
@@ -318,6 +358,26 @@ export function CargaDadosForm({
   useEffect(() => {
     setOrigem(carga.origem);
     setDestino(carga.destino);
+    const temO =
+      carga.origem_lat != null &&
+      carga.origem_lng != null &&
+      Number.isFinite(carga.origem_lat) &&
+      Number.isFinite(carga.origem_lng);
+    const temD =
+      carga.destino_lat != null &&
+      carga.destino_lng != null &&
+      Number.isFinite(carga.destino_lat) &&
+      Number.isFinite(carga.destino_lng);
+    skipGeoOrigem.current = temO;
+    skipGeoDestino.current = temD;
+    skipRevOrigem.current = temO;
+    skipRevDestino.current = temD;
+    setOrigemLat(carga.origem_lat ?? null);
+    setOrigemLng(carga.origem_lng ?? null);
+    setDestinoLat(carga.destino_lat ?? null);
+    setDestinoLng(carga.destino_lng ?? null);
+    setOrigemMapsStr(fmtMapsCoords(carga.origem_lat, carga.origem_lng));
+    setDestinoMapsStr(fmtMapsCoords(carga.destino_lat, carga.destino_lng));
     setComplementoTxt(labelComplemento(carga.complemento));
     setRiscoTxt(labelGerenciamentoRisco(carga.gerenciamento_risco));
     setFreteTabela(formatMoneyInput(carga.frete_tabela || 0));
@@ -433,13 +493,133 @@ export function CargaDadosForm({
     }
     const r = rotas.find((x) => x.id === id);
     if (!r) return;
+    const temO = r.origem_lat != null && r.origem_lng != null;
+    const temD = r.destino_lat != null && r.destino_lng != null;
+    skipGeoOrigem.current = temO;
+    skipGeoDestino.current = temD;
+    skipRevOrigem.current = temO;
+    skipRevDestino.current = temD;
     setOrigem(r.origem);
     setDestino(r.destino);
+    setOrigemLat(r.origem_lat ?? null);
+    setOrigemLng(r.origem_lng ?? null);
+    setDestinoLat(r.destino_lat ?? null);
+    setDestinoLng(r.destino_lng ?? null);
+    setOrigemMapsStr(fmtMapsCoords(r.origem_lat, r.origem_lng));
+    setDestinoMapsStr(fmtMapsCoords(r.destino_lat, r.destino_lng));
     setFreteTabela(formatMoneyInput(r.frete_tabela || 0));
     setClassificacao(r.classificacao ?? "B");
     setSalvarFavorita(false);
     setInfo(`Rota “${r.descricao}” aplicada (${r.origem} → ${r.destino}).`);
   }
+
+  // Endereço origem → coordenadas Maps
+  useEffect(() => {
+    if (!editavel) return;
+    const txt = origem.trim();
+    if (skipGeoOrigem.current) {
+      skipGeoOrigem.current = false;
+      return;
+    }
+    if (txt.length < 5) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const res = await geocodificarConsulta(txt);
+        if (cancelled || !res.ok) return;
+        skipRevOrigem.current = true;
+        setOrigemLat(res.coords.lat);
+        setOrigemLng(res.coords.lng);
+        setOrigemMapsStr(fmtMapsCoords(res.coords.lat, res.coords.lng));
+      })();
+    }, 700);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [origem, editavel]);
+
+  // Endereço destino → coordenadas Maps
+  useEffect(() => {
+    if (!editavel) return;
+    const txt = destino.trim();
+    if (skipGeoDestino.current) {
+      skipGeoDestino.current = false;
+      return;
+    }
+    if (txt.length < 5) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const res = await geocodificarConsulta(txt);
+        if (cancelled || !res.ok) return;
+        skipRevDestino.current = true;
+        setDestinoLat(res.coords.lat);
+        setDestinoLng(res.coords.lng);
+        setDestinoMapsStr(fmtMapsCoords(res.coords.lat, res.coords.lng));
+      })();
+    }, 700);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [destino, editavel]);
+
+  // Coordenadas Maps origem → endereço
+  useEffect(() => {
+    if (!editavel) return;
+    if (skipRevOrigem.current) {
+      skipRevOrigem.current = false;
+      return;
+    }
+    const parsed = parseMapsCoords(origemMapsStr);
+    if (!parsed) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const res = await enderecoPorCoordenadas(parsed.lat, parsed.lng);
+        if (cancelled) return;
+        setOrigemLat(parsed.lat);
+        setOrigemLng(parsed.lng);
+        if (!res.ok) return;
+        skipGeoOrigem.current = true;
+        setOrigem(labelEndereco(res.dados, res.display));
+        if (rotaId) setRotaId("");
+      })();
+    }, 500);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [origemMapsStr, editavel]);
+
+  // Coordenadas Maps destino → endereço
+  useEffect(() => {
+    if (!editavel) return;
+    if (skipRevDestino.current) {
+      skipRevDestino.current = false;
+      return;
+    }
+    const parsed = parseMapsCoords(destinoMapsStr);
+    if (!parsed) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const res = await enderecoPorCoordenadas(parsed.lat, parsed.lng);
+        if (cancelled) return;
+        setDestinoLat(parsed.lat);
+        setDestinoLng(parsed.lng);
+        if (!res.ok) return;
+        skipGeoDestino.current = true;
+        setDestino(labelEndereco(res.dados, res.display));
+        if (rotaId) setRotaId("");
+      })();
+    }, 500);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [destinoMapsStr, editavel]);
 
   function handleSalvar(irParaPublicar = false) {
     setError("");
@@ -493,6 +673,10 @@ export function CargaDadosForm({
         descricao: descricaoRota(origemFinal, destinoFinal),
         origem: origemFinal,
         destino: destinoFinal,
+        origem_lat: origemLat,
+        origem_lng: origemLng,
+        destino_lat: destinoLat,
+        destino_lng: destinoLng,
         classificacao: classifFinal,
         frete_tabela: freteFinal,
         km: anttInfo?.rota.distancia_km ?? 0,
@@ -538,6 +722,10 @@ export function CargaDadosForm({
       classificacao_rota: classifFinal,
       origem: origemFinal,
       destino: destinoFinal,
+      origem_lat: origemLat,
+      origem_lng: origemLng,
+      destino_lat: destinoLat,
+      destino_lng: destinoLng,
       complemento: complementoFinal,
       carga_retorno: cargaRetorno,
       retorna_origem: retornaOrigem,
@@ -756,6 +944,30 @@ export function CargaDadosForm({
               minChars={2}
               placeholder="Digite o endereço como no Google Maps"
             />
+          </Field>
+          <Field label="Coordenadas origem (Maps)" className="sm:col-span-6">
+            <input
+              className={inputClass}
+              inputMode="text"
+              placeholder="-23.5613545,-46.6590692,17"
+              value={origemMapsStr}
+              onChange={(e) => setOrigemMapsStr(e.target.value)}
+            />
+            <p className="mt-0.5 text-[11px] text-ink-muted">
+              Cole lat,lng ou lat,lng,zoom do Google Maps.
+            </p>
+          </Field>
+          <Field label="Coordenadas destino (Maps)" className="sm:col-span-6">
+            <input
+              className={inputClass}
+              inputMode="text"
+              placeholder="-22.9068470,-43.1728970,17"
+              value={destinoMapsStr}
+              onChange={(e) => setDestinoMapsStr(e.target.value)}
+            />
+            <p className="mt-0.5 text-[11px] text-ink-muted">
+              Cole lat,lng ou lat,lng,zoom do Google Maps.
+            </p>
           </Field>
           <div className="grid gap-1.5 sm:col-span-12 sm:grid-cols-3">
             <Field label="Retorna para origem">

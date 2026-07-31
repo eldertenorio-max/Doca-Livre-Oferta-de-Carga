@@ -18,6 +18,22 @@ export function normalizeCarga(c: Carga): Carga {
         : undefined,
     carga_retorno: Boolean(c.carga_retorno),
     retorna_origem: Boolean(c.retorna_origem),
+    origem_lat:
+      c.origem_lat != null && Number.isFinite(Number(c.origem_lat))
+        ? Number(c.origem_lat)
+        : null,
+    origem_lng:
+      c.origem_lng != null && Number.isFinite(Number(c.origem_lng))
+        ? Number(c.origem_lng)
+        : null,
+    destino_lat:
+      c.destino_lat != null && Number.isFinite(Number(c.destino_lat))
+        ? Number(c.destino_lat)
+        : null,
+    destino_lng:
+      c.destino_lng != null && Number.isFinite(Number(c.destino_lng))
+        ? Number(c.destino_lng)
+        : null,
     gerenciamento_risco:
       c.gerenciamento_risco === 'rastreador' ||
       c.gerenciamento_risco === 'localizador' ||
