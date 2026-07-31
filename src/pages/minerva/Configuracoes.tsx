@@ -267,23 +267,41 @@ export function ConfiguracoesPage() {
           </div>
           <Hint>{exemploLance} Deixe em branco para sem limite.</Hint>
 
-          <label className="flex items-start gap-2 rounded-lg border border-ink/10 bg-sand-light/40 px-3 py-2.5 text-sm">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              disabled={!canEdit}
-              checked={form.empate_exige_aceite_manual}
-              onChange={(e) =>
-                setForm({ ...form, empate_exige_aceite_manual: e.target.checked })
-              }
-            />
-            <span>
-              <span className="font-semibold text-ink">Empate: eu escolho o vencedor</span>
-              <span className="mt-0.5 block text-[12px] text-ink-muted">
-                Se dois lances empatam no valor, a carga não fecha sozinha — o embarcador aceita.
+          <div className="space-y-2">
+            <label className="flex items-start gap-2 rounded-lg border border-ink/10 bg-sand-light/40 px-3 py-2.5 text-sm">
+              <input
+                type="radio"
+                name="empate_regra"
+                className="mt-0.5"
+                disabled={!canEdit}
+                checked={form.empate_exige_aceite_manual}
+                onChange={() => setForm({ ...form, empate_exige_aceite_manual: true })}
+              />
+              <span>
+                <span className="font-semibold text-ink">Empate: eu escolho o vencedor</span>
+                <span className="mt-0.5 block text-[12px] text-ink-muted">
+                  Se dois lances empatam no valor, a carga não fecha sozinha — o embarcador aceita.
+                </span>
               </span>
-            </span>
-          </label>
+            </label>
+            <label className="flex items-start gap-2 rounded-lg border border-ink/10 bg-sand-light/40 px-3 py-2.5 text-sm">
+              <input
+                type="radio"
+                name="empate_regra"
+                className="mt-0.5"
+                disabled={!canEdit}
+                checked={!form.empate_exige_aceite_manual}
+                onChange={() => setForm({ ...form, empate_exige_aceite_manual: false })}
+              />
+              <span>
+                <span className="font-semibold text-ink">Empate: ganhador maior lance</span>
+                <span className="mt-0.5 block text-[12px] text-ink-muted">
+                  Se dois lances empatam no valor, o sistema fecha sozinho com o melhor lance
+                  (quem ofertou primeiro; em novo empate, melhor classificação).
+                </span>
+              </span>
+            </label>
+          </div>
         </section>
 
         {/* 4. Avançado */}

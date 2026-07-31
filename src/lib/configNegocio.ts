@@ -24,7 +24,11 @@ export interface ConfigNegocio {
    */
   lance_min_percentual: number | null
   lance_max_percentual: number | null
-  /** Se true, empate de valor exige aceite manual (não auto no timer). */
+  /**
+   * Empate de valor:
+   * true  = embarcador escolhe o vencedor
+   * false = fecha automático (ganhador maior/melhor lance: 1º a ofertar, depois classificação)
+   */
   empate_exige_aceite_manual: boolean
   /** URL do Controle de Fretes (opcional). Vazio = só fila local. */
   controle_fretes_url: string
