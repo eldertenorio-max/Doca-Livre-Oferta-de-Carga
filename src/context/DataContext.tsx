@@ -43,6 +43,7 @@ import {
   preencherVeiculosComOrigemTransportadora,
   veiculoSemLocalizacaoMapa,
 } from '../lib/veiculoLocalizacao'
+import { distribuirFrotaUltrafrio } from '../lib/distribuirFrotaUltrafrio'
 import {
   lanceNaRodadaAtual,
   makeHist,
@@ -685,6 +686,9 @@ function cancelarLancesDaCarga(lances: Lance[], cargaId: string, nowIso: string)
 }
 
 /** Garante frota demo (origem + motorista + veículo) para o Mapa da Frota. */
+/** Placas Ultrafrio redistribuídas no último ensureDemoFrotaMapa (para upsert remoto). */
+const ultrafrioAlteradosPendentesRef: { current: Veiculo[] } = { current: [] }
+
 function ensureDemoFrotaMapa(state: DataState): DataState {
   // Excluídas manualmente não voltam pelo seed
   const excluidos = new Set(state.transportadores_excluidos ?? [])
@@ -767,10 +771,17 @@ function ensureDemoFrotaMapa(state: DataState): DataState {
   }
 
   const transportadores = Array.from(tMap.values())
-  const { veiculos } = preencherVeiculosComOrigemTransportadora(
+  const { veiculos: comOrigem } = preencherVeiculosComOrigemTransportadora(
     Array.from(vMap.values()),
     transportadores,
   )
+  // Espalha 50 placas da Ultrafrio Log em endereços distintos no mapa
+  const { veiculos, alterados } = distribuirFrotaUltrafrio(
+    comOrigem,
+    transportadores,
+    50,
+  )
+  ultrafrioAlteradosPendentesRef.current = alterados
 
   return {
     ...state,
@@ -1486,6 +1497,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return next
     })
     if (pushSlice) flushKanbanPush(pushSlice)
+
+    // Persiste no Supabase as 50 placas Ultrafrio redistribuídas no mapa
+    const ultrafrioSpread = ultrafrioAlteradosPendentesRef.current
+    ultrafrioAlteradosPendentesRef.current = []
+    for (const v of ultrafrioSpread) {
+      void upsertVeiculoRemote(v)
+    }
 
     // Migra placas locais (id v-…) para o Supabase, para o transportador ver no outro aparelho
     const locais = (stateRef.current.veiculos ?? []).filter(
