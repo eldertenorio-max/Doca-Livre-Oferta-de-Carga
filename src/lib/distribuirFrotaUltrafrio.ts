@@ -72,11 +72,17 @@ function slugEmpresa(valor: string): string {
     .replace(/[^a-z0-9]+/g, '')
 }
 
-function isUltrafrio(t: Transportador): boolean {
+export function isUltrafrioTransportador(t: Transportador): boolean {
   const blob = slugEmpresa(
     `${t.nome_fantasia || ''} ${t.razao_social || ''} ${t.email || ''}`,
   )
   return blob.includes('ultrafrio')
+}
+
+/** Título no mapa/card: "Ultrafrio · ABC1D23" */
+export function tituloExibicaoUltrafrio(placa: string): string {
+  const pl = (placa || '').trim().toUpperCase()
+  return pl ? `Ultrafrio · ${pl}` : 'Ultrafrio'
 }
 
 function mesmaCoord(
@@ -101,7 +107,7 @@ export function distribuirFrotaUltrafrio(
   limite = 50,
 ): { veiculos: Veiculo[]; alterados: Veiculo[] } {
   const ultraIds = new Set(
-    transportadores.filter(isUltrafrio).map((t) => t.id),
+    transportadores.filter(isUltrafrioTransportador).map((t) => t.id),
   )
   if (ultraIds.size === 0) return { veiculos, alterados: [] }
 
@@ -147,6 +153,21 @@ export function distribuirFrotaUltrafrio(
     }
     porId.set(v.id, atualizado)
     alterados.push(atualizado)
+  }
+
+  // Condutor/nome exibido: Ultrafrio (todas as placas da empresa)
+  for (const v of frota) {
+    const base = porId.get(v.id) ?? v
+    if ((base.condutor || '').trim() === 'Ultrafrio') continue
+    const atualizado: Veiculo = {
+      ...base,
+      condutor: 'Ultrafrio',
+      updated_at: agora,
+    }
+    porId.set(v.id, atualizado)
+    const idx = alterados.findIndex((x) => x.id === v.id)
+    if (idx >= 0) alterados[idx] = atualizado
+    else alterados.push(atualizado)
   }
 
   if (alterados.length === 0) return { veiculos, alterados: [] }

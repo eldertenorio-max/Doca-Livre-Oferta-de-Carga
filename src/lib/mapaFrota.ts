@@ -1,4 +1,8 @@
 import type { Carga, FotosVeiculo, Motorista, Transportador, Veiculo } from '../types'
+import {
+  isUltrafrioTransportador,
+  tituloExibicaoUltrafrio,
+} from './distribuirFrotaUltrafrio'
 import { frotaIconeHtml, type FrotaIconeGrupo } from './frotaIcones'
 import { normalizeFotosVeiculo } from './veiculoFotos'
 
@@ -373,7 +377,9 @@ export function montarPontosFrota(
     pontos.push({
       id: `${m.id}-${v.id}`,
       motoristaId: m.id,
-      motoristaNome: m.nome,
+      motoristaNome: isUltrafrioTransportador(t)
+        ? tituloExibicaoUltrafrio(v.placa)
+        : m.nome,
       // WhatsApp exibido: telefone do próprio motorista; se não tiver,
       // usa o WhatsApp cadastrado da transportadora (contato_telefone).
       motoristaTelefone: m.telefone || t.contato_telefone || t.telefone,
@@ -420,7 +426,9 @@ export function montarPontosFrota(
     const { grupo, emoji } = classificarIconeVeiculo(v.tipo)
     const cidade = (v.origem_cidade || t.origem_cidade || t.cidade || '').trim()
     const uf = (v.origem_uf || t.origem_uf || t.uf || '').trim().toUpperCase()
-    const nome = (v.condutor || '').trim() || v.placa
+    const nome = isUltrafrioTransportador(t)
+      ? tituloExibicaoUltrafrio(v.placa)
+      : (v.condutor || '').trim() || v.placa
     const fotoPerfil =
       (t.logo_url || '').trim() ||
       (v.foto_url || v.fotos?.dianteira || '').trim() ||
