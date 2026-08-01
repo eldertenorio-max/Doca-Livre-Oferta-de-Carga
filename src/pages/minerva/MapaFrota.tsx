@@ -102,6 +102,9 @@ function markerHtml(p: PontoFrota): string {
   `
 }
 
+/** Acima disso, o clique no cluster abre lista (em vez do leque no mapa). */
+const CLUSTER_LISTA_ACIMA_DE = 3
+
 /** Pin agrupado: vários veículos na mesma coordenada. */
 function clusterMarkerHtml(pontos: PontoFrota[]): string {
   const n = pontos.length
@@ -116,9 +119,13 @@ function clusterMarkerHtml(pontos: PontoFrota[]): string {
     .map((p) => p.placa || p.motoristaNome)
     .join(', ')
   const extra = n > 4 ? ` +${n - 4}` : ''
+  const acao =
+    n > CLUSTER_LISTA_ACIMA_DE
+      ? 'Clique para ver a lista'
+      : 'Clique para separar no mapa'
   return `
     <div class="frota-bubble frota-bubble--${status} frota-bubble--cluster" title="${escapeHtml(
-      `${n} veículos neste ponto: ${nomes}${extra}`,
+      `${n} veículos neste ponto: ${nomes}${extra}. ${acao}`,
     )}">
       ${frotaIconeHtml(amostra.icone, 'frota-bubble__icon')}
       <span class="frota-bubble__price">${frete}</span>
@@ -381,6 +388,11 @@ export function MapaFrotaPage() {
   const [modalFoto, setModalFoto] = useState<PontoFrota | null>(null)
   const [modalGaleria, setModalGaleria] = useState<PontoFrota | null>(null)
   const [modalAvaliacoes, setModalAvaliacoes] = useState<PontoFrota | null>(null)
+  /** Cluster com >3 veículos: lista em vez do spiderfy. */
+  const [listaCluster, setListaCluster] = useState<{
+    key: string
+    pontos: PontoFrota[]
+  } | null>(null)
   const [pesquisaAberta, setPesquisaAberta] = useState(() => {
     try {
       return sessionStorage.getItem('doca-livre-mapa-frota-pesquisa') !== '0'
@@ -1017,7 +1029,13 @@ export function MapaFrotaPage() {
           if (clicarOrigemRef.current) return
           L.DomEvent.stopPropagation(e.originalEvent)
           setSelecionado(null)
-          setExpandedCluster(key)
+          if (pontos.length > CLUSTER_LISTA_ACIMA_DE) {
+            setExpandedCluster(null)
+            setListaCluster({ key, pontos: [...pontos] })
+          } else {
+            setListaCluster(null)
+            setExpandedCluster(key)
+          }
         })
         cm.addTo(layer)
         clusterMarkersRef.current.set(key, cm)
@@ -1029,7 +1047,13 @@ export function MapaFrotaPage() {
           if (clicarOrigemRef.current) return
           L.DomEvent.stopPropagation(e.originalEvent)
           setSelecionado(null)
-          setExpandedCluster(key)
+          if (pontos.length > CLUSTER_LISTA_ACIMA_DE) {
+            setExpandedCluster(null)
+            setListaCluster({ key, pontos: [...pontos] })
+          } else {
+            setListaCluster(null)
+            setExpandedCluster(key)
+          }
         })
         if (!layer.hasLayer(cm)) cm.addTo(layer)
       }
@@ -1070,13 +1094,19 @@ export function MapaFrotaPage() {
       }
     } else {
       if (idAberto && !idsVisiveis.has(idAberto)) {
-        // Seleção está dentro de um cluster fechado — abre o leque
+        // Seleção dentro de cluster fechado: lista (>3) ou leque (2–3)
         const ponto = filtrados.find((p) => p.id === idAberto)
         if (ponto) {
           const key = chaveCoordFrota(ponto.lat, ponto.lng)
           const grupo = grupos.get(key)
           if (grupo && grupo.length > 1 && expanded !== key) {
-            window.queueMicrotask(() => setExpandedCluster(key))
+            window.queueMicrotask(() => {
+              if (grupo.length > CLUSTER_LISTA_ACIMA_DE) {
+                setListaCluster({ key, pontos: [...grupo] })
+              } else {
+                setExpandedCluster(key)
+              }
+            })
           }
         }
       }
@@ -1628,6 +1658,86 @@ export function MapaFrotaPage() {
 
       {modalGaleria ? (
         <FrotaGaleriaVeiculoModal ponto={modalGaleria} onClose={() => setModalGaleria(null)} />
+      ) : null}
+
+      {listaCluster ? (
+        <div
+          className="frota-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${listaCluster.pontos.length} veículos neste endereço`}
+          onClick={() => setListaCluster(null)}
+        >
+          <div
+            className="frota-modal__panel frota-modal__panel--lista-cluster"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="frota-modal__close"
+              aria-label="Fechar"
+              onClick={() => setListaCluster(null)}
+            >
+              ×
+            </button>
+            <h2 className="frota-modal__title">Veículos neste endereço</h2>
+            <p className="frota-modal__sub">
+              {listaCluster.pontos.length} veículos no mesmo ponto · clique para ver o card
+            </p>
+            <ul className="frota-cluster-lista">
+              {listaCluster.pontos
+                .slice()
+                .sort((a, b) =>
+                  (a.placa || a.motoristaNome).localeCompare(
+                    b.placa || b.motoristaNome,
+                    'pt-BR',
+                  ),
+                )
+                .map((p) => (
+                  <li key={p.id}>
+                    <button
+                      type="button"
+                      className="frota-cluster-lista__item"
+                      onClick={() => {
+                        const key = listaCluster.key
+                        setListaCluster(null)
+                        setExpandedCluster(key)
+                        setSelecionado(p.id)
+                      }}
+                    >
+                      <span
+                        className="frota-cluster-lista__ico"
+                        dangerouslySetInnerHTML={{
+                          __html: frotaIconeHtml(p.icone, 'frota-cluster-lista__svg'),
+                        }}
+                      />
+                      <span className="frota-cluster-lista__main">
+                        <strong>{p.placa || p.motoristaNome}</strong>
+                        <span>
+                          {p.motoristaNome}
+                          {p.transportadorNome ? ` · ${p.transportadorNome}` : ''}
+                        </span>
+                        <span className="frota-cluster-lista__meta">
+                          {p.tipoVeiculo}
+                          {p.cidade ? ` · ${p.cidade}/${p.uf}` : ''}
+                        </span>
+                      </span>
+                      <span className="frota-cluster-lista__frete">
+                        {p.freteMinimo > 0 ? formatCurrency(p.freteMinimo) : '—'}
+                      </span>
+                      <span
+                        className={`frota-cluster-lista__status ${
+                          p.disponivel ? 'is-ok' : 'is-off'
+                        }`}
+                      >
+                        {p.disponivel ? 'Disp.' : 'Indisp.'}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        </div>
       ) : null}
 
       {modalAvaliacoes && (
