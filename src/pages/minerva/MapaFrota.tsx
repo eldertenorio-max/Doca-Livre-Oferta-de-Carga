@@ -1009,6 +1009,12 @@ export function MapaFrotaPage() {
       }
 
       // Agrupado: um pin com badge; veículos individuais ficam ocultos
+      // Exceto seleção vinda da lista (>3): só aquele pin + card, sem leque
+      const destaqueLista =
+        idAberto && pontos.length > CLUSTER_LISTA_ACIMA_DE
+          ? pontos.find((p) => p.id === idAberto)
+          : undefined
+
       clusterKeysVisiveis.add(key)
       let cm = clusterMarkersRef.current.get(key)
       const clusterIcon = L.divIcon({
@@ -1057,6 +1063,12 @@ export function MapaFrotaPage() {
         })
         if (!layer.hasLayer(cm)) cm.addTo(layer)
       }
+
+      if (destaqueLista) {
+        idsVisiveis.add(destaqueLista.id)
+        const m = ensureMarker(destaqueLista, center)
+        m.setZIndexOffset(700)
+      }
     }
 
     for (const [id, m] of markersRef.current) {
@@ -1094,19 +1106,19 @@ export function MapaFrotaPage() {
       }
     } else {
       if (idAberto && !idsVisiveis.has(idAberto)) {
-        // Seleção dentro de cluster fechado: lista (>3) ou leque (2–3)
+        // Seleção em cluster fechado com 2–3: abre o leque.
+        // Com >3 a seleção da lista já cria o pin avulso acima.
         const ponto = filtrados.find((p) => p.id === idAberto)
         if (ponto) {
           const key = chaveCoordFrota(ponto.lat, ponto.lng)
           const grupo = grupos.get(key)
-          if (grupo && grupo.length > 1 && expanded !== key) {
-            window.queueMicrotask(() => {
-              if (grupo.length > CLUSTER_LISTA_ACIMA_DE) {
-                setListaCluster({ key, pontos: [...grupo] })
-              } else {
-                setExpandedCluster(key)
-              }
-            })
+          if (
+            grupo &&
+            grupo.length > 1 &&
+            grupo.length <= CLUSTER_LISTA_ACIMA_DE &&
+            expanded !== key
+          ) {
+            window.queueMicrotask(() => setExpandedCluster(key))
           }
         }
       }
@@ -1137,7 +1149,7 @@ export function MapaFrotaPage() {
         enquadrouInicialRef.current = true
       }
     }
-  }, [filtrados, raioGeo, raioGeoAtivo, origemRaio, chaveFiltro, expandedCluster, spiderTick])
+  }, [filtrados, raioGeo, raioGeoAtivo, origemRaio, chaveFiltro, expandedCluster, spiderTick, selecionado])
 
   return (
     <div className="mapa-frota animate-fade-up">
@@ -1699,9 +1711,8 @@ export function MapaFrotaPage() {
                       type="button"
                       className="frota-cluster-lista__item"
                       onClick={() => {
-                        const key = listaCluster.key
                         setListaCluster(null)
-                        setExpandedCluster(key)
+                        setExpandedCluster(null)
                         setSelecionado(p.id)
                       }}
                     >
