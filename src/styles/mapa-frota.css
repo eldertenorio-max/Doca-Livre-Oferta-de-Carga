@@ -923,10 +923,16 @@
 .frota-leaflet-popup .leaflet-popup-content {
   margin: 12px 14px 14px;
   min-width: 240px;
-  max-height: min(320px, 42dvh);
-  overflow: auto;
+  max-height: min(360px, 55dvh);
+  overflow-x: hidden;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+}
+
+/* Garante que o wrapper não estoure a viewport do mapa */
+.frota-leaflet-popup.leaflet-popup {
+  max-width: min(320px, calc(100vw - 24px));
 }
 
 /* Leaflet posiciona o card acima do tip; forÃ§amos abaixo do pin */

@@ -276,16 +276,38 @@ function encaixarPopupNoMapa(map: L.Map, popup: L.Popup) {
   const container = map.getContainer()
   if (!el) return
 
-  const pad = 14
-  const cr = container.getBoundingClientRect()
-  const er = el.getBoundingClientRect()
+  const pad = 16
   const content = el.querySelector('.leaflet-popup-content') as HTMLElement | null
 
-  // Só limita altura — não mexe no zoom/posição do mapa (usuário navega livre)
-  const maxH = Math.max(140, Math.min(380, cr.bottom - Math.max(er.top, cr.top) - pad - 8))
-  if (content) content.style.maxHeight = `${maxH}px`
+  const aplicarAltura = () => {
+    const cr = container.getBoundingClientRect()
+    const er = el.getBoundingClientRect()
+    // Espaço real até o fim do mapa (e da janela) — sem forçar altura mínima que corta
+    const tetoViewport = Math.min(cr.bottom, window.innerHeight) - pad
+    const disponivel = Math.floor(tetoViewport - Math.max(er.top, cr.top) - 8)
+    const maxH = Math.max(96, Math.min(360, disponivel))
+    if (content) content.style.maxHeight = `${maxH}px`
+  }
 
-  void map
+  aplicarAltura()
+
+  // Se ainda transborda, pan para caber o card inteiro na área do mapa
+  const cr = container.getBoundingClientRect()
+  const er = el.getBoundingClientRect()
+  let dx = 0
+  let dy = 0
+  const teto = Math.min(cr.bottom, window.innerHeight) - pad
+  if (er.bottom > teto) dy += er.bottom - teto
+  if (er.top < cr.top + pad) dy -= cr.top + pad - er.top
+  if (er.right > cr.right - pad) dx += er.right - (cr.right - pad)
+  if (er.left < cr.left + pad) dx -= cr.left + pad - er.left
+
+  if (dx !== 0 || dy !== 0) {
+    map.panBy([dx, dy], { animate: true, duration: 0.2, easeLinearity: 0.25 })
+    window.setTimeout(aplicarAltura, 220)
+  }
+
+  window.requestAnimationFrame(aplicarAltura)
 }
 
 function scrollDoPopup(map: L.Map): number {
@@ -892,7 +914,9 @@ export function MapaFrotaPage() {
           maxWidth: 320,
           minWidth: 260,
           offset: L.point(0, 8),
-          autoPan: false,
+          autoPan: true,
+          autoPanPadding: [28, 28],
+          keepInView: true,
           closeButton: true,
           closeOnClick: true,
         })
