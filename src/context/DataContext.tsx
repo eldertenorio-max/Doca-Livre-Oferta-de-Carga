@@ -2338,17 +2338,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       const freteRef = roundMoney(cargaOk.frete_oferta ?? cargaOk.frete_tabela)
       const min = cargaOk.frete_minimo
-      const max = cargaOk.frete_maximo
+      // Contra-proposta eleva o frete_oferta: máximo efetivo acompanha, senão “Responder”/Aceitar falha
+      const maxBase = cargaOk.frete_maximo
+      const max =
+        maxBase == null && cargaOk.frete_oferta == null
+          ? null
+          : Math.max(
+              maxBase ?? Number.NEGATIVE_INFINITY,
+              cargaOk.frete_oferta != null ? roundMoney(cargaOk.frete_oferta) : Number.NEGATIVE_INFINITY,
+            )
+      const maxEfetivo = max != null && Number.isFinite(max) ? max : null
       if (min != null && valor < min - 0.009) {
         return {
           ok: false,
           error: `Lance abaixo do mínimo permitido (R$ ${min.toFixed(2)})`,
         }
       }
-      if (max != null && valor > max + 0.009) {
+      if (maxEfetivo != null && valor > maxEfetivo + 0.009) {
         return {
           ok: false,
-          error: `Lance acima do máximo permitido (R$ ${max.toFixed(2)})`,
+          error: `Lance acima do máximo permitido (R$ ${maxEfetivo.toFixed(2)})`,
         }
       }
 
@@ -2376,17 +2385,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: 'Você ainda não foi chamado para negociar esta carga' }
       }
 
-      const jaTemLance = stateRef.current.lances.some(
+      const existingAtivo = stateRef.current.lances.find(
         (l) =>
           l.carga_id === cargaId &&
           sameTransportadorId(l.transportador_id, tid) &&
           l.status === 'ativo',
       )
+      const temContraPendente =
+        Boolean(existingAtivo) &&
+        cargaOk.frete_oferta != null &&
+        Math.abs(roundMoney(cargaOk.frete_oferta) - roundMoney(existingAtivo!.valor)) > 0.009
+
+      // Oferta/ND: não altera proposta — exceto resposta à contra-proposta do embarcador
       if (
-        jaTemLance &&
+        existingAtivo &&
         (cargaOk.modo_publicacao === 'oferta' ||
           cargaOk.modo_publicacao === 'negociacao_direta') &&
-        !opts?.aceitarOferta
+        !opts?.aceitarOferta &&
+        !temContraPendente
       ) {
         return {
           ok: false,
@@ -2835,6 +2851,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
           ? {
               ...c,
               frete_oferta: valorRound,
+              // Garante que Aceitar / Responder não esbarrem no frete_maximo antigo
+              frete_maximo:
+                c.frete_maximo == null
+                  ? valorRound
+                  : Math.max(roundMoney(c.frete_maximo), valorRound),
               status: c.status === 'negociando' ? ('propostas' as const) : c.status,
               updated_at: now,
             }

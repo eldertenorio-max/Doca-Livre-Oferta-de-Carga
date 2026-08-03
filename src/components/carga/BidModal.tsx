@@ -111,7 +111,7 @@ export function BidModal({
   const bloqueado = jaFechada || suspensa
 
   function submitValor(num: number, opts?: { aceitarOferta?: boolean }) {
-    if (Number.isNaN(num)) {
+    if (Number.isNaN(num) || num <= 0) {
       setError('Valor inválido')
       return
     }
@@ -127,12 +127,24 @@ export function BidModal({
       setError('Negociação suspensa pelo embarcador.')
       return
     }
-    if (live!.frete_minimo != null && num < live!.frete_minimo) {
+    // Máximo efetivo: frete_maximo vs contra-proposta (frete_oferta atual)
+    const maxEfetivo =
+      live!.frete_maximo != null || live!.frete_oferta != null
+        ? Math.max(
+            live!.frete_maximo ?? Number.NEGATIVE_INFINITY,
+            live!.frete_oferta != null ? roundMoney(live!.frete_oferta) : Number.NEGATIVE_INFINITY,
+          )
+        : null
+    if (live!.frete_minimo != null && num < live!.frete_minimo - 0.009) {
       setError(`Lance mínimo: ${formatCurrency(live!.frete_minimo)}`)
       return
     }
-    if (live!.frete_maximo != null && num > live!.frete_maximo) {
-      setError(`Lance máximo: ${formatCurrency(live!.frete_maximo)}`)
+    if (
+      maxEfetivo != null &&
+      Number.isFinite(maxEfetivo) &&
+      num > maxEfetivo + 0.009
+    ) {
+      setError(`Lance máximo: ${formatCurrency(maxEfetivo)}`)
       return
     }
     const res = enviarLance(live!.id, num, opts)
@@ -240,7 +252,11 @@ export function BidModal({
               </p>
             )}
 
-            {error && <p className="text-sm text-brand">{error}</p>}
+            {error && (
+              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+                {error}
+              </p>
+            )}
 
             <div className="flex flex-wrap gap-2">
               <Button
