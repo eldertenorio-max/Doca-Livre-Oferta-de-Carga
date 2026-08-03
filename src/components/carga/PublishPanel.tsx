@@ -37,6 +37,7 @@ import {
 import { isRascunhoNaoPublicado } from '../../lib/kanbanColumns'
 import { prazosAlocacaoPermitidos, prazosOfertaPermitidos } from '../../lib/configNegocio'
 import { canEditModulo } from '../../lib/portalModules'
+import { showActionFlash } from '../../lib/actionFlash'
 import type {
   Carga,
   ClassificacaoTransportador,
@@ -607,9 +608,26 @@ export function PublishPanel({
     }
     setError('')
     setInfo('')
+    const lance = lances.find((l) => l.id === lanceId)
+    const tNome =
+      transportadorById(lance?.transportador_id ?? '')?.nome_fantasia ?? 'transportadora'
     const res = aceitarLance(lanceId)
-    if (!res.ok) setError(res.error ?? 'Falha ao aceitar')
-    else setInfo('Frete fechado. Aguardando alocação do transportador.')
+    if (!res.ok) {
+      setError(res.error ?? 'Falha ao aceitar')
+      showActionFlash({
+        titulo: 'Não foi possível aceitar',
+        mensagem: res.error ?? 'Falha ao aceitar',
+        tone: 'erro',
+      })
+    } else {
+      setInfo('Frete fechado. Aguardando alocação do transportador.')
+      showActionFlash({
+        titulo: 'Oferta aceita',
+        mensagem: `Frete fechado com ${tNome}${
+          lance ? ` (${formatCurrency(lance.valor)})` : ''
+        }.`,
+      })
+    }
   }
 
   function handleRejeitar(lanceId: string) {
@@ -632,8 +650,20 @@ export function PublishPanel({
     setError('')
     setInfo('')
     const res = encerrarComMelhorLance(carga!.id)
-    if (!res.ok) setError(res.error ?? 'Falha ao encerrar')
-    else setInfo('Melhor lance aceito. Frete fechado.')
+    if (!res.ok) {
+      setError(res.error ?? 'Falha ao encerrar')
+      showActionFlash({
+        titulo: 'Não foi possível aceitar',
+        mensagem: res.error ?? 'Falha ao encerrar',
+        tone: 'erro',
+      })
+    } else {
+      setInfo('Melhor lance aceito. Frete fechado.')
+      showActionFlash({
+        titulo: 'Oferta aceita',
+        mensagem: 'Melhor lance aceito. Frete fechado.',
+      })
+    }
   }
 
   function handleFinalizar() {
@@ -735,6 +765,11 @@ export function PublishPanel({
     const res = enviarContraProposta(contraLanceId, num)
     if (!res.ok) {
       setError(res.error ?? 'Falha na contra-proposta')
+      showActionFlash({
+        titulo: 'Contra-proposta não enviada',
+        mensagem: res.error ?? 'Falha na contra-proposta',
+        tone: 'erro',
+      })
       return
     }
     setContraLanceId(null)
@@ -742,9 +777,10 @@ export function PublishPanel({
     setInfo(
       `Contra-proposta de ${formatCurrency(num)} enviada para ${tNome}. O transportador vê no card (frete oferta) e nas notificações.`,
     )
-    window.alert(
-      `Contra-proposta enviada com sucesso.\n\nValor: ${formatCurrency(num)}\nPara: ${tNome}\n\nO transportador recebe no card da carga e nas notificações (não pelo chat).`,
-    )
+    showActionFlash({
+      titulo: 'Contra-proposta enviada',
+      mensagem: `${formatCurrency(num)} para ${tNome}. O transportador responde no card.`,
+    })
   }
 
   function handleAguardarMelhores() {

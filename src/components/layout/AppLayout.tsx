@@ -5,6 +5,7 @@ import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { ProductMark } from '../ProductMark'
 import { ChatModal } from '../carga/ChatModal'
 import { PerfilPanel } from './PerfilPanel'
+import { ActionFlashHost } from '../ui/ActionFlashHost'
 import { DisponibilidadeMapaFlag } from '../transportador/DisponibilidadeMapaFlag'
 import { canOpenModulo, moduloFromPath } from '../../lib/portalModules'
 import { isSuperSession } from '../../lib/superUsers'
@@ -756,6 +757,7 @@ export function AppLayout() {
         open={!!chatCarga}
         onClose={() => setChatCargaId(null)}
       />
+      <ActionFlashHost />
     </div>
   )
 }

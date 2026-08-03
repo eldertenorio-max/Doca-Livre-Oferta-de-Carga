@@ -10,6 +10,7 @@ import {
   roundMoney,
 } from '../../lib/businessRules'
 import { sameTransportadorId } from '../../lib/transportadorIds'
+import { showActionFlash } from '../../lib/actionFlash'
 import type { Carga } from '../../types'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
 import { AnttFretePanel } from './AnttFretePanel'
@@ -110,6 +111,11 @@ export function BidModal({
   // Só bloqueia digitação se frete já fechado ou suspensa — prazo é validado no envio
   const bloqueado = jaFechada || suspensa
 
+  const temContraProposta =
+    Boolean(meuLance) &&
+    live.frete_oferta != null &&
+    Math.abs(roundMoney(live.frete_oferta) - roundMoney(meuLance!.valor)) > 0.009
+
   function submitValor(num: number, opts?: { aceitarOferta?: boolean }) {
     if (Number.isNaN(num) || num <= 0) {
       setError('Valor inválido')
@@ -150,7 +156,29 @@ export function BidModal({
     const res = enviarLance(live!.id, num, opts)
     if (!res.ok) {
       setError(res.error ?? 'Erro ao enviar lance')
+      showActionFlash({
+        titulo: 'Não foi possível concluir',
+        mensagem: res.error ?? 'Erro ao enviar lance',
+        tone: 'erro',
+      })
       return
+    }
+
+    if (opts?.aceitarOferta) {
+      showActionFlash({
+        titulo: 'Oferta aceita',
+        mensagem: `Frete fechado em ${formatCurrency(num)}. Aguardando alocação.`,
+      })
+    } else if (temContraProposta) {
+      showActionFlash({
+        titulo: 'Resposta da contra-proposta enviada',
+        mensagem: `Seu novo lance de ${formatCurrency(num)} foi enviado ao embarcador.`,
+      })
+    } else {
+      showActionFlash({
+        titulo: 'Lance enviado',
+        mensagem: `Oferta de ${formatCurrency(num)} registrada na carga ${live!.numero}.`,
+      })
     }
     onClose()
   }
@@ -158,11 +186,6 @@ export function BidModal({
   function handleSend() {
     submitValor(parseMoneyInput(valor))
   }
-
-  const temContraProposta =
-    Boolean(meuLance) &&
-    live.frete_oferta != null &&
-    Math.abs(roundMoney(live.frete_oferta) - roundMoney(meuLance!.valor)) > 0.009
 
   function handleAccept() {
     const aceito = roundMoney(freteRef)
