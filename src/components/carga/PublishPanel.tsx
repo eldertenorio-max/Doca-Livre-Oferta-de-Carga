@@ -765,26 +765,54 @@ export function PublishPanel({
   function openContraProposta(lanceId: string, valorAtual: number) {
     if (!canEdit) {
       setError('Seu perfil não permite enviar contra-proposta.')
+      showActionFlash({
+        titulo: 'Sem permissão',
+        mensagem: 'Seu perfil não permite enviar contra-proposta.',
+        tone: 'erro',
+      })
       return
     }
     setContraLanceId(lanceId)
     setContraValor(formatMoneyInput(valorAtual))
     setError('')
     setInfo('')
+    const tNome =
+      transportadorById(lances.find((l) => l.id === lanceId)?.transportador_id ?? '')
+        ?.nome_fantasia ?? 'transportadora'
+    showActionFlash({
+      titulo: 'Contra-proposta',
+      mensagem: `Informe o valor para ${tNome} e confirme o envio.`,
+      ms: 2500,
+    })
   }
 
   function handleContraProposta() {
     if (!canEdit) {
       setError('Seu perfil não permite enviar contra-proposta.')
+      showActionFlash({
+        titulo: 'Sem permissão',
+        mensagem: 'Seu perfil não permite enviar contra-proposta.',
+        tone: 'erro',
+      })
       return
     }
     if (!contraLanceId) {
       setError('Selecione uma proposta para contra-propor.')
+      showActionFlash({
+        titulo: 'Selecione uma proposta',
+        mensagem: 'Escolha a proposta e clique em Contra novamente.',
+        tone: 'erro',
+      })
       return
     }
     const num = parseMoneyInput(contraValor)
     if (!Number.isFinite(num) || num <= 0) {
       setError('Informe um valor válido para a contra-proposta.')
+      showActionFlash({
+        titulo: 'Valor inválido',
+        mensagem: 'Informe um valor válido para a contra-proposta.',
+        tone: 'erro',
+      })
       return
     }
     const tNome =
@@ -2107,16 +2135,45 @@ export function PublishPanel({
                           </div>
 
                           {(() => {
-                            const contra = histPropostas.find(
-                              (h) =>
-                                h.lance_id === l.id &&
-                                h.valor_anterior != null &&
-                                Math.abs(h.valor_novo - (carga.frete_oferta ?? -1)) < 0.02,
+                            const histLance = histPropostas.filter((h) => h.lance_id === l.id)
+                            // histPropostas vem do mais recente para o mais antigo
+                            const ultimaContra =
+                              histLance.find((h) => h.tipo === 'contra_embarcador') ??
+                              histLance.find(
+                                (h) =>
+                                  h.valor_anterior != null &&
+                                  h.tipo !== 'resposta_contra' &&
+                                  Math.abs(h.valor_novo - (carga.frete_oferta ?? -1)) < 0.02,
+                              )
+                            const ultimaResposta = histLance.find(
+                              (h) => h.tipo === 'resposta_contra',
                             )
-                            if (!contra) return null
+                            const respondeuAposContra =
+                              ultimaResposta &&
+                              (!ultimaContra ||
+                                new Date(ultimaResposta.created_at).getTime() >=
+                                  new Date(ultimaContra.created_at).getTime())
+
+                            if (respondeuAposContra && ultimaResposta) {
+                              const de =
+                                ultimaResposta.valor_anterior != null
+                                  ? `${formatCurrency(ultimaResposta.valor_anterior)} → `
+                                  : ''
+                              return (
+                                <p className="mb-2 rounded-lg border border-sky-200 bg-sky-50 px-2 py-1.5 text-[11px] font-semibold text-sky-950">
+                                  Resposta da contra-proposta: {de}
+                                  {formatCurrency(ultimaResposta.valor_novo)}
+                                </p>
+                              )
+                            }
+
+                            if (!ultimaContra) return null
                             return (
                               <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] font-semibold text-amber-950">
-                                Contra-proposta enviada: {formatCurrency(contra.valor_novo)}
+                                Contra-proposta enviada: {formatCurrency(ultimaContra.valor_novo)}
+                                <span className="mt-0.5 block font-medium text-amber-800/90">
+                                  Aguardando resposta do transportador
+                                </span>
                               </p>
                             )
                           })()}
