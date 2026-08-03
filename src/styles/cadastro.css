@@ -257,24 +257,44 @@
 }
 
 .cadastro-table__acoes {
-  min-width: 12rem;
-  vertical-align: top;
+  min-width: 10rem;
+  white-space: nowrap;
 }
 
 .cadastro-table__acoes-list {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
 
 .cadastro-link--avaliacao {
   color: #b45309;
+  line-height: 1;
 }
 
 .cadastro-link--avaliacao:hover {
   color: #92400e;
-  text-decoration: underline;
+}
+
+/* Texto completo quando há espaço; só ★ se a coluna ficar estreita */
+.cadastro-link--avaliacao-ico {
+  display: none;
+  font-size: 1.15rem;
+}
+
+.cadastro-link--avaliacao-txt {
+  display: inline;
+}
+
+@media (max-width: 1280px) {
+  .cadastro-link--avaliacao-txt {
+    display: none;
+  }
+
+  .cadastro-link--avaliacao-ico {
+    display: inline;
+  }
 }
 
 .cadastro-grid {

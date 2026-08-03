@@ -499,7 +499,7 @@ export function VeiculosPage() {
                   <th>Capacidade</th>
                   <th>Risco</th>
                   <th>Situação</th>
-                  <th>Ações</th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
@@ -545,9 +545,14 @@ export function VeiculosPage() {
                         <button
                           type="button"
                           className="cadastro-link cadastro-link--avaliacao"
+                          title="Ver avaliações do veículo"
+                          aria-label="Ver avaliações do veículo"
                           onClick={() => setAvaliacoesDe(v)}
                         >
-                          ★ Ver avaliações
+                          <span className="cadastro-link--avaliacao-txt">Ver avaliações</span>
+                          <span className="cadastro-link--avaliacao-ico" aria-hidden>
+                            ★
+                          </span>
                         </button>
                         <button
                           type="button"
