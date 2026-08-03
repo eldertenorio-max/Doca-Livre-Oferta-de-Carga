@@ -345,30 +345,42 @@ export function MotoristasPage() {
                       </td>
                       <td className="p-3">{m.telefone ?? '—'}</td>
                       <td className="p-3 capitalize">{m.situacao}</td>
-                      <td className="p-3 text-right space-x-2 whitespace-nowrap">
-                        <button
-                          type="button"
-                          className="text-xs font-bold text-ink hover:underline"
-                          onClick={() => openEdit(m)}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          className="text-xs font-bold text-ink hover:underline"
-                          onClick={() => setAvaliacoesDe(m)}
-                        >
-                          Ver avaliações
-                        </button>
-                        <button
-                          type="button"
-                          className="text-xs font-bold text-ink-muted hover:underline"
-                          onClick={() => {
-                            if (window.confirm('Excluir este motorista?')) excluirMotorista(m.id)
-                          }}
-                        >
-                          Excluir
-                        </button>
+                      <td className="cadastro-table__acoes p-3">
+                        <div className="cadastro-table__acoes-list">
+                          <button
+                            type="button"
+                            className="cadastro-link"
+                            onClick={() => openEdit(m)}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            className="cadastro-link cadastro-link--avaliacao"
+                            title="Ver avaliações do motorista"
+                            aria-label="Ver avaliações do motorista"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              setAvaliacoesDe(m)
+                            }}
+                          >
+                            <span className="cadastro-link--avaliacao-ico" aria-hidden>
+                              ★
+                            </span>
+                            <span className="cadastro-link--avaliacao-txt">Ver avaliações</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="cadastro-link"
+                            style={{ color: '#dc2626' }}
+                            onClick={() => {
+                              if (window.confirm('Excluir este motorista?')) excluirMotorista(m.id)
+                            }}
+                          >
+                            Excluir
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
