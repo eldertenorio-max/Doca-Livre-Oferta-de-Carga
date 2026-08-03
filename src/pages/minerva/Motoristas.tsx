@@ -425,7 +425,7 @@ export function MotoristasPage() {
                 onChange={(e) => {
                   const file = e.target.files?.[0]
                   e.target.value = ''
-                  void onFotoChange(file)
+                  onFotoSelecionada(file)
                 }}
               />
               {(form.foto_url || '').trim() ? (
@@ -632,6 +632,15 @@ export function MotoristasPage() {
           onClose={() => setAvaliacoesDe(null)}
         />
       ) : null}
+
+      <ImageCropModal
+        open={Boolean(fotoParaAjustar)}
+        file={fotoParaAjustar}
+        shape="circle"
+        title="Ajustar foto do motorista"
+        onCancel={() => setFotoParaAjustar(null)}
+        onConfirm={(f) => void onConfirmarFoto(f)}
+      />
     </div>
   )
 }
