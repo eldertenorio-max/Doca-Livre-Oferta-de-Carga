@@ -184,7 +184,8 @@ export function BidModal({
                   <p className="mt-0.5 text-xs">
                     Valor sugerido: <strong>{formatCurrency(roundMoney(live.frete_oferta))}</strong>
                     {' · '}seu lance atual: {formatCurrency(roundMoney(meuLance.valor))}. Use
-                    “Aceitar oferta” ou envie um novo lance.
+                    “Aceitar oferta” ou responda com um novo lance (botão Responder
+                    contra-proposta).
                   </p>
                 </div>
               )}
@@ -256,7 +257,7 @@ export function BidModal({
                 onClick={handleSend}
                 disabled={bloqueado || !tid}
               >
-                Enviar lance
+                {temContraProposta ? 'Responder contra-proposta' : 'Enviar lance'}
               </Button>
               <Button variant="danger" className="min-w-[100px] flex-1" onClick={onClose}>
                 Fechar
@@ -379,6 +380,11 @@ export function BidModal({
               {histMeu.slice(0, 8).map((h) => (
                 <li key={h.id}>
                   {formatDateTime(h.created_at)}:{' '}
+                  {h.tipo === 'resposta_contra' ? (
+                    <span className="font-bold text-amber-900">Resposta da contra-proposta · </span>
+                  ) : h.tipo === 'contra_embarcador' ? (
+                    <span className="font-bold text-amber-900">Contra-proposta · </span>
+                  ) : null}
                   {h.valor_anterior != null ? `${formatCurrency(h.valor_anterior)} → ` : 'novo '}
                   {formatCurrency(h.valor_novo)}
                 </li>

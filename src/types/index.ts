@@ -402,6 +402,12 @@ export interface HistoricoProposta {
   valor_anterior: number | null
   valor_novo: number
   created_at: string
+  /**
+   * Origem da alteração (opcional; registros antigos = genérico).
+   * - contra_embarcador: embarcador enviou contra-proposta
+   * - resposta_contra: transportador respondeu a contra-proposta com novo lance
+   */
+  tipo?: 'lance' | 'contra_embarcador' | 'resposta_contra' | null
 }
 
 export interface InteracaoPontuacao {
@@ -426,6 +432,7 @@ export type TipoHistorico =
   | 'lance_aceito'
   | 'lance_rejeitado'
   | 'contra_proposta'
+  | 'resposta_contra'
   | 'aguardar_ofertas'
   | 'negociacao_finalizada'
   | 'frete_recusado'

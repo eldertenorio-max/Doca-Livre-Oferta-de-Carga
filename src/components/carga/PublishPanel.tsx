@@ -2104,6 +2104,13 @@ export function PublishPanel({
                     {histPropostas.slice(0, 12).map((h) => (
                       <li key={h.id}>
                         {formatDateTime(h.created_at)}:{' '}
+                        {h.tipo === 'resposta_contra' ? (
+                          <span className="font-semibold text-amber-900">
+                            Resposta da contra-proposta ·{' '}
+                          </span>
+                        ) : h.tipo === 'contra_embarcador' ? (
+                          <span className="font-semibold text-amber-900">Contra-proposta · </span>
+                        ) : null}
                         {h.valor_anterior != null
                           ? `${formatCurrency(h.valor_anterior)} → `
                           : 'novo '}

@@ -511,7 +511,8 @@ export function AppLayout() {
                               if (
                                 n.titulo === 'Nova proposta' ||
                                 n.titulo === 'Proposta atualizada' ||
-                                n.titulo === 'Nova proposta recebida'
+                                n.titulo === 'Nova proposta recebida' ||
+                                n.titulo === 'Resposta da contra-proposta'
                               ) {
                                 navigate('/embarcador', {
                                   state: { abrirCargaId: n.carga_id },
@@ -519,7 +520,10 @@ export function AppLayout() {
                                 return
                               }
                               // Contra-proposta → card de lance do transportador
-                              if (n.titulo === 'Contra-proposta no card') {
+                              if (
+                                n.titulo === 'Contra-proposta no card' ||
+                                n.titulo === 'Resposta da contra-proposta enviada'
+                              ) {
                                 navigate('/transportador', {
                                   state: { abrirCargaId: n.carga_id },
                                 })

@@ -17,6 +17,7 @@ const TIPO_LABEL: Record<TipoHistorico, string> = {
   lance_aceito: 'Lance aceito',
   lance_rejeitado: 'Lance rejeitado',
   contra_proposta: 'Contra-proposta',
+  resposta_contra: 'Resposta da contra-proposta',
   aguardar_ofertas: 'Aguardar ofertas',
   negociacao_finalizada: 'Negociação finalizada',
   frete_recusado: 'Frete recusado',

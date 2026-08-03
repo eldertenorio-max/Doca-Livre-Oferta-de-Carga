@@ -2517,6 +2517,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
           sameTransportadorId(l.transportador_id, tid) &&
           l.status === 'ativo',
       )
+      // Tem contra-proposta pendente: frete_oferta (embarcador) diferente do lance ativo
+      const isRespostaContra =
+        Boolean(existing) &&
+        cargaOk.frete_oferta != null &&
+        Math.abs(roundMoney(cargaOk.frete_oferta) - roundMoney(existing!.valor)) > 0.009
+
       let lances: Lance[]
       let historicoPropostas = base.historicoPropostas ?? []
       if (existing) {
@@ -2529,6 +2535,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             valor_anterior: existing.valor,
             valor_novo: valor,
             created_at: agora,
+            tipo: isRespostaContra ? ('resposta_contra' as const) : ('lance' as const),
           },
           ...historicoPropostas,
         ]
@@ -2553,6 +2560,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             valor_anterior: null,
             valor_novo: valor,
             created_at: agora,
+            tipo: 'lance' as const,
           },
           ...historicoPropostas,
         ]
@@ -2570,6 +2578,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
 
       const isNew = !existing
+      const histTitulo = isRespostaContra
+        ? 'Resposta da contra-proposta'
+        : isNew
+          ? 'Nova proposta'
+          : 'Proposta atualizada'
+      const histDetalhe = isRespostaContra
+        ? `Resposta da contra-proposta: R$ ${roundMoney(cargaOk.frete_oferta!).toFixed(2)} → R$ ${valor.toFixed(2)}`
+        : `R$ ${valor.toFixed(2)}`
       // Sempre move para Propostas quando há lance ativo (Kanban Minerva + Transportador)
       const cargas = base.cargas.map((c) =>
         c.id === cargaId && !c.transportador_vencedor_id
@@ -2584,6 +2600,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
           })
         : base.transportadores
 
+      let notifs = pushNotif(base.notificacoes, {
+        role: 'minerva',
+        titulo: histTitulo,
+        mensagem: isRespostaContra
+          ? `Carga ${cargaOk.numero}: transportador respondeu a contra-proposta com R$ ${valor.toFixed(2)}.`
+          : `Carga ${cargaOk.numero}: R$ ${valor.toFixed(2)}. Negocie pelo card.`,
+        carga_id: cargaId,
+        href: `/embarcador?cargaId=${encodeURIComponent(cargaId)}`,
+      })
+      if (isRespostaContra) {
+        notifs = pushNotif(notifs, {
+          role: 'transportador',
+          transportador_id: tid,
+          titulo: 'Resposta da contra-proposta enviada',
+          mensagem: `Carga ${cargaOk.numero}: sua resposta (R$ ${valor.toFixed(2)}) foi enviada ao embarcador.`,
+          carga_id: cargaId,
+          href: `/transportador?cargaId=${encodeURIComponent(cargaId)}`,
+        })
+      }
+
       const next: DataState = {
         ...base,
         cargas,
@@ -2591,25 +2627,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
         transportadores,
         historico: [
           makeHistorico(
-            'lance_enviado',
-            `${isNew ? 'Nova proposta' : 'Proposta atualizada'} — ${cargaOk.numero}`,
+            isRespostaContra ? 'resposta_contra' : 'lance_enviado',
+            `${histTitulo} — ${cargaOk.numero}`,
             {
               carga_id: cargaId,
               transportador_id: tid,
-              detalhe: `R$ ${valor.toFixed(2)}`,
+              detalhe: histDetalhe,
             },
             userNow,
           ),
           ...base.historico,
         ].slice(0, 2000),
         historicoPropostas: historicoPropostas.slice(0, 3000),
-        notificacoes: pushNotif(base.notificacoes, {
-          role: 'minerva',
-          titulo: isNew ? 'Nova proposta' : 'Proposta atualizada',
-          mensagem: `Carga ${cargaOk.numero}: R$ ${valor.toFixed(2)}. Negocie pelo card.`,
-          carga_id: cargaId,
-          href: `/embarcador?cargaId=${encodeURIComponent(cargaId)}`,
-        }),
+        notificacoes: notifs,
       }
       stateRef.current = next
       setState(next)
@@ -2796,6 +2826,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       valor_anterior: lance.valor,
       valor_novo: valorRound,
       created_at: now,
+      tipo: 'contra_embarcador',
     }
     const next: DataState = {
       ...prev,
