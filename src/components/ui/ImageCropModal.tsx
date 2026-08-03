@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { Button } from './Modal'
 
 const CROP_SIZE = 260
@@ -124,11 +125,17 @@ export function ImageCropModal({
   }
 
   if (!open) return null
+  if (typeof document === 'undefined') return null
 
   const frameRadius = shape === 'circle' ? '9999px' : '12px'
 
-  return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+  // Portal no body: formulários longos com transform/overflow (animate-fade-up)
+  // faziam o fixed prender no meio da página — só o escurecimento ficava visível.
+  return createPortal(
+    <div
+      className="image-crop-modal fixed inset-0 flex items-center justify-center p-4"
+      style={{ zIndex: 100050 }}
+    >
       <div
         role="presentation"
         aria-hidden
@@ -140,6 +147,8 @@ export function ImageCropModal({
         aria-modal="true"
         aria-label={title}
         className="relative z-10 w-full max-w-xs rounded-xl border border-ink/10 bg-white p-4 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         <h3 className="mb-3 text-center text-base font-extrabold text-black">{title}</h3>
 
@@ -216,6 +225,7 @@ export function ImageCropModal({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
