@@ -499,7 +499,7 @@ export function VeiculosPage() {
                   <th>Capacidade</th>
                   <th>Risco</th>
                   <th>Situação</th>
-                  <th />
+                  <th>Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -537,34 +537,36 @@ export function VeiculosPage() {
                         {v.situacao}
                       </span>
                     </td>
-                    <td style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                      <button type="button" className="cadastro-link" onClick={() => openEdit(v)}>
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        className="cadastro-link"
-                        onClick={() => setAvaliacoesDe(v)}
-                      >
-                        Ver avaliações
-                      </button>
-                      <button
-                        type="button"
-                        className="cadastro-link"
-                        onClick={() => setLocVeiculo(v)}
-                      >
-                        Alterar localização
-                      </button>
-                      <button
-                        type="button"
-                        className="cadastro-link"
-                        style={{ color: '#dc2626' }}
-                        onClick={() => {
-                          if (window.confirm(`Excluir veículo ${v.placa}?`)) excluirVeiculo(v.id)
-                        }}
-                      >
-                        Excluir
-                      </button>
+                    <td className="cadastro-table__acoes">
+                      <div className="cadastro-table__acoes-list">
+                        <button type="button" className="cadastro-link" onClick={() => openEdit(v)}>
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          className="cadastro-link cadastro-link--avaliacao"
+                          onClick={() => setAvaliacoesDe(v)}
+                        >
+                          ★ Ver avaliações
+                        </button>
+                        <button
+                          type="button"
+                          className="cadastro-link"
+                          onClick={() => setLocVeiculo(v)}
+                        >
+                          Alterar localização
+                        </button>
+                        <button
+                          type="button"
+                          className="cadastro-link"
+                          style={{ color: '#dc2626' }}
+                          onClick={() => {
+                            if (window.confirm(`Excluir veículo ${v.placa}?`)) excluirVeiculo(v.id)
+                          }}
+                        >
+                          Excluir
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

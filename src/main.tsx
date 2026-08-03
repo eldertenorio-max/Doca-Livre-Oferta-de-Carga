@@ -8,7 +8,7 @@ import './index.css'
 
 // Service worker cedo — necessário para o Chrome oferecer “Instalar app”.
 // onNeedRefresh: força atualização assim que houver build novo (evita tela travada em versão antiga).
-const BUILD_STAMP = 'oferta7-20260731'
+const BUILD_STAMP = 'oferta7-20260803-veic-av'
 
 async function hardRefreshApp() {
   const key = `doca-sw-refreshed:${BUILD_STAMP}`
