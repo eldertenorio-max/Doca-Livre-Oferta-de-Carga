@@ -27,6 +27,58 @@ export type AvatarUserHints = {
   usuario?: string | null
 }
 
+type UsuarioAvatarRow = {
+  id: string
+  avatar_url?: string | null
+  email?: string | null
+  usuario?: string | null
+}
+
+/** Escolhe a melhor linha quando há duplicata local (u-diego) + UUID no banco. */
+function pickMelhorUsuario(rows: UsuarioAvatarRow[]): UsuarioAvatarRow | null {
+  if (!rows.length) return null
+  const scored = rows.map((r) => {
+    let score = 0
+    if (validUuid(r.id)) score += 50
+    if (typeof r.avatar_url === 'string' && r.avatar_url.trim()) score += 30
+    return { r, score }
+  })
+  scored.sort((a, b) => b.score - a.score)
+  return scored[0]?.r ?? null
+}
+
+async function queryUsuariosPorHints(hints?: AvatarUserHints): Promise<UsuarioAvatarRow[]> {
+  if (!supabase) return []
+  const email = norm(hints?.email)
+  const usuario = (hints?.usuario || '').trim()
+  const out: UsuarioAvatarRow[] = []
+  const seen = new Set<string>()
+
+  const pushRows = (data: unknown) => {
+    for (const row of (data ?? []) as UsuarioAvatarRow[]) {
+      if (!row?.id || seen.has(row.id)) continue
+      seen.add(row.id)
+      out.push(row)
+    }
+  }
+
+  if (email.includes('@')) {
+    const { data } = await supabase
+      .from('usuarios')
+      .select('id, avatar_url, email, usuario')
+      .ilike('email', email)
+    pushRows(data)
+  }
+  if (usuario) {
+    const { data } = await supabase
+      .from('usuarios')
+      .select('id, avatar_url, email, usuario')
+      .ilike('usuario', usuario)
+    pushRows(data)
+  }
+  return out
+}
+
 /** Resolve o id real em `usuarios` (UUID do banco), mesmo se a sessão ainda tiver id local. */
 async function resolveUsuarioDbId(
   userId: string,
@@ -37,29 +89,24 @@ async function resolveUsuarioDbId(
   if (validUuid(userId)) {
     const { data } = await supabase
       .from('usuarios')
-      .select('id')
+      .select('id, avatar_url')
       .eq('id', userId)
       .maybeSingle()
     if (data?.id) return String(data.id)
   }
 
-  const tries: Array<{ col: 'email' | 'usuario'; value: string }> = []
-  const email = norm(hints?.email)
-  const usuario = (hints?.usuario || '').trim()
-  if (email.includes('@')) tries.push({ col: 'email', value: email })
-  if (usuario) tries.push({ col: 'usuario', value: usuario })
-
-  for (const t of tries) {
+  // Conta local (ex.: u-diego): tenta leitura direta caso exista no banco
+  if (userId && !validUuid(userId)) {
     const { data } = await supabase
       .from('usuarios')
-      .select('id')
-      .ilike(t.col, t.value)
-      .limit(1)
+      .select('id, avatar_url')
+      .eq('id', userId)
       .maybeSingle()
     if (data?.id) return String(data.id)
   }
 
-  return null
+  const candidatos = await queryUsuariosPorHints(hints)
+  return pickMelhorUsuario(candidatos)?.id ?? null
 }
 
 async function gravarAvatarNoBanco(
@@ -69,14 +116,25 @@ async function gravarAvatarNoBanco(
 ): Promise<{ ok: true; dbId: string | null } | { ok: false; erro: string }> {
   if (!supabase) return { ok: true, dbId: null }
 
-  const dbId = await resolveUsuarioDbId(userId, hints)
+  let dbId = await resolveUsuarioDbId(userId, hints)
   let wroteUsuarios = false
 
-  if (dbId) {
-    const { error } = await supabase
+  // Atualiza por id resolvido; se falhar (0 linhas), tenta todas as linhas do e-mail/login
+  const idsParaGravar = new Set<string>()
+  if (dbId) idsParaGravar.add(dbId)
+  for (const row of await queryUsuariosPorHints(hints)) {
+    idsParaGravar.add(row.id)
+  }
+  if (validUuid(userId)) idsParaGravar.add(userId)
+  if (userId && !validUuid(userId)) idsParaGravar.add(userId)
+
+  for (const id of idsParaGravar) {
+    const { data, error } = await supabase
       .from('usuarios')
       .update({ avatar_url: avatarUrl })
-      .eq('id', dbId)
+      .eq('id', id)
+      .select('id, avatar_url')
+      .maybeSingle()
     if (error) {
       if (/avatar_url/i.test(error.message)) {
         return {
@@ -85,9 +143,23 @@ async function gravarAvatarNoBanco(
             'Coluna avatar_url ausente em usuarios. Rode supabase/usuario_avatar.sql no SQL Editor.',
         }
       }
-      return { ok: false, erro: error.message }
+      // tenta próximo id (RLS / linha inexistente)
+      console.warn('[avatar] update usuarios', id, error.message)
+      continue
     }
-    wroteUsuarios = true
+    if (data?.id) {
+      wroteUsuarios = true
+      dbId = String(data.id)
+      const gravado =
+        data.avatar_url == null ? null : String(data.avatar_url).trim() || null
+      const esperado = avatarUrl == null ? null : avatarUrl.trim() || null
+      // Confirma que o valor ficou no banco (evita “sucesso” com 0 efeito / RLS)
+      if ((gravado || '') !== (esperado || '') && esperado && !gravado) {
+        console.warn('[avatar] update retornou sem gravar avatar_url:', id)
+        continue
+      }
+      break
+    }
   }
 
   // Contas Auth / cadastro público (profiles.id = UUID)
@@ -102,11 +174,11 @@ async function gravarAvatarNoBanco(
     }
   }
 
-  if (!wroteUsuarios && !validUuid(userId)) {
+  if (!wroteUsuarios) {
     return {
       ok: false,
       erro:
-        'Não encontrei sua conta em usuarios para gravar a foto. Faça login de novo ou rode o SQL do portal.',
+        'Não consegui gravar a foto na conta (usuarios). Confira login/e-mail no banco e a coluna avatar_url (SQL do portal).',
     }
   }
 
@@ -120,6 +192,13 @@ export async function buscarAvatarUsuarioRemoto(
 ): Promise<string | null> {
   if (!isSupabaseConfigured || !supabase) return null
 
+  // 1) Candidatos por e-mail/login (pega a linha que já tem foto, mesmo com id local distinto)
+  const porHints = await queryUsuariosPorHints(hints)
+  const comFoto = porHints.find(
+    (r) => typeof r.avatar_url === 'string' && r.avatar_url.trim(),
+  )
+  if (comFoto?.avatar_url) return comFoto.avatar_url.trim()
+
   const dbId = await resolveUsuarioDbId(userId, hints)
   if (dbId) {
     const { data, error } = await supabase
@@ -132,6 +211,30 @@ export async function buscarAvatarUsuarioRemoto(
       if (url) return url
     } else if (!/avatar_url|Could not find|schema cache/i.test(error.message)) {
       console.warn('[avatar] select usuarios:', error.message)
+    }
+  }
+
+  // Tenta Storage (arquivo antigo sem URL no banco)
+  const folders = new Set<string>()
+  const folderOf = (id: string) =>
+    validUuid(id) ? id : id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64)
+  if (dbId) folders.add(folderOf(dbId))
+  if (userId) folders.add(folderOf(userId))
+  for (const folder of folders) {
+    const { data: files } = await supabase.storage.from('veiculos-fotos').list(`avatars/${folder}`, {
+      limit: 10,
+    })
+    const hit = (files ?? []).find((f) => /^avatar\.(jpe?g|png|webp)$/i.test(f.name || ''))
+    if (hit?.name) {
+      const { data: pub } = supabase.storage
+        .from('veiculos-fotos')
+        .getPublicUrl(`avatars/${folder}/${hit.name}`)
+      if (pub?.publicUrl) {
+        const url = `${pub.publicUrl}${pub.publicUrl.includes('?') ? '&' : '?'}v=${Date.now()}`
+        // Regrava no banco para não depender só do Storage
+        void gravarAvatarNoBanco(userId, url, hints)
+        return url
+      }
     }
   }
 
@@ -161,11 +264,15 @@ export async function atualizarAvatarUsuarioRemoto(
   if (!file) {
     if (isSupabaseConfigured && supabase) {
       const dbId = (await resolveUsuarioDbId(uid, hints)) || uid
-      const folder = validUuid(dbId) ? dbId : uid.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64)
+      const folders = new Set<string>()
+      folders.add(validUuid(dbId) ? dbId : dbId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64))
+      folders.add(validUuid(uid) ? uid : uid.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64))
       const exts = ['jpg', 'jpeg', 'png', 'webp']
-      await supabase.storage
-        .from('veiculos-fotos')
-        .remove(exts.map((ext) => `avatars/${folder}/avatar.${ext}`))
+      for (const folder of folders) {
+        await supabase.storage
+          .from('veiculos-fotos')
+          .remove(exts.map((ext) => `avatars/${folder}/avatar.${ext}`))
+      }
       const gravou = await gravarAvatarNoBanco(uid, null, hints)
       if (!gravou.ok) return gravou
     }
@@ -189,7 +296,7 @@ export async function atualizarAvatarUsuarioRemoto(
   }
 
   const dbId = (await resolveUsuarioDbId(uid, hints)) || uid
-  const folder = validUuid(dbId) ? dbId : uid.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64)
+  const folder = validUuid(dbId) ? dbId : dbId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64)
   const path = `avatars/${folder}/avatar.${ext}`
 
   const { error: upErr } = await supabase.storage
@@ -201,9 +308,16 @@ export async function atualizarAvatarUsuarioRemoto(
     const { data: pub } = supabase.storage.from('veiculos-fotos').getPublicUrl(path)
     avatarUrl = `${pub.publicUrl}${pub.publicUrl.includes('?') ? '&' : '?'}v=${Date.now()}`
   } else {
-    // Fallback: data URL no banco ainda sincroniza entre aparelhos
+    // Fallback: data URL no banco ainda sincroniza entre aparelhos (imagens pequenas)
     try {
-      avatarUrl = await dataUrlFromFile(file)
+      const dataUrl = await dataUrlFromFile(file)
+      if (dataUrl.length > 900_000) {
+        return {
+          ok: false,
+          erro: `Falha no upload da foto: ${upErr.message}. Tente uma imagem menor.`,
+        }
+      }
+      avatarUrl = dataUrl
       console.warn('[avatar] storage falhou, salvando data URL:', upErr.message)
     } catch {
       return {
@@ -215,6 +329,21 @@ export async function atualizarAvatarUsuarioRemoto(
 
   const gravou = await gravarAvatarNoBanco(uid, avatarUrl, hints)
   if (!gravou.ok) return gravou
+
+  // Também grava em pasta do id de sessão (u-diego) se difere — recupera foto antiga
+  if (gravou.dbId && gravou.dbId !== uid && !upErr) {
+    const sessFolder = validUuid(uid)
+      ? uid
+      : uid.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64)
+    if (sessFolder !== folder) {
+      await supabase.storage
+        .from('veiculos-fotos')
+        .upload(`avatars/${sessFolder}/avatar.${ext}`, file, {
+          upsert: true,
+          contentType: file.type || 'image/jpeg',
+        })
+    }
+  }
 
   return { ok: true, avatar_url: avatarUrl }
 }

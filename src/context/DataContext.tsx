@@ -1600,16 +1600,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
       usuario: user.usuario,
     }).then((url) => {
       if (cancelled) return
+      const next = (url || '').trim()
+      if (!next) return
       setUser((prev) => {
         if (!prev || prev.id !== user.id) return prev
         const atual = prev.avatar_url?.trim() || ''
-        const next = (url || '').trim()
-        // Prefere URL remota (http/data no banco). Se remoto vazio, mantém local.
-        if (!next) return prev
         if (atual === next) return prev
-        // Se local é data URL e remoto é URL pública, troca; se ambos iguais, ok
         return { ...prev, avatar_url: next }
       })
+      try {
+        const accounts = loadPortalAccounts().map((a) => {
+          const mesmoId = a.id === user.id
+          const mesmoEmail =
+            user.email && a.email?.toLowerCase() === user.email.toLowerCase()
+          const mesmoUser =
+            user.usuario && a.usuario?.toLowerCase() === user.usuario.toLowerCase()
+          if (!mesmoId && !mesmoEmail && !mesmoUser) return a
+          if ((a.avatar_url || '').trim() === next) return a
+          return { ...a, avatar_url: next }
+        })
+        savePortalAccounts(accounts)
+      } catch {
+        /* ignore */
+      }
     })
     return () => {
       cancelled = true
@@ -3934,6 +3947,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
       usuario: u.usuario,
     })
     if (!result.ok) return { ok: false, error: result.erro }
+    // Mantém avatar também no cache de contas do portal (sobrevida a novo login)
+    try {
+      const accounts = loadPortalAccounts().map((a) => {
+        const mesmoId = a.id === u.id
+        const mesmoEmail =
+          u.email && a.email?.toLowerCase() === u.email.toLowerCase()
+        const mesmoUser =
+          u.usuario && a.usuario?.toLowerCase() === u.usuario.toLowerCase()
+        if (!mesmoId && !mesmoEmail && !mesmoUser) return a
+        return { ...a, avatar_url: result.avatar_url }
+      })
+      savePortalAccounts(accounts)
+    } catch {
+      /* ignore */
+    }
     setUser((prev) => {
       if (!prev) return prev
       return { ...prev, avatar_url: result.avatar_url }
