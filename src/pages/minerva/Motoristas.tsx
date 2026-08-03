@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { useData } from '../../context/DataContext'
 import { CadastroStatsCards } from '../../components/cadastro/CadastroStatsCards'
 import { MotoristaAvaliacoesModal } from '../../components/motorista/MotoristaAvaliacoesModal'
+import { ImportarMotoristasModal } from '../../components/motorista/ImportarMotoristasModal'
 import { inputClass } from '../../components/ui/Modal'
 import { fileToDataUrl, isAcceptedImageFile } from '../../lib/veiculoFotos'
 import { iniciaisNome } from '../../lib/mapaFrota'
@@ -42,6 +43,7 @@ export function MotoristasPage() {
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
   const [avaliacoesDe, setAvaliacoesDe] = useState<Motorista | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
   const fotoInputRef = useRef<HTMLInputElement>(null)
 
   const lista = motoristas ?? []
@@ -230,10 +232,33 @@ export function MotoristasPage() {
                 Vincule motorista + placa + transportadora (ou autônomo).
               </p>
             </div>
-            <button type="button" className="cadastro-btn cadastro-btn--primary" onClick={openNew}>
-              Novo motorista
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="cadastro-btn cadastro-btn--ghost"
+                onClick={() => setImportOpen(true)}
+              >
+                Importar planilha
+              </button>
+              <button type="button" className="cadastro-btn cadastro-btn--primary" onClick={openNew}>
+                Novo motorista
+              </button>
+            </div>
           </header>
+
+          <ImportarMotoristasModal
+            open={importOpen}
+            onClose={() => setImportOpen(false)}
+            transportadorIdFixo={
+              isTransportador ? user?.transportador_id || null : undefined
+            }
+            transportadores={scopedTransportadores}
+            veiculos={listaVeiculos}
+            motoristasExistentes={scoped}
+            onImport={(lista) => {
+              for (const m of lista) salvarMotorista(m)
+            }}
+          />
 
           <CadastroStatsCards
             total={statsCadastro.total}
