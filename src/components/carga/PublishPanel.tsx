@@ -604,6 +604,11 @@ export function PublishPanel({
   function handleAceitar(lanceId: string) {
     if (!canEdit) {
       setError('Seu perfil não permite aceitar propostas.')
+      showActionFlash({
+        titulo: 'Sem permissão',
+        mensagem: 'Seu perfil não permite aceitar propostas.',
+        tone: 'erro',
+      })
       return
     }
     setError('')
@@ -611,21 +616,25 @@ export function PublishPanel({
     const lance = lances.find((l) => l.id === lanceId)
     const tNome =
       transportadorById(lance?.transportador_id ?? '')?.nome_fantasia ?? 'transportadora'
+    const valorLbl = lance ? formatCurrency(lance.valor) : ''
+    const okConfirm = window.confirm(
+      `Aceitar a proposta de ${tNome}${valorLbl ? ` (${valorLbl})` : ''} e fechar o frete?`,
+    )
+    if (!okConfirm) return
+
     const res = aceitarLance(lanceId)
     if (!res.ok) {
       setError(res.error ?? 'Falha ao aceitar')
       showActionFlash({
         titulo: 'Não foi possível aceitar',
-        mensagem: res.error ?? 'Falha ao aceitar',
+        mensagem: res.error ?? 'Falha ao aceitar a proposta.',
         tone: 'erro',
       })
     } else {
       setInfo('Frete fechado. Aguardando alocação do transportador.')
       showActionFlash({
-        titulo: 'Oferta aceita',
-        mensagem: `Frete fechado com ${tNome}${
-          lance ? ` (${formatCurrency(lance.valor)})` : ''
-        }.`,
+        titulo: 'Proposta aceita',
+        mensagem: `Frete fechado com ${tNome}${valorLbl ? ` · ${valorLbl}` : ''}. Aguardando alocação.`,
       })
     }
   }
@@ -633,13 +642,39 @@ export function PublishPanel({
   function handleRejeitar(lanceId: string) {
     if (!canEdit) {
       setError('Seu perfil não permite rejeitar propostas.')
+      showActionFlash({
+        titulo: 'Sem permissão',
+        mensagem: 'Seu perfil não permite rejeitar propostas.',
+        tone: 'erro',
+      })
       return
     }
     setError('')
     setInfo('')
+    const lance = lances.find((l) => l.id === lanceId)
+    const tNome =
+      transportadorById(lance?.transportador_id ?? '')?.nome_fantasia ?? 'transportadora'
+    const valorLbl = lance ? formatCurrency(lance.valor) : ''
+    const okConfirm = window.confirm(
+      `Rejeitar a proposta de ${tNome}${valorLbl ? ` (${valorLbl})` : ''}?`,
+    )
+    if (!okConfirm) return
+
     const res = rejeitarLance(lanceId)
-    if (!res.ok) setError(res.error ?? 'Falha ao rejeitar')
-    else setInfo('Proposta rejeitada.')
+    if (!res.ok) {
+      setError(res.error ?? 'Falha ao rejeitar')
+      showActionFlash({
+        titulo: 'Não foi possível rejeitar',
+        mensagem: res.error ?? 'Falha ao rejeitar a proposta.',
+        tone: 'erro',
+      })
+    } else {
+      setInfo('Proposta rejeitada.')
+      showActionFlash({
+        titulo: 'Proposta rejeitada',
+        mensagem: `A proposta de ${tNome}${valorLbl ? ` (${valorLbl})` : ''} foi rejeitada.`,
+      })
+    }
   }
 
   function handleEncerrar() {
