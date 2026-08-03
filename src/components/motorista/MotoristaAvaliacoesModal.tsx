@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import type { Carga, Motorista } from '../../types'
 import {
   avaliacaoDoMotorista,
@@ -14,7 +15,7 @@ type Props = {
 
 export function MotoristaAvaliacoesModal({ motorista, cargas, onClose }: Props) {
   const resumo = avaliacaoDoMotorista(motorista)
-  const itens = listarAvaliacoesMotorista(motorista, cargas)
+  const itens = listarAvaliacoesMotorista(motorista, cargas ?? [])
   const totalExibido = itens.length
   const mediaExibida =
     totalExibido > 0
@@ -28,7 +29,9 @@ export function MotoristaAvaliacoesModal({ motorista, cargas, onClose }: Props) 
   ).length
   const total = resumo.total || totalExibido
 
-  return (
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
     <div
       className="frota-modal"
       role="dialog"
@@ -39,6 +42,7 @@ export function MotoristaAvaliacoesModal({ motorista, cargas, onClose }: Props) 
       <div
         className="frota-modal__panel frota-modal__panel--avaliacoes"
         onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         <button
           type="button"
@@ -54,7 +58,10 @@ export function MotoristaAvaliacoesModal({ motorista, cargas, onClose }: Props) 
           {foto ? (
             <img className="frota-avaliacoes-perfil__foto" src={foto} alt="" />
           ) : (
-            <span className="frota-avaliacoes-perfil__foto frota-avaliacoes-perfil__foto--empty" aria-hidden>
+            <span
+              className="frota-avaliacoes-perfil__foto frota-avaliacoes-perfil__foto--empty"
+              aria-hidden
+            >
               {iniciaisNome(motorista.nome)}
             </span>
           )}
@@ -62,15 +69,10 @@ export function MotoristaAvaliacoesModal({ motorista, cargas, onClose }: Props) 
             <strong>{motorista.nome}</strong>
             <div
               className="frota-avaliacoes-list__stars"
-              aria-label={
-                mediaExibida > 0 ? `${mediaExibida} de 5` : 'Sem nota'
-              }
+              aria-label={mediaExibida > 0 ? `${mediaExibida} de 5` : 'Sem nota'}
             >
               {Array.from({ length: 5 }, (_, i) => (
-                <span
-                  key={i}
-                  className={i < Math.round(mediaExibida) ? 'is-on' : ''}
-                >
+                <span key={i} className={i < Math.round(mediaExibida) ? 'is-on' : ''}>
                   ★
                 </span>
               ))}
@@ -129,6 +131,7 @@ export function MotoristaAvaliacoesModal({ motorista, cargas, onClose }: Props) 
           )}
         </ul>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

@@ -547,12 +547,16 @@ export function VeiculosPage() {
                           className="cadastro-link cadastro-link--avaliacao"
                           title="Ver avaliações do veículo"
                           aria-label="Ver avaliações do veículo"
-                          onClick={() => setAvaliacoesDe(v)}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setAvaliacoesDe(v)
+                          }}
                         >
-                          <span className="cadastro-link--avaliacao-txt">Ver avaliações</span>
                           <span className="cadastro-link--avaliacao-ico" aria-hidden>
                             ★
                           </span>
+                          <span className="cadastro-link--avaliacao-txt">Ver avaliações</span>
                         </button>
                         <button
                           type="button"

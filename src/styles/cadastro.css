@@ -269,6 +269,9 @@
 }
 
 .cadastro-link--avaliacao {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: #b45309;
   line-height: 1;
 }
@@ -277,10 +280,10 @@
   color: #92400e;
 }
 
-/* Texto completo quando há espaço; só ★ se a coluna ficar estreita */
+/* Sempre mostra a estrela; esconde o texto se faltar espaço */
 .cadastro-link--avaliacao-ico {
-  display: none;
-  font-size: 1.15rem;
+  display: inline;
+  font-size: 1.05rem;
 }
 
 .cadastro-link--avaliacao-txt {
@@ -290,10 +293,6 @@
 @media (max-width: 1280px) {
   .cadastro-link--avaliacao-txt {
     display: none;
-  }
-
-  .cadastro-link--avaliacao-ico {
-    display: inline;
   }
 }
 

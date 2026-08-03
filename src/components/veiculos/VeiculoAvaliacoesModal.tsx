@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import type { Carga, Veiculo } from '../../types'
 import {
   avaliacaoDoVeiculo,
@@ -15,7 +16,7 @@ type Props = {
 
 export function VeiculoAvaliacoesModal({ veiculo, cargas, empresa, onClose }: Props) {
   const resumo = avaliacaoDoVeiculo(veiculo)
-  const itens = listarAvaliacoesVeiculo(veiculo, cargas)
+  const itens = listarAvaliacoesVeiculo(veiculo, cargas ?? [])
   const totalExibido = itens.length
   const mediaExibida =
     totalExibido > 0
@@ -29,7 +30,9 @@ export function VeiculoAvaliacoesModal({ veiculo, cargas, empresa, onClose }: Pr
   const foto = (fotos.dianteira || veiculo.foto_url || '').trim()
   const modelo = [veiculo.marca, veiculo.modelo].filter(Boolean).join(' ')
 
-  return (
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
     <div
       className="frota-modal"
       role="dialog"
@@ -40,6 +43,7 @@ export function VeiculoAvaliacoesModal({ veiculo, cargas, empresa, onClose }: Pr
       <div
         className="frota-modal__panel frota-modal__panel--avaliacoes"
         onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         <button
           type="button"
@@ -130,6 +134,7 @@ export function VeiculoAvaliacoesModal({ veiculo, cargas, empresa, onClose }: Pr
           )}
         </ul>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
