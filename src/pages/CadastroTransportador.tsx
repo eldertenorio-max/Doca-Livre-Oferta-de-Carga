@@ -16,6 +16,7 @@ import {
   openLocalDocumento,
 } from '../lib/transportadorDocs'
 import { isAcceptedImageFile } from '../lib/veiculoFotos'
+import { ImageCropModal } from '../components/ui/ImageCropModal'
 import type { TipoDocumentoTransportador } from '../types'
 import { CnpjInput } from '../components/ui/CnpjInput'
 import { PontoMapPreview } from '../components/ui/PontoMapPreview'
@@ -113,6 +114,7 @@ export function CadastroTransportadorPage() {
     data_url: string
     file?: File
   } | null>(null)
+  const [logoParaAjustar, setLogoParaAjustar] = useState<File | null>(null)
   const [acesso, setAcesso] = useState({
     usuario: '',
     email: '',
@@ -698,9 +700,7 @@ export function CadastroTransportadorPage() {
                               return
                             }
                             setError('')
-                            void fileToDataUrl(file).then((data_url) => {
-                              setLogo({ nome_arquivo: file.name, data_url, file })
-                            })
+                            setLogoParaAjustar(file)
                           }}
                         />
                       </label>
@@ -1337,6 +1337,24 @@ export function CadastroTransportadorPage() {
           </div>
         )}
       </div>
+
+      <ImageCropModal
+        open={Boolean(logoParaAjustar)}
+        file={logoParaAjustar}
+        shape="circle"
+        title="Ajustar logo / foto"
+        onCancel={() => setLogoParaAjustar(null)}
+        onConfirm={(file) => {
+          setLogoParaAjustar(null)
+          void fileToDataUrl(file).then((data_url) => {
+            setLogo({
+              nome_arquivo: file.name || 'logo.jpg',
+              data_url,
+              file,
+            })
+          })
+        }}
+      />
     </div>
   )
 }

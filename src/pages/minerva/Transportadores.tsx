@@ -18,6 +18,7 @@ import { formatCurrency, formatDateTime } from '../../lib/businessRules'
 import { labelDocumento, isAcceptedDocFile } from '../../lib/transportadorDocs'
 import { urlDocumentoTransportador, origemCadastroDe, labelOrigemCadastro } from '../../lib/cadastroTransportador'
 import { isAcceptedImageFile, fileToDataUrl } from '../../lib/veiculoFotos'
+import { ImageCropModal } from '../../components/ui/ImageCropModal'
 import type { ClassificacaoTransportador, SituacaoTransportador, Transportador } from '../../types'
 import '../../styles/cadastro.css'
 import '../../styles/grid-cargas.css'
@@ -113,6 +114,8 @@ export function TransportadoresPage() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [logoRemovida, setLogoRemovida] = useState(false)
   const logoInputRef = useRef<HTMLInputElement>(null)
+  /** Arquivo original escolhido — abre o recorte antes de aplicar. */
+  const [logoParaAjustar, setLogoParaAjustar] = useState<File | null>(null)
   const [previewPerfil, setPreviewPerfil] = useState(false)
 
   useEffect(() => {
@@ -1106,9 +1109,7 @@ export function TransportadoresPage() {
                 return
               }
               setError('')
-              setLogoFile(file)
-              setLogoRemovida(false)
-              void fileToDataUrl(file).then(setLogoPreview)
+              setLogoParaAjustar(file)
             }}
           />
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
@@ -1449,6 +1450,20 @@ export function TransportadoresPage() {
           onClose={() => setPreviewPerfil(false)}
         />
       ) : null}
+
+      <ImageCropModal
+        open={Boolean(logoParaAjustar)}
+        file={logoParaAjustar}
+        shape="circle"
+        title="Ajustar logo / foto"
+        onCancel={() => setLogoParaAjustar(null)}
+        onConfirm={(file) => {
+          setLogoParaAjustar(null)
+          setLogoFile(file)
+          setLogoRemovida(false)
+          void fileToDataUrl(file).then(setLogoPreview)
+        }}
+      />
     </div>
   )
 }
