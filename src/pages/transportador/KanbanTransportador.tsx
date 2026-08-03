@@ -16,7 +16,7 @@ import {
   type ColunaTransportador,
 } from '../../lib/kanbanColumns'
 import { isKanbanSyncReady } from '../../lib/kanbanSync'
-import { sameTransportadorId } from '../../lib/transportadorIds'
+import { rankingNoCardTransportador } from '../../lib/desempate'
 import type { Carga } from '../../types'
 
 const VIEW_AS_STORAGE_KEY = 'doca-livre-kanban-transportador-view-as'
@@ -68,6 +68,7 @@ export function KanbanTransportador() {
     lances,
     cargasVisiveisTransportador,
     lancesDaCarga,
+    transportadorById,
     recusarCargaTransportador,
     setActingTransportadorId,
     effectiveTransportadorId,
@@ -293,20 +294,12 @@ export function KanbanTransportador() {
                 const ativos = lancesDaCarga(c.id).filter((l) =>
                   ['ativo', 'vencedor'].includes(l.status),
                 )
-                // Ranking por valor (menor frete = 1º); empate → quem ofertou antes
-                const porValor = [...ativos].sort(
-                  (a, b) =>
-                    a.valor - b.valor ||
-                    new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-                )
-                const meuLance =
-                  ativos.find((l) => sameTransportadorId(l.transportador_id, tid)) ?? null
-                const pos =
-                  meuLance && col.key !== 'nova_carga'
-                    ? porValor.findIndex((l) => l.id === meuLance.id) + 1
+                // Nº = ordem de chegada (2º a ofertar = 2°); verde/vermelho = menor frete
+                const ranking =
+                  col.key !== 'nova_carga'
+                    ? rankingNoCardTransportador(ativos, tid, transportadorById)
                     : null
-                const melhor =
-                  Boolean(meuLance) && porValor[0]?.id === meuLance?.id
+                const meuLance = ranking?.meuLance ?? null
 
                 return {
                   id: c.id,
@@ -317,11 +310,15 @@ export function KanbanTransportador() {
                       coluna={col.key}
                       colunaColor={col.color}
                       bidValue={
-                        meuLance?.valor ?? (col.key !== 'nova_carga' ? c.frete_fechado : null)
+                        meuLance
+                          ? meuLance.valor
+                          : col.key !== 'nova_carga'
+                            ? c.frete_fechado
+                            : null
                       }
-                      bidPosition={pos && pos > 0 ? pos : null}
-                      bidCount={ativos.length > 0 ? ativos.length : null}
-                      bidMelhor={melhor}
+                      bidPosition={ranking?.posicao ?? null}
+                      bidCount={ranking && ranking.total > 0 ? ranking.total : null}
+                      bidMelhor={ranking?.melhor ?? false}
                       onSelect={() => {
                         if (col.key === 'confirmadas' || col.key === 'alocadas') setAllocCarga(c)
                         else abrirDetalhes(c)
