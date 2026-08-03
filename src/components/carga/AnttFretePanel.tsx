@@ -114,22 +114,25 @@ export function AnttFretePanel({
           </h3>
           <p className="text-[11px] font-medium leading-snug text-ink">
             {modoConsulta
-              ? 'Mesmas informações do embarcador: pisos ANTT, duração, distância, pedágio e combustível. Use Recalcular para atualizar.'
-              : 'Automático: rota OSRM · pisos Res. 6.084/2026 · pedágio pelas '}
-            {!modoConsulta && (
-              <>
-                <a
-                  href="https://dados.antt.gov.br/dataset/praca-de-pedagio"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-bold text-ink underline"
-                >
-                  praças dos Dados Abertos ANTT
-                </a>{' '}
-                · Vale-Pedágio Res. 6.024/2023 · RNTRC do transportador.
-              </>
-            )}
+              ? 'Mesmas informações do embarcador: pisos ANTT, duração, distância, pedágio e combustível. Use Recalcular para atualizar. '
+              : 'Automático: '}
+            Rota OSRM · pisos Res. 6.084/2026 · pedágio pelas{' '}
+            <a
+              href="https://dados.antt.gov.br/dataset/praca-de-pedagio"
+              target="_blank"
+              rel="noreferrer"
+              className="font-bold text-ink underline"
+            >
+              praças dos Dados Abertos ANTT
+            </a>
+            {' '}
+            · Vale-Pedágio Res. 6.024/2023 · RNTRC do transportador.
           </p>
+          {calc?.fonte ? (
+            <p className="mt-1 text-[10px] font-semibold text-ink-muted">
+              Fonte dos dados: {calc.fonte}
+            </p>
+          ) : null}
         </div>
         <Button
           type="button"

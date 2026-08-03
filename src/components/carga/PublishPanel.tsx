@@ -1154,9 +1154,32 @@ export function PublishPanel({
           </div>
 
           {carga.antt?.rota && (
-            <div className="mt-2 space-y-1 rounded-lg border border-ink/10 bg-white px-3 py-2 text-xs">
-              <p className="font-semibold text-ink-muted">ANTT / custos da rota</p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
+            <div className="mt-2 space-y-1.5 rounded-lg border border-ink/15 bg-sand-light/40 p-2.5 text-xs">
+              <div>
+                <p className="text-[12px] font-bold uppercase tracking-wide text-ink">
+                  Frete ANTT + rota (gratuito)
+                </p>
+                <p className="text-[11px] font-medium leading-snug text-ink">
+                  Valores gravados na publicação. Rota OSRM · pisos Res. 6.084/2026 · pedágio
+                  pelas{' '}
+                  <a
+                    href="https://dados.antt.gov.br/dataset/praca-de-pedagio"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-bold text-ink underline"
+                  >
+                    praças dos Dados Abertos ANTT
+                  </a>
+                  {' '}
+                  · Vale-Pedágio Res. 6.024/2023 · RNTRC do transportador.
+                </p>
+                {carga.antt.fonte ? (
+                  <p className="mt-1 text-[10px] font-semibold text-ink-muted">
+                    Fonte dos dados: {carga.antt.fonte}
+                  </p>
+                ) : null}
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg border border-ink/10 bg-white px-3 py-2 sm:grid-cols-3">
                 <Detail
                   label="Tabela"
                   value={`Tabela ${carga.antt.tabela}${
