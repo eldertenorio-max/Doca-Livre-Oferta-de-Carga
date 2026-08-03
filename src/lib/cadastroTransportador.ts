@@ -331,6 +331,91 @@ async function sleep(ms: number) {
   await new Promise((r) => setTimeout(r, ms))
 }
 
+function soDigitosCnpj(cnpj: string): string {
+  return (cnpj || '').replace(/\D/g, '')
+}
+
+function formatarCnpjDigitos(dig: string): string {
+  const d = soDigitosCnpj(dig)
+  if (d.length !== 14) return d
+  return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
+}
+
+/** Encontra transportadora por CNPJ (com ou sem máscara). */
+async function buscarTransportadorPorCnpj(
+  cnpjRaw: string,
+): Promise<Record<string, unknown> | null> {
+  if (!supabase) return null
+  const cnpj = (cnpjRaw || '').trim()
+  const dig = soDigitosCnpj(cnpj)
+  const tentativas = Array.from(
+    new Set([cnpj, dig, formatarCnpjDigitos(dig)].filter((v) => v.length > 0)),
+  )
+
+  for (const valor of tentativas) {
+    const { data, error } = await supabase
+      .from('transportadores')
+      .select('*')
+      .eq('cnpj', valor)
+      .maybeSingle()
+    if (!error && data) return data as Record<string, unknown>
+  }
+
+  // Fallback: CNPJ gravado em formato diferente do esperado
+  if (dig.length === 14) {
+    const { data: rows } = await supabase
+      .from('transportadores')
+      .select('*')
+      .limit(800)
+    const hit = (rows ?? []).find(
+      (r) => soDigitosCnpj(String((r as { cnpj?: string }).cnpj || '')) === dig,
+    )
+    if (hit) return hit as Record<string, unknown>
+  }
+  return null
+}
+
+/** Já existe login (usuarios/portal/profiles) para esta transportadora? */
+async function transportadorTemLogin(
+  transportadorId: string,
+): Promise<{ tem: boolean; ativo: boolean; email?: string }> {
+  if (!supabase) return { tem: false, ativo: false }
+
+  try {
+    const { data: rows } = await supabase
+      .from('usuarios')
+      .select('id, ativo, email, senha_hash')
+      .eq('transportador_id', transportadorId)
+      .limit(5)
+    const comSenha = (rows ?? []).filter(
+      (r) => r && String((r as { senha_hash?: string }).senha_hash || '').length >= 4,
+    )
+    if (comSenha.length > 0) {
+      const u = comSenha[0] as { ativo?: boolean; email?: string }
+      return {
+        tem: true,
+        ativo: u.ativo !== false,
+        email: u.email,
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
+  const local = loadPortalAccounts().filter(
+    (a) => a.transportador_id === transportadorId && (a.password || '').length >= 4,
+  )
+  if (local.length > 0) {
+    return {
+      tem: true,
+      ativo: local.some((a) => a.ativo),
+      email: local[0].email,
+    }
+  }
+
+  return { tem: false, ativo: false }
+}
+
 async function criarUsuarioAuthCadastro(
   input: CadastroTransportadorInput,
   email: string,
@@ -393,23 +478,76 @@ export async function cadastrarTransportadorRemoto(
   if (erro) return { ok: false, erro }
 
   const email = input.acesso.email.trim().toLowerCase()
-  const auth = await criarUsuarioAuthCadastro(input, email)
-  if (!auth.ok) return { ok: false, erro: auth.erro }
-  const userId = auth.userId
+  const cnpjGravar =
+    formatarCnpjDigitos(input.empresa.cnpj) || input.empresa.cnpj.trim()
 
-  // Sessão necessária para RLS nos inserts (admin createUser não loga o client)
-  const { error: signInErr } = await supabase.auth.signInWithPassword({
-    email,
-    password: input.acesso.senha,
-  })
-  if (signInErr) {
-    return { ok: false, erro: traduzirErroAuth(signInErr.message) }
+  // 1) Resolver CNPJ ANTES de criar Auth — evita conta no Auth sem empresa/login
+  const existente = await buscarTransportadorPorCnpj(input.empresa.cnpj)
+  let reaproveitarId: string | null = null
+  let situacaoAlvo: 'pendente' | 'ativo' = 'pendente'
+
+  if (existente) {
+    const sid = String(existente.situacao || '')
+    if (sid === 'recusado') {
+      reaproveitarId = String(existente.id)
+      situacaoAlvo = 'pendente'
+    } else {
+      const login = await transportadorTemLogin(String(existente.id))
+      if (login.tem) {
+        return {
+          ok: false,
+          erro: login.email
+            ? `Este CNPJ já possui acesso. Faça login com ${login.email} (ou o usuário da empresa). Se não lembrar a senha, use “Esqueci a senha” na tela de login.`
+            : 'Este CNPJ já possui acesso. Faça login com o usuário ou e-mail da empresa. Se não lembrar a senha, use “Esqueci a senha” na tela de login.',
+        }
+      }
+      // Empresa já existe (ex.: cadastrada no painel) mas sem login — completa o cadastro
+      reaproveitarId = String(existente.id)
+      situacaoAlvo = sid === 'ativo' ? 'ativo' : 'pendente'
+    }
+  }
+
+  // 2) Auth user
+  let userId: string
+  const auth = await criarUsuarioAuthCadastro(input, email)
+  if (!auth.ok) {
+    // E-mail já no Auth: tenta seguir com a senha informada (cadastro interrompido antes)
+    if (/já possui conta|already|registered|exists/i.test(auth.erro)) {
+      const { error: tryIn } = await supabase.auth.signInWithPassword({
+        email,
+        password: input.acesso.senha,
+      })
+      if (tryIn) {
+        return {
+          ok: false,
+          erro:
+            'Este e-mail já está em uso. Faça login ou recupere a senha. Se o CNPJ ainda não tiver acesso, peça ao embarcador para liberar.',
+        }
+      }
+      const { data: sess } = await supabase.auth.getUser()
+      if (!sess.user?.id) {
+        return { ok: false, erro: auth.erro }
+      }
+      userId = sess.user.id
+    } else {
+      return { ok: false, erro: auth.erro }
+    }
+  } else {
+    userId = auth.userId
+    // Sessão necessária para RLS nos inserts (admin createUser não loga o client)
+    const { error: signInErr } = await supabase.auth.signInWithPassword({
+      email,
+      password: input.acesso.senha,
+    })
+    if (signInErr) {
+      return { ok: false, erro: traduzirErroAuth(signInErr.message) }
+    }
   }
 
   const payloadEmpresa = {
     razao_social: input.empresa.razao_social.trim(),
     nome_fantasia: input.empresa.nome_fantasia.trim(),
-    cnpj: input.empresa.cnpj.trim(),
+    cnpj: cnpjGravar,
     inscricao_estadual: input.empresa.inscricao_estadual ?? null,
     inscricao_municipal: input.empresa.inscricao_municipal ?? null,
     rntrc: input.empresa.rntrc ?? null,
@@ -434,39 +572,27 @@ export async function cadastrarTransportadorRemoto(
     origem_lat: input.origem.lat ?? null,
     origem_lng: input.origem.lng ?? null,
     raio_km: Number(input.origem.raio_km) || 50,
-    origem_cadastro: 'link',
+    origem_cadastro: 'link' as const,
     disponivel_mapa: true,
-    situacao: 'pendente' as const,
+    situacao: situacaoAlvo,
     motivo_recusa: null,
   }
 
-  const { data: existente } = await supabase
-    .from('transportadores')
-    .select('*')
-    .eq('cnpj', payloadEmpresa.cnpj)
-    .maybeSingle()
-
-  if (existente && existente.situacao !== 'recusado') {
-    return {
-      ok: false,
-      erro: 'Este CNPJ já está cadastrado. Se o acesso estiver bloqueado, fale com o embarcador.',
-    }
-  }
-
-  let tRow = existente
-  if (existente?.situacao === 'recusado') {
+  let tRow: Record<string, unknown> | null = null
+  if (reaproveitarId) {
+    const base = existente!
     const up = await upsertTransportadorComFallback(
       'update',
       {
         ...payloadEmpresa,
-        classificacao: existente.classificacao ?? 'bronze',
-        pontuacao: existente.pontuacao ?? 50,
+        classificacao: (base.classificacao as string) ?? 'bronze',
+        pontuacao: (base.pontuacao as number) ?? 50,
       },
-      existente.id,
+      reaproveitarId,
     )
     if (!up.ok) return { ok: false, erro: up.erro }
     tRow = up.row
-    await supabase.from('transportador_documentos').delete().eq('transportador_id', existente.id)
+    await supabase.from('transportador_documentos').delete().eq('transportador_id', reaproveitarId)
   } else {
     const ins = await upsertTransportadorComFallback('insert', {
       ...payloadEmpresa,
@@ -525,14 +651,39 @@ export async function cadastrarTransportadorRemoto(
       transportador_id: tRow.id,
       nome: input.acesso.nome.trim() || input.empresa.nome_fantasia.trim(),
       usuario: input.acesso.usuario.trim(),
-      ativo: false,
+      // Só entra se empresa já estava ativa no painel; pendente aguarda Super
+      ativo: situacaoAlvo === 'ativo',
     })
     .eq('id', userId)
 
   // Conta portal (login) — marca INSERT e grava senha em `usuarios` de imediato
   const now = new Date().toISOString()
+  const liberado = situacaoAlvo === 'ativo'
   const users = loadPortalAccounts()
-  if (!users.some((u) => u.email.toLowerCase() === email || u.usuario.toLowerCase() === input.acesso.usuario.trim().toLowerCase())) {
+  const jaLocal = users.find(
+    (u) =>
+      u.email.toLowerCase() === email ||
+      u.usuario.toLowerCase() === input.acesso.usuario.trim().toLowerCase() ||
+      u.transportador_id === tRow.id,
+  )
+  if (jaLocal) {
+    const next = users.map((u) =>
+      u.id === jaLocal.id
+        ? {
+            ...u,
+            usuario: input.acesso.usuario.trim(),
+            email,
+            password: input.acesso.senha,
+            nome: input.acesso.nome.trim() || input.empresa.nome_fantasia.trim(),
+            role: 'transportador' as const,
+            transportador_id: String(tRow.id),
+            nivel: 'operador' as const,
+            ativo: liberado,
+          }
+        : u,
+    )
+    savePortalAccounts(next)
+  } else {
     const accountId = uid('u')
     marcarContaNovaParaInsert(accountId)
     const account: PortalAccount = {
@@ -542,9 +693,9 @@ export async function cadastrarTransportadorRemoto(
       password: input.acesso.senha,
       nome: input.acesso.nome.trim() || input.empresa.nome_fantasia.trim(),
       role: 'transportador',
-      transportador_id: tRow.id,
+      transportador_id: String(tRow.id),
       nivel: 'operador',
-      ativo: false,
+      ativo: liberado,
       created_at: now,
     }
     savePortalAccounts([...users, account])
@@ -565,7 +716,14 @@ export async function cadastrarTransportadorRemoto(
           .select('id')
           .ilike('usuario', usuarioLogin)
           .maybeSingle()
-    const existenteId = (porEmail?.id || porUsuario?.id) as string | undefined
+    const { data: porTid } = porEmail || porUsuario
+      ? { data: null }
+      : await supabase
+          .from('usuarios')
+          .select('id')
+          .eq('transportador_id', tRow.id)
+          .maybeSingle()
+    const existenteId = (porEmail?.id || porUsuario?.id || porTid?.id) as string | undefined
     const rowUsuario = {
       usuario: usuarioLogin,
       email,
@@ -574,7 +732,7 @@ export async function cadastrarTransportadorRemoto(
       role: 'transportador' as const,
       nivel: 'operador' as const,
       transportador_id: tRow.id,
-      ativo: false,
+      ativo: liberado,
       updated_at: now,
     }
     if (existenteId) {
@@ -652,7 +810,7 @@ export async function cadastrarTransportadorRemoto(
         : 'link',
     classificacao: tRow.classificacao,
     pontuacao: tRow.pontuacao,
-    situacao: 'pendente',
+    situacao: situacaoAlvo,
     telefone: tRow.telefone ?? undefined,
     email: tRow.email ?? undefined,
     contato_nome: tRow.contato_nome ?? undefined,
@@ -666,8 +824,9 @@ export async function cadastrarTransportadorRemoto(
     modo: 'supabase',
     transportador,
     documentos,
-    mensagem:
-      'Cadastro enviado. Aguarde aprovação para acessar o sistema. Fique atento ao seu e-mail para possíveis correções de cadastro.',
+    mensagem: liberado
+      ? 'Cadastro concluído. Você já pode fazer login com o usuário e a senha informados.'
+      : 'Cadastro enviado. Aguarde aprovação para acessar o sistema. Fique atento ao seu e-mail para possíveis correções de cadastro.',
   }
 }
 
