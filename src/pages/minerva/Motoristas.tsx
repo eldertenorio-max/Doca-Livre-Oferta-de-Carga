@@ -5,6 +5,7 @@ import { MotoristaAvaliacoesModal } from '../../components/motorista/MotoristaAv
 import { ImportarMotoristasModal } from '../../components/motorista/ImportarMotoristasModal'
 import { inputClass } from '../../components/ui/Modal'
 import { fileToDataUrl, isAcceptedImageFile } from '../../lib/veiculoFotos'
+import { ImageCropModal } from '../../components/ui/ImageCropModal'
 import { iniciaisNome } from '../../lib/mapaFrota'
 import type { Motorista } from '../../types'
 import '../../styles/cadastro.css'
@@ -45,6 +46,7 @@ export function MotoristasPage() {
   const [avaliacoesDe, setAvaliacoesDe] = useState<Motorista | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const fotoInputRef = useRef<HTMLInputElement>(null)
+  const [fotoParaAjustar, setFotoParaAjustar] = useState<File | null>(null)
 
   const lista = motoristas ?? []
   const listaVeiculos = veiculos ?? []
@@ -206,7 +208,7 @@ export function MotoristasPage() {
     setMode('lista')
   }
 
-  async function onFotoChange(file: File | undefined) {
+  function onFotoSelecionada(file: File | undefined) {
     if (!file) return
     if (!isAcceptedImageFile(file)) {
       setError('Use JPG, PNG ou WEBP para a foto.')
@@ -217,6 +219,11 @@ export function MotoristasPage() {
       return
     }
     setError('')
+    setFotoParaAjustar(file)
+  }
+
+  async function onConfirmarFoto(file: File) {
+    setFotoParaAjustar(null)
     const dataUrl = await fileToDataUrl(file)
     set('foto_url', dataUrl)
   }
