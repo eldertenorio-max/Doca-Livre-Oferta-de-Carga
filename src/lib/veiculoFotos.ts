@@ -58,8 +58,9 @@ export function normalizeFotosVeiculo(
   return base
 }
 
-/** Slots em que a carroceria aparece — exibem medidas/cubagem na galeria. */
+/** Slots em que as medidas da carroceria aparecem na galeria. */
 export const SLOTS_COM_MEDIDAS_CARROCERIA: FotoVeiculoSlot[] = [
+  'dianteira',
   'lateral_esquerda',
   'lateral_direita',
   'traseira_aberta',
