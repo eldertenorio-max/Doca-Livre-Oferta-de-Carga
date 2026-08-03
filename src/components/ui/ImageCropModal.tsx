@@ -7,18 +7,22 @@ const MAX_ZOOM = 3
 
 type Offset = { x: number; y: number }
 
+export type ImageCropShape = 'circle' | 'square'
+
 type Props = {
   open: boolean
   /** Arquivo escolhido pelo usuário (imagem original, antes do recorte). */
   file: File | null
   onCancel: () => void
-  /** Recebe o arquivo já recortado/redimensionado (JPEG quadrado). */
+  /** Recebe o arquivo já recortado/redimensionado (JPEG). */
   onConfirm: (file: File) => void
   busy?: boolean
   title?: string
+  /** Perfil: círculo. Fotos de veículo: quadrado. */
+  shape?: ImageCropShape
 }
 
-/** Modal simples de recorte circular com zoom e arraste — sem dependências externas. */
+/** Modal de recorte com zoom e arraste — sem dependências externas. */
 export function ImageCropModal({
   open,
   file,
@@ -26,6 +30,7 @@ export function ImageCropModal({
   onConfirm,
   busy = false,
   title = 'Ajustar foto',
+  shape = 'circle',
 }: Props) {
   const [imgSrc, setImgSrc] = useState<string | null>(null)
   const [natural, setNatural] = useState({ w: 0, h: 0 })
@@ -120,6 +125,8 @@ export function ImageCropModal({
 
   if (!open) return null
 
+  const frameRadius = shape === 'circle' ? '9999px' : '12px'
+
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
       <div
@@ -137,8 +144,13 @@ export function ImageCropModal({
         <h3 className="mb-3 text-center text-base font-extrabold text-black">{title}</h3>
 
         <div
-          className="relative mx-auto touch-none select-none overflow-hidden rounded-full bg-ink/10 ring-2 ring-inset ring-white"
-          style={{ width: CROP_SIZE, height: CROP_SIZE, cursor: dragRef.current ? 'grabbing' : 'grab' }}
+          className="relative mx-auto touch-none select-none overflow-hidden bg-ink/10 ring-2 ring-inset ring-white"
+          style={{
+            width: CROP_SIZE,
+            height: CROP_SIZE,
+            borderRadius: frameRadius,
+            cursor: dragRef.current ? 'grabbing' : 'grab',
+          }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}

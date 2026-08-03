@@ -20,6 +20,7 @@ import { CarroceriaSuggestInput } from '../../components/ui/CarroceriaSuggestInp
 import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
 import { ImportarVeiculosModal } from '../../components/veiculos/ImportarVeiculosModal'
 import { LocalizacaoVeiculoModal } from '../../components/veiculos/LocalizacaoVeiculoModal'
+import { ImageCropModal } from '../../components/ui/ImageCropModal'
 import type { FotoVeiculoSlot, FotosVeiculo, Veiculo } from '../../types'
 import '../../styles/cadastro.css'
 
@@ -79,6 +80,7 @@ export function VeiculosPage() {
   const [dicaFoto, setDicaFoto] = useState<FotoVeiculoSlot | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [locVeiculo, setLocVeiculo] = useState<Veiculo | null>(null)
+  const [fotoCrop, setFotoCrop] = useState<{ slot: FotoVeiculoSlot; file: File } | null>(null)
 
   const listaVeiculos = veiculos ?? []
   const listaTransportadores = transportadores ?? []
@@ -231,7 +233,24 @@ export function VeiculosPage() {
 
   const fotosAtuais: FotosVeiculo = normalizeFotosVeiculo(form.fotos, form.foto_url)
 
-  async function setFoto(slot: FotoVeiculoSlot, file: File | null) {
+  function escolherFoto(slot: FotoVeiculoSlot, file: File | null) {
+    setError('')
+    if (!file) {
+      void aplicarFoto(slot, null)
+      return
+    }
+    if (!isAcceptedImageFile(file)) {
+      setError('Use JPG, PNG ou WEBP.')
+      return
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setError('Imagem muito grande (máx. 8 MB).')
+      return
+    }
+    setFotoCrop({ slot, file })
+  }
+
+  async function aplicarFoto(slot: FotoVeiculoSlot, file: File | null) {
     setError('')
     if (!file) {
       setForm((prev) => {
@@ -245,14 +264,6 @@ export function VeiculosPage() {
       })
       return
     }
-    if (!isAcceptedImageFile(file)) {
-      setError('Use JPG, PNG ou WEBP.')
-      return
-    }
-    if (file.size > 8 * 1024 * 1024) {
-      setError('Imagem muito grande (máx. 8 MB).')
-      return
-    }
     const dataUrl = await fileToDataUrl(file)
     setForm((prev) => {
       const fotos = { ...normalizeFotosVeiculo(prev.fotos, prev.foto_url), [slot]: dataUrl }
@@ -262,6 +273,25 @@ export function VeiculosPage() {
         foto_url: slot === 'dianteira' ? dataUrl : prev.foto_url,
       }
     })
+  }
+
+  async function reconstruirFotoParaAjuste(slot: FotoVeiculoSlot, url: string) {
+    setError('')
+    try {
+      let file: File
+      if (url.startsWith('data:')) {
+        const res = await fetch(url)
+        const blob = await res.blob()
+        file = new File([blob], `${slot}.jpg`, { type: blob.type || 'image/jpeg' })
+      } else {
+        const res = await fetch(url)
+        const blob = await res.blob()
+        file = new File([blob], `${slot}.jpg`, { type: blob.type || 'image/jpeg' })
+      }
+      setFotoCrop({ slot, file })
+    } catch {
+      setError('Não foi possível abrir a foto para ajuste.')
+    }
   }
 
   function save() {
@@ -748,19 +778,32 @@ export function VeiculosPage() {
                         type="file"
                         accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
                         hidden
-                        onChange={(e) => setFoto(item.slot, e.target.files?.[0] ?? null)}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0] ?? null
+                          e.target.value = ''
+                          escolherFoto(item.slot, f)
+                        }}
                       />
                     </label>
-                    {url && (
-                      <button
-                        type="button"
-                        className="cadastro-link"
-                        style={{ color: '#dc2626' }}
-                        onClick={() => setFoto(item.slot, null)}
-                      >
-                        Remover
-                      </button>
-                    )}
+                    {url ? (
+                      <>
+                        <button
+                          type="button"
+                          className="cadastro-link"
+                          onClick={() => void reconstruirFotoParaAjuste(item.slot, url)}
+                        >
+                          Ajustar
+                        </button>
+                        <button
+                          type="button"
+                          className="cadastro-link"
+                          style={{ color: '#dc2626' }}
+                          onClick={() => void aplicarFoto(item.slot, null)}
+                        >
+                          Remover
+                        </button>
+                      </>
+                    ) : null}
                   </div>
                 </div>
               )
@@ -915,6 +958,23 @@ export function VeiculosPage() {
           Salvar Veículo
         </button>
       </div>
+
+      <ImageCropModal
+        open={Boolean(fotoCrop)}
+        file={fotoCrop?.file ?? null}
+        shape="square"
+        title={
+          fotoCrop
+            ? `Ajustar — ${FOTOS_VEICULO_ROTEIRO.find((x) => x.slot === fotoCrop.slot)?.titulo ?? 'Foto'}`
+            : 'Ajustar foto'
+        }
+        onCancel={() => setFotoCrop(null)}
+        onConfirm={(f) => {
+          const slot = fotoCrop?.slot
+          setFotoCrop(null)
+          if (slot) void aplicarFoto(slot, f)
+        }}
+      />
     </div>
   )
 }
