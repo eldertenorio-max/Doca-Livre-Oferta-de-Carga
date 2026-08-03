@@ -276,6 +276,62 @@ export function listarAvaliacoesMotorista(
   return listarAvaliacoesDemo(motorista.id, av.nota, av.total, av.total)
 }
 
+function normPlacaAvaliacao(placa?: string | null): string {
+  return (placa || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+}
+
+/** Nota 0–5 do veículo a partir do cadastro (sem inventar demo se zero). */
+export function avaliacaoDoVeiculo(v: Pick<Veiculo, 'id' | 'avaliacao' | 'total_avaliacoes'>): {
+  nota: number
+  total: number
+} {
+  if (typeof v.avaliacao === 'number' && Number.isFinite(v.avaliacao)) {
+    return {
+      nota: Math.min(5, Math.max(0, Math.round(v.avaliacao * 10) / 10)),
+      total: Math.max(0, Number(v.total_avaliacoes) || 0),
+    }
+  }
+  return { nota: 0, total: 0 }
+}
+
+/**
+ * Avaliações do veículo nas viagens finalizadas (nota do veículo).
+ * Se não houver, usa média/total do cadastro; sem isso, lista vazia.
+ */
+export function listarAvaliacoesVeiculo(
+  veiculo: Pick<Veiculo, 'id' | 'placa' | 'avaliacao' | 'total_avaliacoes'>,
+  cargas: Carga[],
+): AvaliacaoItem[] {
+  const pl = normPlacaAvaliacao(veiculo.placa)
+  const reais = cargas
+    .filter(
+      (c) =>
+        (c.veiculo_id === veiculo.id ||
+          (pl && normPlacaAvaliacao(c.placa) === pl)) &&
+        c.avaliacao_veiculo != null &&
+        Number.isFinite(c.avaliacao_veiculo) &&
+        Boolean(c.avaliado_em),
+    )
+    .map((c) => ({
+      id: `carga-v-${c.id}`,
+      nota: Math.min(5, Math.max(1, Number(c.avaliacao_veiculo))),
+      texto: (c.avaliacao_comentario || '').trim() || 'Sem comentário.',
+      autor: c.numero ? `Viagem ${c.numero}` : 'Embarcador',
+      data: formatDataAvaliacao(c.avaliado_em!),
+      _ts: c.avaliado_em!,
+    }))
+    .sort((a, b) => (a._ts < b._ts ? 1 : a._ts > b._ts ? -1 : 0))
+    .map(({ _ts: _, ...item }) => item)
+
+  if (reais.length > 0) return reais
+
+  const av = avaliacaoDoVeiculo(veiculo)
+  if (av.total > 0 && av.nota > 0) {
+    return listarAvaliacoesDemo(veiculo.id, av.nota, av.total, av.total)
+  }
+  return []
+}
+
 export function iniciaisNome(nome: string): string {
   const parts = nome.trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return '?'

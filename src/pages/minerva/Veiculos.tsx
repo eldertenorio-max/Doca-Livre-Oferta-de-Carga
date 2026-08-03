@@ -20,6 +20,7 @@ import { CarroceriaSuggestInput } from '../../components/ui/CarroceriaSuggestInp
 import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
 import { ImportarVeiculosModal } from '../../components/veiculos/ImportarVeiculosModal'
 import { LocalizacaoVeiculoModal } from '../../components/veiculos/LocalizacaoVeiculoModal'
+import { VeiculoAvaliacoesModal } from '../../components/veiculos/VeiculoAvaliacoesModal'
 import { ImageCropModal } from '../../components/ui/ImageCropModal'
 import type { FotoVeiculoSlot, FotosVeiculo, Veiculo } from '../../types'
 import '../../styles/cadastro.css'
@@ -69,7 +70,7 @@ const emptyForm = (): Partial<Veiculo> => ({
 })
 
 export function VeiculosPage() {
-  const { veiculos, transportadores, motoristas, salvarVeiculo, excluirVeiculo, transportadorById, user } =
+  const { veiculos, transportadores, motoristas, cargas, salvarVeiculo, excluirVeiculo, transportadorById, user } =
     useData()
   const [mode, setMode] = useState<'lista' | 'form'>('lista')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -80,6 +81,7 @@ export function VeiculosPage() {
   const [dicaFoto, setDicaFoto] = useState<FotoVeiculoSlot | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [locVeiculo, setLocVeiculo] = useState<Veiculo | null>(null)
+  const [avaliacoesDe, setAvaliacoesDe] = useState<Veiculo | null>(null)
   const [fotoCrop, setFotoCrop] = useState<{ slot: FotoVeiculoSlot; file: File } | null>(null)
 
   const listaVeiculos = veiculos ?? []
@@ -469,6 +471,19 @@ export function VeiculosPage() {
           }}
         />
 
+        {avaliacoesDe ? (
+          <VeiculoAvaliacoesModal
+            veiculo={avaliacoesDe}
+            cargas={cargas ?? []}
+            empresa={
+              avaliacoesDe.transportador_id
+                ? transportadorById(avaliacoesDe.transportador_id)?.nome_fantasia
+                : 'Autônomo'
+            }
+            onClose={() => setAvaliacoesDe(null)}
+          />
+        ) : null}
+
         <div className="cadastro-table-wrap">
           {filtered.length === 0 ? (
             <p className="cadastro-empty">Nenhum veículo encontrado.</p>
@@ -525,6 +540,13 @@ export function VeiculosPage() {
                     <td style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                       <button type="button" className="cadastro-link" onClick={() => openEdit(v)}>
                         Editar
+                      </button>
+                      <button
+                        type="button"
+                        className="cadastro-link"
+                        onClick={() => setAvaliacoesDe(v)}
+                      >
+                        Ver avaliações
                       </button>
                       <button
                         type="button"
