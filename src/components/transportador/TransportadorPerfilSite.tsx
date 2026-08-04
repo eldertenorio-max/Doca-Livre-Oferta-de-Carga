@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ExternalLink, Mail, MapPin, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ExternalLink, Mail, MapPin, X } from 'lucide-react'
 import type { Transportador } from '../../types'
 import { formatCnpj } from '../../lib/cnpj'
 import { formatPhoneBr } from '../../lib/phoneBr'
@@ -61,7 +61,26 @@ export function TransportadorPerfilSite({
 }: Props) {
   const perfil = normalizePerfilPublico(t.perfil_publico)
   const galeria = perfil.galeria.filter(Boolean).slice(0, 5)
-  const [fotoZoom, setFotoZoom] = useState<string | null>(null)
+  const [fotoZoomIdx, setFotoZoomIdx] = useState<number | null>(null)
+  const fotoZoom =
+    fotoZoomIdx != null && galeria[fotoZoomIdx] ? galeria[fotoZoomIdx] : null
+
+  function abrirFoto(index: number) {
+    if (index < 0 || index >= galeria.length) return
+    setFotoZoomIdx(index)
+  }
+
+  function fotoAnterior(e?: { stopPropagation?: () => void }) {
+    e?.stopPropagation?.()
+    if (fotoZoomIdx == null || galeria.length < 2) return
+    setFotoZoomIdx((fotoZoomIdx - 1 + galeria.length) % galeria.length)
+  }
+
+  function fotoProxima(e?: { stopPropagation?: () => void }) {
+    e?.stopPropagation?.()
+    if (fotoZoomIdx == null || galeria.length < 2) return
+    setFotoZoomIdx((fotoZoomIdx + 1) % galeria.length)
+  }
   const cidadeUf = [t.origem_cidade || t.cidade, t.origem_uf || t.uf]
     .filter(Boolean)
     .join('-')
@@ -95,6 +114,18 @@ export function TransportadorPerfilSite({
       document.body.style.overflow = prev
     }
   }, [asModal])
+
+  useEffect(() => {
+    if (fotoZoomIdx == null) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setFotoZoomIdx(null)
+      if (e.key === 'ArrowLeft') fotoAnterior()
+      if (e.key === 'ArrowRight') fotoProxima()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handlers usam state fechado no momento
+  }, [fotoZoomIdx, galeria.length])
 
   const content = (
     <article
@@ -286,7 +317,7 @@ export function TransportadorPerfilSite({
                       key={`${i}-${src.slice(0, 24)}`}
                       type="button"
                       className="tv-perfil__galeria-item"
-                      onClick={() => setFotoZoom(src)}
+                      onClick={() => abrirFoto(i)}
                       title="Ampliar"
                     >
                       <img src={src} alt={`Foto da empresa ${i + 1}`} />
@@ -299,27 +330,80 @@ export function TransportadorPerfilSite({
         </aside>
       </div>
 
-      {fotoZoom
+      {fotoZoom && fotoZoomIdx != null
         ? createPortal(
             <div
               className="tv-perfil__lightbox"
               role="dialog"
               aria-modal="true"
-              onClick={() => setFotoZoom(null)}
+              aria-label={`Foto ${fotoZoomIdx + 1} de ${galeria.length}`}
+              onClick={() => setFotoZoomIdx(null)}
             >
               <button
                 type="button"
                 className="tv-perfil__lightbox-close"
                 aria-label="Fechar foto"
-                onClick={() => setFotoZoom(null)}
+                onClick={() => setFotoZoomIdx(null)}
               >
                 <X size={20} />
               </button>
-              <img
-                src={fotoZoom}
-                alt="Foto ampliada"
+
+              {galeria.length > 1 ? (
+                <button
+                  type="button"
+                  className="tv-perfil__lightbox-nav tv-perfil__lightbox-nav--prev"
+                  aria-label="Foto anterior"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    fotoAnterior(e)
+                  }}
+                >
+                  <ChevronLeft size={28} strokeWidth={2.5} />
+                </button>
+              ) : null}
+
+              <div
+                className="tv-perfil__lightbox-stage"
                 onClick={(e) => e.stopPropagation()}
-              />
+              >
+                <img src={fotoZoom} alt={`Foto ampliada ${fotoZoomIdx + 1}`} />
+                {galeria.length > 1 ? (
+                  <p className="tv-perfil__lightbox-count">
+                    {fotoZoomIdx + 1} / {galeria.length}
+                  </p>
+                ) : null}
+                {galeria.length > 1 ? (
+                  <div className="tv-perfil__lightbox-thumbs">
+                    {galeria.map((src, i) => (
+                      <button
+                        key={`lb-${i}`}
+                        type="button"
+                        className={`tv-perfil__lightbox-thumb${
+                          i === fotoZoomIdx ? ' is-on' : ''
+                        }`}
+                        onClick={() => setFotoZoomIdx(i)}
+                        aria-label={`Ir para foto ${i + 1}`}
+                      >
+                        <img src={src} alt="" />
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+
+              {galeria.length > 1 ? (
+                <button
+                  type="button"
+                  className="tv-perfil__lightbox-nav tv-perfil__lightbox-nav--next"
+                  aria-label="Próxima foto"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    fotoProxima(e)
+                  }}
+                >
+                  <ChevronRight size={28} strokeWidth={2.5} />
+                </button>
+              ) : null}
             </div>,
             document.body,
           )
