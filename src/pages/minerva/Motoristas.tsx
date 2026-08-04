@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { useData } from '../../context/DataContext'
 import { CadastroStatsCards } from '../../components/cadastro/CadastroStatsCards'
+import { CadastroPagination, usePaginatedList } from '../../components/cadastro/CadastroPagination'
 import { MotoristaAvaliacoesModal } from '../../components/motorista/MotoristaAvaliacoesModal'
 import { ImportarMotoristasModal } from '../../components/motorista/ImportarMotoristasModal'
 import { inputClass } from '../../components/ui/Modal'
@@ -107,6 +108,16 @@ export function MotoristasPage() {
       )
     })
   }, [scoped, search, transportadorById, listaVeiculos])
+
+  const {
+    pageItems: motoristasPagina,
+    page,
+    setPage,
+    totalPages,
+    total: totalFiltrados,
+    from,
+    to,
+  } = usePaginatedList(filtered)
 
   const statsCadastro = useMemo(() => {
     const total = scoped.length
@@ -320,7 +331,7 @@ export function MotoristasPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((m) => {
+                {motoristasPagina.map((m) => {
                   const placa = listaVeiculos.find((v) => v.id === m.veiculo_id)?.placa
                   const foto = (m.foto_url || '').trim()
                   return (
@@ -405,6 +416,16 @@ export function MotoristasPage() {
                 )}
               </tbody>
             </table>
+            {filtered.length > 0 ? (
+              <CadastroPagination
+                page={page}
+                totalPages={totalPages}
+                total={totalFiltrados}
+                from={from}
+                to={to}
+                onPageChange={setPage}
+              />
+            ) : null}
           </div>
         </>
       ) : (

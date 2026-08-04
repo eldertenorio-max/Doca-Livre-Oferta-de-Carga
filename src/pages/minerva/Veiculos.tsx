@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useData } from '../../context/DataContext'
 import { CadastroStatsCards } from '../../components/cadastro/CadastroStatsCards'
+import { CadastroPagination, usePaginatedList } from '../../components/cadastro/CadastroPagination'
 import {
   formatCurrency,
   formatMoneyInput,
@@ -163,6 +164,16 @@ export function VeiculosPage() {
       )
     })
   }, [scopedVeiculos, search, transportadorById])
+
+  const {
+    pageItems: veiculosPagina,
+    page,
+    setPage,
+    totalPages,
+    total: totalFiltrados,
+    from,
+    to,
+  } = usePaginatedList(filtered)
 
   const statsCadastro = useMemo(() => {
     const total = scopedVeiculos.length
@@ -521,6 +532,7 @@ export function VeiculosPage() {
           {filtered.length === 0 ? (
             <p className="cadastro-empty">Nenhum veículo encontrado.</p>
           ) : (
+            <>
             <table className="cadastro-table">
               <thead>
                 <tr>
@@ -536,7 +548,7 @@ export function VeiculosPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((v) => (
+                {veiculosPagina.map((v) => (
                   <tr key={v.id}>
                     <td>
                       <strong>{v.placa}</strong>
@@ -614,6 +626,15 @@ export function VeiculosPage() {
                 ))}
               </tbody>
             </table>
+            <CadastroPagination
+              page={page}
+              totalPages={totalPages}
+              total={totalFiltrados}
+              from={from}
+              to={to}
+              onPageChange={setPage}
+            />
+            </>
           )}
         </div>
       </div>

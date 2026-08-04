@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
 import { CadastroStatsCards } from '../../components/cadastro/CadastroStatsCards'
+import { CadastroPagination, usePaginatedList } from '../../components/cadastro/CadastroPagination'
 import { TransportadorPainel } from '../../components/transportador/TransportadorPainel'
 import { TransportadorasKanbanView } from '../../components/transportador/TransportadorasKanbanView'
 import { TransportadorPerfilEditor } from '../../components/transportador/TransportadorPerfilEditor'
@@ -152,6 +153,16 @@ export function TransportadoresPage() {
         t.cidade.toLowerCase().includes(q),
     )
   }, [transportadores, search, filtro, filtroOrigem])
+
+  const {
+    pageItems: transportadoresPagina,
+    page,
+    setPage,
+    totalPages,
+    total: totalFiltrados,
+    from,
+    to,
+  } = usePaginatedList(filtered)
 
   const pendentesCount = transportadores.filter((t) => t.situacao === 'pendente').length
   const linkCount = transportadores.filter((t) => origemCadastroDe(t) === 'link').length
@@ -977,6 +988,7 @@ export function TransportadoresPage() {
             {filtered.length === 0 ? (
               <p className="cadastro-empty">Nenhuma transportadora encontrada.</p>
             ) : (
+              <>
               <table className="cadastro-table">
                 <thead>
                   <tr>
@@ -990,7 +1002,7 @@ export function TransportadoresPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((t) => {
+                  {transportadoresPagina.map((t) => {
                     const origem = origemCadastroDe(t)
                     return (
                       <tr key={t.id}>
@@ -1069,6 +1081,15 @@ export function TransportadoresPage() {
                   })}
                 </tbody>
               </table>
+              <CadastroPagination
+                page={page}
+                totalPages={totalPages}
+                total={totalFiltrados}
+                from={from}
+                to={to}
+                onPageChange={setPage}
+              />
+              </>
             )}
           </div>
         )}
