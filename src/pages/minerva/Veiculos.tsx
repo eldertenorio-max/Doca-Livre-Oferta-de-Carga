@@ -468,9 +468,12 @@ export function VeiculosPage() {
             user?.role === 'transportador' ? user.transportador_id || null : undefined
           }
           transportadores={scopedTransportadores}
-          placasExistentes={scopedVeiculos.map((v) => v.placa)}
+          veiculosExistentes={listaVeiculos}
           onImport={(lista) => {
-            for (const v of lista) salvarVeiculo(v)
+            for (const v of lista) {
+              if (!v.transportador_id) continue
+              salvarVeiculo(v)
+            }
           }}
         />
 

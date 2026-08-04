@@ -398,15 +398,64 @@ export async function parsePlanilhaVeiculosArquivo(file: File): Promise<{
 export function montarVeiculosParaImportacao(
   linhas: LinhaVeiculoPlanilha[],
   transportadorId: string | null,
-): Veiculo[] {
+  existentes: Veiculo[] = [],
+): { criar: Veiculo[]; atualizar: Veiculo[]; semEmpresa: number } {
+  const tid = (transportadorId || '').trim() || null
   const agora = new Date().toISOString()
-  return linhas
-    .filter((l) => l.ok && l.veiculo)
-    .map((l) => ({
-      ...l.veiculo!,
+  const byPlaca = new Map(
+    existentes.map((v) => [normPlacaKey(v.placa), v] as const),
+  )
+  const criar: Veiculo[] = []
+  const atualizar: Veiculo[] = []
+  let semEmpresa = 0
+
+  for (const l of linhas) {
+    if (!l.ok || !l.veiculo) continue
+    // Sem transportadora = fica Autônomo (só permitido se o fluxo permitir explicitamente)
+    if (!tid) {
+      semEmpresa++
+      continue
+    }
+    const base = l.veiculo
+    const existente = byPlaca.get(base.placa)
+    if (existente) {
+      atualizar.push({
+        ...existente,
+        ...base,
+        id: existente.id,
+        // Mantém fotos já no cadastro
+        foto_url: existente.foto_url || base.foto_url,
+        fotos: existente.fotos ?? base.fotos,
+        // Origem/mapa já salvos
+        origem_cep: existente.origem_cep,
+        origem_cidade: existente.origem_cidade,
+        origem_uf: existente.origem_uf,
+        origem_endereco: existente.origem_endereco,
+        origem_numero: existente.origem_numero,
+        origem_bairro: existente.origem_bairro,
+        origem_complemento: existente.origem_complemento,
+        origem_lat: existente.origem_lat,
+        origem_lng: existente.origem_lng,
+        raio_km: existente.raio_km,
+        disponivel_mapa: existente.disponivel_mapa,
+        transportador_id: tid,
+        created_at: existente.created_at,
+        updated_at: agora,
+      })
+      continue
+    }
+    criar.push({
+      ...base,
       id: newVeiculoId(),
-      transportador_id: transportadorId,
+      transportador_id: tid,
       created_at: agora,
       updated_at: agora,
-    }))
+    })
+  }
+
+  return { criar, atualizar, semEmpresa }
+}
+
+function normPlacaKey(p: string): string {
+  return (p || '').replace(/[^A-Z0-9]/gi, '').toUpperCase()
 }

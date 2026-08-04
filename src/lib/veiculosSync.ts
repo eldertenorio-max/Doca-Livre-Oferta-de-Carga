@@ -142,11 +142,15 @@ export function mergeVeiculosLocalRemote(local: Veiculo[], remote: Veiculo[]): V
       prev.origem_lng != null &&
       Number.isFinite(Number(prev.origem_lat)) &&
       Number.isFinite(Number(prev.origem_lng))
+    // Remoto sem empresa não derruba vínculo local (evita voltar a “Autônomo”)
+    const tid =
+      r.transportador_id || prev.transportador_id || null
     if (!remotoTem && localTem) {
       byId.set(r.id, {
         ...prev,
         ...r,
         id: r.id,
+        transportador_id: tid,
         origem_cep: prev.origem_cep ?? r.origem_cep,
         origem_cidade: prev.origem_cidade ?? r.origem_cidade,
         origem_uf: prev.origem_uf ?? r.origem_uf,
@@ -159,7 +163,7 @@ export function mergeVeiculosLocalRemote(local: Veiculo[], remote: Veiculo[]): V
         raio_km: prev.raio_km ?? r.raio_km,
       })
     } else {
-      byId.set(r.id, { ...prev, ...r, id: r.id })
+      byId.set(r.id, { ...prev, ...r, id: r.id, transportador_id: tid })
     }
   }
 

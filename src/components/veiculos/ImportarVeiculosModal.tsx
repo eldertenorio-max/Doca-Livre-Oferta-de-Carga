@@ -14,8 +14,13 @@ type Props = {
   /** Embarcador/super escolhe; transportador já vem preenchido. */
   transportadorIdFixo?: string | null
   transportadores: Transportador[]
-  placasExistentes: string[]
+  /** Frota atual (para re-vincular placas Autônomo e atualizar). */
+  veiculosExistentes: Veiculo[]
   onImport: (veiculos: Veiculo[]) => void
+}
+
+function normPlaca(p: string): string {
+  return (p || '').replace(/[^A-Z0-9]/gi, '').toUpperCase()
 }
 
 export function ImportarVeiculosModal({
@@ -23,7 +28,7 @@ export function ImportarVeiculosModal({
   onClose,
   transportadorIdFixo,
   transportadores,
-  placasExistentes,
+  veiculosExistentes,
   onImport,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -60,39 +65,57 @@ export function ImportarVeiculosModal({
     [transportadores],
   )
 
-  const placasSet = useMemo(
-    () => new Set(placasExistentes.map((p) => p.replace(/[^A-Z0-9]/gi, '').toUpperCase())),
-    [placasExistentes],
-  )
+  const tidEfetivo = (transportadorIdFixo || transportadorId || '').trim() || null
 
-  const validas = useMemo(() => {
+  const empresaNome = useMemo(() => {
+    if (!tidEfetivo) return ''
+    return (
+      transportadores.find((t) => t.id === tidEfetivo)?.nome_fantasia ||
+      empresasAtivas.find((t) => t.id === tidEfetivo)?.nome_fantasia ||
+      ''
+    )
+  }, [tidEfetivo, transportadores, empresasAtivas])
+
+  /** Linhas parseadas OK e sem placa duplicada no próprio arquivo. */
+  const linhasElegiveis = useMemo(() => {
     const seen = new Set<string>()
     return linhas.filter((l) => {
       if (!l.ok || !l.veiculo) return false
       const placa = l.veiculo.placa
-      if (placasSet.has(placa) || seen.has(placa)) return false
+      if (seen.has(placa)) return false
       seen.add(placa)
       return true
     })
-  }, [linhas, placasSet])
-
-  const duplicadasArquivo = useMemo(() => {
-    const count = new Map<string, number>()
-    for (const l of linhas) {
-      const p = l.veiculo?.placa
-      if (!p) continue
-      count.set(p, (count.get(p) ?? 0) + 1)
-    }
-    return [...count.entries()].filter(([, n]) => n > 1).map(([p]) => p)
   }, [linhas])
 
-  const jaCadastradas = useMemo(
-    () =>
-      linhas
-        .filter((l) => l.veiculo && placasSet.has(l.veiculo.placa))
-        .map((l) => ({ linha: l.linha, placa: l.veiculo!.placa })),
-    [linhas, placasSet],
+  const montagem = useMemo(() => {
+    if (!tidEfetivo) {
+      return { criar: [] as Veiculo[], atualizar: [] as Veiculo[], semEmpresa: 0 }
+    }
+    return montarVeiculosParaImportacao(linhasElegiveis, tidEfetivo, veiculosExistentes)
+  }, [linhasElegiveis, tidEfetivo, veiculosExistentes])
+
+  const paraImportar = useMemo(
+    () => [...montagem.criar, ...montagem.atualizar],
+    [montagem],
   )
+
+  const qtdNovas = montagem.criar.length
+  const qtdAtualizar = montagem.atualizar.length
+  const qtdProntas = paraImportar.length
+
+  const jaCadastradas = useMemo(() => {
+    const set = new Set(veiculosExistentes.map((v) => normPlaca(v.placa)))
+    return linhas
+      .filter((l) => l.veiculo && set.has(l.veiculo.placa))
+      .map((l) => {
+        const v = veiculosExistentes.find((x) => normPlaca(x.placa) === l.veiculo!.placa)
+        const emp = v?.transportador_id
+          ? (transportadores.find((t) => t.id === v.transportador_id)?.nome_fantasia ?? 'empresa')
+          : 'Autônomo'
+        return { linha: l.linha, placa: l.veiculo!.placa, emp }
+      })
+  }, [linhas, veiculosExistentes, transportadores])
 
   const duplicadasNoArquivo = useMemo(() => {
     const byPlaca = new Map<string, number[]>()
@@ -108,7 +131,7 @@ export function ImportarVeiculosModal({
       .map(([placa, nums]) => ({ placa, linhas: nums }))
   }, [linhas])
 
-  const qtdDuplicadas = jaCadastradas.length + duplicadasArquivo.length
+  const qtdDupArquivo = duplicadasNoArquivo.length
   const invalidas = linhas.filter((l) => !l.ok)
 
   function resetFile() {
@@ -156,19 +179,22 @@ export function ImportarVeiculosModal({
 
   function handleImport() {
     setErro('')
-    const tid = transportadorIdFixo || transportadorId || null
-    if (precisaEscolherEmpresa && !tid) {
-      setErro('Selecione a transportadora para vincular as placas.')
+    if (!tidEfetivo) {
+      setErro('Selecione a transportadora para vincular as placas (senão ficam Autônomo).')
       return
     }
-    if (validas.length === 0) {
+    if (paraImportar.length === 0) {
       setErro('Não há linhas válidas para importar.')
       return
     }
-    const veiculos = montarVeiculosParaImportacao(validas, tid)
-    onImport(veiculos)
+    // Garante vínculo em todas as placas (nunca grava sem empresa quando o usuário escolheu)
+    const comEmpresa = paraImportar.map((v) => ({
+      ...v,
+      transportador_id: tidEfetivo,
+    }))
+    onImport(comEmpresa)
     resetFile()
-    setConcluidoQtd(veiculos.length)
+    setConcluidoQtd(comEmpresa.length)
   }
 
   return (
@@ -182,7 +208,14 @@ export function ImportarVeiculosModal({
           >
             <p className="text-base font-extrabold text-emerald-900">Importação concluída</p>
             <p className="mt-1 font-medium text-emerald-900">
-              {concluidoQtd} veículo(s) cadastrado(s) com sucesso.
+              {concluidoQtd} veículo(s) gravado(s)
+              {empresaNome ? (
+                <>
+                  {' '}
+                  em <strong>{empresaNome}</strong>
+                </>
+              ) : null}
+              .
             </p>
             <p className="mt-1 text-xs font-medium text-emerald-800">
               As fotos podem ser anexadas depois em Editar, se precisar.
@@ -191,14 +224,20 @@ export function ImportarVeiculosModal({
         ) : (
           <p className="text-sm font-medium text-black">
             Baixe o modelo em Excel (.xlsx), preencha com os mesmos campos do cadastro e envie o
-            arquivo. As fotos não entram na planilha — complete depois em Editar, se precisar.
+            arquivo. As placas serão vinculadas à transportadora selecionada (não ficam Autônomo).
+            Placas já cadastradas são atualizadas e re-vinculadas. Fotos não entram na planilha.
           </p>
         )}
 
         {concluidoQtd == null ? (
           <>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="ghost" className="!border !border-ink/20" onClick={baixarModeloPlanilhaVeiculos}>
+              <Button
+                type="button"
+                variant="ghost"
+                className="!border !border-ink/20"
+                onClick={baixarModeloPlanilhaVeiculos}
+              >
                 Baixar modelo de planilha
               </Button>
               <Button type="button" variant="primary" onClick={() => fileRef.current?.click()}>
@@ -233,7 +272,8 @@ export function ImportarVeiculosModal({
               </Field>
             ) : (
               <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">
-                As placas serão vinculadas automaticamente à sua transportadora.
+                As placas serão vinculadas automaticamente à sua transportadora
+                {empresaNome ? ` (${empresaNome})` : ''}.
               </p>
             )}
 
@@ -241,6 +281,12 @@ export function ImportarVeiculosModal({
               <p className="text-xs font-semibold text-ink">
                 Arquivo: <span className="text-black">{fileName}</span> · {linhas.length} linha(s)
                 {headersOk ? '' : ' · cabeçalho incompleto'}
+                {tidEfetivo && empresaNome ? (
+                  <>
+                    {' '}
+                    · empresa: <span className="text-black">{empresaNome}</span>
+                  </>
+                ) : null}
               </p>
             ) : null}
 
@@ -248,12 +294,20 @@ export function ImportarVeiculosModal({
               <div className="grid gap-2 sm:grid-cols-3 text-xs">
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
                   <p className="font-bold text-emerald-900">Prontas</p>
-                  <p className="text-lg font-extrabold text-emerald-800">{validas.length}</p>
+                  <p className="text-lg font-extrabold text-emerald-800">{qtdProntas}</p>
+                  {qtdProntas > 0 ? (
+                    <p className="mt-0.5 text-[11px] font-medium text-emerald-900">
+                      {qtdNovas} nova(s)
+                      {qtdAtualizar > 0 ? ` · ${qtdAtualizar} atualizar` : ''}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-                  <p className="font-bold text-amber-900">Já cadastradas / duplicadas</p>
-                  <p className="text-lg font-extrabold text-amber-800">{qtdDuplicadas}</p>
-                  {qtdDuplicadas > 0 ? (
+                  <p className="font-bold text-amber-900">Já no sistema</p>
+                  <p className="text-lg font-extrabold text-amber-800">
+                    {jaCadastradas.length + qtdDupArquivo}
+                  </p>
+                  {jaCadastradas.length + qtdDupArquivo > 0 ? (
                     <button
                       type="button"
                       className="mt-1 text-[11px] font-bold text-amber-950 underline underline-offset-2 hover:no-underline"
@@ -285,17 +339,24 @@ export function ImportarVeiculosModal({
               </div>
             ) : null}
 
-            {detalheDup && qtdDuplicadas > 0 ? (
+            {linhas.length > 0 && headersOk && !tidEfetivo ? (
+              <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-950">
+                Selecione a <strong>transportadora</strong> acima. Sem isso as placas não podem ser
+                importadas (ficariam Autônomo).
+              </p>
+            ) : null}
+
+            {detalheDup && jaCadastradas.length + qtdDupArquivo > 0 ? (
               <div className="max-h-44 overflow-y-auto rounded-lg border border-amber-200 bg-amber-50/70 p-2.5 text-[11px] text-amber-950">
-                <p className="mb-1.5 font-extrabold uppercase tracking-wide">
-                  Já cadastradas / duplicadas
-                </p>
+                <p className="mb-1.5 font-extrabold uppercase tracking-wide">Já no sistema</p>
                 {jaCadastradas.length > 0 ? (
                   <div className="mb-2">
-                    <p className="mb-0.5 font-bold">Já no sistema ({jaCadastradas.length})</p>
+                    <p className="mb-0.5 font-bold">
+                      Serão atualizadas e vinculadas ({jaCadastradas.length})
+                    </p>
                     {jaCadastradas.map((item) => (
                       <p key={`cad-${item.linha}-${item.placa}`}>
-                        Linha {item.linha}: placa {item.placa}
+                        Linha {item.linha}: placa {item.placa} · hoje: {item.emp}
                       </p>
                     ))}
                   </div>
@@ -344,10 +405,10 @@ export function ImportarVeiculosModal({
             <Button
               type="button"
               variant="success"
-              disabled={validas.length === 0 || (precisaEscolherEmpresa && !transportadorId)}
+              disabled={qtdProntas === 0 || !tidEfetivo}
               onClick={handleImport}
             >
-              Importar {validas.length > 0 ? `(${validas.length})` : ''}
+              Importar {qtdProntas > 0 ? `(${qtdProntas})` : ''}
             </Button>
           ) : (
             <Button type="button" variant="success" onClick={onClose}>

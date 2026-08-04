@@ -312,7 +312,16 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
     veiculos: mergeById(prev.veiculos ?? [], slice.veiculos ?? [])
       .filter((v) => !vExcluidos.has(v.id))
       .map((v) => preservarFotosLocais(prev.veiculos ?? [], v))
-      .map((v) => preservarLocalizacaoVeiculo(prev.veiculos ?? [], v)),
+      .map((v) => preservarLocalizacaoVeiculo(prev.veiculos ?? [], v))
+      .map((v) => {
+        // Sync incompleto sem transportador_id não vira “Autônomo”
+        if (v.transportador_id) return v
+        const local = (prev.veiculos ?? []).find((x) => x.id === v.id)
+        if (local?.transportador_id) {
+          return { ...v, transportador_id: local.transportador_id }
+        }
+        return v
+      }),
     motoristas: mergeById(prev.motoristas ?? [], slice.motoristas ?? [])
       .filter((m) => !mExcluidos.has(m.id))
       .map((m) => (m.veiculo_id && vExcluidos.has(m.veiculo_id) ? { ...m, veiculo_id: null } : m))
