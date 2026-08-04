@@ -16,6 +16,7 @@ import {
 } from '../../lib/veiculoFotos'
 import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
 import { newVeiculoId } from '../../lib/veiculosSync'
+import { localizacaoDaTransportadora } from '../../lib/veiculoLocalizacao'
 import { CarroceriaSuggestInput } from '../../components/ui/CarroceriaSuggestInput'
 import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
 import { ImportarVeiculosModal } from '../../components/veiculos/ImportarVeiculosModal'
@@ -472,7 +473,13 @@ export function VeiculosPage() {
           onImport={(lista) => {
             for (const v of lista) {
               if (!v.transportador_id) continue
-              salvarVeiculo(v)
+              const t = transportadorById(v.transportador_id)
+              const patch = t ? localizacaoDaTransportadora(t) : null
+              salvarVeiculo(
+                patch
+                  ? { ...v, ...patch, disponivel_mapa: true, transportador_id: v.transportador_id }
+                  : v,
+              )
             }
           }}
         />

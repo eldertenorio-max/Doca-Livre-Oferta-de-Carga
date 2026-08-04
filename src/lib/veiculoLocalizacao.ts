@@ -24,19 +24,24 @@ export function transportadorTemOrigemMapa(
 export function localizacaoDaTransportadora(
   t: Transportador,
 ): Partial<Veiculo> | null {
-  if (!transportadorTemOrigemMapa(t)) return null
+  const hasCoords = transportadorTemOrigemMapa(t)
+  const cidade = (t.origem_cidade || t.cidade || '').trim()
+  const endereco = (t.origem_endereco || t.endereco || '').trim()
+  const cep = (t.origem_cep || t.cep || '').trim()
+  const hasAddress = Boolean(cidade || endereco || cep)
+  if (!hasCoords && !hasAddress) return null
   return {
-    origem_cep: t.origem_cep || undefined,
-    origem_cidade: (t.origem_cidade || t.cidade || '').trim() || undefined,
+    origem_cep: cep || undefined,
+    origem_cidade: cidade || undefined,
     origem_uf: ((t.origem_uf || t.uf || 'SP').trim().toUpperCase().slice(0, 2) ||
       'SP') as string,
-    origem_endereco: (t.origem_endereco || t.endereco || '').trim() || undefined,
+    origem_endereco: endereco || undefined,
     origem_numero: (t.origem_numero || t.numero || '').trim() || undefined,
     origem_bairro: (t.origem_bairro || t.bairro || '').trim() || undefined,
     origem_complemento:
       (t.origem_complemento || t.complemento || '').trim() || undefined,
-    origem_lat: Number(t.origem_lat),
-    origem_lng: Number(t.origem_lng),
+    origem_lat: hasCoords ? Number(t.origem_lat) : null,
+    origem_lng: hasCoords ? Number(t.origem_lng) : null,
     raio_km:
       t.raio_km != null && Number(t.raio_km) > 0 ? Number(t.raio_km) : 50,
   }

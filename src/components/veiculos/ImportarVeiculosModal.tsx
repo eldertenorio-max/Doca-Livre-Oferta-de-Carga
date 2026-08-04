@@ -43,9 +43,43 @@ export function ImportarVeiculosModal({
   const [detalheDup, setDetalheDup] = useState(false)
   const [detalheErro, setDetalheErro] = useState(false)
 
+  const empresasAtivas = useMemo(
+    () =>
+      [...transportadores]
+        .filter((t) => t.situacao === 'ativo')
+        .sort((a, b) => a.nome_fantasia.localeCompare(b.nome_fantasia, 'pt-BR')),
+    [transportadores],
+  )
+
+  /** Preferência: fixo do login, senão empresa cujo nome bate com “dalonso” / arquivo. */
+  function preferEmpresaId(fileHint = ''): string {
+    if (transportadorIdFixo) return transportadorIdFixo
+    const slug = (t: Transportador) =>
+      `${t.nome_fantasia} ${t.razao_social || ''}`
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+    const dalonso = empresasAtivas.find(
+      (t) =>
+        slug(t).includes('dalonso') ||
+        slug(t).includes('d alonso') ||
+        slug(t).includes('d lonso'),
+    )
+    if (dalonso) return dalonso.id
+    const hint = fileHint
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+    if (hint.includes('lonso')) {
+      const byFile = empresasAtivas.find((t) => slug(t).includes('lonso'))
+      if (byFile) return byFile.id
+    }
+    return ''
+  }
+
   useEffect(() => {
     if (!open) return
-    setTransportadorId(transportadorIdFixo ?? '')
+    setTransportadorId(preferEmpresaId())
     setLinhas([])
     setFileName('')
     setHeadersOk(true)
@@ -55,26 +89,22 @@ export function ImportarVeiculosModal({
     setDetalheDup(false)
     setDetalheErro(false)
     if (fileRef.current) fileRef.current.value = ''
-  }, [open, transportadorIdFixo])
-
-  const empresasAtivas = useMemo(
-    () =>
-      [...transportadores]
-        .filter((t) => t.situacao === 'ativo')
-        .sort((a, b) => a.nome_fantasia.localeCompare(b.nome_fantasia, 'pt-BR')),
-    [transportadores],
-  )
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao abrir / lista carregar
+  }, [open, transportadorIdFixo, empresasAtivas.length])
 
   const tidEfetivo = (transportadorIdFixo || transportadorId || '').trim() || null
 
-  const empresaNome = useMemo(() => {
-    if (!tidEfetivo) return ''
-    return (
-      transportadores.find((t) => t.id === tidEfetivo)?.nome_fantasia ||
-      empresasAtivas.find((t) => t.id === tidEfetivo)?.nome_fantasia ||
-      ''
-    )
-  }, [tidEfetivo, transportadores, empresasAtivas])
+  const transportadorSel = useMemo(
+    () =>
+      tidEfetivo
+        ? (transportadores.find((t) => t.id === tidEfetivo) ??
+          empresasAtivas.find((t) => t.id === tidEfetivo) ??
+          null)
+        : null,
+    [tidEfetivo, transportadores, empresasAtivas],
+  )
+
+  const empresaNome = transportadorSel?.nome_fantasia || ''
 
   /** Linhas parseadas OK e sem placa duplicada no próprio arquivo. */
   const linhasElegiveis = useMemo(() => {
@@ -92,8 +122,13 @@ export function ImportarVeiculosModal({
     if (!tidEfetivo) {
       return { criar: [] as Veiculo[], atualizar: [] as Veiculo[], semEmpresa: 0 }
     }
-    return montarVeiculosParaImportacao(linhasElegiveis, tidEfetivo, veiculosExistentes)
-  }, [linhasElegiveis, tidEfetivo, veiculosExistentes])
+    return montarVeiculosParaImportacao(
+      linhasElegiveis,
+      tidEfetivo,
+      veiculosExistentes,
+      transportadorSel,
+    )
+  }, [linhasElegiveis, tidEfetivo, veiculosExistentes, transportadorSel])
 
   const paraImportar = useMemo(
     () => [...montagem.criar, ...montagem.atualizar],
@@ -162,6 +197,11 @@ export function ImportarVeiculosModal({
     try {
       const parsed = await parsePlanilhaVeiculosArquivo(file)
       setFileName(file.name)
+      // Se ainda não escolheu empresa, tenta casar com o nome do arquivo (ex.: “… d lonso”)
+      if (!transportadorIdFixo && !transportadorId) {
+        const prefer = preferEmpresaId(file.name)
+        if (prefer) setTransportadorId(prefer)
+      }
       setHeadersOk(parsed.headersOk)
       setMissingHeaders(parsed.missingHeaders)
       setLinhas(parsed.linhas)
@@ -223,9 +263,9 @@ export function ImportarVeiculosModal({
           </div>
         ) : (
           <p className="text-sm font-medium text-black">
-            Baixe o modelo em Excel (.xlsx), preencha com os mesmos campos do cadastro e envie o
-            arquivo. As placas serão vinculadas à transportadora selecionada (não ficam Autônomo).
-            Placas já cadastradas são atualizadas e re-vinculadas. Fotos não entram na planilha.
+            Baixe o modelo em Excel (.xlsx), preencha e envie. As placas são vinculadas à
+            transportadora escolhida e o <strong>endereço do cadastro da transportadora</strong>{' '}
+            é copiado para cada veículo. Placas já cadastradas são atualizadas e re-vinculadas.
           </p>
         )}
 

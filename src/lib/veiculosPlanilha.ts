@@ -3,7 +3,8 @@ import { emptyFotosVeiculo } from './veiculoFotos'
 import { TIPOS_VEICULO } from './tiposVeiculo'
 import { parseMoneyInput, roundMoney } from './businessRules'
 import { newVeiculoId } from './veiculosSync'
-import type { Veiculo } from '../types'
+import { localizacaoDaTransportadora } from './veiculoLocalizacao'
+import type { Transportador, Veiculo } from '../types'
 
 /** Cabeçalhos do modelo — mesmos campos do cadastro (exceto fotos). */
 export const VEICULO_PLANILHA_HEADERS = [
@@ -399,19 +400,22 @@ export function montarVeiculosParaImportacao(
   linhas: LinhaVeiculoPlanilha[],
   transportadorId: string | null,
   existentes: Veiculo[] = [],
+  transportador: Transportador | null = null,
 ): { criar: Veiculo[]; atualizar: Veiculo[]; semEmpresa: number } {
   const tid = (transportadorId || '').trim() || null
   const agora = new Date().toISOString()
   const byPlaca = new Map(
     existentes.map((v) => [normPlacaKey(v.placa), v] as const),
   )
+  // Sempre aplica o endereço da transportadora vinculada na importação por planilha
+  const patchLoc = transportador ? localizacaoDaTransportadora(transportador) : null
+
   const criar: Veiculo[] = []
   const atualizar: Veiculo[] = []
   let semEmpresa = 0
 
   for (const l of linhas) {
     if (!l.ok || !l.veiculo) continue
-    // Sem transportadora = fica Autônomo (só permitido se o fluxo permitir explicitamente)
     if (!tid) {
       semEmpresa++
       continue
@@ -423,21 +427,21 @@ export function montarVeiculosParaImportacao(
         ...existente,
         ...base,
         id: existente.id,
-        // Mantém fotos já no cadastro
         foto_url: existente.foto_url || base.foto_url,
         fotos: existente.fotos ?? base.fotos,
-        // Origem/mapa já salvos
-        origem_cep: existente.origem_cep,
-        origem_cidade: existente.origem_cidade,
-        origem_uf: existente.origem_uf,
-        origem_endereco: existente.origem_endereco,
-        origem_numero: existente.origem_numero,
-        origem_bairro: existente.origem_bairro,
-        origem_complemento: existente.origem_complemento,
-        origem_lat: existente.origem_lat,
-        origem_lng: existente.origem_lng,
-        raio_km: existente.raio_km,
-        disponivel_mapa: existente.disponivel_mapa,
+        ...(patchLoc ?? {
+          origem_cep: existente.origem_cep,
+          origem_cidade: existente.origem_cidade,
+          origem_uf: existente.origem_uf,
+          origem_endereco: existente.origem_endereco,
+          origem_numero: existente.origem_numero,
+          origem_bairro: existente.origem_bairro,
+          origem_complemento: existente.origem_complemento,
+          origem_lat: existente.origem_lat,
+          origem_lng: existente.origem_lng,
+          raio_km: existente.raio_km,
+        }),
+        disponivel_mapa: true,
         transportador_id: tid,
         created_at: existente.created_at,
         updated_at: agora,
@@ -448,6 +452,8 @@ export function montarVeiculosParaImportacao(
       ...base,
       id: newVeiculoId(),
       transportador_id: tid,
+      ...(patchLoc ?? {}),
+      disponivel_mapa: true,
       created_at: agora,
       updated_at: agora,
     })
