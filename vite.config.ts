@@ -71,9 +71,9 @@ export default defineConfig({
         navigateFallback: 'index.html',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webp}'],
         importScripts: ['push-sw.js'],
-        // Nova versão não assume o controle até o usuário recarregar a página
+        // waiting até o usuário recarregar (F5); activate via updateSW no boot
         skipWaiting: false,
-        clientsClaim: false,
+        clientsClaim: true,
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
