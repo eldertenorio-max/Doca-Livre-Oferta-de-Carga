@@ -20,6 +20,10 @@ import { CarroceriaSuggestInput } from '../../components/ui/CarroceriaSuggestInp
 import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
 import { ImportarVeiculosModal } from '../../components/veiculos/ImportarVeiculosModal'
 import { LocalizacaoVeiculoModal } from '../../components/veiculos/LocalizacaoVeiculoModal'
+import {
+  VeiculoLocalizacaoFields,
+  validarLocalizacaoVeiculo,
+} from '../../components/veiculos/VeiculoLocalizacaoFields'
 import { VeiculoAvaliacoesModal } from '../../components/veiculos/VeiculoAvaliacoesModal'
 import { ImageCropModal } from '../../components/ui/ImageCropModal'
 import type { FotoVeiculoSlot, FotosVeiculo, Veiculo } from '../../types'
@@ -331,6 +335,25 @@ export function VeiculosPage() {
     const dadosRastreador = (form.rastreador_dados || '').trim()
     if (risco === 'rastreador' && !dadosRastreador) {
       setError('Cole os dados do rastreador (IMEI, serial, fornecedor…).')
+      return
+    }
+    const locErro = validarLocalizacaoVeiculo(
+      {
+        origem_cep: form.origem_cep,
+        origem_cidade: form.origem_cidade,
+        origem_uf: form.origem_uf,
+        origem_endereco: form.origem_endereco,
+        origem_numero: form.origem_numero,
+        origem_bairro: form.origem_bairro,
+        origem_complemento: form.origem_complemento,
+        origem_lat: form.origem_lat,
+        origem_lng: form.origem_lng,
+        raio_km: form.raio_km,
+      },
+      false,
+    )
+    if (locErro) {
+      setError(locErro)
       return
     }
     const v: Veiculo = {
@@ -984,6 +1007,38 @@ export function VeiculosPage() {
         </section>
       </div>
 
+      <section className="form-card form-card--blue" style={{ marginTop: 16 }}>
+        <header className="form-card__head">
+          <IconMapPin />
+          <h2 className="form-card__title">Localização no Mapa da Frota</h2>
+        </header>
+        <div className="form-card__body">
+          <VeiculoLocalizacaoFields
+            resetKey={editingId ?? 'novo-veiculo'}
+            value={{
+              origem_cep: form.origem_cep,
+              origem_cidade: form.origem_cidade,
+              origem_uf: form.origem_uf,
+              origem_endereco: form.origem_endereco,
+              origem_numero: form.origem_numero,
+              origem_bairro: form.origem_bairro,
+              origem_complemento: form.origem_complemento,
+              origem_lat: form.origem_lat,
+              origem_lng: form.origem_lng,
+              raio_km: form.raio_km,
+            }}
+            transportador={
+              form.transportador_id
+                ? transportadorById(form.transportador_id) ?? null
+                : null
+            }
+            onChange={(patch) => {
+              setForm((prev) => ({ ...prev, ...patch }))
+            }}
+          />
+        </div>
+      </section>
+
       {error && <p style={{ color: '#dc2626', marginTop: 12, textAlign: 'center' }}>{error}</p>}
 
       <div className="cadastro-actions">
@@ -1038,6 +1093,20 @@ function IconTruck() {
       <path d="M1 16V7h11v9M12 10h4l3 3v3h-7" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
       <circle cx="5.5" cy="16.5" r="1.5" stroke="currentColor" strokeWidth="1.75" />
       <circle cx="16.5" cy="16.5" r="1.5" stroke="currentColor" strokeWidth="1.75" />
+    </svg>
+  )
+}
+
+function IconMapPin() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden>
+      <path
+        d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.75" />
     </svg>
   )
 }
