@@ -7,20 +7,17 @@ import App from './App'
 import './index.css'
 
 /**
- * Cache/SW antigos travavam o app na versão sem setas da galeria.
- * Roda UMA vez por navegador: limpa SW + caches e recarrega.
- * Depois: novos deploys só entram no F5 (não interrompe o trabalho a cada push).
+ * Força novo bundle (setas da galeria). Depois do primeiro load limpo,
+ * updates de deploy só no F5 (ver onNeedRefresh).
  */
-const CACHE_BUST = 'oferta-galeria-setas-v2-20260804'
+const BUILD_ID = 'galeria-setas-v3'
 
-async function limparCacheTravadoUmaVez(): Promise<'reload' | 'ok'> {
-  if (typeof window === 'undefined') return 'ok'
-  const key = `doca-cache-bust:${CACHE_BUST}`
+async function forceFreshOnce(): Promise<boolean> {
+  const key = `doca-build:${BUILD_ID}`
   try {
-    if (localStorage.getItem(key)) return 'ok'
-    localStorage.setItem(key, '1')
+    if (localStorage.getItem(key) === 'ok') return false
   } catch {
-    /* private mode */
+    /* ignore */
   }
 
   try {
@@ -40,79 +37,47 @@ async function limparCacheTravadoUmaVez(): Promise<'reload' | 'ok'> {
     /* ignore */
   }
 
-  // Evita loop se o storage falhar
   try {
-    if (sessionStorage.getItem(`${key}:done`)) return 'ok'
-    sessionStorage.setItem(`${key}:done`, '1')
+    localStorage.setItem(key, 'ok')
   } catch {
     /* ignore */
   }
 
-  window.location.reload()
-  return 'reload'
+  // Evita loop infinito se storage falhar
+  try {
+    if (sessionStorage.getItem(`reloaded:${BUILD_ID}`)) return false
+    sessionStorage.setItem(`reloaded:${BUILD_ID}`, '1')
+  } catch {
+    /* continue */
+  }
+
+  const u = new URL(window.location.href)
+  u.searchParams.set('_v', BUILD_ID)
+  window.location.replace(u.toString())
+  return true
 }
 
-function bootApp() {
-  /**
-   * SW para PWA/push.
-   * - Em uso (sessão): não recarrega sozinho.
-   * - No F5 / abertura: se houver versão waiting, aplica e recarrega uma vez.
-   */
-  let reloadAposF5 = true
+function boot() {
+  // autoUpdate: garante que o deploy com setas chegue nas abas
+  // onNeedRefresh só recarrega se a aba estiver oculta ou recém aberta (não no meio do form)
+  let quietUntil = Date.now() + 15_000
   const updateSW = registerSW({
     immediate: true,
     onNeedRefresh() {
-      // Deploy no meio da sessão: só fica “pronto”.
-      // Se o app acabou de abrir (F5), aplica agora.
-      if (reloadAposF5 && performance.now() < 12_000) {
-        void updateSW(true)
-        return
-      }
-      try {
-        sessionStorage.setItem('doca-sw-pending', '1')
-      } catch {
-        /* ignore */
-      }
-    },
-    onOfflineReady() {
-      /* ok */
-    },
-    onRegisteredSW(_url, registration) {
-      if (!registration) return
-
-      const pending =
-        Boolean(registration.waiting) ||
-        (() => {
-          try {
-            return sessionStorage.getItem('doca-sw-pending') === '1'
-          } catch {
-            return false
-          }
-        })()
-
-      if (pending && registration.waiting) {
-        try {
-          sessionStorage.removeItem('doca-sw-pending')
-        } catch {
-          /* ignore */
-        }
-        // Ativa SW em espera (usuário fez F5 ou abriu aba)
+      const abaOculta = document.visibilityState === 'hidden'
+      const recemAberto = Date.now() < quietUntil
+      if (abaOculta || recemAberto) {
         void updateSW(true)
       }
-
-      // Baixa versão nova em background (fica waiting até o F5)
-      void registration.update()
-      window.setInterval(() => {
-        void registration.update()
-      }, 2 * 60_000)
-
-      // Depois de alguns segundos, não forçar reload se onNeedRefresh vier no meio do uso
-      window.setTimeout(() => {
-        reloadAposF5 = false
-      }, 12_000)
+      // senão: próximo F5 — onRegisteredSW aplica waiting
+    },
+    onRegisteredSW(_url, reg) {
+      if (!reg) return
+      if (reg.waiting) void updateSW(true)
+      void reg.update()
+      window.setInterval(() => void reg.update(), 60_000)
     },
   })
-
   void updateSW
 
   createRoot(document.getElementById('root')!).render(
@@ -126,7 +91,6 @@ function bootApp() {
   )
 }
 
-void limparCacheTravadoUmaVez().then((result) => {
-  if (result === 'reload') return
-  bootApp()
+void forceFreshOnce().then((reloading) => {
+  if (!reloading) boot()
 })

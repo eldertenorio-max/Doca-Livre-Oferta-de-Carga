@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronLeft, ChevronRight, ExternalLink, Mail, MapPin, X } from 'lucide-react'
+import { ExternalLink, Mail, MapPin, X } from 'lucide-react'
 import type { Transportador } from '../../types'
 import { formatCnpj } from '../../lib/cnpj'
 import { formatPhoneBr } from '../../lib/phoneBr'
@@ -333,88 +333,267 @@ export function TransportadorPerfilSite({
       {fotoZoom && fotoZoomIdx != null
         ? createPortal(
             <div
-              className="tv-perfil__lightbox"
               role="dialog"
               aria-modal="true"
               aria-label={`Foto ${fotoZoomIdx + 1} de ${galeria.length}`}
               onClick={() => setFotoZoomIdx(null)}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 999999,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 12,
+                padding: 16,
+                background: 'rgba(15,23,42,0.88)',
+                boxSizing: 'border-box',
+              }}
             >
               <button
                 type="button"
-                className="tv-perfil__lightbox-close"
                 aria-label="Fechar foto"
                 onClick={(e) => {
                   e.stopPropagation()
                   setFotoZoomIdx(null)
                 }}
+                style={{
+                  position: 'fixed',
+                  top: 12,
+                  right: 12,
+                  zIndex: 1000001,
+                  width: 44,
+                  height: 44,
+                  border: 'none',
+                  borderRadius: 10,
+                  background: '#fff',
+                  color: '#0f172a',
+                  cursor: 'pointer',
+                  fontSize: 22,
+                  fontWeight: 700,
+                  lineHeight: 1,
+                  boxShadow: '0 4px 14px rgba(0,0,0,0.3)',
+                }}
               >
-                <X size={22} />
+                ×
               </button>
 
               <div
-                className="tv-perfil__lightbox-frame"
                 onClick={(e) => e.stopPropagation()}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 12,
+                  maxWidth: 'min(920px, 100%)',
+                  width: '100%',
+                }}
               >
-                <div className="tv-perfil__lightbox-photo-wrap">
-                  {/* Setas sempre sobre a imagem — não dependem da largura da tela */}
+                <div
+                  style={{
+                    position: 'relative',
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: '#0f172a',
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                    minHeight: 220,
+                  }}
+                >
+                  <img
+                    src={fotoZoom}
+                    alt={`Foto ${fotoZoomIdx + 1}`}
+                    style={{
+                      display: 'block',
+                      maxWidth: '100%',
+                      maxHeight: 'min(65dvh, 640px)',
+                      objectFit: 'contain',
+                      margin: '0 auto',
+                    }}
+                  />
+
                   {galeria.length > 1 ? (
                     <>
                       <button
                         type="button"
-                        className="tv-perfil__lightbox-arrow tv-perfil__lightbox-arrow--left"
                         aria-label="Foto anterior"
                         onClick={(e) => {
                           e.stopPropagation()
                           fotoAnterior()
                         }}
+                        style={{
+                          position: 'absolute',
+                          left: 8,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          zIndex: 10,
+                          width: 56,
+                          height: 56,
+                          border: '3px solid #fff',
+                          borderRadius: 999,
+                          background: '#e8c547',
+                          color: '#0f172a',
+                          cursor: 'pointer',
+                          fontSize: 36,
+                          fontWeight: 800,
+                          lineHeight: 1,
+                          boxShadow: '0 6px 20px rgba(0,0,0,0.4)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: 0,
+                        }}
                       >
-                        <ChevronLeft size={32} strokeWidth={2.5} />
-                        <span className="tv-perfil__lightbox-arrow-fallback" aria-hidden>
-                          ‹
-                        </span>
+                        ‹
                       </button>
                       <button
                         type="button"
-                        className="tv-perfil__lightbox-arrow tv-perfil__lightbox-arrow--right"
                         aria-label="Próxima foto"
                         onClick={(e) => {
                           e.stopPropagation()
                           fotoProxima()
                         }}
+                        style={{
+                          position: 'absolute',
+                          right: 8,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          zIndex: 10,
+                          width: 56,
+                          height: 56,
+                          border: '3px solid #fff',
+                          borderRadius: 999,
+                          background: '#e8c547',
+                          color: '#0f172a',
+                          cursor: 'pointer',
+                          fontSize: 36,
+                          fontWeight: 800,
+                          lineHeight: 1,
+                          boxShadow: '0 6px 20px rgba(0,0,0,0.4)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: 0,
+                        }}
                       >
-                        <ChevronRight size={32} strokeWidth={2.5} />
-                        <span className="tv-perfil__lightbox-arrow-fallback" aria-hidden>
-                          ›
-                        </span>
+                        ›
                       </button>
                     </>
                   ) : null}
-
-                  <img src={fotoZoom} alt={`Foto ampliada ${fotoZoomIdx + 1}`} />
                 </div>
 
                 {galeria.length > 1 ? (
                   <>
-                    <p className="tv-perfil__lightbox-count">
-                      {fotoZoomIdx + 1} / {galeria.length}
-                    </p>
-                    <div className="tv-perfil__lightbox-thumbs">
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: 10,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          fotoAnterior()
+                        }}
+                        style={{
+                          border: 'none',
+                          borderRadius: 8,
+                          padding: '10px 18px',
+                          background: '#e8c547',
+                          color: '#0f172a',
+                          fontWeight: 800,
+                          fontSize: 14,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        ← Anterior
+                      </button>
+                      <span
+                        style={{
+                          color: '#f8fafc',
+                          fontWeight: 800,
+                          fontSize: 15,
+                          minWidth: 64,
+                          textAlign: 'center',
+                        }}
+                      >
+                        {fotoZoomIdx + 1} / {galeria.length}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          fotoProxima()
+                        }}
+                        style={{
+                          border: 'none',
+                          borderRadius: 8,
+                          padding: '10px 18px',
+                          background: '#e8c547',
+                          color: '#0f172a',
+                          fontWeight: 800,
+                          fontSize: 14,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Próxima →
+                      </button>
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: 8,
+                        justifyContent: 'center',
+                      }}
+                    >
                       {galeria.map((src, i) => (
                         <button
                           key={`lb-${i}`}
                           type="button"
-                          className={`tv-perfil__lightbox-thumb${
-                            i === fotoZoomIdx ? ' is-on' : ''
-                          }`}
                           onClick={() => setFotoZoomIdx(i)}
-                          aria-label={`Ir para foto ${i + 1}`}
+                          aria-label={`Foto ${i + 1}`}
+                          style={{
+                            width: 56,
+                            height: 56,
+                            padding: 0,
+                            border:
+                              i === fotoZoomIdx
+                                ? '3px solid #e8c547'
+                                : '2px solid rgba(255,255,255,0.4)',
+                            borderRadius: 8,
+                            overflow: 'hidden',
+                            cursor: 'pointer',
+                            opacity: i === fotoZoomIdx ? 1 : 0.75,
+                            background: '#1e293b',
+                          }}
                         >
-                          <img src={src} alt="" />
+                          <img
+                            src={src}
+                            alt=""
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              display: 'block',
+                            }}
+                          />
                         </button>
                       ))}
                     </div>
                   </>
-                ) : null}
+                ) : (
+                  <p style={{ color: '#94a3b8', fontSize: 13, margin: 0 }}>
+                    Só há 1 foto nesta galeria
+                  </p>
+                )}
               </div>
             </div>,
             document.body,

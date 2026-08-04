@@ -54,6 +54,33 @@
     <title>Doca Livre — Oferta de Carga</title>
   </head>
   <body>
+    <script>
+      // Força o navegador a procurar SW novo e limpar cache morto (uma vez por build).
+      ;(function () {
+        var BUILD = 'galeria-setas-v3'
+        try {
+          if (localStorage.getItem('doca-html-bust') === BUILD) return
+          localStorage.setItem('doca-html-bust', BUILD)
+        } catch (e) {}
+        if (!('serviceWorker' in navigator)) return
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          return Promise.all(regs.map(function (r) { return r.unregister() }))
+        }).then(function () {
+          if (!('caches' in window)) return
+          return caches.keys().then(function (keys) {
+            return Promise.all(keys.map(function (k) { return caches.delete(k) }))
+          })
+        }).then(function () {
+          try {
+            if (sessionStorage.getItem('doca-html-reloaded') === BUILD) return
+            sessionStorage.setItem('doca-html-reloaded', BUILD)
+          } catch (e) {}
+          var u = new URL(location.href)
+          u.searchParams.set('_v', BUILD)
+          location.replace(u.toString())
+        }).catch(function () {})
+      })()
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

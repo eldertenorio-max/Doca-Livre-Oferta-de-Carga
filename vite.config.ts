@@ -8,8 +8,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      // prompt: não troca o app sozinho (autoUpdate forçava reload no meio do trabalho)
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       injectRegister: false,
       includeAssets: [
         'favicon.svg',
@@ -71,8 +70,7 @@ export default defineConfig({
         navigateFallback: 'index.html',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webp}'],
         importScripts: ['push-sw.js'],
-        // waiting até o usuário recarregar (F5); activate via updateSW no boot
-        skipWaiting: false,
+        skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
         runtimeCaching: [
