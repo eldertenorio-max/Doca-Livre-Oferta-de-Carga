@@ -8,6 +8,7 @@ import { fileToDataUrl, isAcceptedImageFile } from '../../lib/veiculoFotos'
 import { ImageCropModal } from '../../components/ui/ImageCropModal'
 import { iniciaisNome } from '../../lib/mapaFrota'
 import type { Motorista } from '../../types'
+import { formatCpf } from '../../lib/cpf'
 import '../../styles/cadastro.css'
 
 /** Categorias oficiais de CNH (ordem de exibição). Sem A (só moto). */
@@ -147,6 +148,7 @@ export function MotoristasPage() {
       ...m,
       transportador_id: m.transportador_id ?? '',
       veiculo_id: m.veiculo_id ?? '',
+      cpf: m.cpf ? formatCpf(m.cpf) : '',
     })
     setError('')
     setMode('form')
