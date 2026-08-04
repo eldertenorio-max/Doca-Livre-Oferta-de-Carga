@@ -25,11 +25,9 @@ import {
 import { frotaIconeSvgRaw } from '../../lib/frotaIcones'
 import { listarFotosVeiculoDisponiveis } from '../../lib/veiculoFotos'
 import {
-  CARROCERIAS_POR_GRUPO,
-  GRUPOS_CARROCERIA,
   parseCarrocerias,
-  toggleCarroceria,
 } from '../../lib/tiposCarroceria'
+import { CarroceriaFilterSelect } from '../../components/ui/CarroceriaFilterSelect'
 import { FrotaGaleriaVeiculoModal } from '../../components/mapa/FrotaGaleriaVeiculoModal'
 import '../../styles/cadastro.css'
 import '../../styles/mapa-frota.css'
@@ -736,36 +734,13 @@ export function MapaFrotaPage() {
     setTipoDoAnuncio(null)
   }
 
-  function toggleCarroceriaFiltro(item: string) {
-    setCarroceriasFiltro((prev) => toggleCarroceria(prev, item))
-  }
-
   const blocoCarroceria = (
-    <div className="mapa-frota__carroceria">
-      <p className="mapa-frota__tipos-label">Carroceria</p>
-      {GRUPOS_CARROCERIA.map((grupo) => (
-        <div key={grupo} className="mapa-frota__carroceria-grupo">
-          <p className="mapa-frota__carroceria-grupo-title">{grupo}</p>
-          <ul className="mapa-frota__carroceria-list">
-            {CARROCERIAS_POR_GRUPO[grupo].map((item) => {
-              const on = carroceriasFiltro.includes(item)
-              return (
-                <li key={item}>
-                  <label className={`mapa-frota__carroceria-item${on ? ' is-on' : ''}`}>
-                    <input
-                      type="checkbox"
-                      checked={on}
-                      onChange={() => toggleCarroceriaFiltro(item)}
-                    />
-                    <span>{item}</span>
-                  </label>
-                </li>
-              )
-            })}
-          </ul>
-        </div>
-      ))}
-    </div>
+    <CarroceriaFilterSelect
+      value={carroceriasFiltro}
+      onChange={setCarroceriasFiltro}
+      className="mapa-frota__carroceria"
+      label="Carroceria"
+    />
   )
 
   /** Clique na categoria: mostra só aquele tipo; clica de novo libera. */
