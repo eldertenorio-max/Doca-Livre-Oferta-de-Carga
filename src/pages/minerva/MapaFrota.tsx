@@ -267,47 +267,91 @@ function makeIcon(p: PontoFrota) {
     html: markerHtml(p),
     iconSize: [120, 52],
     iconAnchor: [60, 52],
-    popupAnchor: [0, 6],
+    // Ponto de ancoragem do popup: base do pin (ajustado dinamicamente ao abrir)
+    popupAnchor: [0, -2],
   })
 }
 
+type DirecaoPopupFrota = 'above' | 'below'
+
+/** Escolhe o lado com mais área de leitura em relação ao pin. */
+function direcaoPopupComMaisEspaco(map: L.Map, latlng: L.LatLng): DirecaoPopupFrota {
+  const pt = map.latLngToContainerPoint(latlng)
+  const size = map.getSize()
+  const spaceAbove = Math.max(0, pt.y - 28)
+  const spaceBelow = Math.max(0, size.y - pt.y - 28)
+  // Empate (ou quase): prefere abaixo, que não cobre o pin
+  if (spaceAbove > spaceBelow + 24) return 'above'
+  return 'below'
+}
+
+function aplicarDirecaoPopup(popup: L.Popup, dir: DirecaoPopupFrota) {
+  const base = 'frota-leaflet-popup'
+  const cls =
+    dir === 'below'
+      ? `${base} frota-leaflet-popup--below`
+      : `${base} frota-leaflet-popup--above`
+  popup.options.className = cls
+  // offset em px a partir do popupAnchor do ícone
+  popup.options.offset = dir === 'below' ? L.point(0, 10) : L.point(0, -6)
+
+  const el = popup.getElement()
+  if (el) {
+    el.classList.remove('frota-leaflet-popup--below', 'frota-leaflet-popup--above')
+    el.classList.add(dir === 'below' ? 'frota-leaflet-popup--below' : 'frota-leaflet-popup--above')
+  }
+}
+
+/**
+ * Abre o card acima ou abaixo do pin (mais espaço) e limita a altura.
+ * Não usa keepInView contínuo — o pan é só no momento de abrir.
+ */
 function encaixarPopupNoMapa(map: L.Map, popup: L.Popup) {
   const el = popup.getElement()
   const container = map.getContainer()
   if (!el) return
 
-  const pad = 16
-  const content = el.querySelector('.leaflet-popup-content') as HTMLElement | null
+  const latlng = popup.getLatLng()
+  if (!latlng) return
 
-  const aplicarAltura = () => {
+  const dir = direcaoPopupComMaisEspaco(map, latlng)
+  aplicarDirecaoPopup(popup, dir)
+
+  // Recalcula a posição Leaflet após trocar above/below
+  const popAny = popup as L.Popup & { _updatePosition?: () => void }
+  popAny._updatePosition?.()
+
+  const pad = 14
+  const content = el.querySelector('.leaflet-popup-content') as HTMLElement | null
+  const pt = map.latLngToContainerPoint(latlng)
+  const size = map.getSize()
+  const spaceAbove = Math.max(80, pt.y - 32)
+  const spaceBelow = Math.max(80, size.y - pt.y - 32)
+  const disponivel = dir === 'above' ? spaceAbove : spaceBelow
+  const maxH = Math.max(110, Math.min(400, Math.floor(disponivel - 20)))
+  if (content) content.style.maxHeight = `${maxH}px`
+
+  const aplicarPanSePreciso = () => {
     const cr = container.getBoundingClientRect()
     const er = el.getBoundingClientRect()
-    // Espaço real até o fim do mapa (e da janela) — sem forçar altura mínima que corta
-    const tetoViewport = Math.min(cr.bottom, window.innerHeight) - pad
-    const disponivel = Math.floor(tetoViewport - Math.max(er.top, cr.top) - 8)
-    const maxH = Math.max(96, Math.min(360, disponivel))
-    if (content) content.style.maxHeight = `${maxH}px`
+    let dx = 0
+    let dy = 0
+    const teto = Math.min(cr.bottom, window.innerHeight) - pad
+    const piso = Math.max(cr.top, 0) + pad
+    if (er.bottom > teto) dy += er.bottom - teto
+    if (er.top < piso) dy -= piso - er.top
+    if (er.right > cr.right - pad) dx += er.right - (cr.right - pad)
+    if (er.left < cr.left + pad) dx -= cr.left + pad - er.left
+    // Só um pan suave na abertura; o usuário pode mover o mapa depois
+    if (dx !== 0 || dy !== 0) {
+      map.panBy([dx, dy], { animate: true, duration: 0.22, easeLinearity: 0.25 })
+    }
   }
 
-  aplicarAltura()
-
-  // Se ainda transborda, pan para caber o card inteiro na área do mapa
-  const cr = container.getBoundingClientRect()
-  const er = el.getBoundingClientRect()
-  let dx = 0
-  let dy = 0
-  const teto = Math.min(cr.bottom, window.innerHeight) - pad
-  if (er.bottom > teto) dy += er.bottom - teto
-  if (er.top < cr.top + pad) dy -= cr.top + pad - er.top
-  if (er.right > cr.right - pad) dx += er.right - (cr.right - pad)
-  if (er.left < cr.left + pad) dx -= cr.left + pad - er.left
-
-  if (dx !== 0 || dy !== 0) {
-    map.panBy([dx, dy], { animate: true, duration: 0.2, easeLinearity: 0.25 })
-    window.setTimeout(aplicarAltura, 220)
-  }
-
-  window.requestAnimationFrame(aplicarAltura)
+  window.requestAnimationFrame(() => {
+    popAny._updatePosition?.()
+    aplicarPanSePreciso()
+  })
 }
 
 function scrollDoPopup(map: L.Map): number {
@@ -893,6 +937,9 @@ export function MapaFrotaPage() {
       m.off('popupopen')
       m.off('popupclose')
       m.on('popupopen', (e) => {
+        // Define above/below antes do paint se possível
+        const ll = e.popup.getLatLng() ?? m.getLatLng()
+        if (ll) aplicarDirecaoPopup(e.popup, direcaoPopupComMaisEspaco(map, ll))
         const el = e.popup.getElement() ?? undefined
         ligarAcoesPopup(
           el,
@@ -925,10 +972,9 @@ export function MapaFrotaPage() {
           className: 'frota-leaflet-popup frota-leaflet-popup--below',
           maxWidth: 320,
           minWidth: 260,
-          offset: L.point(0, 8),
-          autoPan: true,
-          autoPanPadding: [28, 28],
-          keepInView: true,
+          offset: L.point(0, 10),
+          autoPan: false,
+          keepInView: false,
           closeButton: true,
           closeOnClick: true,
         })
@@ -937,8 +983,11 @@ export function MapaFrotaPage() {
           L.DomEvent.stopPropagation(e.originalEvent)
           ignorarFecharPopupRef.current = true
           setSelecionado(p.id)
-          m!.openPopup()
           const popup = m!.getPopup()
+          if (popup) {
+            aplicarDirecaoPopup(popup, direcaoPopupComMaisEspaco(map, m!.getLatLng()))
+          }
+          m!.openPopup()
           if (popup) {
             window.requestAnimationFrame(() => {
               encaixarPopupNoMapa(map, popup)

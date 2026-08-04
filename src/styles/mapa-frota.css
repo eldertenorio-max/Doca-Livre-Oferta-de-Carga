@@ -911,7 +911,7 @@
   line-height: 1;
 }
 
-/* Popup Leaflet â€” abre EMBAIXO do pin */
+/* Popup Leaflet — direção above/below escolhida no momento de abrir */
 .frota-leaflet-popup .leaflet-popup-content-wrapper {
   border-radius: 16px;
   border: 1px solid #e2e8f0;
@@ -923,7 +923,7 @@
 .frota-leaflet-popup .leaflet-popup-content {
   margin: 12px 14px 14px;
   min-width: 240px;
-  max-height: min(360px, 55dvh);
+  max-height: min(400px, 60dvh);
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -935,7 +935,7 @@
   max-width: min(320px, calc(100vw - 24px));
 }
 
-/* Leaflet posiciona o card acima do tip; forÃ§amos abaixo do pin */
+/* Card abaixo do pin (espaço maior na parte de baixo) */
 .frota-leaflet-popup--below.leaflet-popup {
   bottom: auto !important;
   top: 12px !important;
@@ -951,6 +951,21 @@
 .frota-leaflet-popup--below .leaflet-popup-tip {
   transform: rotate(180deg);
   box-shadow: none;
+  background: #fff;
+}
+
+/* Card acima do pin (espaço maior na parte de cima) — tip padrão do Leaflet */
+.frota-leaflet-popup--above.leaflet-popup {
+  margin-bottom: 0;
+}
+
+.frota-leaflet-popup--above .leaflet-popup-tip-container {
+  bottom: -19px;
+  top: auto;
+}
+
+.frota-leaflet-popup--above .leaflet-popup-tip {
+  transform: none;
   background: #fff;
 }
 
