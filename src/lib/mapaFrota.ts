@@ -436,9 +436,11 @@ export function montarPontosFrota(
       motoristaNome: isUltrafrioTransportador(t)
         ? tituloExibicaoUltrafrio(v.placa)
         : m.nome,
-      // WhatsApp exibido: telefone do próprio motorista; se não tiver,
-      // usa o WhatsApp cadastrado da transportadora (contato_telefone).
-      motoristaTelefone: m.telefone || t.contato_telefone || t.telefone,
+      // WhatsApp no mapa: do motorista só se "mostrar no mapa" estiver marcado;
+      // caso contrário (ou sem número), usa o da transportadora.
+      motoristaTelefone: m.whatsapp_no_mapa
+        ? m.telefone || t.contato_telefone || t.telefone
+        : t.contato_telefone || t.telefone || m.telefone,
       motoristaCnh: m.cnh,
       motoristaCategoriaCnh: m.categoria_cnh,
       motoristaFoto: fotoPerfil,

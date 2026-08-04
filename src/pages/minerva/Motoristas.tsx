@@ -23,6 +23,7 @@ const emptyForm = (): Partial<Motorista> => ({
   categoria_cnh: 'E',
   validade_cnh: '',
   telefone: '',
+  whatsapp_no_mapa: false,
   foto_url: '',
   situacao: 'ativo',
 })
@@ -199,6 +200,7 @@ export function MotoristasPage() {
       categoria_cnh: form.categoria_cnh?.trim() || undefined,
       validade_cnh: form.validade_cnh || undefined,
       telefone: form.telefone?.trim() || undefined,
+      whatsapp_no_mapa: form.whatsapp_no_mapa === true,
       foto_url: (form.foto_url || '').trim() || undefined,
       avaliacao: form.avaliacao,
       total_avaliacoes: form.total_avaliacoes,
@@ -310,7 +312,7 @@ export function MotoristasPage() {
                   <th className="p-3">Placa</th>
                   <th className="p-3">Transportadora</th>
                   <th className="p-3">CNH</th>
-                  <th className="p-3">Telefone</th>
+                  <th className="p-3">WhatsApp</th>
                   <th className="p-3">Situação</th>
                   <th className="p-3" />
                 </tr>
@@ -552,14 +554,30 @@ export function MotoristasPage() {
                   onChange={(e) => set('cpf', e.target.value)}
                 />
               </label>
-              <label className="block text-sm">
-                <span className="mb-1 block text-xs font-semibold text-ink-muted">Telefone</span>
+              <div className="block text-sm">
+                <span className="mb-1 block text-xs font-semibold text-ink-muted">WhatsApp</span>
                 <input
                   className={inputClass}
                   value={form.telefone ?? ''}
                   onChange={(e) => set('telefone', e.target.value)}
+                  placeholder="(00) 00000-0000"
+                  inputMode="tel"
                 />
-              </label>
+                <label className="mt-2 flex cursor-pointer items-start gap-2 text-xs text-ink">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={form.whatsapp_no_mapa === true}
+                    onChange={(e) => set('whatsapp_no_mapa', e.target.checked)}
+                  />
+                  <span>
+                    <span className="font-semibold">Mostrar no mapa de frota</span>
+                    <span className="mt-0.5 block text-[11px] font-normal text-ink-muted">
+                      Marcado: exibe este WhatsApp. Desmarcado: exibe o da transportadora.
+                    </span>
+                  </span>
+                </label>
+              </div>
               <label className="block text-sm">
                 <span className="mb-1 block text-xs font-semibold text-ink-muted">CNH</span>
                 <input

@@ -7,6 +7,7 @@ export function normalizeMotorista(m: Motorista): Motorista {
     transportador_id: autonomo ? null : m.transportador_id || null,
     veiculo_id: m.veiculo_id ?? null,
     autonomo,
+    whatsapp_no_mapa: m.whatsapp_no_mapa === true,
   }
 }
 

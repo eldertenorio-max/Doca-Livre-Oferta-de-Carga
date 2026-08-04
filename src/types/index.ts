@@ -223,7 +223,13 @@ export interface Motorista {
   cnh?: string
   categoria_cnh?: string
   validade_cnh?: string
+  /** WhatsApp do motorista. */
   telefone?: string
+  /**
+   * Se true, o Mapa da Frota exibe o WhatsApp do motorista.
+   * Se false/ausente, exibe o WhatsApp da transportadora.
+   */
+  whatsapp_no_mapa?: boolean
   /** Foto do motorista (URL ou data URL). */
   foto_url?: string
   /** Avaliação média (0–5). */
