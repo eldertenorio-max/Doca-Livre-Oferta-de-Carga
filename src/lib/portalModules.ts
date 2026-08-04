@@ -11,6 +11,7 @@ export type OfertaModuloId =
   | 'veiculos'
   | 'motoristas'
   | 'mapa_frota'
+  | 'mapa_logistica'
   | 'grupos'
   | 'indicadores'
   | 'configuracoes'
@@ -36,6 +37,7 @@ export const OFERTA_MODULOS_CATALOGO: { id: OfertaModuloId; label: string; role?
   { id: 'veiculos', label: 'Veículos', role: 'ambos' },
   { id: 'motoristas', label: 'Motoristas', role: 'ambos' },
   { id: 'mapa_frota', label: 'Mapa da Frota', role: 'minerva' },
+  { id: 'mapa_logistica', label: 'Google Maps da Logística', role: 'minerva' },
   { id: 'grupos', label: 'Grupos', role: 'minerva' },
   { id: 'indicadores', label: 'Indicadores', role: 'minerva' },
   { id: 'configuracoes', label: 'Configurações de Oferta', role: 'minerva' },
@@ -59,6 +61,7 @@ export const DEFAULT_PERMISSAO_MINERVA: OfertaPermissao = {
     veiculos: 'editar',
     motoristas: 'editar',
     mapa_frota: 'editar',
+    mapa_logistica: 'editar',
     grupos: 'editar',
     indicadores: 'editar',
     configuracoes: 'editar',
@@ -121,6 +124,7 @@ export function moduloFromPath(pathname: string): OfertaModuloId | null {
   if (p.startsWith('/embarcador/motoristas') || p.startsWith('/transportador/motoristas'))
     return 'motoristas'
   if (p.startsWith('/embarcador/mapa-frota')) return 'mapa_frota'
+  if (p.startsWith('/embarcador/mapa-logistica')) return 'mapa_logistica'
   if (p.startsWith('/embarcador/grupos')) return 'grupos'
   if (p.startsWith('/embarcador/indicadores')) return 'indicadores'
   if (p.startsWith('/embarcador/configuracoes')) return 'configuracoes'

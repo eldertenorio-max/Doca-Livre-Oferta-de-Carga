@@ -116,10 +116,29 @@ function IconWallet() {
   )
 }
 
+function IconRadar() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.75" />
+      <path
+        d="M12 3a9 9 0 0 1 9 9M12 6a6 6 0 0 1 6 6M5.6 5.6a9 9 0 1 0 12.8 0"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
 const minervaLinks: NavItem[] = [
   { to: '/embarcador', label: 'Cargas', icon: <IconGrid />, end: true },
   { to: '/embarcador/viagens', label: 'Viagens', icon: <IconTruck /> },
   { to: '/embarcador/mapa-frota', label: 'Mapa da Frota', icon: <IconMap /> },
+  {
+    to: '/embarcador/mapa-logistica',
+    label: 'Maps da Logística ★',
+    icon: <IconRadar />,
+  },
   { to: '/embarcador/rotas', label: 'Rotas', icon: <IconLocation /> },
   { to: '/embarcador/transportadores', label: 'Transportadoras', icon: <IconUsers /> },
   { to: '/embarcador/veiculos', label: 'Veículos', icon: <IconTruck /> },

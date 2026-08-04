@@ -23,6 +23,7 @@ import { ViagensTransportadorPage } from './pages/transportador/Viagens'
 import { PainelTransportadorPage } from './pages/transportador/Painel'
 import { ConfiguracoesTransportadorPage } from './pages/transportador/Configuracoes'
 import { MapaFrotaPage } from './pages/minerva/MapaFrota'
+import { MapaLogisticaPage } from './pages/minerva/MapaLogistica'
 import { PerfilPage } from './pages/Perfil'
 import { PwaInstallBanner } from './components/PwaInstallBanner'
 import { PushEnableBanner } from './components/PushEnableBanner'
@@ -144,6 +145,14 @@ export default function App() {
           element={
             <Protected role={['super']}>
               <MapaFrotaPage />
+            </Protected>
+          }
+        />
+        <Route
+          path="/embarcador/mapa-logistica"
+          element={
+            <Protected role={['super']}>
+              <MapaLogisticaPage />
             </Protected>
           }
         />
