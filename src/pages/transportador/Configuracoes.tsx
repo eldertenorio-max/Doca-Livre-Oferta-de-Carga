@@ -85,8 +85,9 @@ export function ConfiguracoesTransportadorPage() {
   }, [configTransportador, tid])
 
   useEffect(() => {
+    // Só recarrega do servidor ao mudar de transportadora — senão apaga edições locais
     setPerfil(normalizePerfilPublico(empresa?.perfil_publico))
-  }, [empresa?.id, empresa?.perfil_publico])
+  }, [empresa?.id])
 
   const tiposSelecionados = useMemo(
     () => new Set(form.tipos_veiculo_preferidos),

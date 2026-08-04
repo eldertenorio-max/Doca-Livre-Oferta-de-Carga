@@ -102,16 +102,24 @@ export function ImageCropModal({
 
   function handleConfirm() {
     const img = imgRef.current
-    if (!img || natural.w === 0) return
+    if (!img) return
+    const w = natural.w || img.naturalWidth
+    const h = natural.h || img.naturalHeight
+    if (w === 0 || h === 0) return
+    const base = Math.max(CROP_SIZE / w, CROP_SIZE / h)
+    const sc = base * zoom
     const canvas = document.createElement('canvas')
     canvas.width = OUTPUT_SIZE
     canvas.height = OUTPUT_SIZE
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-    const sx = -offset.x / scale
-    const sy = -offset.y / scale
-    const sw = CROP_SIZE / scale
-    const sh = CROP_SIZE / scale
+    // Se natural ainda não atualizou no state, usa offset centralizado
+    const ox = natural.w > 0 ? offset.x : (CROP_SIZE - w * base) / 2
+    const oy = natural.h > 0 ? offset.y : (CROP_SIZE - h * base) / 2
+    const sx = -ox / sc
+    const sy = -oy / sc
+    const sw = CROP_SIZE / sc
+    const sh = CROP_SIZE / sc
     ctx.drawImage(img, sx, sy, sw, sh, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE)
     canvas.toBlob(
       (blob) => {

@@ -11,7 +11,6 @@ import {
   type PerfilPublicoTransportador,
 } from '../../lib/perfilPublicoTransportador'
 import { fileToDataUrl, isAcceptedImageFile } from '../../lib/veiculoFotos'
-import { ImageCropModal } from '../ui/ImageCropModal'
 import { Field, inputClass } from '../ui/Modal'
 
 type Props = {
@@ -29,6 +28,7 @@ type Props = {
     | 'cnpj'
     | 'inscricao_estadual'
     | 'logo_url'
+    | 'id'
   >
 }
 
@@ -36,31 +36,37 @@ export function TransportadorPerfilEditor({ value, onChange, empresa }: Props) {
   const [form, setForm] = useState<PerfilPublicoTransportador>(() =>
     normalizePerfilPublico(value ?? EMPTY_PERFIL_PUBLICO),
   )
+  const formRef = useRef(form)
+  formRef.current = form
+
   const [espText, setEspText] = useState(() =>
     listaParaLinhas(normalizePerfilPublico(value).especialidades),
   )
   const [servText, setServText] = useState(() =>
     listaParaLinhas(normalizePerfilPublico(value).servicos),
   )
-  /** 5 slots fixos no editor (ordem igual ao Ver perfil). */
   const [slots, setSlots] = useState<string[]>(() =>
     galeriaSlots(normalizePerfilPublico(value).galeria),
   )
-  const [cropSlot, setCropSlot] = useState<number | null>(null)
-  const [cropFile, setCropFile] = useState<File | null>(null)
   const [fotoErro, setFotoErro] = useState('')
-  const fileRefs = useRef<(HTMLInputElement | null)[]>([])
+  const [fotoBusy, setFotoBusy] = useState<number | null>(null)
 
+  // Hidrata só ao trocar de empresa (evita apagar fotos enquanto o usuário edita)
+  const empresaKey = empresa?.id ?? 'sem-empresa'
   useEffect(() => {
     const n = normalizePerfilPublico(value)
     setForm(n)
+    formRef.current = n
     setEspText(listaParaLinhas(n.especialidades))
     setServText(listaParaLinhas(n.servicos))
     setSlots(galeriaSlots(n.galeria))
-  }, [value])
+    setFotoErro('')
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- value só na troca de empresa
+  }, [empresaKey])
 
   function patch(partial: Partial<PerfilPublicoTransportador>) {
-    const next = { ...form, ...partial }
+    const next = { ...formRef.current, ...partial }
+    formRef.current = next
     setForm(next)
     onChange(next)
   }
@@ -68,21 +74,23 @@ export function TransportadorPerfilEditor({ value, onChange, empresa }: Props) {
   function commitSlots(nextSlots: string[]) {
     setSlots(nextSlots)
     const galeria = compactGaleriaSlots(nextSlots)
-    const full = { ...form, galeria }
+    const full = { ...formRef.current, galeria }
+    formRef.current = full
     setForm(full)
     onChange(full)
   }
 
-  function applySlot(index: number, url: string) {
-    const next = [...slots]
-    next[index] = url
-    commitSlots(next)
-  }
-
   function clearSlot(index: number) {
-    const next = [...slots]
-    next[index] = ''
-    commitSlots(next)
+    setSlots((prev) => {
+      const next = [...prev]
+      next[index] = ''
+      const galeria = compactGaleriaSlots(next)
+      const full = { ...formRef.current, galeria }
+      formRef.current = full
+      setForm(full)
+      onChange(full)
+      return next
+    })
   }
 
   function onPickFile(index: number, file: File | undefined) {
@@ -96,8 +104,24 @@ export function TransportadorPerfilEditor({ value, onChange, empresa }: Props) {
       return
     }
     setFotoErro('')
-    setCropSlot(index)
-    setCropFile(file)
+    setFotoBusy(index)
+    void fileToDataUrl(file)
+      .then((url) => {
+        setSlots((prev) => {
+          const next = [...prev]
+          next[index] = url
+          const galeria = compactGaleriaSlots(next)
+          const full = { ...formRef.current, galeria }
+          formRef.current = full
+          setForm(full)
+          onChange(full)
+          return next
+        })
+      })
+      .catch(() => {
+        setFotoErro('Não foi possível carregar a imagem. Tente outro arquivo.')
+      })
+      .finally(() => setFotoBusy(null))
   }
 
   const cidade = [empresa?.origem_cidade || empresa?.cidade, empresa?.origem_uf || empresa?.uf]
@@ -189,7 +213,8 @@ export function TransportadorPerfilEditor({ value, onChange, empresa }: Props) {
       <div className="rounded-xl border border-ink/10 bg-sand-light/40 p-3">
         <p className="text-sm font-semibold text-ink">Personalize sua página</p>
         <p className="mt-1 text-xs text-ink-muted">
-          Até {GALERIA_PERFIL_MAX} imagens exibidas abaixo do mapa no “Ver perfil”.
+          Até {GALERIA_PERFIL_MAX} imagens abaixo do mapa no “Ver perfil”. Clique no
+          quadro e escolha a foto (JPG, PNG ou WEBP).
         </p>
         <div
           className="mt-3 grid gap-2"
@@ -201,72 +226,69 @@ export function TransportadorPerfilEditor({ value, onChange, empresa }: Props) {
               className="relative flex aspect-square flex-col overflow-hidden rounded-lg border border-ink/12 bg-white"
             >
               {src ? (
-                <>
-                  <img
-                    src={src}
-                    alt={`Foto ${index + 1}`}
-                    className="h-full w-full object-cover"
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-1 top-1 rounded bg-ink/80 px-1.5 py-0.5 text-[10px] font-semibold text-white"
-                    onClick={() => clearSlot(index)}
-                  >
-                    Remover
-                  </button>
-                  <button
-                    type="button"
-                    className="absolute bottom-1 left-1 rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold text-ink shadow"
-                    onClick={() => fileRefs.current[index]?.click()}
-                  >
-                    Trocar
-                  </button>
-                </>
+                <img
+                  src={src}
+                  alt={`Foto ${index + 1}`}
+                  className="pointer-events-none h-full w-full object-cover"
+                />
               ) : (
+                <div className="pointer-events-none flex h-full w-full flex-col items-center justify-center gap-1 px-1 text-center text-[11px] font-semibold text-ink-muted">
+                  <span className="text-lg leading-none">+</span>
+                  {fotoBusy === index ? 'Carregando…' : `Foto ${index + 1}`}
+                </div>
+              )}
+
+              {/* Input cobre o quadro — clique sempre abre o seletor de arquivo */}
+              <label
+                className="absolute inset-0 z-[1] cursor-pointer"
+                title={src ? 'Trocar foto' : `Adicionar foto ${index + 1}`}
+              >
+                <span
+                  style={{
+                    position: 'absolute',
+                    width: 1,
+                    height: 1,
+                    padding: 0,
+                    margin: -1,
+                    overflow: 'hidden',
+                    clip: 'rect(0,0,0,0)',
+                    whiteSpace: 'nowrap',
+                    border: 0,
+                  }}
+                >
+                  {src ? `Trocar foto ${index + 1}` : `Adicionar foto ${index + 1}`}
+                </span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/jpg,.jpg,.jpeg,.png,.webp"
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  disabled={fotoBusy != null}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    e.target.value = ''
+                    onPickFile(index, f)
+                  }}
+                />
+              </label>
+
+              {src ? (
                 <button
                   type="button"
-                  className="flex h-full w-full flex-col items-center justify-center gap-1 px-1 text-center text-[11px] font-semibold text-ink-muted hover:bg-sand-light"
-                  onClick={() => fileRefs.current[index]?.click()}
+                  className="absolute right-1 top-1 z-[2] rounded bg-ink/85 px-1.5 py-0.5 text-[10px] font-semibold text-white"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    clearSlot(index)
+                  }}
                 >
-                  <span className="text-lg leading-none">+</span>
-                  Foto {index + 1}
+                  Remover
                 </button>
-              )}
-              <input
-                ref={(el) => {
-                  fileRefs.current[index] = el
-                }}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={(e) => {
-                  onPickFile(index, e.target.files?.[0])
-                  e.target.value = ''
-                }}
-              />
+              ) : null}
             </div>
           ))}
         </div>
         {fotoErro ? <p className="mt-2 text-xs text-red-700">{fotoErro}</p> : null}
       </div>
-
-      <ImageCropModal
-        open={cropSlot != null && Boolean(cropFile)}
-        file={cropFile}
-        shape="square"
-        title={`Ajustar foto ${cropSlot != null ? cropSlot + 1 : ''}`}
-        onCancel={() => {
-          setCropSlot(null)
-          setCropFile(null)
-        }}
-        onConfirm={(file) => {
-          const idx = cropSlot
-          setCropSlot(null)
-          setCropFile(null)
-          if (idx == null) return
-          void fileToDataUrl(file).then((url) => applySlot(idx, url))
-        }}
-      />
     </div>
   )
 }
