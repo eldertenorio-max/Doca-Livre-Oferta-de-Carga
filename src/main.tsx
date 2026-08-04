@@ -6,44 +6,36 @@ import { DataProvider } from './context/DataContext'
 import App from './App'
 import './index.css'
 
-// Service worker cedo — necessário para o Chrome oferecer “Instalar app”.
-// onNeedRefresh: força atualização assim que houver build novo (evita tela travada em versão antiga).
-const BUILD_STAMP = 'oferta7-20260803-av-portal'
-
-async function hardRefreshApp() {
-  const key = `doca-sw-refreshed:${BUILD_STAMP}`
-  try {
-    if (sessionStorage.getItem(key)) return
-    sessionStorage.setItem(key, '1')
-  } catch {
-    /* ignore */
-  }
-  try {
-    if ('caches' in window) {
-      const keys = await caches.keys()
-      await Promise.all(keys.map((k) => caches.delete(k)))
-    }
-  } catch {
-    /* ignore */
-  }
-  window.location.reload()
-}
-
+/**
+ * Service worker para PWA / push — sem recarregar a página sozinho.
+ * Novo deploy: o SW baixado fica em espera; só entra no próximo F5
+ * (reload manual) do usuário, para não interromper formulários abertos.
+ */
 const updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
-    void updateSW(true).then(() => {
-      void hardRefreshApp()
-    })
+    // Não chama updateSW(true) nem location.reload() —
+    // a versão nova ativa só no próximo carregamento completo (F5).
+  },
+  onOfflineReady() {
+    /* ok */
   },
   onRegisteredSW(_url, registration) {
     if (!registration) return
-    void registration.update()
+    // Se já havia um SW em espera (usuário acabou de dar F5 após um deploy),
+    // ativa sem forçar um segundo reload no meio da sessão.
+    if (registration.waiting) {
+      registration.waiting.postMessage({ type: 'SKIP_WAITING' })
+    }
+    // Descobre updates em segundo plano (baixa o SW, fica waiting). Raro o suficiente.
     window.setInterval(() => {
       void registration.update()
-    }, 30_000)
+    }, 5 * 60_000)
   },
 })
+
+// Mantém referência se a API do plugin exigir (evita tree-shake do updateSW).
+void updateSW
 
 // HashRouter: F5 em /#/login funciona no Render Static Site sem rewrite no painel.
 createRoot(document.getElementById('root')!).render(

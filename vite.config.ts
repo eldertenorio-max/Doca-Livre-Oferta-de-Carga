@@ -8,7 +8,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // prompt: não troca o app sozinho (autoUpdate forçava reload no meio do trabalho)
+      registerType: 'prompt',
       injectRegister: false,
       includeAssets: [
         'favicon.svg',
@@ -70,9 +71,9 @@ export default defineConfig({
         navigateFallback: 'index.html',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webp}'],
         importScripts: ['push-sw.js'],
-        // Ativa a versão nova assim que publicada, sem esperar todas as abas fecharem
-        skipWaiting: true,
-        clientsClaim: true,
+        // Nova versão não assume o controle até o usuário recarregar a página
+        skipWaiting: false,
+        clientsClaim: false,
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
