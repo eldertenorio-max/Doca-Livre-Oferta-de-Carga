@@ -343,67 +343,79 @@ export function TransportadorPerfilSite({
                 type="button"
                 className="tv-perfil__lightbox-close"
                 aria-label="Fechar foto"
-                onClick={() => setFotoZoomIdx(null)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setFotoZoomIdx(null)
+                }}
               >
-                <X size={20} />
+                <X size={22} />
               </button>
 
-              {galeria.length > 1 ? (
-                <button
-                  type="button"
-                  className="tv-perfil__lightbox-nav tv-perfil__lightbox-nav--prev"
-                  aria-label="Foto anterior"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    fotoAnterior(e)
-                  }}
-                >
-                  <ChevronLeft size={28} strokeWidth={2.5} />
-                </button>
-              ) : null}
-
               <div
-                className="tv-perfil__lightbox-stage"
+                className="tv-perfil__lightbox-frame"
                 onClick={(e) => e.stopPropagation()}
               >
-                <img src={fotoZoom} alt={`Foto ampliada ${fotoZoomIdx + 1}`} />
-                {galeria.length > 1 ? (
-                  <p className="tv-perfil__lightbox-count">
-                    {fotoZoomIdx + 1} / {galeria.length}
-                  </p>
-                ) : null}
-                {galeria.length > 1 ? (
-                  <div className="tv-perfil__lightbox-thumbs">
-                    {galeria.map((src, i) => (
+                <div className="tv-perfil__lightbox-photo-wrap">
+                  {/* Setas sempre sobre a imagem — não dependem da largura da tela */}
+                  {galeria.length > 1 ? (
+                    <>
                       <button
-                        key={`lb-${i}`}
                         type="button"
-                        className={`tv-perfil__lightbox-thumb${
-                          i === fotoZoomIdx ? ' is-on' : ''
-                        }`}
-                        onClick={() => setFotoZoomIdx(i)}
-                        aria-label={`Ir para foto ${i + 1}`}
+                        className="tv-perfil__lightbox-arrow tv-perfil__lightbox-arrow--left"
+                        aria-label="Foto anterior"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          fotoAnterior()
+                        }}
                       >
-                        <img src={src} alt="" />
+                        <ChevronLeft size={32} strokeWidth={2.5} />
+                        <span className="tv-perfil__lightbox-arrow-fallback" aria-hidden>
+                          ‹
+                        </span>
                       </button>
-                    ))}
-                  </div>
+                      <button
+                        type="button"
+                        className="tv-perfil__lightbox-arrow tv-perfil__lightbox-arrow--right"
+                        aria-label="Próxima foto"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          fotoProxima()
+                        }}
+                      >
+                        <ChevronRight size={32} strokeWidth={2.5} />
+                        <span className="tv-perfil__lightbox-arrow-fallback" aria-hidden>
+                          ›
+                        </span>
+                      </button>
+                    </>
+                  ) : null}
+
+                  <img src={fotoZoom} alt={`Foto ampliada ${fotoZoomIdx + 1}`} />
+                </div>
+
+                {galeria.length > 1 ? (
+                  <>
+                    <p className="tv-perfil__lightbox-count">
+                      {fotoZoomIdx + 1} / {galeria.length}
+                    </p>
+                    <div className="tv-perfil__lightbox-thumbs">
+                      {galeria.map((src, i) => (
+                        <button
+                          key={`lb-${i}`}
+                          type="button"
+                          className={`tv-perfil__lightbox-thumb${
+                            i === fotoZoomIdx ? ' is-on' : ''
+                          }`}
+                          onClick={() => setFotoZoomIdx(i)}
+                          aria-label={`Ir para foto ${i + 1}`}
+                        >
+                          <img src={src} alt="" />
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 ) : null}
               </div>
-
-              {galeria.length > 1 ? (
-                <button
-                  type="button"
-                  className="tv-perfil__lightbox-nav tv-perfil__lightbox-nav--next"
-                  aria-label="Próxima foto"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    fotoProxima(e)
-                  }}
-                >
-                  <ChevronRight size={28} strokeWidth={2.5} />
-                </button>
-              ) : null}
             </div>,
             document.body,
           )

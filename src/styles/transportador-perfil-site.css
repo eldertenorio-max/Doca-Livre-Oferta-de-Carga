@@ -300,63 +300,132 @@
 .tv-perfil__lightbox {
   position: fixed;
   inset: 0;
-  z-index: 14000;
+  z-index: 200000;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 24px 56px;
-  background: rgb(15 23 42 / 0.78);
+  padding: 48px 16px 24px;
+  background: rgb(15 23 42 / 0.82);
+  box-sizing: border-box;
 }
 
-.tv-perfil__lightbox-stage {
+.tv-perfil__lightbox-frame {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  max-width: min(920px, 92vw);
+  gap: 12px;
+  width: min(920px, 100%);
+  max-height: 100%;
 }
 
-.tv-perfil__lightbox-stage > img {
-  max-width: min(920px, 92vw);
-  max-height: min(72dvh, 720px);
-  border-radius: 12px;
-  box-shadow: 0 20px 48px rgb(0 0 0 / 0.4);
-  object-fit: contain;
+.tv-perfil__lightbox-photo-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 200px;
   background: #0f172a;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 48px rgb(0 0 0 / 0.45);
+}
+
+.tv-perfil__lightbox-photo-wrap > img {
+  display: block;
+  max-width: 100%;
+  max-height: min(68dvh, 680px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  margin: 0 auto;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Setas grandes sobre a foto, sempre clicáveis */
+.tv-perfil__lightbox-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  margin: 0;
+  padding: 0;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #e8c547;
+  color: #0f172a;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.35);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tv-perfil__lightbox-arrow--left {
+  left: 10px;
+}
+
+.tv-perfil__lightbox-arrow--right {
+  right: 10px;
+}
+
+.tv-perfil__lightbox-arrow:hover {
+  background: #f0d44a;
+}
+
+.tv-perfil__lightbox-arrow:active {
+  transform: translateY(-50%) scale(0.96);
+}
+
+.tv-perfil__lightbox-arrow svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+/* Sem texto de fallback com SVG (evita ‹ sobreposto) */
+.tv-perfil__lightbox-arrow-fallback {
+  display: none !important;
 }
 
 .tv-perfil__lightbox-count {
   margin: 0;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #e2e8f0;
-  letter-spacing: 0.04em;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #f8fafc;
+  letter-spacing: 0.06em;
 }
 
 .tv-perfil__lightbox-thumbs {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 6px;
-  max-width: min(520px, 90vw);
+  gap: 8px;
+  max-width: 100%;
 }
 
 .tv-perfil__lightbox-thumb {
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   padding: 0;
-  border: 2px solid transparent;
+  border: 2px solid rgba(255, 255, 255, 0.35);
   border-radius: 8px;
   overflow: hidden;
   background: #1e293b;
   cursor: pointer;
-  opacity: 0.7;
+  opacity: 0.75;
 }
 
 .tv-perfil__lightbox-thumb.is-on {
   border-color: #e8c547;
   opacity: 1;
+  box-shadow: 0 0 0 2px rgb(232 197 71 / 0.45);
 }
 
 .tv-perfil__lightbox-thumb img {
@@ -370,61 +439,39 @@
   max-height: none;
 }
 
-.tv-perfil__lightbox-nav {
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border: none;
-  border-radius: 999px;
-  background: #fff;
-  color: #0f172a;
-  cursor: pointer;
-  box-shadow: 0 6px 18px rgb(0 0 0 / 0.25);
-  transition: transform 0.12s ease, background 0.12s ease;
-}
-
-.tv-perfil__lightbox-nav:hover {
-  background: #f8fafc;
-  transform: scale(1.05);
-}
-
-.tv-perfil__lightbox-nav:active {
-  transform: scale(0.97);
-}
-
 .tv-perfil__lightbox-close {
   position: fixed;
-  top: 16px;
-  right: 16px;
-  z-index: 14001;
+  top: 14px;
+  right: 14px;
+  z-index: 200001;
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: none;
   border-radius: 10px;
   background: #fff;
   color: #0f172a;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgb(0 0 0 / 0.2);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.25);
 }
 
 @media (max-width: 640px) {
   .tv-perfil__lightbox {
-    padding: 56px 8px 24px;
-    gap: 4px;
+    padding: 52px 10px 16px;
   }
 
-  .tv-perfil__lightbox-nav {
-    width: 40px;
-    height: 40px;
+  .tv-perfil__lightbox-arrow {
+    width: 44px;
+    height: 44px;
   }
 
-  .tv-perfil__lightbox-nav svg {
-    width: 22px;
-    height: 22px;
+  .tv-perfil__lightbox-arrow--left {
+    left: 6px;
+  }
+
+  .tv-perfil__lightbox-arrow--right {
+    right: 6px;
   }
 }
 
