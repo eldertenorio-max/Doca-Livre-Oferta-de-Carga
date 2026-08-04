@@ -166,19 +166,33 @@
 
 .transp-card__mais {
   margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   align-self: flex-start;
   border: 0;
   background: transparent;
-  color: #1d4ed8;
+  color: #0f172a;
   font: inherit;
   font-size: 0.78rem;
-  font-weight: 800;
-  cursor: pointer;
+  font-weight: 700;
   padding: 0;
+  cursor: default;
 }
 
-.transp-card__mais:hover {
-  text-decoration: underline;
+.transp-card__mais--local {
+  color: #334155;
+}
+
+.transp-card__mais--local.is-empty {
+  color: #94a3b8;
+  font-weight: 600;
+  font-style: italic;
+}
+
+.transp-card__mais svg {
+  flex-shrink: 0;
+  color: #dc2626;
 }
 
 .transp-card__acoes {

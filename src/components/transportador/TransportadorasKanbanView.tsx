@@ -312,6 +312,9 @@ export function TransportadorasKanbanView({
               const tel = t.contato_telefone || t.telefone
               const wa = whatsappLink(tel)
               const naCotacao = cotacaoIds.includes(t.id)
+              const cidade = (t.origem_cidade || t.cidade || '').trim()
+              const uf = (t.origem_uf || t.uf || '').trim().toUpperCase()
+              const cidadeUf = [cidade, uf].filter(Boolean).join(' / ')
               return (
                 <article
                   key={t.id}
@@ -346,13 +349,16 @@ export function TransportadorasKanbanView({
                         <a href={`mailto:${t.email}`}>{t.email}</a>
                       </p>
                     ) : null}
-                    <button
-                      type="button"
-                      className="transp-card__mais"
-                      onClick={() => setPerfilId(t.id)}
-                    >
-                      + Ver mais informações
-                    </button>
+                    {cidadeUf ? (
+                      <p className="transp-card__mais transp-card__mais--local">
+                        <MapPin size={13} aria-hidden />
+                        {cidadeUf}
+                      </p>
+                    ) : (
+                      <p className="transp-card__mais transp-card__mais--local is-empty">
+                        Cidade / UF não informados
+                      </p>
+                    )}
                   </div>
                   <div className="transp-card__acoes">
                     <button
