@@ -381,6 +381,29 @@
   padding: 0 !important;
 }
 
+.tv-perfil__contato li {
+  margin: 0 0 6px;
+  line-height: 1.45;
+}
+
+.tv-perfil__endereco {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.tv-perfil__endereco svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: #dc2626;
+}
+
+.tv-perfil__mapa-meta {
+  line-height: 1.45;
+  white-space: normal;
+}
+
 .tv-perfil__actions {
   display: flex;
   flex-wrap: wrap;

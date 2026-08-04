@@ -25,6 +25,34 @@ function whatsappLink(raw?: string | null) {
   return `https://wa.me/${full}`
 }
 
+function formatCepBr(cep?: string | null): string {
+  const d = (cep || '').replace(/\D/g, '').slice(0, 8)
+  if (d.length !== 8) return (cep || '').trim()
+  return `${d.slice(0, 5)}-${d.slice(5)}`
+}
+
+/** Endereço completo (origem operacional, com fallback do cadastro CNPJ). */
+function enderecoCompletoTransportador(t: Transportador): string {
+  const rua = (t.origem_endereco || t.endereco || '').trim()
+  const numero = (t.origem_numero || t.numero || '').trim()
+  const complem = (t.origem_complemento || t.complemento || '').trim()
+  const bairro = (t.origem_bairro || t.bairro || '').trim()
+  const cidade = (t.origem_cidade || t.cidade || '').trim()
+  const uf = (t.origem_uf || t.uf || '').trim().toUpperCase()
+  const cepRaw = (t.origem_cep || t.cep || '').trim()
+  const cep = formatCepBr(cepRaw)
+
+  const logradouro = [rua, numero].filter(Boolean).join(', ')
+  const partes: string[] = []
+  if (logradouro) partes.push(logradouro)
+  if (complem) partes.push(complem)
+  if (bairro) partes.push(bairro)
+  const cidadeUf = [cidade, uf].filter(Boolean).join(' / ')
+  if (cidadeUf) partes.push(cidadeUf)
+  if (cep) partes.push(`CEP ${cep}`)
+  return partes.join(' · ')
+}
+
 export function TransportadorPerfilSite({
   transportador: t,
   onClose,
@@ -50,10 +78,13 @@ export function TransportadorPerfilSite({
   const localTxt = [t.origem_cidade || t.cidade, t.origem_uf || t.uf]
     .filter(Boolean)
     .join('/')
+  const enderecoCompleto = enderecoCompletoTransportador(t)
   const mapsUrl = temCoords
     ? `https://www.google.com/maps?q=${lat},${lng}`
-    : localTxt
-      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(localTxt)}`
+    : enderecoCompleto || localTxt
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+          enderecoCompleto || localTxt,
+        )}`
       : null
 
   useEffect(() => {
@@ -158,7 +189,15 @@ export function TransportadorPerfilSite({
               {tel ? <li>Telefone / WhatsApp: {formatPhoneBr(tel)}</li> : null}
               {t.email ? <li>E-mail: {t.email}</li> : null}
               {t.rntrc ? <li>RNTRC: {t.rntrc}</li> : null}
-              {!tel && !t.email && !t.contato_nome ? (
+              {enderecoCompleto ? (
+                <li className="tv-perfil__endereco">
+                  <MapPin size={14} aria-hidden />
+                  <span>
+                    <strong>Endereço:</strong> {enderecoCompleto}
+                  </span>
+                </li>
+              ) : null}
+              {!tel && !t.email && !t.contato_nome && !enderecoCompleto ? (
                 <li className="tv-perfil__empty">Sem informações</li>
               ) : null}
             </ul>
@@ -228,7 +267,7 @@ export function TransportadorPerfilSite({
                   className="tv-perfil__mapa-preview"
                 />
                 <p className="tv-perfil__mapa-meta">
-                  {localTxt || 'Origem cadastrada'}
+                  {enderecoCompleto || localTxt || 'Origem cadastrada'}
                   {Number(t.raio_km) > 0 ? ` · raio ${t.raio_km} km` : ''}
                 </p>
               </>
