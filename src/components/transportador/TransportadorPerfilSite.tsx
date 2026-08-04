@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ExternalLink, Mail, MapPin, X } from 'lucide-react'
 import type { Transportador } from '../../types'
@@ -32,6 +32,8 @@ export function TransportadorPerfilSite({
   asModal = true,
 }: Props) {
   const perfil = normalizePerfilPublico(t.perfil_publico)
+  const galeria = perfil.galeria.filter(Boolean).slice(0, 5)
+  const [fotoZoom, setFotoZoom] = useState<string | null>(null)
   const cidadeUf = [t.origem_cidade || t.cidade, t.origem_uf || t.uf]
     .filter(Boolean)
     .join('-')
@@ -235,9 +237,54 @@ export function TransportadorPerfilSite({
                 Esta transportadora ainda não tem coordenadas de origem no mapa.
               </p>
             )}
+
+            {galeria.length > 0 ? (
+              <div className="tv-perfil__galeria">
+                <h3 className="tv-perfil__galeria-title">Galeria</h3>
+                <div className="tv-perfil__galeria-grid">
+                  {galeria.map((src, i) => (
+                    <button
+                      key={`${i}-${src.slice(0, 24)}`}
+                      type="button"
+                      className="tv-perfil__galeria-item"
+                      onClick={() => setFotoZoom(src)}
+                      title="Ampliar"
+                    >
+                      <img src={src} alt={`Foto da empresa ${i + 1}`} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         </aside>
       </div>
+
+      {fotoZoom
+        ? createPortal(
+            <div
+              className="tv-perfil__lightbox"
+              role="dialog"
+              aria-modal="true"
+              onClick={() => setFotoZoom(null)}
+            >
+              <button
+                type="button"
+                className="tv-perfil__lightbox-close"
+                aria-label="Fechar foto"
+                onClick={() => setFotoZoom(null)}
+              >
+                <X size={20} />
+              </button>
+              <img
+                src={fotoZoom}
+                alt="Foto ampliada"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>,
+            document.body,
+          )
+        : null}
     </article>
   )
 

@@ -372,8 +372,8 @@ export function ConfiguracoesTransportadorPage() {
             <div>
               <h2 className="font-display text-base font-semibold">Portfólio</h2>
               <Hint>
-                Página da sua transportadora (estilo site). Preencha apresentação, serviços e
-                referências — o embarcador e o mapa usam estes dados.
+                Página da sua transportadora (estilo site). Preencha apresentação, serviços,
+                referências e personalize com até 5 imagens abaixo do mapa.
               </Hint>
             </div>
             <button
