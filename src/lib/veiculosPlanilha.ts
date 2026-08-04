@@ -279,8 +279,7 @@ export function parsePlanilhaVeiculosRows(rows: string[][]): {
 
     let frete = parseMoneyInput(cell(raw, 'frete_minimo'))
     if (!Number.isFinite(frete) || frete <= 0) {
-      const alt = parseNum(cell(raw, 'frete_minimo'))
-      frete = alt != null ? roundMoney(alt) : NaN
+      frete = parseMoneyInput(String(cells[colMap.get('frete_minimo') ?? -1] ?? ''))
     }
     if (!Number.isFinite(frete) || frete <= 0) erros.push('Frete mínimo deve ser > 0')
 
@@ -384,14 +383,21 @@ export async function parsePlanilhaVeiculosArquivo(file: File): Promise<{
     return { headersOk: false, missingHeaders: [...VEICULO_PLANILHA_HEADERS], linhas: [] }
   }
   const sheet = wb.Sheets[sheetName]
-  const aoa = XLSX.utils.sheet_to_json<(string | number | null | undefined)[]>(sheet, {
+  // raw:true preserva número do Excel (650) em vez de "R$ 650.00" que o parser antigo multiplicava
+  const aoaRaw = XLSX.utils.sheet_to_json<(string | number | null | undefined)[]>(sheet, {
     header: 1,
     defval: '',
-    raw: false,
+    raw: true,
     blankrows: false,
   })
-  const rows = aoa.map((row) =>
-    (Array.isArray(row) ? row : []).map((c) => String(c ?? '').trim()),
+  const rows = aoaRaw.map((row) =>
+    (Array.isArray(row) ? row : []).map((c) => {
+      if (typeof c === 'number' && Number.isFinite(c)) {
+        // Evita "650.00" com ponto confuso: manda inteiro se for reals inteiros
+        return Number.isInteger(c) ? String(c) : String(c)
+      }
+      return String(c ?? '').trim()
+    }),
   )
   return parsePlanilhaVeiculosRows(rows)
 }

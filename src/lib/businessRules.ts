@@ -80,14 +80,53 @@ export function moneyFromDigits(raw: string, maxDigits = 12): { display: string;
   return { display: formatMoneyInput(value), value }
 }
 
-/** Converte texto pt-BR / en-US em número (2 casas). */
-export function parseMoneyInput(raw: string): number {
-  const s = raw.trim()
-  if (!s) return NaN
-  let normalized = s
-  if (s.includes(',')) {
-    normalized = s.replace(/\./g, '').replace(',', '.')
+/** Converte texto pt-BR / en-US / Excel (R$ 650.00) em número (2 casas). */
+export function parseMoneyInput(raw: string | number | null | undefined): number {
+  if (typeof raw === 'number') {
+    return Number.isFinite(raw) ? roundMoney(raw) : NaN
   }
+  const original = String(raw ?? '').trim()
+  if (!original) return NaN
+
+  // Remove símbolos de moeda e espaços (ex.: "R$ 650.00", "R$1.234,56")
+  let s = original
+    .replace(/R\$\s*/gi, '')
+    .replace(/\s/g, '')
+    .replace(/[^\d,.\-]/g, '')
+  if (!s || s === '-' || s === '.' || s === ',') return NaN
+
+  const hasComma = s.includes(',')
+  const hasDot = s.includes('.')
+  let normalized: string
+
+  if (hasComma && hasDot) {
+    // Último separador = decimal
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+      // 1.234,56 (pt-BR)
+      normalized = s.replace(/\./g, '').replace(',', '.')
+    } else {
+      // 1,234.56 (en-US)
+      normalized = s.replace(/,/g, '')
+    }
+  } else if (hasComma) {
+    // 3500,00 ou 3.500,00 sem ponto já tratado; ou 3500,5
+    const m = s.match(/^-?\d+,(\d{1,2})$/)
+    if (m) normalized = s.replace(',', '.')
+    else normalized = s.replace(/,/g, '')
+  } else if (hasDot) {
+    const parts = s.split('.')
+    const afterLast = parts[parts.length - 1] ?? ''
+    // Um ponto + 1–2 dígitos = decimal en-US/Excel ("650.00", "1.5")
+    if (parts.length === 2 && afterLast.length <= 2) {
+      normalized = s
+    } else {
+      // pt-BR milhar: "1.234" ou "1.234.567"
+      normalized = s.replace(/\./g, '')
+    }
+  } else {
+    normalized = s
+  }
+
   const n = Number(normalized)
   return Number.isFinite(n) ? roundMoney(n) : NaN
 }
