@@ -202,25 +202,34 @@ export function parsePlanilhaMotoristasRows(rows: string[][]): {
     return { headersOk: false, missingHeaders: [...MOTORISTA_PLANILHA_HEADERS], linhas: [] }
   }
 
-  const headerCells = (nonEmpty[0] ?? []).map((h) => normalizeHeader(String(h ?? '')))
-  const headerIndex = new Map<string, number>()
-  headerCells.forEach((h, i) => {
-    if (h) headerIndex.set(h, i)
-  })
-
-  const colMap = new Map<MotoristaPlanilhaHeader, number>()
-  for (const [alias, canon] of Object.entries(ALIASES)) {
-    const idx = headerIndex.get(alias)
-    if (idx != null && !colMap.has(canon)) colMap.set(canon, idx)
+  // Procura a linha de cabeçalho nas primeiras 8 linhas (titulo / instruções acima)
+  let headerRowIdx = 0
+  let colMap = new Map<MotoristaPlanilhaHeader, number>()
+  let missingHeaders: MotoristaPlanilhaHeader[] = ['nome', 'placa']
+  for (let r = 0; r < Math.min(8, nonEmpty.length); r++) {
+    const headerCells = (nonEmpty[r] ?? []).map((h) => normalizeHeader(String(h ?? '')))
+    const headerIndex = new Map<string, number>()
+    headerCells.forEach((h, i) => {
+      if (h) headerIndex.set(h, i)
+    })
+    const map = new Map<MotoristaPlanilhaHeader, number>()
+    for (const [alias, canon] of Object.entries(ALIASES)) {
+      const idx = headerIndex.get(alias)
+      if (idx != null && !map.has(canon)) map.set(canon, idx)
+    }
+    const missing = (['nome', 'placa'] as MotoristaPlanilhaHeader[]).filter((h) => !map.has(h))
+    if (missing.length < missingHeaders.length) {
+      headerRowIdx = r
+      colMap = map
+      missingHeaders = missing
+    }
+    if (missing.length === 0) break
   }
 
-  const missingHeaders = (['nome', 'placa'] as MotoristaPlanilhaHeader[]).filter(
-    (h) => !colMap.has(h),
-  )
   const headersOk = missingHeaders.length === 0
 
   const linhas: LinhaMotoristaPlanilha[] = []
-  for (let i = 1; i < nonEmpty.length; i++) {
+  for (let i = headerRowIdx + 1; i < nonEmpty.length; i++) {
     const cells = nonEmpty[i] ?? []
     const raw: Record<string, string> = {}
     for (const h of MOTORISTA_PLANILHA_HEADERS) {
@@ -229,12 +238,13 @@ export function parsePlanilhaMotoristasRows(rows: string[][]): {
     }
 
     const nome = cell(raw, 'nome').trim()
+    // Excel às vezes devolve placa em minúsculo ou com hífen
     const placa = normPlaca(cell(raw, 'placa'))
     if (!nome && !placa) continue
 
     const erros: string[] = []
     if (!nome || nome.length < 2) erros.push('Nome obrigatório')
-    if (!placa || placa.length < 7) erros.push('Placa inválida ou ausente')
+    if (!placa || placa.length < 7) erros.push('Placa inválida ou ausente (ex.: ABC1D23)')
 
     const catRaw = cell(raw, 'categoria_cnh').toUpperCase().replace(/\s+/g, '')
     let categoria_cnh: string | undefined
@@ -268,6 +278,7 @@ export function parsePlanilhaMotoristasRows(rows: string[][]): {
           }
         : undefined
 
+    // Número da linha no Excel-ish (1-based + 1 se a 1ª for cabeçalho não é exato)
     linhas.push({
       linha: i + 1,
       raw,
@@ -364,23 +375,26 @@ export function montarMotoristasParaImportacao(
     const erros: string[] = []
     const v = byPlaca.get(m.placa)
     if (!v) {
-      erros.push(`Placa ${m.placa} não encontrada no cadastro de veículos`)
+      erros.push(
+        `Placa ${m.placa} não encontrada no cadastro de veículos — cadastre a placa antes de importar o motorista`,
+      )
     } else if (
       !m.autonomo &&
       transportadorId &&
       v.transportador_id &&
       v.transportador_id !== transportadorId
     ) {
-      erros.push(`Placa ${m.placa} pertence a outra transportadora`)
+      erros.push(
+        `Placa ${m.placa} pertence a outra transportadora (selecione a empresa certa ou cadastre a placa nela)`,
+      )
     }
-
+    if (seenPlaca.has(m.placa)) {
+      erros.push(`Placa ${m.placa} repetida na planilha`)
+    }
     if (m.cpf) {
       if (cpfsExist.has(m.cpf) || seenCpf.has(m.cpf)) {
         erros.push(`CPF ${m.cpf} já cadastrado ou duplicado na planilha`)
       }
-    }
-    if (seenPlaca.has(m.placa)) {
-      erros.push(`Placa ${m.placa} repetida na planilha`)
     }
 
     if (erros.length > 0) {

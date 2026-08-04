@@ -38,9 +38,6 @@ export function ImportarMotoristasModal({
   const [concluidoQtd, setConcluidoQtd] = useState<number | null>(null)
   const [detalheDup, setDetalheDup] = useState(false)
   const [detalheErro, setDetalheErro] = useState(false)
-  const [errosMontagem, setErrosMontagem] = useState<Array<{ linha: number; erros: string[] }>>(
-    [],
-  )
 
   useEffect(() => {
     if (!open) return
@@ -53,7 +50,6 @@ export function ImportarMotoristasModal({
     setConcluidoQtd(null)
     setDetalheDup(false)
     setDetalheErro(false)
-    setErrosMontagem([])
     if (fileRef.current) fileRef.current.value = ''
   }, [open, transportadorIdFixo])
 
@@ -96,6 +92,18 @@ export function ImportarMotoristasModal({
   )
 
   const qtdDuplicadas = jaCadastradosCpf.length
+
+  const tidEfetivo = transportadorIdFixo || transportadorId || null
+  const montagemPreview = useMemo(() => {
+    if (precisaEscolherEmpresa && !tidEfetivo) {
+      return { ok: [] as Motorista[], errosExtras: [] as Array<{ linha: number; erros: string[] }> }
+    }
+    return montarMotoristasParaImportacao(baseOk, tidEfetivo, veiculos, motoristasExistentes)
+  }, [baseOk, tidEfetivo, precisaEscolherEmpresa, veiculos, motoristasExistentes])
+
+  const previewValidas = montagemPreview.ok
+  const errosMontagem = montagemPreview.errosExtras
+
   const invalidas = useMemo(() => {
     const montagemByLinha = new Map(errosMontagem.map((e) => [e.linha, e.erros]))
     return linhas
@@ -106,18 +114,7 @@ export function ImportarMotoristasModal({
       }))
   }, [linhas, errosMontagem])
 
-  const previewValidas = useMemo(() => {
-    const tid = transportadorIdFixo || transportadorId || null
-    if (precisaEscolherEmpresa && !tid) return []
-    return montarMotoristasParaImportacao(baseOk, tid, veiculos, motoristasExistentes).ok
-  }, [
-    baseOk,
-    transportadorIdFixo,
-    transportadorId,
-    precisaEscolherEmpresa,
-    veiculos,
-    motoristasExistentes,
-  ])
+  const qtdComErro = invalidas.length
 
   function resetFile() {
     setLinhas([])
@@ -125,7 +122,6 @@ export function ImportarMotoristasModal({
     setHeadersOk(true)
     setMissingHeaders([])
     setErro('')
-    setErrosMontagem([])
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -135,7 +131,6 @@ export function ImportarMotoristasModal({
     setConcluidoQtd(null)
     setDetalheDup(false)
     setDetalheErro(false)
-    setErrosMontagem([])
     const name = file.name.toLowerCase()
     if (
       !name.endsWith('.xlsx') &&
@@ -166,29 +161,22 @@ export function ImportarMotoristasModal({
 
   function handleImport() {
     setErro('')
-    const tid = transportadorIdFixo || transportadorId || null
-    if (precisaEscolherEmpresa && !tid) {
+    if (precisaEscolherEmpresa && !tidEfetivo) {
       setErro('Selecione a transportadora para vincular os motoristas.')
       return
     }
-    const { ok, errosExtras } = montarMotoristasParaImportacao(
-      baseOk,
-      tid,
-      veiculos,
-      motoristasExistentes,
-    )
-    setErrosMontagem(errosExtras)
-    if (ok.length === 0) {
+    if (previewValidas.length === 0) {
       setErro(
-        errosExtras.length > 0
-          ? 'Nenhuma linha válida: confira placas cadastradas e CPFs.'
+        errosMontagem.length > 0
+          ? 'Nenhuma linha válida: confira se as placas da planilha existem em Veículos (cadastre as placas antes).'
           : 'Não há linhas válidas para importar.',
       )
+      setDetalheErro(true)
       return
     }
-    onImport(ok)
+    onImport(previewValidas)
     resetFile()
-    setConcluidoQtd(ok.length)
+    setConcluidoQtd(previewValidas.length)
   }
 
   return (
@@ -294,10 +282,8 @@ export function ImportarMotoristasModal({
                 </div>
                 <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
                   <p className="font-bold text-red-900">Com erro</p>
-                  <p className="text-lg font-extrabold text-red-800">
-                    {invalidas.length + errosMontagem.length}
-                  </p>
-                  {invalidas.length + errosMontagem.length > 0 ? (
+                  <p className="text-lg font-extrabold text-red-800">{qtdComErro}</p>
+                  {qtdComErro > 0 ? (
                     <button
                       type="button"
                       className="mt-1 text-[11px] font-bold text-red-950 underline underline-offset-2 hover:no-underline"
@@ -313,6 +299,29 @@ export function ImportarMotoristasModal({
               </div>
             ) : null}
 
+            {linhas.length > 0 && headersOk && previewValidas.length === 0 ? (
+              <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-950">
+                Nenhuma linha pronta para importar. Cada <strong>placa</strong> da planilha precisa
+                existir em Veículos
+                {precisaEscolherEmpresa && transportadorId
+                  ? ' e pertencer à transportadora selecionada'
+                  : ''}
+                . Use “Mostrar detalhes” em Com erro para ver o motivo por linha.
+                {qtdComErro > 0 && !detalheErro ? (
+                  <>
+                    {' '}
+                    <button
+                      type="button"
+                      className="underline underline-offset-2 font-extrabold"
+                      onClick={() => setDetalheErro(true)}
+                    >
+                      Ver erros
+                    </button>
+                  </>
+                ) : null}
+              </p>
+            ) : null}
+
             {detalheDup && qtdDuplicadas > 0 ? (
               <div className="max-h-44 overflow-y-auto rounded-lg border border-amber-200 bg-amber-50/70 p-2.5 text-[11px] text-amber-950">
                 <p className="mb-1.5 font-extrabold uppercase tracking-wide">
@@ -326,17 +335,12 @@ export function ImportarMotoristasModal({
               </div>
             ) : null}
 
-            {detalheErro && (invalidas.length > 0 || errosMontagem.length > 0) ? (
+            {detalheErro && qtdComErro > 0 ? (
               <div className="max-h-44 overflow-y-auto rounded-lg border border-red-200 bg-red-50/70 p-2.5 text-[11px] text-red-900">
                 <p className="mb-1.5 font-extrabold uppercase tracking-wide">Com erro</p>
                 {invalidas.map((l) => (
                   <p key={`inv-${l.linha}`}>
                     Linha {l.linha}: {l.erros.join('; ')}
-                  </p>
-                ))}
-                {errosMontagem.map((e) => (
-                  <p key={`mont-${e.linha}`}>
-                    Linha {e.linha}: {e.erros.join('; ')}
                   </p>
                 ))}
               </div>
