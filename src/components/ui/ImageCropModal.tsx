@@ -142,7 +142,7 @@ export function ImageCropModal({
   return createPortal(
     <div
       className="image-crop-modal fixed inset-0 flex items-center justify-center p-4"
-      style={{ zIndex: 100050 }}
+      style={{ zIndex: 200000 }}
     >
       <div
         role="presentation"
@@ -187,11 +187,18 @@ export function ImageCropModal({
                 width: dispW || undefined,
                 height: dispH || undefined,
                 maxWidth: 'none',
-                opacity: natural.w > 0 ? 1 : 0,
+                opacity: natural.w > 0 ? 1 : 0.3,
                 pointerEvents: 'none',
               }}
             />
           )}
+          {imgSrc && natural.w === 0 ? (
+            <p
+              className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs font-semibold text-ink-muted"
+            >
+              Carregando…
+            </p>
+          ) : null}
         </div>
 
         <p className="mt-2 text-center text-[11px] font-semibold text-ink-muted">
@@ -206,7 +213,7 @@ export function ImageCropModal({
             max={MAX_ZOOM}
             step={0.01}
             value={zoom}
-            disabled={!imgSrc}
+            disabled={!imgSrc || natural.w === 0}
             onChange={(e) => setZoom(Number(e.target.value))}
             className="flex-1 accent-brand"
           />
@@ -227,7 +234,7 @@ export function ImageCropModal({
             variant="success"
             className="flex-1"
             onClick={handleConfirm}
-            disabled={busy || !imgSrc}
+            disabled={busy || !imgSrc || natural.w === 0}
           >
             {busy ? 'Salvando…' : 'Usar esta foto'}
           </Button>

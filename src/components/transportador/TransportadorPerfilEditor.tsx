@@ -11,6 +11,7 @@ import {
   type PerfilPublicoTransportador,
 } from '../../lib/perfilPublicoTransportador'
 import { fileToDataUrl, isAcceptedImageFile } from '../../lib/veiculoFotos'
+import { ImageCropModal } from '../ui/ImageCropModal'
 import { Field, inputClass } from '../ui/Modal'
 
 type Props = {
@@ -49,7 +50,10 @@ export function TransportadorPerfilEditor({ value, onChange, empresa }: Props) {
     galeriaSlots(normalizePerfilPublico(value).galeria),
   )
   const [fotoErro, setFotoErro] = useState('')
-  const [fotoBusy, setFotoBusy] = useState<number | null>(null)
+  const [fotoBusy, setFotoBusy] = useState(false)
+  const [cropSlot, setCropSlot] = useState<number | null>(null)
+  const [cropFile, setCropFile] = useState<File | null>(null)
+  const cropSlotRef = useRef<number | null>(null)
 
   // Hidrata só ao trocar de empresa (evita apagar fotos enquanto o usuário edita)
   const empresaKey = empresa?.id ?? 'sem-empresa'
@@ -71,13 +75,17 @@ export function TransportadorPerfilEditor({ value, onChange, empresa }: Props) {
     onChange(next)
   }
 
-  function commitSlots(nextSlots: string[]) {
-    setSlots(nextSlots)
-    const galeria = compactGaleriaSlots(nextSlots)
-    const full = { ...formRef.current, galeria }
-    formRef.current = full
-    setForm(full)
-    onChange(full)
+  function applySlotUrl(index: number, url: string) {
+    setSlots((prev) => {
+      const next = [...prev]
+      next[index] = url
+      const galeria = compactGaleriaSlots(next)
+      const full = { ...formRef.current, galeria }
+      formRef.current = full
+      setForm(full)
+      onChange(full)
+      return next
+    })
   }
 
   function clearSlot(index: number) {
@@ -104,24 +112,34 @@ export function TransportadorPerfilEditor({ value, onChange, empresa }: Props) {
       return
     }
     setFotoErro('')
-    setFotoBusy(index)
+    cropSlotRef.current = index
+    setCropSlot(index)
+    setCropFile(file)
+  }
+
+  function fecharCrop() {
+    cropSlotRef.current = null
+    setCropSlot(null)
+    setCropFile(null)
+    setFotoBusy(false)
+  }
+
+  function confirmarCrop(file: File) {
+    const idx = cropSlotRef.current
+    if (idx == null) {
+      fecharCrop()
+      return
+    }
+    setFotoBusy(true)
     void fileToDataUrl(file)
       .then((url) => {
-        setSlots((prev) => {
-          const next = [...prev]
-          next[index] = url
-          const galeria = compactGaleriaSlots(next)
-          const full = { ...formRef.current, galeria }
-          formRef.current = full
-          setForm(full)
-          onChange(full)
-          return next
-        })
+        applySlotUrl(idx, url)
+        fecharCrop()
       })
       .catch(() => {
-        setFotoErro('Não foi possível carregar a imagem. Tente outro arquivo.')
+        setFotoErro('Não foi possível aplicar o recorte. Tente outra foto.')
+        setFotoBusy(false)
       })
-      .finally(() => setFotoBusy(null))
   }
 
   const cidade = [empresa?.origem_cidade || empresa?.cidade, empresa?.origem_uf || empresa?.uf]
@@ -214,7 +232,7 @@ export function TransportadorPerfilEditor({ value, onChange, empresa }: Props) {
         <p className="text-sm font-semibold text-ink">Personalize sua página</p>
         <p className="mt-1 text-xs text-ink-muted">
           Até {GALERIA_PERFIL_MAX} imagens abaixo do mapa no “Ver perfil”. Clique no
-          quadro e escolha a foto (JPG, PNG ou WEBP).
+          quadro, escolha a foto e ajuste o recorte (zoom e posição).
         </p>
         <div
           className="mt-3 grid gap-2"
@@ -234,14 +252,13 @@ export function TransportadorPerfilEditor({ value, onChange, empresa }: Props) {
               ) : (
                 <div className="pointer-events-none flex h-full w-full flex-col items-center justify-center gap-1 px-1 text-center text-[11px] font-semibold text-ink-muted">
                   <span className="text-lg leading-none">+</span>
-                  {fotoBusy === index ? 'Carregando…' : `Foto ${index + 1}`}
+                  Foto {index + 1}
                 </div>
               )}
 
-              {/* Input cobre o quadro — clique sempre abre o seletor de arquivo */}
               <label
                 className="absolute inset-0 z-[1] cursor-pointer"
-                title={src ? 'Trocar foto' : `Adicionar foto ${index + 1}`}
+                title={src ? 'Trocar / editar foto' : `Adicionar foto ${index + 1}`}
               >
                 <span
                   style={{
@@ -256,13 +273,13 @@ export function TransportadorPerfilEditor({ value, onChange, empresa }: Props) {
                     border: 0,
                   }}
                 >
-                  {src ? `Trocar foto ${index + 1}` : `Adicionar foto ${index + 1}`}
+                  {src ? `Editar foto ${index + 1}` : `Adicionar foto ${index + 1}`}
                 </span>
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp,image/jpg,.jpg,.jpeg,.png,.webp"
                   className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                  disabled={fotoBusy != null}
+                  disabled={fotoBusy || cropFile != null}
                   onChange={(e) => {
                     const f = e.target.files?.[0]
                     e.target.value = ''
@@ -289,6 +306,18 @@ export function TransportadorPerfilEditor({ value, onChange, empresa }: Props) {
         </div>
         {fotoErro ? <p className="mt-2 text-xs text-red-700">{fotoErro}</p> : null}
       </div>
+
+      <ImageCropModal
+        open={cropSlot != null && Boolean(cropFile)}
+        file={cropFile}
+        shape="square"
+        title={
+          cropSlot != null ? `Ajustar foto ${cropSlot + 1}` : 'Ajustar foto'
+        }
+        busy={fotoBusy}
+        onCancel={fecharCrop}
+        onConfirm={confirmarCrop}
+      />
     </div>
   )
 }
