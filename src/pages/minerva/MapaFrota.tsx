@@ -504,12 +504,11 @@ export function MapaFrotaPage() {
     )
   }, [pontos])
 
-  const filtradosSemTipo = useMemo(() => {
+  /** Filtros do painel, sem o chip Disponíveis/Indisponíveis/Todos. */
+  const filtradosSemStatus = useMemo(() => {
     const qVeic = buscaVeiculo.trim().toLowerCase()
     const qTransp = buscaTransportadora.trim().toLowerCase()
     return pontos.filter((p) => {
-      if (filtro === 'disponiveis' && !p.disponivel) return false
-      if (filtro === 'indisponiveis' && p.disponivel) return false
       if (cidade && p.cidade.toLowerCase() !== cidade.toLowerCase()) return false
       if (uf && p.uf !== uf) return false
       if (regiao && regiaoDaUf(p.uf) !== regiao) return false
@@ -542,7 +541,6 @@ export function MapaFrotaPage() {
     })
   }, [
     pontos,
-    filtro,
     cidade,
     uf,
     regiao,
@@ -557,15 +555,29 @@ export function MapaFrotaPage() {
     origemRaio,
   ])
 
+  const filtradosSemTipo = useMemo(() => {
+    return filtradosSemStatus.filter((p) => {
+      if (filtro === 'disponiveis' && !p.disponivel) return false
+      if (filtro === 'indisponiveis' && p.disponivel) return false
+      return true
+    })
+  }, [filtradosSemStatus, filtro])
+
   const filtrados = useMemo(() => {
     if (tipos.length === 0) return filtradosSemTipo
     return filtradosSemTipo.filter((p) => tipos.includes(p.icone))
   }, [filtradosSemTipo, tipos])
 
+  /** Base da contagem dos chips: perfil/carroceria/etc., sem o filtro de status. */
+  const filtradosContagem = useMemo(() => {
+    if (tipos.length === 0) return filtradosSemStatus
+    return filtradosSemStatus.filter((p) => tipos.includes(p.icone))
+  }, [filtradosSemStatus, tipos])
+
   const contagemPorCategoria = useMemo(() => {
     const map = new Map<string, number>()
     for (const item of LEGENDA_FROTA) map.set(item.grupo, 0)
-    for (const p of filtradosSemTipo) {
+    for (const p of filtradosSemStatus) {
       if (!p.disponivel) continue
       map.set(p.icone, (map.get(p.icone) ?? 0) + 1)
     }
@@ -573,10 +585,10 @@ export function MapaFrotaPage() {
       ...item,
       qtd: map.get(item.grupo) ?? 0,
     }))
-  }, [filtradosSemTipo])
+  }, [filtradosSemStatus])
 
-  const nDisp = pontos.filter((p) => p.disponivel).length
-  const nIndisp = pontos.length - nDisp
+  const nDisp = filtradosContagem.filter((p) => p.disponivel).length
+  const nIndisp = filtradosContagem.length - nDisp
   const filtrosAtivos =
     Boolean(buscaVeiculo.trim()) ||
     Boolean(buscaTransportadora.trim()) ||
@@ -1189,7 +1201,7 @@ export function MapaFrotaPage() {
             [
               ['disponiveis', `Disponíveis (${nDisp})`],
               ['indisponiveis', `Indisponíveis (${nIndisp})`],
-              ['todos', `Todos (${pontos.length})`],
+              ['todos', `Todos (${nDisp + nIndisp})`],
             ] as const
           ).map(([id, label]) => (
             <button
