@@ -197,7 +197,7 @@ export function MotoristasPage() {
       veiculo_id: form.veiculo_id as string,
       autonomo: Boolean(form.autonomo),
       nome: form.nome.trim(),
-      cpf: form.cpf?.trim() || undefined,
+      cpf: form.cpf ? formatCpf(form.cpf) : undefined,
       cnh: form.cnh?.trim() || undefined,
       categoria_cnh: form.categoria_cnh?.trim() || undefined,
       validade_cnh: form.validade_cnh || undefined,
@@ -553,7 +553,11 @@ export function MotoristasPage() {
                 <input
                   className={inputClass}
                   value={form.cpf ?? ''}
-                  onChange={(e) => set('cpf', e.target.value)}
+                  onChange={(e) => set('cpf', formatCpf(e.target.value))}
+                  placeholder="000.000.000-00"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={14}
                 />
               </label>
               <div className="block text-sm">
