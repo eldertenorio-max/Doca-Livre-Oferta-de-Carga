@@ -4,6 +4,7 @@ import { CadastroStatsCards } from '../../components/cadastro/CadastroStatsCards
 import { CadastroPagination, usePaginatedList } from '../../components/cadastro/CadastroPagination'
 import { MotoristaAvaliacoesModal } from '../../components/motorista/MotoristaAvaliacoesModal'
 import { ImportarMotoristasModal } from '../../components/motorista/ImportarMotoristasModal'
+import { MotoristaMedalhasBadges } from '../../components/motorista/MotoristaConquistas'
 import { inputClass } from '../../components/ui/Modal'
 import { fileToDataUrl, isAcceptedImageFile } from '../../lib/veiculoFotos'
 import { ImageCropModal } from '../../components/ui/ImageCropModal'
@@ -322,6 +323,7 @@ export function MotoristasPage() {
               <thead>
                 <tr className="border-b border-ink/10 text-left text-xs text-ink-muted">
                   <th className="p-3">Nome</th>
+                  <th className="p-3">Conquistas</th>
                   <th className="p-3">Placa</th>
                   <th className="p-3">Transportadora</th>
                   <th className="p-3">CNH</th>
@@ -354,6 +356,9 @@ export function MotoristasPage() {
                           )}
                           {m.nome}
                         </span>
+                      </td>
+                      <td className="p-3">
+                        <MotoristaMedalhasBadges motorista={m} cargas={cargas ?? []} />
                       </td>
                       <td className="p-3 font-semibold tabular-nums">{placa ?? '—'}</td>
                       <td className="p-3">
@@ -409,7 +414,7 @@ export function MotoristasPage() {
                 })}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="p-6 text-center text-ink-muted">
+                    <td colSpan={8} className="p-6 text-center text-ink-muted">
                       Nenhum motorista cadastrado.
                     </td>
                   </tr>

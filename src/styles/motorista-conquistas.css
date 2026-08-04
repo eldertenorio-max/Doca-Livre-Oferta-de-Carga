@@ -1,0 +1,309 @@
+.mot-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.mot-badges__empty {
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+.mot-badges__more {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #64748b;
+}
+
+.mot-classif {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mot-classif--lg {
+  font-size: 0.75rem;
+  padding: 6px 12px;
+}
+
+.mot-classif--ouro {
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  color: #92400e;
+  border: 1px solid #f59e0b;
+}
+
+.mot-classif--prata {
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  color: #334155;
+  border: 1px solid #94a3b8;
+}
+
+.mot-classif--bronze {
+  background: linear-gradient(135deg, #ffedd5, #fed7aa);
+  color: #9a3412;
+  border: 1px solid #fb923c;
+}
+
+.mot-classif--none {
+  background: #f8fafc;
+  color: #94a3b8;
+  border: 1px solid #e2e8f0;
+}
+
+.mot-medal {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: 1.05rem;
+  line-height: 1;
+  filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.15));
+}
+
+.mot-medal--sm {
+  width: 1.35rem;
+  height: 1.35rem;
+  font-size: 0.95rem;
+}
+
+.mot-medal--locked {
+  opacity: 0.45;
+  font-size: 0.9rem;
+}
+
+.mot-conq {
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fff;
+  padding: 14px;
+}
+
+.mot-conq--compact {
+  padding: 10px 12px;
+  background: #f8fafc;
+}
+
+.mot-conq__compact-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.mot-conq__mini-stats {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.mot-conq__row-medals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mot-conq__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px 3px 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.mot-conq__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.mot-conq__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.mot-conq__sub {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.mot-conq__stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 560px) {
+  .mot-conq__stats {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.mot-conq__stats div {
+  padding: 8px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  text-align: center;
+}
+
+.mot-conq__stats strong {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.mot-conq__stats span {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #94a3b8;
+}
+
+.mot-conq__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mot-conq__item {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fafafa;
+}
+
+.mot-conq__item.is-on {
+  background: #fff;
+  border-color: rgba(15, 23, 42, 0.12);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+}
+
+.mot-conq__item.is-off {
+  opacity: 0.88;
+}
+
+.mot-conq__item-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.mot-conq__ico {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.mot-conq__item-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.mot-conq__item-text strong {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.mot-conq__item-text span {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.mot-conq__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.mot-conq__next {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.mot-conq__next--max {
+  color: #047857;
+  font-weight: 800;
+}
+
+.mot-conq__bar {
+  margin-top: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.mot-conq__bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #94a3b8;
+  transition: width 0.25s ease;
+}
+
+.mot-conq__bar i.is-bronze {
+  background: linear-gradient(90deg, #fb923c, #ea580c);
+}
+
+.mot-conq__bar i.is-prata {
+  background: linear-gradient(90deg, #94a3b8, #475569);
+}
+
+.mot-conq__bar i.is-ouro {
+  background: linear-gradient(90deg, #fbbf24, #d97706);
+}
+
+.mot-conq__tiers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.mot-conq__tiers .is-hit {
+  color: #0f172a;
+}
+
+/* No modal de avaliações */
+.frota-modal__panel--avaliacoes .mot-conq {
+  margin-top: 14px;
+}

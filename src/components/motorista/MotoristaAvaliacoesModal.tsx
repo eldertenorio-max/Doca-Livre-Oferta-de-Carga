@@ -5,6 +5,7 @@ import {
   iniciaisNome,
   listarAvaliacoesMotorista,
 } from '../../lib/mapaFrota'
+import { MotoristaConquistasPanel } from './MotoristaConquistas'
 import '../../styles/mapa-frota.css'
 
 type Props = {
@@ -107,6 +108,8 @@ export function MotoristaAvaliacoesModal({ motorista, cargas, onClose }: Props) 
             <span>Com comentário</span>
           </div>
         </div>
+
+        <MotoristaConquistasPanel motorista={motorista} cargas={cargas ?? []} />
 
         <ul className="frota-avaliacoes-list">
           {itens.map((av) => (
