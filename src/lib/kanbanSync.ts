@@ -327,7 +327,13 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
       .map((m) => (m.veiculo_id && vExcluidos.has(m.veiculo_id) ? { ...m, veiculo_id: null } : m))
       .map((m) => {
         const local = (prev.motoristas ?? []).find((x) => x.id === m.id)
-        return !m.foto_url && local?.foto_url ? { ...m, foto_url: local.foto_url } : m
+        if (!local) return m
+        return {
+          ...m,
+          foto_url: m.foto_url || local.foto_url,
+          cnh_arquivo_url: m.cnh_arquivo_url || local.cnh_arquivo_url,
+          cnh_arquivo_nome: m.cnh_arquivo_nome || local.cnh_arquivo_nome,
+        }
       }),
     grupos: (slice.grupos?.length
       ? mergeGrupos(prev.grupos, slice.grupos)

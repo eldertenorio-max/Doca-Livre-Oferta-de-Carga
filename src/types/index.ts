@@ -223,6 +223,10 @@ export interface Motorista {
   cnh?: string
   categoria_cnh?: string
   validade_cnh?: string
+  /** Anexo da CNH (foto JPG/PNG/WEBP ou PDF) — URL ou data URL. */
+  cnh_arquivo_url?: string
+  /** Nome original do arquivo da CNH (ex.: cnh-frente.pdf). */
+  cnh_arquivo_nome?: string
   /** WhatsApp do motorista. */
   telefone?: string
   /**

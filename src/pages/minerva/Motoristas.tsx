@@ -7,6 +7,7 @@ import { ImportarMotoristasModal } from '../../components/motorista/ImportarMoto
 import { MotoristaMedalhasBadges } from '../../components/motorista/MotoristaConquistas'
 import { inputClass } from '../../components/ui/Modal'
 import { fileToDataUrl, isAcceptedImageFile } from '../../lib/veiculoFotos'
+import { isAcceptedDocFile, openLocalDocumento } from '../../lib/transportadorDocs'
 import { ImageCropModal } from '../../components/ui/ImageCropModal'
 import { iniciaisNome } from '../../lib/mapaFrota'
 import type { Motorista } from '../../types'
@@ -28,6 +29,8 @@ const emptyForm = (): Partial<Motorista> => ({
   telefone: '',
   whatsapp_no_mapa: false,
   foto_url: '',
+  cnh_arquivo_url: '',
+  cnh_arquivo_nome: '',
   situacao: 'ativo',
 })
 
@@ -50,6 +53,7 @@ export function MotoristasPage() {
   const [avaliacoesDe, setAvaliacoesDe] = useState<Motorista | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const fotoInputRef = useRef<HTMLInputElement>(null)
+  const cnhInputRef = useRef<HTMLInputElement>(null)
   const [fotoParaAjustar, setFotoParaAjustar] = useState<File | null>(null)
 
   const lista = motoristas ?? []
@@ -213,6 +217,8 @@ export function MotoristasPage() {
       cnh: form.cnh?.trim() || undefined,
       categoria_cnh: form.categoria_cnh?.trim() || undefined,
       validade_cnh: form.validade_cnh || undefined,
+      cnh_arquivo_url: (form.cnh_arquivo_url || '').trim() || undefined,
+      cnh_arquivo_nome: (form.cnh_arquivo_nome || '').trim() || undefined,
       telefone: form.telefone?.trim() || undefined,
       whatsapp_no_mapa: form.whatsapp_no_mapa === true,
       foto_url: (form.foto_url || '').trim() || undefined,
@@ -242,6 +248,31 @@ export function MotoristasPage() {
     setFotoParaAjustar(null)
     const dataUrl = await fileToDataUrl(file)
     set('foto_url', dataUrl)
+  }
+
+  async function onCnhAnexoSelecionado(file: File | undefined) {
+    if (!file) return
+    if (!isAcceptedDocFile(file)) {
+      setError('Use JPG, PNG, WEBP ou PDF para a CNH.')
+      return
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setError('O arquivo da CNH deve ter no máximo 8 MB.')
+      return
+    }
+    setError('')
+    const dataUrl = await fileToDataUrl(file)
+    setForm((prev) => ({
+      ...prev,
+      cnh_arquivo_url: dataUrl,
+      cnh_arquivo_nome: file.name,
+    }))
+  }
+
+  function isCnhPdf(url?: string, nome?: string): boolean {
+    const n = (nome || '').toLowerCase()
+    if (n.endsWith('.pdf')) return true
+    return Boolean(url?.startsWith('data:application/pdf'))
   }
 
   return (
@@ -367,8 +398,20 @@ export function MotoristasPage() {
                           : (transportadorById(m.transportador_id ?? '')?.nome_fantasia ?? '—')}
                       </td>
                       <td className="p-3">
-                        {m.cnh ?? '—'}
-                        {m.categoria_cnh ? ` (${m.categoria_cnh})` : ''}
+                        <span className="inline-flex flex-wrap items-center gap-1.5">
+                          <span>
+                            {m.cnh ?? '—'}
+                            {m.categoria_cnh ? ` (${m.categoria_cnh})` : ''}
+                          </span>
+                          {(m.cnh_arquivo_url || '').trim() ? (
+                            <span
+                              className="rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-emerald-800"
+                              title={m.cnh_arquivo_nome || 'CNH anexada'}
+                            >
+                              Anexo
+                            </span>
+                          ) : null}
+                        </span>
                       </td>
                       <td className="p-3">{m.telefone ?? '—'}</td>
                       <td className="p-3 capitalize">{m.situacao}</td>
@@ -644,6 +687,87 @@ export function MotoristasPage() {
                   onChange={(e) => set('validade_cnh', e.target.value)}
                 />
               </label>
+
+              <div className="sm:col-span-2 rounded-xl border border-ink/10 bg-sand-light/40 p-3">
+                <p className="mb-1 text-xs font-semibold text-ink-muted">Anexo da CNH</p>
+                <p className="mb-2 text-[11px] text-ink-muted">
+                  Foto (JPG, PNG, WEBP) ou PDF · máx. 8 MB.
+                </p>
+                {(form.cnh_arquivo_url || '').trim() ? (
+                  <div className="mb-2 flex flex-wrap items-center gap-3">
+                    {isCnhPdf(form.cnh_arquivo_url, form.cnh_arquivo_nome) ? (
+                      <div className="inline-flex h-16 w-16 items-center justify-center rounded-lg border border-ink/15 bg-white text-xs font-extrabold text-ink">
+                        PDF
+                      </div>
+                    ) : (
+                      <img
+                        src={form.cnh_arquivo_url}
+                        alt="CNH anexada"
+                        className="h-16 w-auto max-w-[140px] rounded-lg border border-ink/15 object-cover"
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-ink">
+                        {form.cnh_arquivo_nome || 'CNH anexada'}
+                      </p>
+                      <div className="mt-1.5 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className="cadastro-btn cadastro-btn--ghost !px-2.5 !py-1 text-xs"
+                          onClick={() => {
+                            void openLocalDocumento({ data_url: form.cnh_arquivo_url }).catch(() =>
+                              setError('Não foi possível abrir o anexo da CNH.'),
+                            )
+                          }}
+                        >
+                          Ver anexo
+                        </button>
+                        <button
+                          type="button"
+                          className="cadastro-btn cadastro-btn--ghost !px-2.5 !py-1 text-xs"
+                          onClick={() => cnhInputRef.current?.click()}
+                        >
+                          Trocar
+                        </button>
+                        <button
+                          type="button"
+                          className="cadastro-btn cadastro-btn--ghost !px-2.5 !py-1 text-xs"
+                          style={{ color: '#dc2626' }}
+                          onClick={() =>
+                            setForm((prev) => ({
+                              ...prev,
+                              cnh_arquivo_url: '',
+                              cnh_arquivo_nome: '',
+                            }))
+                          }
+                        >
+                          Remover
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="cadastro-btn cadastro-btn--ghost"
+                    onClick={() => cnhInputRef.current?.click()}
+                  >
+                    Anexar CNH (foto ou PDF)
+                  </button>
+                )}
+                <input
+                  ref={cnhInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    void onCnhAnexoSelecionado(f)
+                    e.target.value = ''
+                  }}
+                />
+              </div>
+
               <label className="block text-sm">
                 <span className="mb-1 block text-xs font-semibold text-ink-muted">Situação</span>
                 <select
