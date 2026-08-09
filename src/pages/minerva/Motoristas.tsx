@@ -688,10 +688,10 @@ export function MotoristasPage() {
                 />
               </label>
 
-              <div className="sm:col-span-2 rounded-xl border border-ink/10 bg-sand-light/40 p-3">
-                <p className="mb-1 text-xs font-semibold text-ink-muted">Anexo da CNH</p>
-                <p className="mb-2 text-[11px] text-ink-muted">
-                  Foto (JPG, PNG, WEBP) ou PDF · máx. 8 MB.
+              <div className="col-span-full rounded-xl border-2 border-brand/40 bg-brand/5 p-4">
+                <p className="mb-0.5 text-sm font-extrabold text-ink">📎 Anexo da CNH</p>
+                <p className="mb-3 text-xs font-medium text-ink-muted">
+                  Envie a foto da CNH ou um PDF · JPG, PNG, WEBP ou PDF · máx. 8 MB.
                 </p>
                 {(form.cnh_arquivo_url || '').trim() ? (
                   <div className="mb-2 flex flex-wrap items-center gap-3">
@@ -749,7 +749,7 @@ export function MotoristasPage() {
                 ) : (
                   <button
                     type="button"
-                    className="cadastro-btn cadastro-btn--ghost"
+                    className="cadastro-btn cadastro-btn--primary"
                     onClick={() => cnhInputRef.current?.click()}
                   >
                     Anexar CNH (foto ou PDF)
