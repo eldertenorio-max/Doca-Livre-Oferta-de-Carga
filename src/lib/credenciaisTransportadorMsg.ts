@@ -15,7 +15,7 @@ export function mensagemCredenciaisTransportador(
   return [
     `Olá, ${nome}!`,
     '',
-    'Seguem seus dados de acesso ao Doca Livre — Oferta de Carga:',
+    'Confira abaixo seus dados de acesso ao Doca Livre — Oferta de Carga:',
     '',
     `Usuário: ${usuario}`,
     `Senha: ${senha}`,
@@ -24,7 +24,7 @@ export function mensagemCredenciaisTransportador(
     '',
     'Aviso: ainda estamos em desenvolvimento — neste momento estamos apenas criando o banco de veículos.',
     '',
-    'Qualquer dúvida, estamos à disposição.',
+    'Para tirar dúvidas: +55 35 9136-8282',
   ].join('\n')
 }
 
