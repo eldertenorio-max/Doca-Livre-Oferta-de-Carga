@@ -715,11 +715,22 @@ function ensureDemoFrotaMapa(state: DataState): DataState {
     tMap.set(s.id, {
       ...s,
       ...cur,
+      // Não deixa sync remoto vazio apagar endereço do seed/local
+      endereco: cur.endereco || s.endereco,
+      numero: cur.numero || s.numero,
+      bairro: cur.bairro || s.bairro,
+      complemento: cur.complemento || s.complemento,
+      cep: cur.cep || s.cep,
       origem_lat: cur.origem_lat ?? s.origem_lat ?? null,
       origem_lng: cur.origem_lng ?? s.origem_lng ?? null,
       origem_cidade: cur.origem_cidade || s.origem_cidade,
       origem_uf: cur.origem_uf || s.origem_uf,
-      origem_endereco: cur.origem_endereco || s.origem_endereco,
+      origem_endereco: cur.origem_endereco || s.origem_endereco || cur.endereco || s.endereco,
+      origem_numero: cur.origem_numero || s.origem_numero || cur.numero || s.numero,
+      origem_bairro: cur.origem_bairro || s.origem_bairro || cur.bairro || s.bairro,
+      origem_complemento:
+        cur.origem_complemento || s.origem_complemento || cur.complemento || s.complemento,
+      origem_cep: cur.origem_cep || s.origem_cep || cur.cep || s.cep,
       raio_km: cur.raio_km ?? s.raio_km,
       disponivel_mapa: cur.disponivel_mapa ?? s.disponivel_mapa,
       situacao: cur.situacao === 'inativo' ? 'ativo' : cur.situacao,
@@ -728,6 +739,7 @@ function ensureDemoFrotaMapa(state: DataState): DataState {
       contato_nome: cur.contato_nome || s.contato_nome,
       contato_telefone: cur.contato_telefone || s.contato_telefone,
       inscricao_estadual: cur.inscricao_estadual || s.inscricao_estadual,
+      rntrc: cur.rntrc || s.rntrc,
     })
   }
 
@@ -1431,14 +1443,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
                   ...local,
                   ...t,
                   pontuacao: t.pontuacao ?? local.pontuacao,
+                  endereco: t.endereco || local.endereco,
+                  numero: t.numero || local.numero,
+                  bairro: t.bairro || local.bairro,
+                  complemento: t.complemento || local.complemento,
+                  cep: t.cep || local.cep,
+                  rntrc: t.rntrc || local.rntrc,
                   origem_lat: t.origem_lat ?? local.origem_lat ?? null,
                   origem_lng: t.origem_lng ?? local.origem_lng ?? null,
                   origem_cidade: t.origem_cidade || local.origem_cidade,
                   origem_uf: t.origem_uf || local.origem_uf,
-                  origem_endereco: t.origem_endereco || local.origem_endereco,
-                  origem_numero: t.origem_numero || local.origem_numero,
-                  origem_bairro: t.origem_bairro || local.origem_bairro,
-                  origem_cep: t.origem_cep || local.origem_cep,
+                  origem_endereco: t.origem_endereco || local.origem_endereco || t.endereco || local.endereco,
+                  origem_numero: t.origem_numero || local.origem_numero || t.numero || local.numero,
+                  origem_bairro: t.origem_bairro || local.origem_bairro || t.bairro || local.bairro,
+                  origem_complemento:
+                    t.origem_complemento ||
+                    local.origem_complemento ||
+                    t.complemento ||
+                    local.complemento,
+                  origem_cep: t.origem_cep || local.origem_cep || t.cep || local.cep,
                   raio_km: t.raio_km ?? local.raio_km,
                   disponivel_mapa:
                     t.disponivel_mapa === false || t.disponivel_mapa === true

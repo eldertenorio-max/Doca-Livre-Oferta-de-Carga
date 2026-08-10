@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ExternalLink, Mail, MapPin, X } from 'lucide-react'
 import type { Transportador } from '../../types'
@@ -47,16 +47,24 @@ function formatCepBr(cep?: string | null): string {
   return `${d.slice(0, 5)}-${d.slice(5)}`
 }
 
-/** Endereço completo (origem operacional, com fallback do cadastro CNPJ). */
+/** Endereço completo (origem operacional + fallback do cadastro CNPJ). */
 function enderecoCompletoTransportador(t: Transportador): string {
-  const rua = (t.origem_endereco || t.endereco || '').trim()
-  const numero = (t.origem_numero || t.numero || '').trim()
-  const complem = (t.origem_complemento || t.complemento || '').trim()
-  const bairro = (t.origem_bairro || t.bairro || '').trim()
-  const cidade = (t.origem_cidade || t.cidade || '').trim()
-  const uf = (t.origem_uf || t.uf || '').trim().toUpperCase()
-  const cepRaw = (t.origem_cep || t.cep || '').trim()
-  const cep = formatCepBr(cepRaw)
+  // Prefere origem quando preenchida; senão usa o endereço do CNPJ.
+  // Campo a campo evita “Santos / SP” quando a rua só existe no cadastro.
+  const pick = (...vals: Array<string | null | undefined>) => {
+    for (const v of vals) {
+      const s = (v || '').trim()
+      if (s) return s
+    }
+    return ''
+  }
+  const rua = pick(t.origem_endereco, t.endereco)
+  const numero = pick(t.origem_numero, t.numero)
+  const complem = pick(t.origem_complemento, t.complemento)
+  const bairro = pick(t.origem_bairro, t.bairro)
+  const cidade = pick(t.origem_cidade, t.cidade)
+  const uf = pick(t.origem_uf, t.uf).toUpperCase()
+  const cep = formatCepBr(pick(t.origem_cep, t.cep))
 
   const logradouro = [rua, numero].filter(Boolean).join(', ')
   const partes: string[] = []
@@ -78,6 +86,7 @@ export function TransportadorPerfilSite({
   const perfil = normalizePerfilPublico(t.perfil_publico)
   const galeria = perfil.galeria.filter(Boolean).slice(0, 5)
   const [fotoZoomIdx, setFotoZoomIdx] = useState<number | null>(null)
+  const enderecoEstavelRef = useRef({ id: t.id, texto: '' })
   const fotoZoom =
     fotoZoomIdx != null && galeria[fotoZoomIdx] ? galeria[fotoZoomIdx] : null
 
@@ -113,7 +122,14 @@ export function TransportadorPerfilSite({
   const localTxt = [t.origem_cidade || t.cidade, t.origem_uf || t.uf]
     .filter(Boolean)
     .join('/')
-  const enderecoCompleto = enderecoCompletoTransportador(t)
+  // Mantém o endereço mais completo já visto neste perfil (sync incompleto não pisca).
+  const enderecoAgora = enderecoCompletoTransportador(t)
+  if (enderecoEstavelRef.current.id !== t.id) {
+    enderecoEstavelRef.current = { id: t.id, texto: enderecoAgora }
+  } else if (enderecoAgora.length >= enderecoEstavelRef.current.texto.length) {
+    enderecoEstavelRef.current.texto = enderecoAgora
+  }
+  const enderecoCompleto = enderecoEstavelRef.current.texto || enderecoAgora
   const mapsUrl = temCoords
     ? `https://www.google.com/maps?q=${lat},${lng}`
     : enderecoCompleto || localTxt
