@@ -129,7 +129,20 @@ export function PortalConfigPage() {
       setMsg('Este nó não pode ter filhos.')
       return
     }
-    const tipo = allowed[0]
+
+    let tipo = allowed[0]
+    if (allowed.length > 1) {
+      const opcoes = allowed.map((t, i) => `${i + 1}=${ORG_TIPO_LABEL[t]}`).join(' | ')
+      const escolha = window.prompt(`Tipo de entidade (${opcoes}):`, '1')
+      if (!escolha?.trim()) return
+      const idx = Number.parseInt(escolha.trim(), 10) - 1
+      if (Number.isNaN(idx) || idx < 0 || idx >= allowed.length) {
+        setMsg('Tipo de entidade inválido.')
+        return
+      }
+      tipo = allowed[idx]
+    }
+
     const nome = window.prompt(`Nome do ${ORG_TIPO_LABEL[tipo]}:`)
     if (!nome?.trim()) return
     const no: OrgNo = {

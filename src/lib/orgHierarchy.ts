@@ -29,17 +29,20 @@ export const ORG_TIPO_LABEL: Record<OrgTipo, string> = {
   transportadora: 'Transportadora',
 }
 
+/** Tipos ainda existentes em dados antigos, mas sem opção de criar novos. */
+const ORG_TIPOS_OCULTOS_NO_CADASTRO: OrgTipo[] = ['filial_operador', 'unidade']
+
 export function allowedOrgChildTypes(tipoPai: string | null | undefined): OrgTipo[] {
   const map: Record<string, OrgTipo[]> = {
     '': ['operador_logistico'],
-    operador_logistico: ['filial_operador', 'embarcador'],
-    filial_operador: ['embarcador', 'unidade', 'transportadora'],
-    embarcador: ['unidade'],
+    operador_logistico: ['embarcador', 'transportadora'],
+    filial_operador: ['embarcador', 'transportadora'],
+    embarcador: ['transportadora'],
     unidade: ['transportadora'],
     transportadora: [],
   }
   if (!tipoPai) return ['operador_logistico']
-  return map[tipoPai] ?? []
+  return (map[tipoPai] ?? []).filter((t) => !ORG_TIPOS_OCULTOS_NO_CADASTRO.includes(t))
 }
 
 export const SEED_ORG_TREE: OrgNo[] = [
@@ -179,10 +182,11 @@ export function deleteOrgNo(tree: OrgNo[], id: string): OrgNo[] {
   return walk(structuredClone(tree))
 }
 
-/** Pai padrão para transportadoras: 1ª unidade, senão 1ª filial. */
+/** Pai padrão para transportadoras: 1º embarcador, senão operador (sem exigir filial/unidade). */
 export function findDefaultTransportadoraParentId(tree: OrgNo[]): string | null {
   const flat = flattenOrg(tree)
   return (
+    flat.find((n) => n.tipo === 'embarcador')?.id ??
     flat.find((n) => n.tipo === 'unidade')?.id ??
     flat.find((n) => n.tipo === 'filial_operador')?.id ??
     flat.find((n) => n.tipo === 'operador_logistico')?.id ??
