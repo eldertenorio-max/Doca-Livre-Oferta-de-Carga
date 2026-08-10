@@ -20,6 +20,12 @@ import { labelDocumento, isAcceptedDocFile } from '../../lib/transportadorDocs'
 import { urlDocumentoTransportador, origemCadastroDe, labelOrigemCadastro } from '../../lib/cadastroTransportador'
 import { isAcceptedImageFile, fileToDataUrl } from '../../lib/veiculoFotos'
 import { ImageCropModal } from '../../components/ui/ImageCropModal'
+import { contaPortalPorTransportador } from '../../lib/portalAuth'
+import {
+  emailCredenciaisHref,
+  mensagemCredenciaisTransportador,
+  whatsappCredenciaisHref,
+} from '../../lib/credenciaisTransportadorMsg'
 import type { ClassificacaoTransportador, SituacaoTransportador, Transportador } from '../../types'
 import '../../styles/cadastro.css'
 import '../../styles/grid-cargas.css'
@@ -63,6 +69,54 @@ const emptyForm = (): Partial<Transportador> => ({
   contato_telefone: '',
   perfil_publico: { ...EMPTY_PERFIL_PUBLICO },
 })
+
+function abrirCredenciaisWhatsApp(t: Transportador) {
+  const conta = contaPortalPorTransportador(t.id, t.email) ?? null
+  const msg = mensagemCredenciaisTransportador(t, conta)
+  window.open(whatsappCredenciaisHref(msg), '_blank', 'noopener,noreferrer')
+}
+
+function abrirCredenciaisEmail(t: Transportador) {
+  const email = (t.email || '').trim()
+  if (!email) {
+    window.alert('Esta transportadora não tem e-mail cadastrado.')
+    return
+  }
+  const conta = contaPortalPorTransportador(t.id, t.email) ?? null
+  const msg = mensagemCredenciaisTransportador(t, conta)
+  const nome = (t.nome_fantasia || t.razao_social || 'Transportadora').trim()
+  const href = emailCredenciaisHref(email, msg, nome)
+  if (!href) {
+    window.alert('E-mail inválido no cadastro da transportadora.')
+    return
+  }
+  window.location.href = href
+}
+
+function IconWhatsAppCredenciais() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 3a8 8 0 0 0-6.9 12.1L4 21l6.1-1.1A8 8 0 1 0 12 3z"
+        stroke="#16a34a"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M9.5 9.5c.5 2 2.5 4 4.5 4.5l1.2-1.2c.2-.2.5-.2.7 0l1.4 1.1c.2.2.2.5 0 .7l-.8.9c-.3.3-.7.4-1.1.3-2.4-.5-5.4-3.3-6.2-6.2-.1-.4 0-.8.3-1.1l.9-.8c.2-.2.5-.2.7 0L11 9c.2.2.2.5 0 .7L9.5 9.5z"
+        fill="#16a34a"
+      />
+    </svg>
+  )
+}
+
+function IconEmailCredenciais() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="3" y="5" width="18" height="14" rx="2" stroke="#2563eb" strokeWidth="1.8" />
+      <path d="M4 7l8 6 8-6" stroke="#2563eb" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  )
+}
 
 export function TransportadoresPage() {
   const {
@@ -1043,7 +1097,30 @@ export function TransportadoresPage() {
                             {t.situacao}
                           </span>
                         </td>
-                        <td style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                        <td className="cadastro-table__acoes">
+                          <div className="cadastro-table__acoes-list">
+                          <button
+                            type="button"
+                            className="cadastro-link cadastro-link--credencial"
+                            title="Enviar usuário e senha pelo WhatsApp"
+                            aria-label="Enviar credenciais pelo WhatsApp"
+                            onClick={() => abrirCredenciaisWhatsApp(t)}
+                          >
+                            <IconWhatsAppCredenciais />
+                          </button>
+                          <button
+                            type="button"
+                            className="cadastro-link cadastro-link--credencial"
+                            title={
+                              t.email?.trim()
+                                ? `Enviar usuário e senha por e-mail (${t.email.trim()})`
+                                : 'Transportadora sem e-mail cadastrado'
+                            }
+                            aria-label="Enviar credenciais por e-mail"
+                            onClick={() => abrirCredenciaisEmail(t)}
+                          >
+                            <IconEmailCredenciais />
+                          </button>
                           {(t.situacao === 'pendente' || t.situacao === 'recusado') && (
                             <button
                               type="button"
@@ -1075,6 +1152,7 @@ export function TransportadoresPage() {
                           >
                             Excluir
                           </button>
+                          </div>
                         </td>
                       </tr>
                     )

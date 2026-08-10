@@ -2423,6 +2423,24 @@ export async function healPortalLoginAtivo(identificador: string): Promise<void>
   await syncPortalAccounts()
 }
 
+/** Conta de portal vinculada à transportadora (login/senha). */
+export function contaPortalPorTransportador(
+  transportadorId: string,
+  email?: string | null,
+): PortalAccount | undefined {
+  const id = (transportadorId || '').trim()
+  const accounts = loadPortalAccounts().filter((a) => a.role === 'transportador')
+  if (id) {
+    const byId = accounts.find((a) => a.transportador_id === id)
+    if (byId) return byId
+  }
+  const emailNorm = normId(email || '')
+  if (emailNorm) {
+    return accounts.find((a) => normId(a.email) === emailNorm)
+  }
+  return undefined
+}
+
 /** Remove contas de portal vinculadas à transportadora. */
 export function removePortalAccountsPorTransportador(transportadorId: string): void {
   const users = loadPortalAccounts()
