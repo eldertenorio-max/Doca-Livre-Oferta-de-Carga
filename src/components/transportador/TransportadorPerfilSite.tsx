@@ -25,6 +25,22 @@ function whatsappLink(raw?: string | null) {
   return `https://wa.me/${full}`
 }
 
+/** Ícone no botão verde — bolha branca com telefone “vazado”. */
+function WhatsAppIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="#fff"
+        d="M12.04 2C6.58 2 2.15 6.4 2.15 11.84c0 1.97.52 3.89 1.5 5.58L2 22l4.74-1.56a10 10 0 0 0 5.3 1.44h.01c5.46 0 9.89-4.4 9.89-9.84C21.94 6.4 17.5 2 12.04 2z"
+      />
+      <path
+        fill="#16a34a"
+        d="M17.47 14.38c-.27-.14-1.6-.79-1.85-.88-.25-.09-.43-.14-.61.14-.18.27-.7.88-.86 1.06-.16.18-.32.2-.59.07-.27-.14-1.14-.42-2.17-1.34-.8-.71-1.34-1.59-1.5-1.86-.16-.27-.02-.42.12-.55.12-.12.27-.32.41-.48.14-.16.18-.27.27-.45.09-.18.05-.34-.02-.48-.07-.14-.61-1.47-.84-2.01-.22-.53-.45-.46-.61-.47h-.52c-.18 0-.48.07-.73.34-.25.27-.96.94-.96 2.29s.98 2.65 1.12 2.83c.14.18 1.93 2.95 4.68 4.14.65.28 1.16.45 1.56.57.66.21 1.25.18 1.72.11.53-.08 1.6-.65 1.83-1.28.22-.63.22-1.17.16-1.28-.07-.11-.25-.18-.52-.32z"
+      />
+    </svg>
+  )
+}
+
 function formatCepBr(cep?: string | null): string {
   const d = (cep || '').replace(/\D/g, '').slice(0, 8)
   if (d.length !== 8) return (cep || '').trim()
@@ -237,7 +253,7 @@ export function TransportadorPerfilSite({
           <div className="tv-perfil__actions">
             {wa ? (
               <a className="tv-perfil__btn tv-perfil__btn--wa" href={wa} target="_blank" rel="noreferrer">
-                WhatsApp
+                <WhatsAppIcon /> WhatsApp
               </a>
             ) : null}
             {t.email ? (
