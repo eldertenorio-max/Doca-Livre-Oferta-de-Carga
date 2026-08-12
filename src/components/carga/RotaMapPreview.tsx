@@ -139,7 +139,7 @@ export function RotaMapPreview({
   const onRotaRef = useRef(onRotaCalculada)
   onRotaRef.current = onRotaCalculada
 
-  const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'erro'>('idle')
+  const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'erro' | 'circular'>('idle')
   const [msg, setMsg] = useState('Informe origem e destino para ver o trajeto')
   const [meta, setMeta] = useState<MetaRota | null>(null)
 
@@ -244,13 +244,21 @@ export function RotaMapPreview({
         const oCoords = coordsList[0]
         const dCoords = coordsList[coordsList.length - 1]
         const viaCoords = coordsList.slice(1, -1)
+        const retornoBase = mesmaPosicao(oCoords, dCoords)
 
-        if (mesmaPosicao(oCoords, dCoords) && viaCoords.length === 0) {
+        // Rota circular (origem = destino) sem paradas: mostra o ponto, sem erro vermelho
+        if (retornoBase && viaCoords.length === 0) {
           layer.clearLayers()
-          setStatus('erro')
+          L.marker([oCoords.lat, oCoords.lng], {
+            icon: pinIcon('O/D', '#0f766e'),
+            title: 'Origem e destino (retorno à base)',
+          }).addTo(layer)
+          map.setView([oCoords.lat, oCoords.lng], 12)
+          window.setTimeout(() => map.invalidateSize(), 60)
           setMeta(null)
+          setStatus('circular')
           setMsg(
-            'Origem e destino são o mesmo ponto. Corrija o destino ou adicione pontos de passagem para traçar a rota.',
+            'Rota circular (origem = destino). Adicione os pontos de passagem para traçar o trajeto de ida e volta.',
           )
           return
         }
@@ -264,9 +272,7 @@ export function RotaMapPreview({
           setStatus('erro')
           setMeta(null)
           setMsg(
-            viaCoords.length === 0 && mesmaPosicao(oCoords, dCoords)
-              ? 'Origem e destino coincidem — não há trajeto para traçar.'
-              : 'Não foi possível traçar a rota. Verifique os endereços e pontos de passagem.',
+            'Não foi possível traçar a rota. Verifique os endereços e os pontos de passagem.',
           )
           return
         }
@@ -370,7 +376,7 @@ export function RotaMapPreview({
       className={`rota-map-preview relative overflow-hidden rounded-lg border border-ink/15 bg-[#f4f6f8] ${className}`}
     >
       <div ref={mapEl} className="absolute inset-0 z-0" />
-      {status !== 'ok' && (
+      {status === 'loading' || status === 'erro' || status === 'idle' ? (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-white/75 px-3 text-center">
           <p
             className={`text-xs font-semibold ${
@@ -380,7 +386,12 @@ export function RotaMapPreview({
             {status === 'loading' ? 'Calculando trajeto e pedágios…' : msg}
           </p>
         </div>
-      )}
+      ) : null}
+      {status === 'circular' ? (
+        <div className="absolute bottom-2 left-2 right-2 z-10 rounded-lg bg-teal-50/95 px-2.5 py-2 text-[11px] font-semibold text-teal-900 shadow-md ring-1 ring-teal-200">
+          {msg}
+        </div>
+      ) : null}
       {status === 'ok' && meta && (
         <div className="absolute bottom-2 left-2 z-10 max-w-[min(100%,220px)] rounded-lg bg-white/95 px-2.5 py-2 text-[11px] text-ink shadow-md ring-1 ring-ink/10">
           <p className="text-sm font-extrabold text-blue-700">{formatDur(meta.dur)}</p>

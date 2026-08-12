@@ -757,9 +757,17 @@ export function RotasPage() {
             {qtdPontosPassagem(mapaRota) === 0 &&
             (mapaRota.origem || '').trim().toLowerCase() ===
               (mapaRota.destino || '').trim().toLowerCase() ? (
-              <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
-                Origem e destino estão iguais. Edite o destino ou adicione pontos de
-                passagem para o mapa conseguir traçar a rota.
+              <p className="rounded-md border border-teal-200 bg-teal-50 px-2 py-1.5 text-xs text-teal-900">
+                Rota circular (origem = destino / retorno à base). Para ver o trajeto no
+                mapa, edite a rota e cadastre os pontos de passagem do caminho
+                {mapaRota.km > 0 ? ` (${mapaRota.km} km)` : ''}.
+              </p>
+            ) : qtdPontosPassagem(mapaRota) > 0 &&
+              (mapaRota.origem || '').trim().toLowerCase() ===
+                (mapaRota.destino || '').trim().toLowerCase() ? (
+              <p className="rounded-md border border-teal-200 bg-teal-50 px-2 py-1.5 text-xs text-teal-900">
+                Rota circular com {labelPontosPassagem(qtdPontosPassagem(mapaRota))} —
+                retorno à mesma origem.
               </p>
             ) : null}
             <RotaMapPreview
