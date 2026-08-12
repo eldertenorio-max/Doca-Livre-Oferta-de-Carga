@@ -201,10 +201,50 @@ type PhotonFeature = {
   properties?: PhotonProps
 }
 
-/** Extrai número no fim da digitação (ex.: "… ramalho 907"). */
+/** Escapa texto para uso em RegExp. */
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * Extrai número do imóvel digitado pelo usuário.
+ * Aceita no fim (“… 907”), após vírgula (“Rua X, 907 Vila…”),
+ * com prefixo (“nº 907”) ou no meio da rua (“Av. X 907 Guarulhos”).
+ */
 export function extrairNumeroDigitado(consulta: string): string | undefined {
-  const m = consulta.trim().match(/(?:^|\s)(\d{1,6}[A-Za-z/\-]?)(?:\s*)$/)
-  return m?.[1]
+  const raw = consulta.trim().replace(/\s+/g, ' ')
+  if (!raw) return undefined
+
+  // 1) nº / n° / n. / numero 907
+  const pref = raw.match(/\b(?:n[º°o.]?|n[uú]mero)\s*[:.]?\s*(\d{1,6}[A-Za-z]?)\b/i)
+  if (pref?.[1]) return pref[1]
+
+  // 2) Após a 1ª vírgula: "Avenida Faustino Ramalho, 907 Vila Galvão, …"
+  const aposVirgula = raw.match(/^[^,]+,\s*(\d{1,6}[A-Za-z/\-]?)\b/)
+  if (aposVirgula?.[1]) return aposVirgula[1]
+
+  // 3) No final: "… Ramalho 907" / "… Ramalho, 907"
+  const noFim = raw.match(/(?:^|[\s,])(\d{1,6}[A-Za-z/\-]?)(?:\s*)$/)
+  if (noFim?.[1]) return noFim[1]
+
+  // 4) Depois do logradouro, antes de bairro/cidade
+  const aposLogradouro = raw.match(
+    /\b(?:rua|r\.|avenida|av\.?|alameda|al\.|travessa|tv\.?|rodovia|rod\.|estrada|est\.|praça|praca|largo|viela|via)\b[\s\wÀ-ú.'’-]{0,80}?\s+(\d{1,5}[A-Za-z]?)\b/i,
+  )
+  if (aposLogradouro?.[1]) return aposLogradouro[1]
+
+  // 5) Qualquer número curto (1–5 dígitos) na 1ª metade — evita CEP (8 dígitos)
+  const metade = Math.ceil(raw.length * 0.65)
+  const trecho = raw.slice(0, metade)
+  const candidatos = [...trecho.matchAll(/\b(\d{1,5}[A-Za-z]?)\b/g)].map((m) => m[1])
+  const valido = candidatos.find((n) => {
+    const dig = n.replace(/\D/g, '')
+    if (dig.length < 1 || dig.length > 5) return false
+    // ignora anos óbvios / códigos longos
+    if (dig.length === 4 && Number(dig) >= 1900 && Number(dig) <= 2100) return false
+    return true
+  })
+  return valido
 }
 
 function limparEstado(uf: string): string {
@@ -476,16 +516,38 @@ export function aplicarNumeroDigitado(
   sugestao: SugestaoEndereco,
   consulta: string,
 ): string {
-  if (sugestao.housenumber) return sugestao.label
-  const num = extrairNumeroDigitado(consulta)
+  const num = (sugestao.housenumber || '').trim() || extrairNumeroDigitado(consulta)
   if (!num) return sugestao.label
-  if (new RegExp(`\\b${num.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(sugestao.label)) {
-    return sugestao.label
-  }
-  const primary = sugestao.primary.includes(',')
-    ? sugestao.primary
-    : `${sugestao.primary}, ${num}`
+
+  const temNumero = new RegExp(`\\b${escapeRegExp(num)}\\b`, 'i').test(sugestao.label)
+  if (temNumero) return sugestao.label
+
+  // Primary pode ser "Rua X" ou já "Rua X, 123" — garante ", número" após o logradouro
+  const rua = sugestao.primary
+    .replace(/,\s*\d{1,6}[A-Za-z/\-]?.*$/i, '')
+    .trim()
+  const primary = rua ? `${rua}, ${num}` : num
   return [primary, sugestao.secondary].filter(Boolean).join(', ')
+}
+
+/** Decora sugestões com o número digitado (aparece na lista e no preenchimento). */
+export function decorarSugestoesComNumero(
+  hits: SugestaoEndereco[],
+  consulta: string,
+): SugestaoEndereco[] {
+  const num = extrairNumeroDigitado(consulta)
+  if (!num || hits.length === 0) return hits
+  return hits.map((h) => {
+    const label = aplicarNumeroDigitado(h, consulta)
+    if (label === h.label) return h
+    const rua = h.primary.replace(/,\s*\d{1,6}[A-Za-z/\-]?.*$/i, '').trim()
+    return {
+      ...h,
+      primary: rua ? `${rua}, ${num}` : h.primary,
+      label,
+      housenumber: h.housenumber || num,
+    }
+  })
 }
 
 function formatarSugestaoNominatim(hit: NominatimHit): SugestaoEndereco | null {
@@ -542,8 +604,17 @@ function formatarSugestaoPhoton(f: PhotonFeature): SugestaoEndereco | null {
   const country = (p.country || '').toLowerCase()
   if (country && !country.includes('brasil') && !country.includes('brazil')) return null
 
-  const rua = (p.name || p.street || '').trim()
   const numero = (p.housenumber || '').trim()
+  let rua = (p.street || '').trim()
+  if (!rua) {
+    const nome = (p.name || '').trim()
+    // Em hits de porta, `name` às vezes é só o número — não usar como logradouro
+    if (nome && (!numero || nome.toLowerCase() !== numero.toLowerCase()) && !/^\d{1,6}[A-Za-z]?$/.test(nome)) {
+      rua = nome
+    } else if (nome && !numero) {
+      rua = nome
+    }
+  }
   const bairro = (p.district || p.suburb || p.neighbourhood || '').trim()
   const cidade = (p.city || p.town || p.county || '').trim()
   const estado = limparEstado(p.state || '')
@@ -643,18 +714,22 @@ export async function sugerirEnderecos(
   const q = consulta.trim()
   if (q.length < 2) return []
 
+  let hits: SugestaoEndereco[] = []
   try {
-    const photon = await sugerirEnderecosPhoton(q, limit)
-    if (photon.length > 0) return photon
+    hits = await sugerirEnderecosPhoton(q, limit)
   } catch {
     /* tenta Nominatim */
   }
 
-  try {
-    return await sugerirEnderecosNominatim(q, limit)
-  } catch {
-    return []
+  if (hits.length === 0) {
+    try {
+      hits = await sugerirEnderecosNominatim(q, limit)
+    } catch {
+      return []
+    }
   }
+
+  return decorarSugestoesComNumero(hits, q)
 }
 
 /**
@@ -668,7 +743,13 @@ export async function geocodificarConsulta(
   if (q.length < 3) return { ok: false, erro: 'Digite um endereço ou lugar.' }
 
   const mun = parseCidadeUf(q)
-  if (mun) {
+  const temNumero = Boolean(extrairNumeroDigitado(q))
+  const pareceLogradouro =
+    /\b(rua|r\.|avenida|av\.?|alameda|al\.|travessa|tv\.?|rodovia|rod\.|estrada|est\.|praça|praca|largo|viela|via)\b/i.test(
+      q,
+    )
+  // Só trata como município puro se não houver número nem logradouro
+  if (mun && !temNumero && !pareceLogradouro) {
     const geo = await geocodificarMunicipioBr(mun.cidade, mun.uf)
     if (geo) {
       return { ok: true, coords: { lat: geo.lat, lng: geo.lng }, display: geo.display }
@@ -682,7 +763,7 @@ export async function geocodificarConsulta(
     return {
       ok: true,
       coords: { lat: melhor.lat, lng: melhor.lng },
-      display: melhor.display,
+      display: aplicarNumeroDigitado(melhor, q),
     }
   }
   return { ok: false, erro: 'Endereço não encontrado.' }
@@ -862,6 +943,7 @@ function escolherMelhorHit(
 
   const qNorm = normalizarGeo(consulta)
   const uf = ufHint?.toUpperCase()
+  const numDigitado = extrairNumeroDigitado(consulta)
   let best = hits[0]
   let bestScore = -Infinity
 
@@ -877,6 +959,12 @@ function escolherMelhorHit(
     }
     // Preferir hits com cidade no secondary (menos "rua só")
     if (h.secondary) score += 5
+    if (numDigitado) {
+      const hn = (h.housenumber || '').trim()
+      if (hn && hn.toLowerCase() === numDigitado.toLowerCase()) score += 45
+      else if (hn) score += 10
+      else score += 2
+    }
     if (score > bestScore) {
       bestScore = score
       best = h
