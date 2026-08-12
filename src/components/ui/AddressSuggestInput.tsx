@@ -6,6 +6,10 @@ import {
 } from '../../lib/geocodeEndereco'
 import { inputClass } from './Modal'
 
+/** Exemplo de preenchimento (formato BR completo). */
+export const PLACEHOLDER_ENDERECO_EXEMPLO =
+  'Ex.: Rodovia Castelo Branco, 975 - KM 33 - Itapevi - SP - CEP 06696-000'
+
 type Props = {
   value: string
   onChange: (value: string) => void
@@ -25,7 +29,7 @@ export function AddressSuggestInput({
   value,
   onChange,
   localSuggestions,
-  placeholder,
+  placeholder = PLACEHOLDER_ENDERECO_EXEMPLO,
   disabled,
   className,
   minChars = 2,

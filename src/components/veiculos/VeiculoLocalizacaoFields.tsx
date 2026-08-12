@@ -409,7 +409,7 @@ export function VeiculoLocalizacaoFields({
             className={inputClass}
             value={origem.endereco}
             onChange={(e) => setCampo('endereco', e.target.value)}
-            placeholder="Rua onde o veículo opera"
+            placeholder="Ex.: Rodovia Castelo Branco, 975"
           />
         </Field>
         <Field label="Número">
@@ -417,7 +417,7 @@ export function VeiculoLocalizacaoFields({
             className={inputClass}
             value={origem.numero}
             onChange={(e) => setCampo('numero', e.target.value)}
-            placeholder="Nº ou S/N"
+            placeholder="Ex.: 975 ou S/N"
           />
         </Field>
         <Field label="Bairro">

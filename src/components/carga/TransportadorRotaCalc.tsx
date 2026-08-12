@@ -9,7 +9,7 @@ import {
   type PreferenciaRota,
 } from '../../lib/anttFrete'
 import type { Carga } from '../../types'
-import { AddressSuggestInput } from '../ui/AddressSuggestInput'
+import { AddressSuggestInput, PLACEHOLDER_ENDERECO_EXEMPLO } from '../ui/AddressSuggestInput'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
 import { AnttFretePanel } from './AnttFretePanel'
 import { RotaMapPreview } from './RotaMapPreview'
@@ -156,7 +156,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
             <AddressSuggestInput
               value={origem}
               onChange={setOrigem}
-              placeholder="Cidade / UF ou endereço"
+              placeholder={PLACEHOLDER_ENDERECO_EXEMPLO}
             />
           </Field>
           <button
@@ -171,7 +171,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
             <AddressSuggestInput
               value={destino}
               onChange={setDestino}
-              placeholder="Cidade / UF ou endereço"
+              placeholder={PLACEHOLDER_ENDERECO_EXEMPLO}
             />
           </Field>
         </div>

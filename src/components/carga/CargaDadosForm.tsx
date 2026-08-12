@@ -19,7 +19,7 @@ import type {
 import { Button, Field, inputClass } from "../ui/Modal";
 import { CnpjInput } from "../ui/CnpjInput";
 import { SuggestInput } from "../ui/SuggestInput";
-import { AddressSuggestInput } from "../ui/AddressSuggestInput";
+import { AddressSuggestInput, PLACEHOLDER_ENDERECO_EXEMPLO } from "../ui/AddressSuggestInput";
 import { joinCarrocerias, parseCarrocerias } from "../../lib/tiposCarroceria";
 import { newRotaId } from "../../lib/rotasSync";
 import { fmtMapsCoords, parseMapsCoords } from "../../lib/mapsCoords";
@@ -972,7 +972,7 @@ export function CargaDadosForm({
               }}
               localSuggestions={sugOrigem}
               minChars={2}
-              placeholder="Digite o endereço como no Google Maps"
+              placeholder={PLACEHOLDER_ENDERECO_EXEMPLO}
             />
           </Field>
           <Field label="Destino *" className="sm:col-span-6">
@@ -984,7 +984,7 @@ export function CargaDadosForm({
               }}
               localSuggestions={sugDestino}
               minChars={2}
-              placeholder="Digite o endereço como no Google Maps"
+              placeholder={PLACEHOLDER_ENDERECO_EXEMPLO}
             />
           </Field>
           <Field label="Coordenadas origem (Maps)" className="sm:col-span-6">

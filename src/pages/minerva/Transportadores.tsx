@@ -1349,16 +1349,32 @@ export function TransportadoresPage() {
                 <input maxLength={2} value={form.uf ?? ''} onChange={(e) => set('uf', e.target.value.toUpperCase())} />
               </Field>
               <Field label="Endereço" className="form-field--span2">
-                <input value={form.endereco ?? ''} onChange={(e) => set('endereco', e.target.value)} />
+                <input
+                  value={form.endereco ?? ''}
+                  onChange={(e) => set('endereco', e.target.value)}
+                  placeholder="Ex.: Rodovia Castelo Branco ou Av. Paulista"
+                />
               </Field>
               <Field label="Número">
-                <input value={form.numero ?? ''} onChange={(e) => set('numero', e.target.value)} />
+                <input
+                  value={form.numero ?? ''}
+                  onChange={(e) => set('numero', e.target.value)}
+                  placeholder="Ex.: 975"
+                />
               </Field>
               <Field label="Bairro">
-                <input value={form.bairro ?? ''} onChange={(e) => set('bairro', e.target.value)} />
+                <input
+                  value={form.bairro ?? ''}
+                  onChange={(e) => set('bairro', e.target.value)}
+                  placeholder="Ex.: Centro"
+                />
               </Field>
               <Field label="Complemento" className="form-field--span2">
-                <input value={form.complemento ?? ''} onChange={(e) => set('complemento', e.target.value)} />
+                <input
+                  value={form.complemento ?? ''}
+                  onChange={(e) => set('complemento', e.target.value)}
+                  placeholder="Ex.: KM 33, Quadra GI, Lote 1-A"
+                />
               </Field>
             </div>
           </div>
@@ -1377,12 +1393,14 @@ export function TransportadoresPage() {
                 <input
                   value={form.origem_cep ?? ''}
                   onChange={(e) => set('origem_cep', e.target.value)}
+                  placeholder="Ex.: 06696-000"
                 />
               </Field>
               <Field label="Cidade">
                 <input
                   value={form.origem_cidade ?? ''}
                   onChange={(e) => set('origem_cidade', e.target.value)}
+                  placeholder="Ex.: Itapevi"
                 />
               </Field>
               <Field label="UF">
@@ -1390,24 +1408,28 @@ export function TransportadoresPage() {
                   maxLength={2}
                   value={form.origem_uf ?? ''}
                   onChange={(e) => set('origem_uf', e.target.value.toUpperCase())}
+                  placeholder="SP"
                 />
               </Field>
               <Field label="Rua" className="form-field--span2">
                 <input
                   value={form.origem_endereco ?? ''}
                   onChange={(e) => set('origem_endereco', e.target.value)}
+                  placeholder="Ex.: Rodovia Castelo Branco"
                 />
               </Field>
               <Field label="Número">
                 <input
                   value={form.origem_numero ?? ''}
                   onChange={(e) => set('origem_numero', e.target.value)}
+                  placeholder="Ex.: 975"
                 />
               </Field>
               <Field label="Bairro">
                 <input
                   value={form.origem_bairro ?? ''}
                   onChange={(e) => set('origem_bairro', e.target.value)}
+                  placeholder="Ex.: Ingahi"
                 />
               </Field>
               <Field label="Latitude">

@@ -13,7 +13,7 @@ import { rotaOsrmComGeometria } from '../../lib/anttPedagioAberto'
 import { distanciaKm } from '../../lib/mapaFrota'
 import type { ClassificacaoRota, PontoPassagemRota, Rota } from '../../types'
 import { Button, Field, Modal, inputClass } from '../../components/ui/Modal'
-import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
+import { AddressSuggestInput, PLACEHOLDER_ENDERECO_EXEMPLO } from '../../components/ui/AddressSuggestInput'
 import { RotaMapPreview } from '../../components/carga/RotaMapPreview'
 
 const emptyForm = (): Partial<Rota> => ({
@@ -718,7 +718,7 @@ export function RotasPage() {
               }}
               localSuggestions={sugOrigem}
               minChars={2}
-              placeholder="Digite o endereço como no Google Maps"
+              placeholder={PLACEHOLDER_ENDERECO_EXEMPLO}
             />
           </Field>
           <Field label="Destino">
@@ -730,7 +730,7 @@ export function RotasPage() {
               }}
               localSuggestions={sugDestino}
               minChars={2}
-              placeholder="Digite o endereço como no Google Maps"
+              placeholder={PLACEHOLDER_ENDERECO_EXEMPLO}
             />
           </Field>
           <Field label="Coordenadas origem (Maps)">
@@ -802,7 +802,7 @@ export function RotasPage() {
                         }}
                         localSuggestions={sugPonto}
                         minChars={2}
-                        placeholder="Digite o endereço como no Google Maps"
+                        placeholder={PLACEHOLDER_ENDERECO_EXEMPLO}
                       />
                     </Field>
                     <Field label={`Ponto ${idx + 1} — coordenadas (Maps)`}>

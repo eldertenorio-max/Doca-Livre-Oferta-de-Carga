@@ -823,7 +823,7 @@ export function CadastroTransportadorPage() {
                     <input
                       value={empresa.endereco}
                       onChange={(e) => setEmp('endereco', e.target.value)}
-                      placeholder="Rua, avenida ou rodovia"
+                      placeholder="Ex.: Rodovia Castelo Branco ou Av. Paulista"
                       autoComplete="street-address"
                     />
                   </Field>
@@ -831,7 +831,7 @@ export function CadastroTransportadorPage() {
                     <input
                       value={empresa.numero}
                       onChange={(e) => setEmp('numero', e.target.value)}
-                      placeholder="Nº ou S/N"
+                      placeholder="Ex.: 975"
                     />
                   </Field>
                   <Field label="Bairro">
@@ -845,7 +845,7 @@ export function CadastroTransportadorPage() {
                     <input
                       value={empresa.complemento}
                       onChange={(e) => setEmp('complemento', e.target.value)}
-                      placeholder="Sala, galpão, bloco (opcional)"
+                      placeholder="Ex.: KM 33, Quadra, Lote, Sala (opcional)"
                     />
                   </Field>
                 </div>
@@ -897,7 +897,7 @@ export function CadastroTransportadorPage() {
                     <input
                       value={origem.endereco}
                       onChange={(e) => setOri('endereco', e.target.value)}
-                      placeholder="Rua onde você mora"
+                      placeholder="Ex.: Rua das Flores ou Av. Ana Costa"
                       autoComplete="street-address"
                     />
                   </Field>
@@ -905,7 +905,7 @@ export function CadastroTransportadorPage() {
                     <input
                       value={origem.numero}
                       onChange={(e) => setOri('numero', e.target.value)}
-                      placeholder="Nº ou S/N"
+                      placeholder="Ex.: 975"
                     />
                   </Field>
                   <Field label="Bairro">
