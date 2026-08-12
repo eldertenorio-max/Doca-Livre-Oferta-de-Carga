@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowUpDown, Calculator, Fuel, Minus, Plus } from 'lucide-react'
 import { formatCurrency, roundMoney } from '../../lib/businessRules'
 import {
@@ -8,7 +8,9 @@ import {
   type AnttCalculo,
   type PreferenciaRota,
 } from '../../lib/anttFrete'
-import type { Carga } from '../../types'
+import { limparPontosPassagemRota } from '../../lib/rotasSync'
+import type { Carga, PontoPassagemRota } from '../../types'
+import { useData } from '../../context/DataContext'
 import { AddressSuggestInput, PLACEHOLDER_ENDERECO_EXEMPLO } from '../ui/AddressSuggestInput'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
 import { AnttFretePanel } from './AnttFretePanel'
@@ -28,6 +30,7 @@ type CalcParams = {
   preco: string
   volta: boolean
   pref: PreferenciaRota
+  waypoints?: PontoPassagemRota[]
 }
 
 function parseNumBr(raw: string, fallback: number): number {
@@ -35,9 +38,22 @@ function parseNumBr(raw: string, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? n : fallback
 }
 
+function pontosDaCarga(
+  carga: Carga,
+  rotas: { id: string; pontos_passagem?: PontoPassagemRota[] }[],
+): PontoPassagemRota[] {
+  const daCarga = limparPontosPassagemRota(carga.pontos_passagem)
+  if (daCarga.length > 0) return daCarga
+  if (!carga.rota_id) return []
+  const r = rotas.find((x) => x.id === carga.rota_id)
+  return limparPontosPassagemRota(r?.pontos_passagem)
+}
+
 export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
+  const { rotas } = useData()
   const [origem, setOrigem] = useState('')
   const [destino, setDestino] = useState('')
+  const [waypoints, setWaypoints] = useState<PontoPassagemRota[]>([])
   const [eixos, setEixos] = useState(5)
   const [consumo, setConsumo] = useState('3,2')
   const [precoDiesel, setPrecoDiesel] = useState('6,50')
@@ -48,6 +64,24 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
   const [calc, setCalc] = useState<AnttCalculo | null>(null)
   const reqId = useRef(0)
 
+  const origemCoords = useMemo(() => {
+    if (!carga) return null
+    if (carga.origem_lat == null || carga.origem_lng == null) return null
+    if (!Number.isFinite(carga.origem_lat) || !Number.isFinite(carga.origem_lng)) return null
+    return { lat: Number(carga.origem_lat), lng: Number(carga.origem_lng) }
+  }, [carga])
+
+  const destinoCoords = useMemo(() => {
+    if (!carga) return null
+    if (carga.destino_lat == null || carga.destino_lng == null) return null
+    if (!Number.isFinite(carga.destino_lat) || !Number.isFinite(carga.destino_lng)) return null
+    return { lat: Number(carga.destino_lat), lng: Number(carga.destino_lng) }
+  }, [carga])
+
+  const viasKey = waypoints
+    .map((p) => `${p.id}|${p.endereco}|${p.lat ?? ''}|${p.lng ?? ''}`)
+    .join('\u0001')
+
   async function calcular(override?: Partial<CalcParams>) {
     const o = override?.origem ?? origem
     const d = override?.destino ?? destino
@@ -56,6 +90,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
     const preco = override?.preco ?? precoDiesel
     const volta = override?.volta ?? idaEVolta
     const pref = override?.pref ?? preferencia
+    const vias = override?.waypoints ?? waypoints
 
     if (o.trim().length < 3 || d.trim().length < 3) {
       setErro('Informe origem e destino.')
@@ -75,6 +110,9 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
       preferencia: pref,
       tabela: carga?.antt?.tabela ?? 'A',
       categoriaId: carga?.antt?.categoria_id ?? null,
+      waypoints: vias,
+      origemCoords,
+      destinoCoords,
     })
     if (id !== reqId.current) return
     setBusy(false)
@@ -90,10 +128,12 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
     if (!open || !carga) return
     const o = carga.origem || ''
     const d = carga.destino || ''
+    const vias = pontosDaCarga(carga, rotas)
     const ex = eixosDoVeiculo(carga.veiculo || 'Carreta')
     const cons = String(consumoPadraoKmL(ex)).replace('.', ',')
     setOrigem(o)
     setDestino(d)
+    setWaypoints(vias)
     setEixos(ex)
     setConsumo(cons)
     setPrecoDiesel('6,50')
@@ -110,10 +150,11 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
         preco: '6,50',
         volta: false,
         pref: 'eficiente',
+        waypoints: vias,
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, carga?.id])
+  }, [open, carga?.id, rotas])
 
   function alternarIdaEVolta() {
     const next = !idaEVolta
@@ -142,13 +183,17 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
           veiculo={carga.veiculo}
           value={carga.antt ?? null}
           modoConsulta
+          waypoints={waypoints}
+          origemCoords={origemCoords}
+          destinoCoords={destinoCoords}
         />
 
         <p className="text-xs font-bold uppercase tracking-wide text-ink-muted">
           Calculadora avançada (eixos · consumo · diesel)
         </p>
         <p className="text-xs text-ink-muted">
-          Ajuste os parâmetros abaixo e calcule de novo. Origem/destino vêm da carga.
+          Ajuste os parâmetros abaixo e calcule de novo. Origem, destino e pontos de
+          passagem vêm da carga.
         </p>
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-end">
@@ -176,15 +221,41 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
           </Field>
         </div>
 
+        {waypoints.length > 0 ? (
+          <div className="rounded-lg border border-sky-200 bg-sky-50/60 px-3 py-2.5">
+            <p className="text-[12px] font-bold text-sky-900">
+              Pontos de passagem ({waypoints.length})
+            </p>
+            <ol className="mt-1.5 list-decimal space-y-1 pl-5 text-[12px] text-sky-950">
+              {waypoints.map((p, idx) => (
+                <li key={p.id || idx}>
+                  {(p.endereco || '').trim() ||
+                    (p.lat != null && p.lng != null
+                      ? `${p.lat}, ${p.lng}`
+                      : `Ponto ${idx + 1}`)}
+                </li>
+              ))}
+            </ol>
+          </div>
+        ) : (
+          <p className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-900">
+            Esta carga não tem pontos de passagem cadastrados. Em rota circular
+            (origem = destino), o embarcador precisa informar as vias.
+          </p>
+        )}
+
         {open && origem.trim().length >= 3 && destino.trim().length >= 3 ? (
           <div className="space-y-1.5">
             <p className="text-[12px] font-bold uppercase tracking-wide text-ink">
               Mapa da rota
             </p>
             <RotaMapPreview
-              key={`calc-map-${carga.id}-${origem}-${destino}-${eixos}`}
+              key={`calc-map-${carga.id}-${origem}-${destino}-${eixos}-${viasKey}`}
               origem={origem}
               destino={destino}
+              origemCoords={origemCoords}
+              destinoCoords={destinoCoords}
+              waypoints={waypoints}
               veiculo={carga.veiculo}
               eixos={eixos}
               className="h-[280px] min-h-[280px] w-full"

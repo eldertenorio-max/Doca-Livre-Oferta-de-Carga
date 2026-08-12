@@ -160,6 +160,39 @@ export function estimarCustosRota(
 
 export type PreferenciaRota = 'eficiente' | 'curta' | 'evitar_pedagio'
 
+export type AnttWaypointInput =
+  | string
+  | { endereco?: string; lat?: number | null; lng?: number | null }
+
+async function resolverWaypointAntt(
+  w: AnttWaypointInput,
+): Promise<
+  | { ok: true; coords: { lat: number; lng: number } }
+  | { ok: false; erro: string }
+> {
+  if (typeof w !== 'string') {
+    const lat = w.lat != null ? Number(w.lat) : NaN
+    const lng = w.lng != null ? Number(w.lng) : NaN
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return { ok: true, coords: { lat, lng } }
+    }
+    const end = (w.endereco || '').trim()
+    if (end.length < 3) {
+      return { ok: false, erro: 'ponto de passagem sem endereço/coordenadas' }
+    }
+    const g = await geocodificarConsulta(end)
+    if (!g.ok) return { ok: false, erro: g.erro }
+    return { ok: true, coords: g.coords }
+  }
+  const end = w.trim()
+  if (end.length < 3) {
+    return { ok: false, erro: 'ponto de passagem inválido' }
+  }
+  const g = await geocodificarConsulta(end)
+  if (!g.ok) return { ok: false, erro: g.erro }
+  return { ok: true, coords: g.coords }
+}
+
 /**
  * Calculadora operacional do transportador (OSRM + praças ANTT).
  * Puxa origem/destino da carga; permite eixos, consumo, diesel e ida/volta.
@@ -174,6 +207,9 @@ export async function calcularRotaOperacional(params: {
   preferencia?: PreferenciaRota
   tabela?: TabelaAntt
   categoriaId?: number | null
+  waypoints?: AnttWaypointInput[]
+  origemCoords?: { lat: number; lng: number } | null
+  destinoCoords?: { lat: number; lng: number } | null
 }): Promise<{ ok: true; data: AnttCalculo } | { ok: false; erro: string }> {
   const origemTxt = params.origem.trim()
   const destinoTxt = params.destino.trim()
@@ -182,19 +218,62 @@ export async function calcularRotaOperacional(params: {
   }
   const eixos = Math.max(2, Math.min(9, Math.round(params.eixos || 5)))
 
-  const [o, d] = await Promise.all([
-    geocodificarConsulta(origemTxt),
-    geocodificarConsulta(destinoTxt),
+  const viasIn = (params.waypoints ?? []).filter((w) => {
+    if (typeof w === 'string') return w.trim().length >= 3
+    const end = (w.endereco || '').trim()
+    if (end.length >= 3) return true
+    return (
+      w.lat != null &&
+      w.lng != null &&
+      Number.isFinite(Number(w.lat)) &&
+      Number.isFinite(Number(w.lng))
+    )
+  })
+
+  const oHint = params.origemCoords
+  const dHint = params.destinoCoords
+  const [o, ...viaResults] = await Promise.all([
+    oHint && Number.isFinite(oHint.lat) && Number.isFinite(oHint.lng)
+      ? Promise.resolve({ ok: true as const, coords: oHint })
+      : geocodificarConsulta(origemTxt),
+    ...viasIn.map((w) => resolverWaypointAntt(w)),
   ])
+  const d =
+    dHint && Number.isFinite(dHint.lat) && Number.isFinite(dHint.lng)
+      ? { ok: true as const, coords: dHint }
+      : await geocodificarConsulta(destinoTxt)
+
   if (!o.ok) return { ok: false, erro: `Origem: ${o.erro}` }
   if (!d.ok) return { ok: false, erro: `Destino: ${d.erro}` }
+  for (let i = 0; i < viaResults.length; i++) {
+    const v = viaResults[i]
+    if (!v.ok) return { ok: false, erro: `Ponto ${i + 1}: ${v.erro}` }
+  }
+  const viaCoords = viaResults.map((v) => {
+    if (!v.ok) throw new Error('via')
+    return v.coords
+  })
+
+  const mesmaOd =
+    Math.abs(o.coords.lat - d.coords.lat) < 0.0002 &&
+    Math.abs(o.coords.lng - d.coords.lng) < 0.0002
+  if (mesmaOd && viaCoords.length === 0) {
+    return {
+      ok: false,
+      erro:
+        'Origem = destino: é preciso ter pontos de passagem na carga para calcular a rota circular.',
+    }
+  }
 
   const { rotaOsrmComGeometria, calcularPedagioNaRota } = await import('./anttPedagioAberto')
   const preferencia = params.preferencia ?? 'eficiente'
   const evitar = preferencia === 'evitar_pedagio'
   const idaEVolta = Boolean(params.idaEVolta)
 
-  const rotaIda = await rotaOsrmComGeometria(o.coords, d.coords, { preferencia })
+  const rotaIda = await rotaOsrmComGeometria(o.coords, d.coords, {
+    preferencia,
+    waypoints: viaCoords,
+  })
   if (!rotaIda) {
     if (evitar) {
       return {
@@ -205,12 +284,16 @@ export async function calcularRotaOperacional(params: {
     return { ok: false, erro: 'Não foi possível calcular a rota entre origem e destino.' }
   }
 
-  // Ida e volta = soma ida (O→D) + volta (D→O). Nunca pode sair mais barato que só a ida.
+  // Ida e volta = soma ida (O→D via pontos) + volta (D→O via pontos invertidos).
   let distKm = rotaIda.distanciaKm
   let durMin = rotaIda.duracaoMin
   let polylineVolta: Array<{ lat: number; lng: number }> | null = null
   if (idaEVolta) {
-    const rotaVolta = await rotaOsrmComGeometria(d.coords, o.coords, { preferencia })
+    const viasVolta = [...viaCoords].reverse()
+    const rotaVolta = await rotaOsrmComGeometria(d.coords, o.coords, {
+      preferencia,
+      waypoints: viasVolta,
+    })
     if (rotaVolta) {
       distKm += rotaVolta.distanciaKm
       durMin += rotaVolta.duracaoMin
@@ -330,39 +413,6 @@ export async function calcularRotaOperacional(params: {
  * - Pisos: coeficientes oficiais Res. ANTT 6.084/2026
  * - Pedágio / Vale-Pedágio: praças dos Dados Abertos ANTT na rota
  */
-export type AnttWaypointInput =
-  | string
-  | { endereco?: string; lat?: number | null; lng?: number | null }
-
-async function resolverWaypointAntt(
-  w: AnttWaypointInput,
-): Promise<
-  | { ok: true; coords: { lat: number; lng: number } }
-  | { ok: false; erro: string }
-> {
-  if (typeof w !== 'string') {
-    const lat = w.lat != null ? Number(w.lat) : NaN
-    const lng = w.lng != null ? Number(w.lng) : NaN
-    if (Number.isFinite(lat) && Number.isFinite(lng)) {
-      return { ok: true, coords: { lat, lng } }
-    }
-    const end = (w.endereco || '').trim()
-    if (end.length < 3) {
-      return { ok: false, erro: 'ponto de passagem sem endereço/coordenadas' }
-    }
-    const g = await geocodificarConsulta(end)
-    if (!g.ok) return { ok: false, erro: g.erro }
-    return { ok: true, coords: g.coords }
-  }
-  const end = w.trim()
-  if (end.length < 3) {
-    return { ok: false, erro: 'ponto de passagem inválido' }
-  }
-  const g = await geocodificarConsulta(end)
-  if (!g.ok) return { ok: false, erro: g.erro }
-  return { ok: true, coords: g.coords }
-}
-
 export async function calcularAnttCompleto(params: {
   origem: string
   destino: string

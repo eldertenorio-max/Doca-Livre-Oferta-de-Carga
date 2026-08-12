@@ -13,7 +13,7 @@ import type {
   Veiculo,
 } from '../types'
 import { alinharStatusComLances } from './kanbanColumns'
-import { dedupeRotas } from './rotasSync'
+import { dedupeRotas, limparPontosPassagemRota } from './rotasSync'
 import { isSupabaseConfigured, supabase } from './supabase'
 import { veiculoParaSync } from './veiculosSync'
 
@@ -165,6 +165,8 @@ function mergeCargas(local: Carga[], remote: Carga[]): Carga[] {
     if (remoteT < localT) continue
     const remotoTemRetorno = Object.prototype.hasOwnProperty.call(item, 'carga_retorno')
     const remotoTemOrigem = Object.prototype.hasOwnProperty.call(item, 'retorna_origem')
+    const pontosRem = limparPontosPassagemRota(item.pontos_passagem)
+    const pontosPrev = limparPontosPassagemRota(prev.pontos_passagem)
     map.set(item.id, {
       ...prev,
       ...item,
@@ -172,6 +174,7 @@ function mergeCargas(local: Carga[], remote: Carga[]): Carga[] {
       retorna_origem: remotoTemOrigem
         ? Boolean(item.retorna_origem)
         : Boolean(prev.retorna_origem),
+      pontos_passagem: pontosRem.length > 0 ? pontosRem : pontosPrev,
     })
   }
   return Array.from(map.values())
