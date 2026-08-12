@@ -144,7 +144,24 @@ export function mergeRotasLocalRemote(local: Rota[], remote: Rota[]): Rota[] {
       if (isUuid(rem.id) || !isUuid(id)) byId.delete(id)
     }
     const prev = byId.get(rem.id)
-    byId.set(rem.id, prev ? { ...prev, ...rem, id: rem.id } : rem)
+    if (!prev) {
+      byId.set(rem.id, rem)
+      continue
+    }
+    const pontosRem = rem.pontos_passagem ?? []
+    const pontosPrev = prev.pontos_passagem ?? []
+    byId.set(rem.id, {
+      ...prev,
+      ...rem,
+      id: rem.id,
+      // Sync sem coluna / array vazio não apaga waypoints locais
+      pontos_passagem: pontosRem.length > 0 ? pontosRem : pontosPrev,
+      origem_lat: rem.origem_lat ?? prev.origem_lat ?? null,
+      origem_lng: rem.origem_lng ?? prev.origem_lng ?? null,
+      destino_lat: rem.destino_lat ?? prev.destino_lat ?? null,
+      destino_lng: rem.destino_lng ?? prev.destino_lng ?? null,
+      km: rem.km > 0 ? rem.km : prev.km || 0,
+    })
   }
 
   return dedupeRotas(Array.from(byId.values()))

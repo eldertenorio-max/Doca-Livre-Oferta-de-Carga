@@ -4680,14 +4680,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
         descricao: r.descricao.trim(),
         origem: r.origem.trim(),
         destino: r.destino.trim(),
+        pontos_passagem: (r.pontos_passagem ?? [])
+          .filter((p) => (p.endereco || '').trim())
+          .map((p) => ({
+            ...p,
+            endereco: p.endereco.trim(),
+          })),
       }
       setState((prev) => {
         const mesma = prev.rotas.find(
-          (x) =>
-            x.id === rota.id ||
-            x.id === r.id ||
-            (x.origem.trim().toLowerCase() === rota.origem.toLowerCase() &&
-              x.destino.trim().toLowerCase() === rota.destino.toLowerCase()),
+          (x) => x.id === rota.id || x.id === r.id,
         )
         const rotas = dedupeRotas(
           mesma
@@ -4700,11 +4702,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return next
       })
       const idFinal =
-        stateRef.current.rotas.find(
-          (x) =>
-            x.origem.trim().toLowerCase() === rota.origem.toLowerCase() &&
-            x.destino.trim().toLowerCase() === rota.destino.toLowerCase(),
-        )?.id ?? rota.id
+        stateRef.current.rotas.find((x) => x.id === rota.id || x.id === r.id)?.id ??
+        rota.id
       void upsertRotaRemote({ ...rota, id: idFinal }).then((res) => {
         if (!res.ok || res.id === idFinal) return
         setState((prev) => {

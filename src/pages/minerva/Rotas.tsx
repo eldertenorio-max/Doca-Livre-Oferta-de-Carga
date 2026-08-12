@@ -51,6 +51,16 @@ function resumoTrajeto(r: Pick<Rota, 'origem' | 'destino' | 'pontos_passagem'>) 
   return `${r.origem} → ${vias.join(' → ')} → ${r.destino}`
 }
 
+function qtdPontosPassagem(r: Pick<Rota, 'pontos_passagem'>): number {
+  return (r.pontos_passagem ?? []).filter((p) => (p.endereco || '').trim()).length
+}
+
+function labelPontosPassagem(n: number): string {
+  if (n <= 0) return ''
+  if (n === 1) return '1 ponto de passagem'
+  return `${n} pontos de passagem`
+}
+
 export function RotasPage() {
   const { rotas, salvarRota } = useData()
   const [form, setForm] = useState<Partial<Rota>>(emptyForm)
@@ -62,7 +72,9 @@ export function RotasPage() {
   const [geoInfo, setGeoInfo] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [mapaRota, setMapaRota] = useState<Rota | null>(null)
+  const [pontosRotaVer, setPontosRotaVer] = useState<Rota | null>(null)
   const [search, setSearch] = useState('')
+  const passagemSectionRef = useRef<HTMLDivElement>(null)
 
   const pontos = form.pontos_passagem ?? []
 
@@ -610,6 +622,20 @@ export function RotasPage() {
                 <td>
                   <p className="font-medium">{r.descricao}</p>
                   <p className="text-xs text-ink-muted">{resumoTrajeto(r)}</p>
+                  {qtdPontosPassagem(r) > 0 ? (
+                    <p className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="rounded bg-sky-50 px-1.5 py-0.5 font-bold text-sky-800">
+                        {labelPontosPassagem(qtdPontosPassagem(r))}
+                      </span>
+                      <button
+                        type="button"
+                        className="font-semibold text-sky-700 underline-offset-2 hover:underline"
+                        onClick={() => setPontosRotaVer(r)}
+                      >
+                        Ver quais
+                      </button>
+                    </p>
+                  ) : null}
                 </td>
                 <td>
                   <span
@@ -642,6 +668,12 @@ export function RotasPage() {
                       onClick={() => {
                         setEditingId(r.id)
                         carregarForm(r)
+                        window.setTimeout(() => {
+                          passagemSectionRef.current?.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start',
+                          })
+                        }, 80)
                       }}
                     >
                       Editar
@@ -660,6 +692,55 @@ export function RotasPage() {
           </tbody>
         </table>
       </div>
+
+      <Modal
+        open={Boolean(pontosRotaVer)}
+        title={
+          pontosRotaVer
+            ? `Pontos de passagem — ${labelPontosPassagem(qtdPontosPassagem(pontosRotaVer))}`
+            : 'Pontos de passagem'
+        }
+        onClose={() => setPontosRotaVer(null)}
+      >
+        {pontosRotaVer && (
+          <div className="space-y-3">
+            <p className="text-xs text-ink-muted">
+              Esta rota tem {labelPontosPassagem(qtdPontosPassagem(pontosRotaVer))}.
+            </p>
+            <ol className="list-decimal space-y-2 pl-5 text-sm text-ink">
+              {(pontosRotaVer.pontos_passagem ?? [])
+                .filter((p) => (p.endereco || '').trim())
+                .map((p, idx) => (
+                  <li key={p.id || idx} className="pl-1">
+                    <span className="font-semibold text-ink-muted">Ponto {idx + 1}: </span>
+                    {p.endereco}
+                  </li>
+                ))}
+            </ol>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setEditingId(pontosRotaVer.id)
+                  carregarForm(pontosRotaVer)
+                  setPontosRotaVer(null)
+                  window.setTimeout(() => {
+                    passagemSectionRef.current?.scrollIntoView({
+                      behavior: 'smooth',
+                      block: 'start',
+                    })
+                  }, 80)
+                }}
+              >
+                Editar pontos
+              </Button>
+              <Button variant="ghost" onClick={() => setPontosRotaVer(null)}>
+                Fechar
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Modal
         open={Boolean(mapaRota)}
@@ -695,6 +776,35 @@ export function RotasPage() {
               value={form.descricao ?? ''}
               onChange={(e) => setForm({ ...form, descricao: e.target.value })}
             />
+            {qtdPontosPassagem(form) > 0 ? (
+              <p className="mt-1 text-[11px] text-sky-800">
+                Esta rota tem {labelPontosPassagem(qtdPontosPassagem(form))}.{' '}
+                <button
+                  type="button"
+                  className="font-bold underline-offset-2 hover:underline"
+                  onClick={() =>
+                    setPontosRotaVer({
+                      ...(form as Rota),
+                      id: editingId ?? 'preview',
+                      descricao: form.descricao ?? '',
+                      origem: form.origem ?? '',
+                      destino: form.destino ?? '',
+                      classificacao: (form.classificacao as ClassificacaoRota) ?? 'B',
+                      frete_tabela: Number(form.frete_tabela) || 0,
+                      km: Number(form.km) || 0,
+                      situacao: (form.situacao as 'ativo' | 'inativo') ?? 'ativo',
+                      pontos_passagem: form.pontos_passagem ?? [],
+                    })
+                  }
+                >
+                  Ver quais
+                </button>
+              </p>
+            ) : (
+              <p className="mt-1 text-[11px] text-ink-muted">
+                Sem pontos de passagem ainda — adicione abaixo se a rota tiver paradas.
+              </p>
+            )}
           </Field>
           <Field label="Classificação">
             <select
@@ -764,12 +874,22 @@ export function RotasPage() {
             </p>
           </Field>
 
-          <div className="sm:col-span-2 rounded-lg border border-dashed border-ink/20 bg-ink/[0.02] p-3">
+          <div
+            ref={passagemSectionRef}
+            className="sm:col-span-2 rounded-lg border border-dashed border-ink/20 bg-ink/[0.02] p-3"
+          >
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div>
-                <p className="text-sm font-bold text-ink">Pontos de passagem</p>
+                <p className="text-sm font-bold text-ink">
+                  Pontos de passagem
+                  {qtdPontosPassagem(form) > 0
+                    ? ` (${labelPontosPassagem(qtdPontosPassagem(form))})`
+                    : ''}
+                </p>
                 <p className="text-[11px] text-ink-muted">
-                  Opcional: endereços intermediários entre origem e destino.
+                  {editingId
+                    ? 'Edite os endereços intermediários desta rota ou adicione novos.'
+                    : 'Opcional: endereços intermediários entre origem e destino.'}
                 </p>
               </div>
               <button
