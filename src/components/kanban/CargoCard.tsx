@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import {
   formatCurrency,
   formatDate,
@@ -7,9 +7,28 @@ import {
   tempoRestante,
 } from '../../lib/businessRules'
 import { isCargaRetorno } from '../../lib/cargaDefaults'
-import type { Carga } from '../../types'
+import { limparPontosPassagemRota } from '../../lib/rotasSync'
+import type { Carga, PontoPassagemRota } from '../../types'
 import { useData } from '../../context/DataContext'
 import { ChatModal } from '../carga/ChatModal'
+import { Button, Modal } from '../ui/Modal'
+
+function pontosDaCarga(
+  carga: Carga,
+  rotas: { id: string; pontos_passagem?: PontoPassagemRota[] }[],
+): PontoPassagemRota[] {
+  const daCarga = limparPontosPassagemRota(carga.pontos_passagem)
+  if (daCarga.length > 0) return daCarga
+  if (!carga.rota_id) return []
+  const r = rotas.find((x) => x.id === carga.rota_id)
+  return limparPontosPassagemRota(r?.pontos_passagem)
+}
+
+function labelPontosPassagem(n: number): string {
+  if (n <= 0) return ''
+  if (n === 1) return '1 ponto de passagem'
+  return `${n} pontos de passagem`
+}
 
 /** Qual lente acende conforme a coluna do Kanban. */
 type SemaforoNivel = 'alta' | 'media' | 'baixa'
@@ -458,12 +477,18 @@ export function CargoCard({
   bidMelhor,
   ofertasCount,
 }: CargoCardProps) {
-  const { tick, mensagensNaoLidasDaCarga, transportadorById } = useData()
+  const { tick, mensagensNaoLidasDaCarga, transportadorById, rotas } = useData()
   const [chatOpen, setChatOpen] = useState(false)
   const [diretosOpen, setDiretosOpen] = useState(false)
+  const [pontosOpen, setPontosOpen] = useState(false)
   void tick
   const chatNaoLidas = mensagensNaoLidasDaCarga(carga.id)
   const diretosIds = carga.transportador_direto_ids ?? []
+  const pontosPassagem = useMemo(
+    () => pontosDaCarga(carga, rotas),
+    [carga, rotas],
+  )
+  const qtdPontos = pontosPassagem.length
 
   // Transportador sempre vê frete oferta/tabela no card (mesmo em Nova Carga).
   const frete =
@@ -550,6 +575,23 @@ export function CargoCard({
             <span className="font-bold text-ink">Destino:</span>{' '}
             <span className="text-ink/90">{carga.destino || '—'}</span>
           </p>
+          {qtdPontos > 0 ? (
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-bold text-sky-800">
+                {labelPontosPassagem(qtdPontos)}
+              </span>
+              <button
+                type="button"
+                className="text-[11px] font-semibold text-sky-700 underline-offset-2 hover:underline"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setPontosOpen(true)
+                }}
+              >
+                Ver quais
+              </button>
+            </p>
+          ) : null}
           <p>
             <span className="font-bold text-ink">Peso:</span>{' '}
             <span className="text-ink/90">{formatNumber(carga.peso ?? 0)}</span>
@@ -829,6 +871,44 @@ export function CargoCard({
           onMouseDown={(e) => e.stopPropagation()}
         >
           <ChatModal carga={carga} open={chatOpen} onClose={() => setChatOpen(false)} />
+        </div>
+      ) : null}
+
+      {pontosOpen ? (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <Modal
+            open={pontosOpen}
+            title={`Pontos de passagem — ${labelPontosPassagem(qtdPontos)}`}
+            onClose={() => setPontosOpen(false)}
+          >
+            <div className="space-y-3">
+              <p className="text-xs text-ink-muted">
+                Carga {carga.numero}: {carga.origem || '—'} → {carga.destino || '—'}
+              </p>
+              <ol className="list-decimal space-y-2 pl-5 text-sm text-ink">
+                {pontosPassagem.map((p, idx) => (
+                  <li key={p.id || idx} className="pl-1">
+                    <span className="font-semibold text-ink-muted">
+                      Ponto {idx + 1}:{' '}
+                    </span>
+                    {(p.endereco || '').trim() ||
+                      (p.lat != null && p.lng != null
+                        ? `${p.lat}, ${p.lng}`
+                        : '—')}
+                  </li>
+                ))}
+              </ol>
+              <div className="flex justify-end pt-1">
+                <Button variant="ghost" onClick={() => setPontosOpen(false)}>
+                  Fechar
+                </Button>
+              </div>
+            </div>
+          </Modal>
         </div>
       ) : null}
     </article>
