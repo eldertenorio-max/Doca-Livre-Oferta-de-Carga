@@ -754,11 +754,33 @@ export function RotasPage() {
               {resumoTrajeto(mapaRota)}
               {mapaRota.km > 0 ? ` · ${mapaRota.km} km cadastrados` : ''}
             </p>
+            {qtdPontosPassagem(mapaRota) === 0 &&
+            (mapaRota.origem || '').trim().toLowerCase() ===
+              (mapaRota.destino || '').trim().toLowerCase() ? (
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
+                Origem e destino estão iguais. Edite o destino ou adicione pontos de
+                passagem para o mapa conseguir traçar a rota.
+              </p>
+            ) : null}
             <RotaMapPreview
               key={mapaRota.id}
               origem={mapaRota.origem}
               destino={mapaRota.destino}
-              waypoints={(mapaRota.pontos_passagem ?? []).map((p) => p.endereco)}
+              origemCoords={
+                mapaRota.origem_lat != null && mapaRota.origem_lng != null
+                  ? { lat: mapaRota.origem_lat, lng: mapaRota.origem_lng }
+                  : null
+              }
+              destinoCoords={
+                mapaRota.destino_lat != null && mapaRota.destino_lng != null
+                  ? { lat: mapaRota.destino_lat, lng: mapaRota.destino_lng }
+                  : null
+              }
+              waypoints={(mapaRota.pontos_passagem ?? []).map((p) => ({
+                endereco: p.endereco,
+                lat: p.lat,
+                lng: p.lng,
+              }))}
               className="h-[360px] min-h-[360px] w-full"
             />
           </div>
@@ -997,10 +1019,26 @@ export function RotasPage() {
         <div className="mt-4">
           <p className="mb-2 text-xs font-bold text-ink">Mapa da rota</p>
           <RotaMapPreview
-            key={`${editingId ?? 'nova'}|${form.origem ?? ''}|${form.destino ?? ''}|${waypointsPreview.join('|')}|${form.origem_lat ?? ''}|${form.destino_lat ?? ''}`}
+            key={`${editingId ?? 'nova'}|${form.origem ?? ''}|${form.destino ?? ''}|${waypointsPreview.join('|')}|${form.origem_lat ?? ''}|${form.destino_lat ?? ''}|${pontos.map((p) => `${p.lat},${p.lng}`).join(';')}`}
             origem={form.origem ?? ''}
             destino={form.destino ?? ''}
-            waypoints={waypointsPreview}
+            origemCoords={
+              form.origem_lat != null && form.origem_lng != null
+                ? { lat: form.origem_lat, lng: form.origem_lng }
+                : null
+            }
+            destinoCoords={
+              form.destino_lat != null && form.destino_lng != null
+                ? { lat: form.destino_lat, lng: form.destino_lng }
+                : null
+            }
+            waypoints={pontos
+              .filter((p) => p.endereco.trim().length >= 3)
+              .map((p) => ({
+                endereco: p.endereco,
+                lat: p.lat,
+                lng: p.lng,
+              }))}
             className="h-[280px] min-h-[280px] w-full"
             onRotaCalculada={({ km }) => {
               const valor = Math.max(1, Math.round(km * 10) / 10)

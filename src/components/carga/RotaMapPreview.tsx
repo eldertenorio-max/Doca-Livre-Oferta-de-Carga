@@ -9,17 +9,57 @@ import {
   rotaOsrmComGeometria,
 } from '../../lib/anttPedagioAberto'
 
+type RotaCoords = { lat: number; lng: number }
+
+export type RotaWaypointInput =
+  | string
+  | { endereco: string; lat?: number | null; lng?: number | null }
+
 type Props = {
   origem: string
   destino: string
-  /** Endereços intermediários (pontos de passagem). */
-  waypoints?: string[]
+  /** Coordenadas salvas (evita geocode errado / origem=destino). */
+  origemCoords?: RotaCoords | null
+  destinoCoords?: RotaCoords | null
+  /** Endereços intermediários (pontos de passagem), com coords opcionais. */
+  waypoints?: RotaWaypointInput[]
   className?: string
   /** Tipo de veículo da carga — define eixos do pedágio. */
   veiculo?: string
   eixos?: number
   /** Chamado quando o trajeto OSRM for calculado (km / duração). */
   onRotaCalculada?: (info: { km: number; duracaoMin: number }) => void
+}
+
+function normWaypoint(w: RotaWaypointInput): {
+  endereco: string
+  lat: number | null
+  lng: number | null
+} {
+  if (typeof w === 'string') {
+    return { endereco: w.trim(), lat: null, lng: null }
+  }
+  const lat = w.lat != null && Number.isFinite(Number(w.lat)) ? Number(w.lat) : null
+  const lng = w.lng != null && Number.isFinite(Number(w.lng)) ? Number(w.lng) : null
+  return { endereco: (w.endereco || '').trim(), lat, lng }
+}
+
+function coordsOk(c?: RotaCoords | null): c is RotaCoords {
+  return Boolean(c && Number.isFinite(c.lat) && Number.isFinite(c.lng))
+}
+
+function mesmaPosicao(a: RotaCoords, b: RotaCoords, tol = 0.0002): boolean {
+  return Math.abs(a.lat - b.lat) < tol && Math.abs(a.lng - b.lng) < tol
+}
+
+async function resolverPonto(
+  endereco: string,
+  hint?: RotaCoords | null,
+): Promise<{ ok: true; coords: RotaCoords } | { ok: false; erro: string }> {
+  if (coordsOk(hint)) return { ok: true, coords: hint }
+  const g = await geocodificarConsulta(endereco)
+  if (!g.ok) return { ok: false, erro: g.erro }
+  return { ok: true, coords: g.coords }
 }
 
 function pinIcon(label: string, color: string) {
@@ -84,6 +124,8 @@ type MetaRota = {
 export function RotaMapPreview({
   origem,
   destino,
+  origemCoords = null,
+  destinoCoords = null,
   waypoints = [],
   className = '',
   veiculo,
@@ -100,6 +142,12 @@ export function RotaMapPreview({
   const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'erro'>('idle')
   const [msg, setMsg] = useState('Informe origem e destino para ver o trajeto')
   const [meta, setMeta] = useState<MetaRota | null>(null)
+
+  const viasNorm = waypoints.map(normWaypoint).filter((w) => w.endereco.length >= 3)
+  const viasKey = viasNorm
+    .map((w) => `${w.endereco}|${w.lat ?? ''}|${w.lng ?? ''}`)
+    .join('\u0001')
+  const coordsKey = `${origemCoords?.lat ?? ''},${origemCoords?.lng ?? ''}|${destinoCoords?.lat ?? ''},${destinoCoords?.lng ?? ''}`
 
   useEffect(() => {
     if (!mapEl.current || mapRef.current) return
@@ -142,7 +190,6 @@ export function RotaMapPreview({
 
     const o = origem.trim()
     const d = destino.trim()
-    const vias = waypoints.map((w) => w.trim()).filter((w) => w.length >= 3)
     if (o.length < 5 || d.length < 5) {
       reqId.current += 1
       layer.clearLayers()
@@ -163,9 +210,14 @@ export function RotaMapPreview({
     const timer = window.setTimeout(() => {
       void (async () => {
         const geoResults = await Promise.all([
-          geocodificarConsulta(o),
-          ...vias.map((w) => geocodificarConsulta(w)),
-          geocodificarConsulta(d),
+          resolverPonto(o, origemCoords),
+          ...viasNorm.map((w) =>
+            resolverPonto(
+              w.endereco,
+              w.lat != null && w.lng != null ? { lat: w.lat, lng: w.lng } : null,
+            ),
+          ),
+          resolverPonto(d, destinoCoords),
         ])
         if (id !== reqId.current) return
 
@@ -185,15 +237,25 @@ export function RotaMapPreview({
           return
         }
 
-        const coordsOk = geoResults.map((g) => {
+        const coordsList = geoResults.map((g) => {
           if (!g.ok) throw new Error('geo')
           return g.coords
         })
-        const origemCoords = coordsOk[0]
-        const destinoCoords = coordsOk[coordsOk.length - 1]
-        const viaCoords = coordsOk.slice(1, -1)
+        const oCoords = coordsList[0]
+        const dCoords = coordsList[coordsList.length - 1]
+        const viaCoords = coordsList.slice(1, -1)
 
-        const rota = await rotaOsrmComGeometria(origemCoords, destinoCoords, {
+        if (mesmaPosicao(oCoords, dCoords) && viaCoords.length === 0) {
+          layer.clearLayers()
+          setStatus('erro')
+          setMeta(null)
+          setMsg(
+            'Origem e destino são o mesmo ponto. Corrija o destino ou adicione pontos de passagem para traçar a rota.',
+          )
+          return
+        }
+
+        const rota = await rotaOsrmComGeometria(oCoords, dCoords, {
           waypoints: viaCoords,
         })
         if (id !== reqId.current) return
@@ -201,7 +263,11 @@ export function RotaMapPreview({
           layer.clearLayers()
           setStatus('erro')
           setMeta(null)
-          setMsg('Não foi possível traçar a rota')
+          setMsg(
+            viaCoords.length === 0 && mesmaPosicao(oCoords, dCoords)
+              ? 'Origem e destino coincidem — não há trajeto para traçar.'
+              : 'Não foi possível traçar a rota. Verifique os endereços e pontos de passagem.',
+          )
           return
         }
 
@@ -242,7 +308,7 @@ export function RotaMapPreview({
           opacity: 0.9,
         }).addTo(layer)
 
-        L.marker([origemCoords.lat, origemCoords.lng], {
+        L.marker([oCoords.lat, oCoords.lng], {
           icon: pinIcon('O', '#16a34a'),
           title: 'Origem',
         }).addTo(layer)
@@ -254,7 +320,7 @@ export function RotaMapPreview({
           }).addTo(layer)
         })
 
-        L.marker([destinoCoords.lat, destinoCoords.lng], {
+        L.marker([dCoords.lat, dCoords.lng], {
           icon: pinIcon('D', '#dc2626'),
           title: 'Destino',
         }).addTo(layer)
@@ -297,7 +363,7 @@ export function RotaMapPreview({
     }, 550)
 
     return () => window.clearTimeout(timer)
-  }, [origem, destino, waypoints.join('\u0001'), veiculo, eixosProp])
+  }, [origem, destino, viasKey, coordsKey, veiculo, eixosProp])
 
   return (
     <div
