@@ -327,6 +327,8 @@ export interface Carga {
   origem_lng?: number | null
   destino_lat?: number | null
   destino_lng?: number | null
+  /** Paradas intermediárias (herdadas da rota ou editadas na publicação). */
+  pontos_passagem?: PontoPassagemRota[]
   /** Se a carga aceita complemento: sim | nao | ambos */
   complemento?: 'sim' | 'nao' | 'ambos'
   /** Marca a oferta como carga de retorno (volta). */

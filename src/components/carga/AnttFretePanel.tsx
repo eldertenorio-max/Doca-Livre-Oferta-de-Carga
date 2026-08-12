@@ -10,6 +10,12 @@ import {
 import type { AnttInfoCarga } from '../../types'
 import { Button, Field, inputClass } from '../ui/Modal'
 
+type WaypointAntt = {
+  endereco: string
+  lat?: number | null
+  lng?: number | null
+}
+
 type Props = {
   origem: string
   destino: string
@@ -19,6 +25,9 @@ type Props = {
   onChange?: (info: AnttInfoCarga | null, freteTabela?: number) => void
   /** Só visualização/recálculo — não altera frete da publicação */
   modoConsulta?: boolean
+  waypoints?: WaypointAntt[]
+  origemCoords?: { lat: number; lng: number } | null
+  destinoCoords?: { lat: number; lng: number } | null
 }
 
 export function AnttFretePanel({
@@ -28,6 +37,9 @@ export function AnttFretePanel({
   value,
   onChange,
   modoConsulta = false,
+  waypoints = [],
+  origemCoords = null,
+  destinoCoords = null,
 }: Props) {
   const [tabela, setTabela] = useState<TabelaAntt>(value?.tabela ?? 'A')
   const [categoriaId, setCategoriaId] = useState<number | ''>(value?.categoria_id ?? '')
@@ -56,6 +68,9 @@ export function AnttFretePanel({
       veiculo,
       tabela,
       categoriaId: catId === '' ? null : catId,
+      waypoints,
+      origemCoords,
+      destinoCoords,
     })
     if (id !== reqId.current) return
     setBusy(false)
@@ -70,7 +85,12 @@ export function AnttFretePanel({
     onChangeRef.current?.(info, frete)
   }
 
-  // Automático ao mudar origem / destino / veículo / tabela
+  const viasKey = waypoints
+    .map((w) => `${w.endereco}|${w.lat ?? ''}|${w.lng ?? ''}`)
+    .join('\u0001')
+  const coordsKey = `${origemCoords?.lat ?? ''},${origemCoords?.lng ?? ''}|${destinoCoords?.lat ?? ''},${destinoCoords?.lng ?? ''}`
+
+  // Automático ao mudar origem / destino / vias / veículo / tabela
   useEffect(() => {
     const o = origem.trim()
     const d = destino.trim()
@@ -83,7 +103,7 @@ export function AnttFretePanel({
     }, 900)
     return () => window.clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [origem, destino, veiculo, tabela])
+  }, [origem, destino, veiculo, tabela, viasKey, coordsKey])
 
   function selecionarCategoria(id: number) {
     setCategoriaId(id)

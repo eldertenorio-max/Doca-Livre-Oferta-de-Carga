@@ -330,6 +330,39 @@ export async function calcularRotaOperacional(params: {
  * - Pisos: coeficientes oficiais Res. ANTT 6.084/2026
  * - Pedágio / Vale-Pedágio: praças dos Dados Abertos ANTT na rota
  */
+export type AnttWaypointInput =
+  | string
+  | { endereco?: string; lat?: number | null; lng?: number | null }
+
+async function resolverWaypointAntt(
+  w: AnttWaypointInput,
+): Promise<
+  | { ok: true; coords: { lat: number; lng: number } }
+  | { ok: false; erro: string }
+> {
+  if (typeof w !== 'string') {
+    const lat = w.lat != null ? Number(w.lat) : NaN
+    const lng = w.lng != null ? Number(w.lng) : NaN
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return { ok: true, coords: { lat, lng } }
+    }
+    const end = (w.endereco || '').trim()
+    if (end.length < 3) {
+      return { ok: false, erro: 'ponto de passagem sem endereço/coordenadas' }
+    }
+    const g = await geocodificarConsulta(end)
+    if (!g.ok) return { ok: false, erro: g.erro }
+    return { ok: true, coords: g.coords }
+  }
+  const end = w.trim()
+  if (end.length < 3) {
+    return { ok: false, erro: 'ponto de passagem inválido' }
+  }
+  const g = await geocodificarConsulta(end)
+  if (!g.ok) return { ok: false, erro: g.erro }
+  return { ok: true, coords: g.coords }
+}
+
 export async function calcularAnttCompleto(params: {
   origem: string
   destino: string
@@ -337,6 +370,10 @@ export async function calcularAnttCompleto(params: {
   tabela: TabelaAntt
   categoriaId?: number | null
   retornoVazio?: boolean
+  /** Paradas intermediárias (origem → vias → destino). */
+  waypoints?: AnttWaypointInput[]
+  origemCoords?: { lat: number; lng: number } | null
+  destinoCoords?: { lat: number; lng: number } | null
 }): Promise<{ ok: true; data: AnttCalculo } | { ok: false; erro: string }> {
   const origemTxt = params.origem.trim()
   const destinoTxt = params.destino.trim()
@@ -347,15 +384,58 @@ export async function calcularAnttCompleto(params: {
     return { ok: false, erro: 'Selecione o tipo de veículo para definir os eixos.' }
   }
 
-  const [o, d] = await Promise.all([
-    geocodificarConsulta(origemTxt),
-    geocodificarConsulta(destinoTxt),
+  const viasIn = (params.waypoints ?? []).filter((w) => {
+    if (typeof w === 'string') return w.trim().length >= 3
+    const end = (w.endereco || '').trim()
+    if (end.length >= 3) return true
+    return (
+      w.lat != null &&
+      w.lng != null &&
+      Number.isFinite(Number(w.lat)) &&
+      Number.isFinite(Number(w.lng))
+    )
+  })
+
+  const oHint = params.origemCoords
+  const dHint = params.destinoCoords
+  const [o, ...viaResults] = await Promise.all([
+    oHint && Number.isFinite(oHint.lat) && Number.isFinite(oHint.lng)
+      ? Promise.resolve({ ok: true as const, coords: oHint })
+      : geocodificarConsulta(origemTxt),
+    ...viasIn.map((w) => resolverWaypointAntt(w)),
   ])
+  const d =
+    dHint && Number.isFinite(dHint.lat) && Number.isFinite(dHint.lng)
+      ? { ok: true as const, coords: dHint }
+      : await geocodificarConsulta(destinoTxt)
+
   if (!o.ok) return { ok: false, erro: `Origem: ${o.erro}` }
   if (!d.ok) return { ok: false, erro: `Destino: ${d.erro}` }
+  for (let i = 0; i < viaResults.length; i++) {
+    const v = viaResults[i]
+    if (!v.ok) return { ok: false, erro: `Ponto ${i + 1}: ${v.erro}` }
+  }
+
+  const viaCoords = viaResults.map((v) => {
+    if (!v.ok) throw new Error('via')
+    return v.coords
+  })
+
+  const mesmaOd =
+    Math.abs(o.coords.lat - d.coords.lat) < 0.0002 &&
+    Math.abs(o.coords.lng - d.coords.lng) < 0.0002
+  if (mesmaOd && viaCoords.length === 0) {
+    return {
+      ok: false,
+      erro:
+        'Origem = destino: adicione pelo menos 1 ponto de passagem para calcular a rota circular.',
+    }
+  }
 
   const { rotaOsrmComGeometria, calcularPedagioNaRota } = await import('./anttPedagioAberto')
-  const rotaGeo = await rotaOsrmComGeometria(o.coords, d.coords)
+  const rotaGeo = await rotaOsrmComGeometria(o.coords, d.coords, {
+    waypoints: viaCoords,
+  })
   if (!rotaGeo) {
     return { ok: false, erro: 'Não foi possível calcular a rota entre origem e destino.' }
   }

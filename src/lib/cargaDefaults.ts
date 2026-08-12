@@ -1,4 +1,5 @@
 import { parseCarrocerias } from './tiposCarroceria'
+import { limparPontosPassagemRota } from './rotasSync'
 import type { Carga, HistoricoEvento, Profile, TipoHistorico } from '../types'
 
 /** Aceita true/1/"sim"/"true" — útil após sync JSON antigo. */
@@ -52,6 +53,7 @@ export function normalizeCarga(c: Carga): Carga {
       c.destino_lng != null && Number.isFinite(Number(c.destino_lng))
         ? Number(c.destino_lng)
         : null,
+    pontos_passagem: limparPontosPassagemRota(c.pontos_passagem),
     gerenciamento_risco:
       c.gerenciamento_risco === 'rastreador' ||
       c.gerenciamento_risco === 'localizador' ||

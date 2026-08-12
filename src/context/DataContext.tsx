@@ -445,6 +445,7 @@ export function montarNovaCarga(
     origem_lng: null,
     destino_lat: null,
     destino_lng: null,
+    pontos_passagem: [],
     complemento: undefined,
     carga_retorno: false,
     retorna_origem: false,

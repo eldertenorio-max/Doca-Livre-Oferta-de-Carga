@@ -143,7 +143,13 @@ export function RotaMapPreview({
   const [msg, setMsg] = useState('Informe origem e destino para ver o trajeto')
   const [meta, setMeta] = useState<MetaRota | null>(null)
 
-  const viasNorm = waypoints.map(normWaypoint).filter((w) => w.endereco.length >= 3)
+  const viasNorm = waypoints
+    .map(normWaypoint)
+    .filter(
+      (w) =>
+        w.endereco.length >= 3 ||
+        (w.lat != null && w.lng != null),
+    )
   const viasKey = viasNorm
     .map((w) => `${w.endereco}|${w.lat ?? ''}|${w.lng ?? ''}`)
     .join('\u0001')

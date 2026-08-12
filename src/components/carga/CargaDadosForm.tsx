@@ -14,6 +14,7 @@ import type {
   AnttInfoCarga,
   Carga,
   ClassificacaoRota,
+  PontoPassagemRota,
   Rota,
 } from "../../types";
 import { Button, Field, inputClass } from "../ui/Modal";
@@ -21,7 +22,7 @@ import { CnpjInput } from "../ui/CnpjInput";
 import { SuggestInput } from "../ui/SuggestInput";
 import { AddressSuggestInput, PLACEHOLDER_ENDERECO_EXEMPLO } from "../ui/AddressSuggestInput";
 import { joinCarrocerias, parseCarrocerias } from "../../lib/tiposCarroceria";
-import { newRotaId } from "../../lib/rotasSync";
+import { limparPontosPassagemRota, newPontoPassagemId, newRotaId } from "../../lib/rotasSync";
 import { fmtMapsCoords, parseMapsCoords } from "../../lib/mapsCoords";
 import {
   enderecoPorCoordenadas,
@@ -120,6 +121,27 @@ function descricaoRota(origem: string, destino: string) {
   return `${o} - ${d}`;
 }
 
+function mesmaOrigemDestino(origem: string, destino: string): boolean {
+  const o = origem.trim().toLowerCase().replace(/\s+/g, " ");
+  const d = destino.trim().toLowerCase().replace(/\s+/g, " ");
+  return Boolean(o && d && o === d);
+}
+
+function pontosDaCargaOuRota(carga: Carga, rotas: Rota[]): PontoPassagemRota[] {
+  const daCarga = limparPontosPassagemRota(carga.pontos_passagem);
+  if (daCarga.length > 0) return daCarga;
+  if (!carga.rota_id) return [];
+  const r = rotas.find((x) => x.id === carga.rota_id);
+  return limparPontosPassagemRota(r?.pontos_passagem);
+}
+
+function resumoOpcaoRota(r: Rota): string {
+  const vias = limparPontosPassagemRota(r.pontos_passagem);
+  const base = `${r.origem} → ${r.destino}`;
+  if (vias.length === 0) return base;
+  return `${base} · ${vias.length} ponto${vias.length === 1 ? "" : "s"}`;
+}
+
 const SUGESTOES_OBS = [
   "seco",
   "refrigerado",
@@ -185,6 +207,19 @@ export function CargaDadosForm({
   const [cargaRetorno, setCargaRetorno] = useState(Boolean(carga.carga_retorno));
   const [retornaOrigem, setRetornaOrigem] = useState(Boolean(carga.retorna_origem));
   const [rotaId, setRotaId] = useState(carga.rota_id ?? "");
+  const [pontosPassagem, setPontosPassagem] = useState<PontoPassagemRota[]>(() =>
+    pontosDaCargaOuRota(carga, rotas),
+  );
+  const [pontosMapsStr, setPontosMapsStr] = useState<Record<string, string>>(
+    () => {
+      const init: Record<string, string> = {};
+      for (const p of pontosDaCargaOuRota(carga, rotas)) {
+        init[p.id] = fmtMapsCoords(p.lat, p.lng);
+      }
+      return init;
+    },
+  );
+  const skipRevPontos = useRef<Record<string, boolean>>({});
   const [pedido, setPedido] = useState(carga.pedido);
   const [tipoCarga, setTipoCarga] = useState(carga.tipo_carga);
   const [veiculo, setVeiculo] = useState(carga.veiculo);
@@ -247,6 +282,9 @@ export function CargaDadosForm({
       obs: outras.map((c) => c.observacao),
       rotasOrigem: rotas.map((r) => r.origem),
       rotasDestino: rotas.map((r) => r.destino),
+      rotasVias: rotas.flatMap((r) =>
+        (r.pontos_passagem ?? []).map((p) => p.endereco),
+      ),
     };
   }, [cargas, carga.id, rotas]);
 
@@ -273,6 +311,21 @@ export function CargaDadosForm({
         14,
       ),
     [historico.destino, historico.rotasDestino],
+  );
+
+  const sugPonto = useMemo(
+    () => (q: string) =>
+      filtrarSugestoes(
+        q,
+        [
+          buscarCidades(q, 10),
+          historico.origem,
+          historico.destino,
+          historico.rotasVias,
+        ],
+        12,
+      ),
+    [historico.origem, historico.destino, historico.rotasVias],
   );
 
   const sugTipo = useMemo(
@@ -387,6 +440,11 @@ export function CargaDadosForm({
     setCargaRetorno(Boolean(carga.carga_retorno));
     setRetornaOrigem(Boolean(carga.retorna_origem));
     setRotaId(carga.rota_id ?? "");
+    const pts = pontosDaCargaOuRota(carga, rotas);
+    setPontosPassagem(pts);
+    const maps: Record<string, string> = {};
+    for (const p of pts) maps[p.id] = fmtMapsCoords(p.lat, p.lng);
+    setPontosMapsStr(maps);
     setPedido(carga.pedido);
     setTipoCarga(carga.tipo_carga);
     setVeiculo(carga.veiculo);
@@ -409,6 +467,23 @@ export function CargaDadosForm({
     setCnpjInfoOk(false);
     ultimoCnpjBuscado.current = "";
   }, [carga.id, carga.updated_at]);
+
+  // Se a rota cadastrada chega depois (sync), preenche pontos vazios
+  useEffect(() => {
+    if (!rotaId) return;
+    setPontosPassagem((prev) => {
+      if (prev.length > 0) return prev;
+      const r = rotas.find((x) => x.id === rotaId);
+      const pts = limparPontosPassagemRota(r?.pontos_passagem);
+      if (pts.length === 0) return prev;
+      setPontosMapsStr((m) => {
+        const next = { ...m };
+        for (const p of pts) next[p.id] = fmtMapsCoords(p.lat, p.lng);
+        return next;
+      });
+      return pts;
+    });
+  }, [rotaId, rotas]);
 
   // Consulta Receita Federal ao completar o CNPJ do destinatário
   useEffect(() => {
@@ -507,11 +582,133 @@ export function CargaDadosForm({
     setDestinoLng(r.destino_lng ?? null);
     setOrigemMapsStr(fmtMapsCoords(r.origem_lat, r.origem_lng));
     setDestinoMapsStr(fmtMapsCoords(r.destino_lat, r.destino_lng));
+    const pts = limparPontosPassagemRota(r.pontos_passagem).map((p) => ({
+      ...p,
+      id: p.id || newPontoPassagemId(),
+    }));
+    setPontosPassagem(pts);
+    const maps: Record<string, string> = {};
+    for (const p of pts) {
+      maps[p.id] = fmtMapsCoords(p.lat, p.lng);
+      skipRevPontos.current[p.id] = true;
+    }
+    setPontosMapsStr(maps);
     setFreteTabela(formatMoneyInput(r.frete_tabela || 0));
     setClassificacao(r.classificacao ?? "B");
     setSalvarFavorita(false);
-    setInfo(`Rota “${r.descricao}” aplicada (${r.origem} → ${r.destino}).`);
+    const nVias = pts.length;
+    setInfo(
+      nVias > 0
+        ? `Rota “${r.descricao}” aplicada com ${nVias} ponto${nVias === 1 ? "" : "s"} de passagem.`
+        : `Rota “${r.descricao}” aplicada (${r.origem} → ${r.destino}).`,
+    );
   }
+
+  function adicionarPontoPassagem() {
+    const id = newPontoPassagemId();
+    setPontosPassagem((prev) => [
+      ...prev,
+      { id, endereco: "", lat: null, lng: null },
+    ]);
+    setPontosMapsStr((prev) => ({ ...prev, [id]: "" }));
+    if (rotaId) setRotaId("");
+  }
+
+  function removerPontoPassagem(id: string) {
+    setPontosPassagem((prev) => prev.filter((p) => p.id !== id));
+    setPontosMapsStr((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    if (rotaId) setRotaId("");
+  }
+
+  function atualizarPonto(
+    id: string,
+    patch: Partial<Pick<PontoPassagemRota, "endereco" | "lat" | "lng">>,
+  ) {
+    setPontosPassagem((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+    );
+    if (rotaId) setRotaId("");
+  }
+
+  // Geocode dos pontos de passagem (endereço → coords)
+  useEffect(() => {
+    if (!editavel) return;
+    const timers: number[] = [];
+    for (const p of pontosPassagem) {
+      const txt = (p.endereco || "").trim();
+      if (txt.length < 5) continue;
+      if (p.lat != null && p.lng != null) continue;
+      const id = p.id;
+      const t = window.setTimeout(() => {
+        void (async () => {
+          const res = await geocodificarConsulta(txt);
+          if (!res.ok) return;
+          skipRevPontos.current[id] = true;
+          setPontosPassagem((prev) =>
+            prev.map((x) =>
+              x.id === id
+                ? { ...x, lat: res.coords.lat, lng: res.coords.lng }
+                : x,
+            ),
+          );
+          setPontosMapsStr((prev) => ({
+            ...prev,
+            [id]: fmtMapsCoords(res.coords.lat, res.coords.lng),
+          }));
+        })();
+      }, 700);
+      timers.push(t);
+    }
+    return () => {
+      for (const t of timers) window.clearTimeout(t);
+    };
+  }, [pontosPassagem, editavel]);
+
+  // Coords Maps dos pontos → lat/lng (+ endereço se vazio)
+  useEffect(() => {
+    if (!editavel) return;
+    const timers: number[] = [];
+    for (const [id, str] of Object.entries(pontosMapsStr)) {
+      if (skipRevPontos.current[id]) {
+        skipRevPontos.current[id] = false;
+        continue;
+      }
+      const parsed = parseMapsCoords(str);
+      if (!parsed) continue;
+      const t = window.setTimeout(() => {
+        void (async () => {
+          setPontosPassagem((prev) =>
+            prev.map((x) =>
+              x.id === id
+                ? { ...x, lat: parsed.lat, lng: parsed.lng }
+                : x,
+            ),
+          );
+          const res = await enderecoPorCoordenadas(parsed.lat, parsed.lng);
+          if (!res.ok) return;
+          setPontosPassagem((prev) =>
+            prev.map((x) => {
+              if (x.id !== id) return x;
+              if ((x.endereco || "").trim().length >= 5) return x;
+              return {
+                ...x,
+                endereco: labelEndereco(res.dados, res.display),
+              };
+            }),
+          );
+          if (rotaId) setRotaId("");
+        })();
+      }, 500);
+      timers.push(t);
+    }
+    return () => {
+      for (const t of timers) window.clearTimeout(t);
+    };
+  }, [pontosMapsStr, editavel, rotaId]);
 
   // Endereço origem → coordenadas Maps
   useEffect(() => {
@@ -638,6 +835,13 @@ export function CargaDadosForm({
       setError("Informe origem e destino da rota.");
       return;
     }
+    const pontosLimpos = limparPontosPassagemRota(pontosPassagem);
+    if (mesmaOrigemDestino(origemFinal, destinoFinal) && pontosLimpos.length === 0) {
+      setError(
+        "Origem = destino: adicione pelo menos 1 ponto de passagem com endereço.",
+      );
+      return;
+    }
     if (!veiculo.trim()) {
       setError("Selecione o tipo de veículo.");
       return;
@@ -677,6 +881,7 @@ export function CargaDadosForm({
         origem_lng: origemLng,
         destino_lat: destinoLat,
         destino_lng: destinoLng,
+        pontos_passagem: pontosLimpos,
         classificacao: classifFinal,
         frete_tabela: freteFinal,
         km: anttInfo?.rota.distancia_km ?? 0,
@@ -726,6 +931,7 @@ export function CargaDadosForm({
       origem_lng: origemLng,
       destino_lat: destinoLat,
       destino_lng: destinoLng,
+      pontos_passagem: pontosLimpos,
       complemento: complementoFinal,
       carga_retorno: cargaRetorno,
       retorna_origem: retornaOrigem,
@@ -929,7 +1135,7 @@ export function CargaDadosForm({
               <option value="">Digitar origem e destino manualmente…</option>
               {rotasAtivas.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.descricao} — {r.origem} → {r.destino}
+                  {r.descricao} — {resumoOpcaoRota(r)}
                   {r.frete_tabela > 0
                     ? ` · R$ ${formatMoneyInput(r.frete_tabela)}`
                     : ""}
@@ -1011,6 +1217,91 @@ export function CargaDadosForm({
               Cole lat,lng ou lat,lng,zoom do Google Maps.
             </p>
           </Field>
+          <div className="sm:col-span-12 rounded-lg border border-dashed border-ink/20 bg-ink/[0.02] p-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-bold text-ink">
+                  Pontos de passagem
+                  {limparPontosPassagemRota(pontosPassagem).length > 0
+                    ? ` (${limparPontosPassagemRota(pontosPassagem).length})`
+                    : ""}
+                </p>
+                <p className="text-[11px] text-ink-muted">
+                  {mesmaOrigemDestino(origem, destino)
+                    ? "Origem = destino (circular): obrigatório pelo menos 1 ponto."
+                    : "Opcional: paradas intermediárias entre origem e destino."}
+                </p>
+              </div>
+              {editavel && (
+                <button
+                  type="button"
+                  className="rounded-md border border-ink/20 bg-white px-3 py-1.5 text-xs font-bold text-ink hover:bg-ink/5"
+                  onClick={adicionarPontoPassagem}
+                >
+                  + Adicionar ponto
+                </button>
+              )}
+            </div>
+            {pontosPassagem.length === 0 ? (
+              <p className="text-xs text-ink-muted">
+                Nenhum ponto. Use “Adicionar ponto” ou selecione uma rota que já
+                tenha vias.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {pontosPassagem.map((p, idx) => (
+                  <div
+                    key={p.id}
+                    className="grid gap-2 rounded-md border border-ink/10 bg-white p-3 sm:grid-cols-2"
+                  >
+                    <Field label={`Ponto ${idx + 1} — endereço`}>
+                      <AddressSuggestInput
+                        value={p.endereco}
+                        onChange={(endereco) =>
+                          atualizarPonto(p.id, {
+                            endereco,
+                            lat: null,
+                            lng: null,
+                          })
+                        }
+                        localSuggestions={sugPonto}
+                        minChars={2}
+                        placeholder={PLACEHOLDER_ENDERECO_EXEMPLO}
+                        disabled={!editavel}
+                      />
+                    </Field>
+                    <Field label={`Ponto ${idx + 1} — coordenadas (Maps)`}>
+                      <div className="flex gap-2">
+                        <input
+                          className={inputClass}
+                          inputMode="text"
+                          disabled={!editavel}
+                          placeholder="-23.5613545,-46.6590692,17"
+                          value={pontosMapsStr[p.id] ?? ""}
+                          onChange={(e) => {
+                            setPontosMapsStr((prev) => ({
+                              ...prev,
+                              [p.id]: e.target.value,
+                            }));
+                            if (rotaId) setRotaId("");
+                          }}
+                        />
+                        {editavel && (
+                          <button
+                            type="button"
+                            className="shrink-0 rounded-md border border-red-200 px-2 text-xs font-bold text-red-700 hover:bg-red-50"
+                            onClick={() => removerPontoPassagem(p.id)}
+                          >
+                            Remover
+                          </button>
+                        )}
+                      </div>
+                    </Field>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="grid gap-1.5 sm:col-span-12 sm:grid-cols-3">
             <Field label="Retorna para origem">
               <select
@@ -1069,6 +1360,17 @@ export function CargaDadosForm({
           origem={origem}
           destino={destino}
           veiculo={veiculo}
+          waypoints={pontosPassagem}
+          origemCoords={
+            origemLat != null && origemLng != null
+              ? { lat: origemLat, lng: origemLng }
+              : null
+          }
+          destinoCoords={
+            destinoLat != null && destinoLng != null
+              ? { lat: destinoLat, lng: destinoLng }
+              : null
+          }
           value={anttInfo}
           onChange={(info, frete) => {
             setAnttInfo(info);
@@ -1080,6 +1382,17 @@ export function CargaDadosForm({
         <RotaMapPreview
           origem={origem}
           destino={destino}
+          origemCoords={
+            origemLat != null && origemLng != null
+              ? { lat: origemLat, lng: origemLng }
+              : null
+          }
+          destinoCoords={
+            destinoLat != null && destinoLng != null
+              ? { lat: destinoLat, lng: destinoLng }
+              : null
+          }
+          waypoints={pontosPassagem}
           veiculo={veiculo}
           className="h-[220px] min-h-[220px] w-full"
         />
