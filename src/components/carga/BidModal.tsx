@@ -11,6 +11,7 @@ import {
 } from '../../lib/businessRules'
 import { sameTransportadorId } from '../../lib/transportadorIds'
 import { showActionFlash } from '../../lib/actionFlash'
+import { limparPontosPassagemRota } from '../../lib/rotasSync'
 import type { Carga } from '../../types'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
 import { AnttFretePanel } from './AnttFretePanel'
@@ -40,6 +41,7 @@ export function BidModal({
     lancesDaCarga,
     historicoPropostasDaCarga,
     effectiveTransportadorId,
+    rotas,
   } = useData()
   const [valor, setValor] = useState('')
   const [error, setError] = useState('')
@@ -55,6 +57,15 @@ export function BidModal({
     if (!carga) return null
     return cargas.find((c) => c.id === carga.id) ?? carga
   }, [cargas, carga])
+
+  const pontosPassagem = useMemo(() => {
+    if (!live) return []
+    const daCarga = limparPontosPassagemRota(live.pontos_passagem)
+    if (daCarga.length > 0) return daCarga
+    if (!live.rota_id) return []
+    const r = rotas.find((x) => x.id === live.rota_id)
+    return limparPontosPassagemRota(r?.pontos_passagem)
+  }, [live, rotas])
 
   // Só preenche ao abrir (ou trocar de carga/transportadora) — nunca enquanto digita
   useEffect(() => {
@@ -314,6 +325,23 @@ export function BidModal({
             <Detail label="Veículo" value={live.veiculo} />
             <Detail label="Origem" value={live.origem} />
             <Detail label="Destino" value={live.destino} />
+            {pontosPassagem.length > 0 ? (
+              <div className="col-span-full rounded-md border border-sky-200 bg-sky-50/70 px-2.5 py-2">
+                <p className="text-[11px] font-bold text-sky-900">
+                  Pontos de passagem ({pontosPassagem.length})
+                </p>
+                <ol className="mt-1 list-decimal space-y-0.5 pl-4 text-[11px] text-sky-950">
+                  {pontosPassagem.map((p, idx) => (
+                    <li key={p.id || idx}>
+                      {(p.endereco || '').trim() ||
+                        (p.lat != null && p.lng != null
+                          ? `${p.lat}, ${p.lng}`
+                          : `Ponto ${idx + 1}`)}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : null}
             <Detail
               label="Gerenciamento de risco"
               value={
@@ -379,6 +407,17 @@ export function BidModal({
           veiculo={live.veiculo}
           value={live.antt ?? null}
           modoConsulta
+          waypoints={pontosPassagem}
+          origemCoords={
+            live.origem_lat != null && live.origem_lng != null
+              ? { lat: Number(live.origem_lat), lng: Number(live.origem_lng) }
+              : null
+          }
+          destinoCoords={
+            live.destino_lat != null && live.destino_lng != null
+              ? { lat: Number(live.destino_lat), lng: Number(live.destino_lng) }
+              : null
+          }
         />
 
         <div className="space-y-1.5 rounded-lg border border-ink/15 bg-white p-2.5">
@@ -388,13 +427,27 @@ export function BidModal({
             </p>
             <p className="text-[11px] font-semibold text-ink">
               {live.origem} → {live.destino}
+              {pontosPassagem.length > 0
+                ? ` · ${pontosPassagem.length} ponto${pontosPassagem.length === 1 ? '' : 's'}`
+                : ''}
             </p>
           </div>
           {open && (
             <RotaMapPreview
-              key={`bid-map-${live.id}`}
+              key={`bid-map-${live.id}-${pontosPassagem.map((p) => p.id).join('-')}`}
               origem={live.origem}
               destino={live.destino}
+              origemCoords={
+                live.origem_lat != null && live.origem_lng != null
+                  ? { lat: Number(live.origem_lat), lng: Number(live.origem_lng) }
+                  : null
+              }
+              destinoCoords={
+                live.destino_lat != null && live.destino_lng != null
+                  ? { lat: Number(live.destino_lat), lng: Number(live.destino_lng) }
+                  : null
+              }
+              waypoints={pontosPassagem}
               veiculo={live.veiculo}
               className="h-[220px] min-h-[220px] w-full"
             />

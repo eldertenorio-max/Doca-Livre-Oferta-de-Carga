@@ -1005,12 +1005,32 @@ export function CargaDadosForm({
   }
 
   if (!editavel) {
+    const pontosReadonly = pontosDaCargaOuRota(carga, rotas);
     return (
       <div className="space-y-0.5 text-[13px] leading-snug">
         <Row label="Número" value={carga.numero} />
         <Row label="Pedido" value={carga.pedido || "—"} />
         <Row label="Origem" value={carga.origem || "—"} />
         <Row label="Destino" value={carga.destino || "—"} />
+        {pontosReadonly.length > 0 ? (
+          <div className="rounded-md border border-sky-200 bg-sky-50/70 px-2.5 py-2 my-1">
+            <p className="text-[12px] font-bold text-sky-900">
+              Pontos de passagem ({pontosReadonly.length})
+            </p>
+            <ol className="mt-1 list-decimal space-y-1 pl-5 text-[12px] text-sky-950">
+              {pontosReadonly.map((p, idx) => (
+                <li key={p.id || idx}>
+                  {(p.endereco || "").trim() ||
+                    (p.lat != null && p.lng != null
+                      ? `${p.lat}, ${p.lng}`
+                      : `Ponto ${idx + 1}`)}
+                </li>
+              ))}
+            </ol>
+          </div>
+        ) : (
+          <Row label="Pontos de passagem" value="Nenhum" />
+        )}
         {canEdit ? (
           <div className="grid gap-1.5 py-1 sm:grid-cols-2">
             <Field label="Retorna para origem">

@@ -35,6 +35,7 @@ import {
   type PanelSize,
 } from '../../lib/cargasMontadas'
 import { isRascunhoNaoPublicado } from '../../lib/kanbanColumns'
+import { limparPontosPassagemRota } from '../../lib/rotasSync'
 import { prazosAlocacaoPermitidos, prazosOfertaPermitidos } from '../../lib/configNegocio'
 import { canEditModulo } from '../../lib/portalModules'
 import { showActionFlash } from '../../lib/actionFlash'
@@ -1210,6 +1211,35 @@ export function PublishPanel({
             <Detail label="Remetente" value={`${carga.remetente} — ${carga.remetente_cnpj}`} />
             <Detail label="Origem" value={carga.origem || '—'} />
             <Detail label="Destino" value={carga.destino || '—'} />
+            {(() => {
+              const pts = limparPontosPassagemRota(carga.pontos_passagem)
+              const viaRota =
+                pts.length > 0
+                  ? pts
+                  : carga.rota_id
+                    ? limparPontosPassagemRota(
+                        rotas.find((r) => r.id === carga.rota_id)?.pontos_passagem,
+                      )
+                    : []
+              if (viaRota.length === 0) return null
+              return (
+                <div className="col-span-full rounded-md border border-sky-200 bg-sky-50/70 px-2.5 py-2">
+                  <p className="text-[11px] font-bold text-sky-900">
+                    Pontos de passagem ({viaRota.length})
+                  </p>
+                  <ol className="mt-1 list-decimal space-y-0.5 pl-4 text-[11px] text-sky-950">
+                    {viaRota.map((p, idx) => (
+                      <li key={p.id || idx}>
+                        {(p.endereco || '').trim() ||
+                          (p.lat != null && p.lng != null
+                            ? `${p.lat}, ${p.lng}`
+                            : `Ponto ${idx + 1}`)}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )
+            })()}
             <Detail
               label="Complemento"
               value={
