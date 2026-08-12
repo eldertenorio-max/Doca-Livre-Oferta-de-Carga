@@ -12,6 +12,8 @@ import {
 type Props = {
   origem: string
   destino: string
+  /** Endereços intermediários (pontos de passagem). */
+  waypoints?: string[]
   className?: string
   /** Tipo de veículo da carga — define eixos do pedágio. */
   veiculo?: string
@@ -80,6 +82,7 @@ type MetaRota = {
 export function RotaMapPreview({
   origem,
   destino,
+  waypoints = [],
   className = '',
   veiculo,
   eixos: eixosProp,
@@ -134,6 +137,7 @@ export function RotaMapPreview({
 
     const o = origem.trim()
     const d = destino.trim()
+    const vias = waypoints.map((w) => w.trim()).filter((w) => w.length >= 3)
     if (o.length < 5 || d.length < 5) {
       reqId.current += 1
       layer.clearLayers()
@@ -153,27 +157,40 @@ export function RotaMapPreview({
 
     const timer = window.setTimeout(() => {
       void (async () => {
-        const [geoO, geoD] = await Promise.all([
+        const geoResults = await Promise.all([
           geocodificarConsulta(o),
+          ...vias.map((w) => geocodificarConsulta(w)),
           geocodificarConsulta(d),
         ])
         if (id !== reqId.current) return
-        if (!geoO.ok) {
+
+        for (let i = 0; i < geoResults.length; i++) {
+          const g = geoResults[i]
+          if (g.ok) continue
           layer.clearLayers()
           setStatus('erro')
           setMeta(null)
-          setMsg(`Origem: ${geoO.erro}`)
-          return
-        }
-        if (!geoD.ok) {
-          layer.clearLayers()
-          setStatus('erro')
-          setMeta(null)
-          setMsg(`Destino: ${geoD.erro}`)
+          const label =
+            i === 0
+              ? 'Origem'
+              : i === geoResults.length - 1
+                ? 'Destino'
+                : `Ponto ${i}`
+          setMsg(`${label}: ${g.erro}`)
           return
         }
 
-        const rota = await rotaOsrmComGeometria(geoO.coords, geoD.coords)
+        const coordsOk = geoResults.map((g) => {
+          if (!g.ok) throw new Error('geo')
+          return g.coords
+        })
+        const origemCoords = coordsOk[0]
+        const destinoCoords = coordsOk[coordsOk.length - 1]
+        const viaCoords = coordsOk.slice(1, -1)
+
+        const rota = await rotaOsrmComGeometria(origemCoords, destinoCoords, {
+          waypoints: viaCoords,
+        })
         if (id !== reqId.current) return
         if (!rota?.polyline.length) {
           layer.clearLayers()
@@ -220,12 +237,19 @@ export function RotaMapPreview({
           opacity: 0.9,
         }).addTo(layer)
 
-        L.marker([geoO.coords.lat, geoO.coords.lng], {
+        L.marker([origemCoords.lat, origemCoords.lng], {
           icon: pinIcon('O', '#16a34a'),
           title: 'Origem',
         }).addTo(layer)
 
-        L.marker([geoD.coords.lat, geoD.coords.lng], {
+        viaCoords.forEach((c, idx) => {
+          L.marker([c.lat, c.lng], {
+            icon: pinIcon(String(idx + 1), '#2563eb'),
+            title: `Ponto de passagem ${idx + 1}`,
+          }).addTo(layer)
+        })
+
+        L.marker([destinoCoords.lat, destinoCoords.lng], {
           icon: pinIcon('D', '#dc2626'),
           title: 'Destino',
         }).addTo(layer)
@@ -264,7 +288,7 @@ export function RotaMapPreview({
     }, 550)
 
     return () => window.clearTimeout(timer)
-  }, [origem, destino, veiculo, eixosProp])
+  }, [origem, destino, waypoints.join('\u0001'), veiculo, eixosProp])
 
   return (
     <div

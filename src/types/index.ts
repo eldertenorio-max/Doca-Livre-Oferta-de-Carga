@@ -255,6 +255,14 @@ export interface GrupoTransportador {
   updated_at?: string
 }
 
+/** Parada intermediária entre origem e destino. */
+export interface PontoPassagemRota {
+  id: string
+  endereco: string
+  lat?: number | null
+  lng?: number | null
+}
+
 export interface Rota {
   id: string
   descricao: string
@@ -264,6 +272,8 @@ export interface Rota {
   origem_lng?: number | null
   destino_lat?: number | null
   destino_lng?: number | null
+  /** Endereços opcionais entre origem e destino. */
+  pontos_passagem?: PontoPassagemRota[]
   classificacao: ClassificacaoRota
   frete_tabela: number
   km: number

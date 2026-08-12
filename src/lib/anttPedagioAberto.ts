@@ -323,20 +323,19 @@ const OSRM_BASES = [
 
 async function fetchOsrmRoutesFromBase(
   base: string,
-  origem: { lat: number; lng: number },
-  destino: { lat: number; lng: number },
+  pontos: Array<{ lat: number; lng: number }>,
   opts?: { excludeToll?: boolean; alternatives?: boolean },
 ): Promise<OsrmRouteRaw[]> {
+  if (pontos.length < 2) return []
   try {
     const params = new URLSearchParams({
       overview: 'full',
       geometries: 'geojson',
-      alternatives: opts?.alternatives ? 'true' : 'false',
+      alternatives: opts?.alternatives && pontos.length === 2 ? 'true' : 'false',
     })
     if (opts?.excludeToll) params.set('exclude', 'toll')
-    const url =
-      `${base}/route/v1/driving/` +
-      `${origem.lng},${origem.lat};${destino.lng},${destino.lat}?${params.toString()}`
+    const path = pontos.map((p) => `${p.lng},${p.lat}`).join(';')
+    const url = `${base}/route/v1/driving/${path}?${params.toString()}`
     const res = await fetch(url)
     if (!res.ok) return []
     const data = (await res.json()) as { code?: string; routes?: OsrmRouteRaw[] }
@@ -349,12 +348,11 @@ async function fetchOsrmRoutesFromBase(
 
 /** Une rotas de 1+ servidores OSRM (mais alternativas para curta vs eficiente). */
 async function fetchOsrmRoutes(
-  origem: { lat: number; lng: number },
-  destino: { lat: number; lng: number },
+  pontos: Array<{ lat: number; lng: number }>,
   opts?: { excludeToll?: boolean; alternatives?: boolean },
 ): Promise<OsrmRouteRaw[]> {
   const batches = await Promise.all(
-    OSRM_BASES.map((base) => fetchOsrmRoutesFromBase(base, origem, destino, opts)),
+    OSRM_BASES.map((base) => fetchOsrmRoutesFromBase(base, pontos, opts)),
   )
   const all = batches.flat()
   // Dedup por distância/duração arredondadas
@@ -398,7 +396,12 @@ function escolherRota(
 export async function rotaOsrmComGeometria(
   origem: { lat: number; lng: number },
   destino: { lat: number; lng: number },
-  opts?: { evitarPedagios?: boolean; preferencia?: PreferenciaOsrm },
+  opts?: {
+    evitarPedagios?: boolean
+    preferencia?: PreferenciaOsrm
+    /** Paradas intermediárias entre origem e destino. */
+    waypoints?: Array<{ lat: number; lng: number }>
+  },
 ): Promise<{
   distanciaKm: number
   duracaoMin: number
@@ -408,9 +411,13 @@ export async function rotaOsrmComGeometria(
   try {
     const preferencia: PreferenciaOsrm =
       opts?.preferencia ?? (opts?.evitarPedagios ? 'evitar_pedagio' : 'eficiente')
+    const vias = (opts?.waypoints || []).filter(
+      (p) => Number.isFinite(p.lat) && Number.isFinite(p.lng),
+    )
+    const pontos = [origem, ...vias, destino]
 
     if (preferencia === 'evitar_pedagio') {
-      const semToll = await fetchOsrmRoutes(origem, destino, {
+      const semToll = await fetchOsrmRoutes(pontos, {
         excludeToll: true,
         alternatives: true,
       })
@@ -421,7 +428,7 @@ export async function rotaOsrmComGeometria(
       return { ...mapped, preferencia }
     }
 
-    const routes = await fetchOsrmRoutes(origem, destino, { alternatives: true })
+    const routes = await fetchOsrmRoutes(pontos, { alternatives: true })
     const modo = preferencia === 'curta' ? 'curta' : 'eficiente'
     const escolhida = escolherRota(routes, modo)
     if (!escolhida) return null

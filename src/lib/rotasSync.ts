@@ -1,9 +1,13 @@
-import type { ClassificacaoRota, Rota } from '../types'
+import type { ClassificacaoRota, PontoPassagemRota, Rota } from '../types'
 import { isSupabaseConfigured, supabase } from './supabase'
 import { isUuid, newVeiculoId } from './veiculosSync'
 
 export function newRotaId(): string {
   return newVeiculoId()
+}
+
+export function newPontoPassagemId(): string {
+  return `pp_${Math.random().toString(36).slice(2, 10)}`
 }
 
 /** Seeds fixos do demo — não migrar para UUID (evita duplicar a cada refresh). */
@@ -28,9 +32,17 @@ function normTxt(s: string): string {
     .replace(/\s+/g, ' ')
 }
 
-/** Chave estável para detectar a mesma rota (origem + destino). */
-export function chaveRota(r: Pick<Rota, 'origem' | 'destino'>): string {
-  return `${normTxt(r.origem)}|${normTxt(r.destino)}`
+/** Chave estável para detectar a mesma rota (origem + vias + destino). */
+export function chaveRota(
+  r: Pick<Rota, 'origem' | 'destino'> & { pontos_passagem?: PontoPassagemRota[] },
+): string {
+  const vias = (r.pontos_passagem ?? [])
+    .map((p) => normTxt(p.endereco || ''))
+    .filter(Boolean)
+    .join('>')
+  return vias
+    ? `${normTxt(r.origem)}|via:${vias}|${normTxt(r.destino)}`
+    : `${normTxt(r.origem)}|${normTxt(r.destino)}`
 }
 
 function scoreRota(x: Rota): number {
@@ -70,6 +82,24 @@ function asCoord(raw: unknown): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+function mapPontosPassagem(raw: unknown): PontoPassagemRota[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((item, idx) => {
+      if (!item || typeof item !== 'object') return null
+      const o = item as Record<string, unknown>
+      const endereco = String(o.endereco || '').trim()
+      if (!endereco) return null
+      return {
+        id: String(o.id || `pp_${idx}`),
+        endereco,
+        lat: asCoord(o.lat),
+        lng: asCoord(o.lng),
+      } satisfies PontoPassagemRota
+    })
+    .filter((p): p is PontoPassagemRota => Boolean(p))
+}
+
 export function mapRotaRow(row: Record<string, unknown>): Rota {
   return {
     id: String(row.id),
@@ -80,6 +110,7 @@ export function mapRotaRow(row: Record<string, unknown>): Rota {
     origem_lng: asCoord(row.origem_lng),
     destino_lat: asCoord(row.destino_lat),
     destino_lng: asCoord(row.destino_lng),
+    pontos_passagem: mapPontosPassagem(row.pontos_passagem),
     classificacao: asClassificacao(row.classificacao),
     frete_tabela: Number(row.frete_tabela) || 0,
     km: Number(row.km) || 0,
@@ -133,6 +164,14 @@ export async function upsertRotaRemote(
     origem_lng: r.origem_lng ?? null,
     destino_lat: r.destino_lat ?? null,
     destino_lng: r.destino_lng ?? null,
+    pontos_passagem: (r.pontos_passagem ?? [])
+      .filter((p) => (p.endereco || '').trim())
+      .map((p) => ({
+        id: p.id,
+        endereco: p.endereco.trim(),
+        lat: p.lat ?? null,
+        lng: p.lng ?? null,
+      })),
     classificacao: asClassificacao(r.classificacao),
     frete_tabela: Number(r.frete_tabela) || 0,
     km: Number(r.km) || 0,
@@ -141,6 +180,31 @@ export async function upsertRotaRemote(
   const { error } = await supabase.from('rotas').upsert(row)
   if (!error) return { ok: true, id }
 
+  // Colunas novas ainda não existem no Supabase
+  if (/pontos_passagem/i.test(error.message)) {
+    const { pontos_passagem: _pp, ...semPontos } = row
+    const retryPp = await supabase.from('rotas').upsert(semPontos)
+    if (!retryPp.error) return { ok: true, id }
+    // segue para fallback de coords se necessário
+    if (/origem_lat|origem_lng|destino_lat|destino_lng/i.test(retryPp.error.message)) {
+      const {
+        origem_lat: _ol,
+        origem_lng: _og,
+        destino_lat: _dl,
+        destino_lng: _dg,
+        ...rest
+      } = semPontos
+      const retry = await supabase.from('rotas').upsert(rest)
+      if (retry.error) {
+        console.warn('[rotas] falha ao gravar:', retry.error.message)
+        return { ok: false, erro: retry.error.message }
+      }
+      return { ok: true, id }
+    }
+    console.warn('[rotas] falha ao gravar:', retryPp.error.message)
+    return { ok: false, erro: retryPp.error.message }
+  }
+
   // Colunas de coordenadas ainda não existem no Supabase
   if (/origem_lat|origem_lng|destino_lat|destino_lng/i.test(error.message)) {
     const {
@@ -148,6 +212,7 @@ export async function upsertRotaRemote(
       origem_lng: _og,
       destino_lat: _dl,
       destino_lng: _dg,
+      pontos_passagem: _pp,
       ...rest
     } = row
     const retry = await supabase.from('rotas').upsert(rest)
