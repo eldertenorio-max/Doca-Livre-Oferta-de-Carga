@@ -10,6 +10,28 @@ export function newPontoPassagemId(): string {
   return `pp_${Math.random().toString(36).slice(2, 10)}`
 }
 
+export function limparPontosPassagemRota(
+  pontos: PontoPassagemRota[] | undefined,
+): PontoPassagemRota[] {
+  return (pontos ?? [])
+    .filter((p) => {
+      const end = (p.endereco || '').trim()
+      if (end.length >= 3) return true
+      return (
+        p.lat != null &&
+        p.lng != null &&
+        Number.isFinite(Number(p.lat)) &&
+        Number.isFinite(Number(p.lng))
+      )
+    })
+    .map((p) => ({
+      id: p.id || newPontoPassagemId(),
+      endereco: (p.endereco || '').trim(),
+      lat: p.lat ?? null,
+      lng: p.lng ?? null,
+    }))
+}
+
 /** Seeds fixos do demo — não migrar para UUID (evita duplicar a cada refresh). */
 const SEED_ROTA_IDS = new Set(['r1', 'r2', 'r3', 'r4'])
 
@@ -181,14 +203,12 @@ export async function upsertRotaRemote(
     origem_lng: r.origem_lng ?? null,
     destino_lat: r.destino_lat ?? null,
     destino_lng: r.destino_lng ?? null,
-    pontos_passagem: (r.pontos_passagem ?? [])
-      .filter((p) => (p.endereco || '').trim())
-      .map((p) => ({
-        id: p.id,
-        endereco: p.endereco.trim(),
-        lat: p.lat ?? null,
-        lng: p.lng ?? null,
-      })),
+    pontos_passagem: limparPontosPassagemRota(r.pontos_passagem).map((p) => ({
+      id: p.id,
+      endereco: p.endereco.trim(),
+      lat: p.lat ?? null,
+      lng: p.lng ?? null,
+    })),
     classificacao: asClassificacao(r.classificacao),
     frete_tabela: Number(r.frete_tabela) || 0,
     km: Number(r.km) || 0,

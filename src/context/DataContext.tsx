@@ -115,6 +115,7 @@ import {
 import {
   carregarRotasDoSupabase,
   dedupeRotas,
+  limparPontosPassagemRota,
   mergeRotasLocalRemote,
   newRotaId,
   rotasPendentesMigracao,
@@ -4680,21 +4681,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
         descricao: r.descricao.trim(),
         origem: r.origem.trim(),
         destino: r.destino.trim(),
-        pontos_passagem: (r.pontos_passagem ?? [])
-          .filter((p) => (p.endereco || '').trim())
-          .map((p) => ({
-            ...p,
-            endereco: p.endereco.trim(),
-          })),
+        pontos_passagem: limparPontosPassagemRota(r.pontos_passagem),
       }
       setState((prev) => {
         const mesma = prev.rotas.find(
           (x) => x.id === rota.id || x.id === r.id,
         )
+        // Ao atualizar, nunca perde pontos locais se o payload vier vazio por engano
+        const pontosMerge =
+          (rota.pontos_passagem?.length ?? 0) > 0
+            ? rota.pontos_passagem
+            : mesma?.pontos_passagem ?? []
+        const rotaFinal = { ...rota, pontos_passagem: pontosMerge }
         const rotas = dedupeRotas(
           mesma
-            ? prev.rotas.map((x) => (x.id === mesma.id ? { ...rota, id: mesma.id } : x))
-            : [...prev.rotas, rota],
+            ? prev.rotas.map((x) =>
+                x.id === mesma.id ? { ...rotaFinal, id: mesma.id } : x,
+              )
+            : [...prev.rotas, rotaFinal],
         )
         const next = { ...prev, rotas }
         stateRef.current = next
@@ -4704,7 +4708,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const idFinal =
         stateRef.current.rotas.find((x) => x.id === rota.id || x.id === r.id)?.id ??
         rota.id
-      void upsertRotaRemote({ ...rota, id: idFinal }).then((res) => {
+      const rotaGravar =
+        stateRef.current.rotas.find((x) => x.id === idFinal) ?? rota
+      void upsertRotaRemote({ ...rotaGravar, id: idFinal }).then((res) => {
         if (!res.ok || res.id === idFinal) return
         setState((prev) => {
           const rotas = dedupeRotas(

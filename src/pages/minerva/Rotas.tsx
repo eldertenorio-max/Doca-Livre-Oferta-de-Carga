@@ -52,13 +52,47 @@ function resumoTrajeto(r: Pick<Rota, 'origem' | 'destino' | 'pontos_passagem'>) 
 }
 
 function qtdPontosPassagem(r: Pick<Rota, 'pontos_passagem'>): number {
-  return (r.pontos_passagem ?? []).filter((p) => (p.endereco || '').trim()).length
+  return (r.pontos_passagem ?? []).filter(pontoPassagemValido).length
+}
+
+function pontoPassagemValido(p: {
+  endereco?: string | null
+  lat?: number | null
+  lng?: number | null
+}): boolean {
+  const end = (p.endereco || '').trim()
+  if (end.length >= 3) return true
+  return (
+    p.lat != null &&
+    p.lng != null &&
+    Number.isFinite(Number(p.lat)) &&
+    Number.isFinite(Number(p.lng))
+  )
 }
 
 function labelPontosPassagem(n: number): string {
   if (n <= 0) return ''
   if (n === 1) return '1 ponto de passagem'
   return `${n} pontos de passagem`
+}
+
+function mesmaOrigemDestino(origem: string, destino: string): boolean {
+  const o = origem.trim().toLowerCase().replace(/\s+/g, ' ')
+  const d = destino.trim().toLowerCase().replace(/\s+/g, ' ')
+  return Boolean(o && d && o === d)
+}
+
+function limparPontosPassagem(
+  pontos: PontoPassagemRota[] | undefined,
+): PontoPassagemRota[] {
+  return (pontos ?? [])
+    .filter(pontoPassagemValido)
+    .map((p) => ({
+      id: p.id || newPontoPassagemId(),
+      endereco: (p.endereco || '').trim(),
+      lat: p.lat ?? null,
+      lng: p.lng ?? null,
+    }))
 }
 
 export function RotasPage() {
@@ -455,9 +489,17 @@ export function RotasPage() {
           lastGeoPontoEndereco.current[id] = label
           setForm((prev) => ({
             ...prev,
-            pontos_passagem: (prev.pontos_passagem ?? []).map((x) =>
-              x.id === id ? { ...x, endereco: label, lat, lng } : x,
-            ),
+            pontos_passagem: (prev.pontos_passagem ?? []).map((x) => {
+              if (x.id !== id) return x
+              const atual = (x.endereco || '').trim()
+              // Não apaga endereço que o usuário já digitou
+              return {
+                ...x,
+                endereco: atual.length >= 5 ? atual : label,
+                lat,
+                lng,
+              }
+            }),
           }))
           setGeoInfo('Endereço do ponto preenchido pelas coordenadas.')
         }
@@ -553,15 +595,24 @@ export function RotasPage() {
   ])
 
   function save() {
-    if (!form.descricao || !form.origem || !form.destino) return
-    const pontosLimpos = (form.pontos_passagem ?? [])
-      .filter((p) => p.endereco.trim())
-      .map((p) => ({
-        id: p.id || newPontoPassagemId(),
-        endereco: p.endereco.trim(),
-        lat: p.lat ?? null,
-        lng: p.lng ?? null,
-      }))
+    if (!form.descricao || !form.origem || !form.destino) {
+      setGeoInfo('Preencha descrição, origem e destino.')
+      return
+    }
+    const pontosLimpos = limparPontosPassagem(form.pontos_passagem)
+    if (mesmaOrigemDestino(form.origem, form.destino) && pontosLimpos.length === 0) {
+      setGeoInfo(
+        'Origem e destino iguais (rota circular): adicione pelo menos 1 ponto de passagem com endereço.',
+      )
+      passagemSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+    const faltandoEndereco = pontosLimpos.some((p) => !(p.endereco || '').trim())
+    if (faltandoEndereco) {
+      setGeoInfo('Preencha o endereço de todos os pontos de passagem antes de salvar.')
+      passagemSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
     const rota: Rota = {
       id: editingId ?? newRotaId(),
       descricao: form.descricao!,
@@ -580,6 +631,11 @@ export function RotasPage() {
     salvarRota(rota)
     setEditingId(null)
     carregarForm(null)
+    setGeoInfo(
+      pontosLimpos.length > 0
+        ? `Rota salva com ${labelPontosPassagem(pontosLimpos.length)}.`
+        : 'Rota salva.',
+    )
   }
 
   const waypointsPreview = pontos
@@ -830,6 +886,11 @@ export function RotasPage() {
                   Ver quais
                 </button>
               </p>
+            ) : mesmaOrigemDestino(form.origem ?? '', form.destino ?? '') ? (
+              <p className="mt-1 text-[11px] font-semibold text-amber-800">
+                Origem = destino: adicione abaixo pelo menos 1 ponto de passagem com
+                endereço completo.
+              </p>
             ) : (
               <p className="mt-1 text-[11px] text-ink-muted">
                 Sem pontos de passagem ainda — adicione abaixo se a rota tiver paradas.
@@ -920,6 +981,9 @@ export function RotasPage() {
                   {editingId
                     ? 'Edite os endereços intermediários desta rota ou adicione novos.'
                     : 'Opcional: endereços intermediários entre origem e destino.'}
+                  {mesmaOrigemDestino(form.origem ?? '', form.destino ?? '')
+                    ? ' Origem = destino (circular): é obrigatório ter pelo menos 1 ponto de passagem.'
+                    : ''}
                 </p>
               </div>
               <button
