@@ -209,7 +209,8 @@ function escapeRegExp(s: string): string {
 /**
  * Extrai número do imóvel digitado pelo usuário.
  * Aceita no fim (“… 907”), após vírgula (“Rua X, 907 Vila…”),
- * com prefixo (“nº 907”) ou no meio da rua (“Av. X 907 Guarulhos”).
+ * com prefixo (“nº 907”), rodovia (“Rodovia X, 975 - KM…”)
+ * ou no meio da rua (“Av. X 907 Guarulhos”).
  */
 export function extrairNumeroDigitado(consulta: string): string | undefined {
   const raw = consulta.trim().replace(/\s+/g, ' ')
@@ -219,32 +220,223 @@ export function extrairNumeroDigitado(consulta: string): string | undefined {
   const pref = raw.match(/\b(?:n[º°o.]?|n[uú]mero)\s*[:.]?\s*(\d{1,6}[A-Za-z]?)\b/i)
   if (pref?.[1]) return pref[1]
 
-  // 2) Após a 1ª vírgula: "Avenida Faustino Ramalho, 907 Vila Galvão, …"
-  const aposVirgula = raw.match(/^[^,]+,\s*(\d{1,6}[A-Za-z/\-]?)\b/)
+  // 2) Após a 1ª vírgula, antes de hífen/KM/complemento:
+  //    "Rodovia Castelo Branco, 975 - KM 33 …"
+  const aposVirgula = raw.match(
+    /^[^,]+,\s*(\d{1,6}[A-Za-z/\-]?)\b(?=\s*(?:[-–,]|$|\s))/i,
+  )
   if (aposVirgula?.[1]) return aposVirgula[1]
 
   // 3) No final: "… Ramalho 907" / "… Ramalho, 907"
   const noFim = raw.match(/(?:^|[\s,])(\d{1,6}[A-Za-z/\-]?)(?:\s*)$/)
   if (noFim?.[1]) return noFim[1]
 
-  // 4) Depois do logradouro, antes de bairro/cidade
-  const aposLogradouro = raw.match(
+  // 4) Depois do logradouro, antes de bairro/cidade (ignora KM / CEP)
+  const semKmCep = raw
+    .replace(/\bKM\s*\d+([.,]\d+)?\b/gi, ' ')
+    .replace(/\bCEP\s*[:.]?\s*[\d.\-]+/gi, ' ')
+  const aposLogradouro = semKmCep.match(
     /\b(?:rua|r\.|avenida|av\.?|alameda|al\.|travessa|tv\.?|rodovia|rod\.|estrada|est\.|praça|praca|largo|viela|via)\b[\s\wÀ-ú.'’-]{0,80}?\s+(\d{1,5}[A-Za-z]?)\b/i,
   )
   if (aposLogradouro?.[1]) return aposLogradouro[1]
 
-  // 5) Qualquer número curto (1–5 dígitos) na 1ª metade — evita CEP (8 dígitos)
-  const metade = Math.ceil(raw.length * 0.65)
-  const trecho = raw.slice(0, metade)
+  // 5) Qualquer número curto (1–5 dígitos) na 1ª metade — evita CEP (8 dígitos) e KM
+  const metade = Math.ceil(raw.length * 0.55)
+  const trecho = raw
+    .slice(0, metade)
+    .replace(/\bKM\s*\d+([.,]\d+)?\b/gi, ' ')
   const candidatos = [...trecho.matchAll(/\b(\d{1,5}[A-Za-z]?)\b/g)].map((m) => m[1])
   const valido = candidatos.find((n) => {
     const dig = n.replace(/\D/g, '')
     if (dig.length < 1 || dig.length > 5) return false
-    // ignora anos óbvios / códigos longos
     if (dig.length === 4 && Number(dig) >= 1900 && Number(dig) <= 2100) return false
     return true
   })
   return valido
+}
+
+/** CEP embutido no texto (ex.: "CEP 06.696-000" ou "06696-000"). */
+export function extrairCepDigitado(consulta: string): string | undefined {
+  const raw = consulta.trim()
+  const comLabel = raw.match(/\bCEP\s*[:.]?\s*([\d.\-\s]{8,12})/i)
+  if (comLabel?.[1]) {
+    const d = onlyCepDigits(comLabel[1])
+    if (d.length === 8) return d
+  }
+  const noFim = raw.match(/(\d{2}\.?\d{3}-?\d{3})\s*$/)
+  if (noFim?.[1]) {
+    const d = onlyCepDigits(noFim[1])
+    if (d.length === 8) return d
+  }
+  return undefined
+}
+
+export type EnderecoBrParseado = {
+  logradouro: string
+  numero: string
+  complemento: string
+  bairro: string
+  cidade: string
+  uf: string
+  cep: string
+  /** Query enxuta para Photon/Nominatim. */
+  queryGeocode: string
+  /** True se parece endereço BR “rico” (CEP, KM, Quadra, vários hífens). */
+  rico: boolean
+}
+
+function pareceComplementoBr(parte: string): boolean {
+  return /\b(km|quadra|lote|qd\.?|lt\.?|quinh[aã]o|bloco|sala|apto|apartamento|conjunto|condom[ií]nio|galp[aã]o|box)\b/i.test(
+    parte,
+  )
+}
+
+/**
+ * Interpreta endereços BR no estilo Google / nota fiscal:
+ * "Rodovia X, 975 - KM 33 Quadra GI Lote … - Bairro - Cidade - SP - CEP 06.696-000"
+ */
+export function parseEnderecoBrLivre(consulta: string): EnderecoBrParseado {
+  const original = consulta.trim().replace(/\s+/g, ' ')
+  let resto = original
+  const cep = extrairCepDigitado(resto) || ''
+  if (cep) {
+    resto = resto
+      .replace(/\bCEP\s*[:.]?\s*[\d.\-\s]{8,12}/gi, ' ')
+      .replace(
+        new RegExp(
+          `${cep.slice(0, 2)}\\.?${cep.slice(2, 5)}-?${cep.slice(5)}`,
+          'g',
+        ),
+        ' ',
+      )
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+  // Remove hífens/separadores soltos no fim ("… SP -")
+  resto = resto.replace(/[\s,;./\\–-]+$/g, '').trim()
+
+  let uf = ''
+  const ufMatch =
+    resto.match(/\s[-–]\s*([A-Za-z]{2})\s*$/i) ||
+    resto.match(/\b([A-Za-z]{2})\s*$/)
+  if (ufMatch && UFS_BR.has(ufMatch[1].toUpperCase())) {
+    uf = ufMatch[1].toUpperCase()
+    resto = resto.slice(0, ufMatch.index).replace(/[\s,;–-]+$/g, '').trim()
+  }
+
+  // Partes separadas por " - " (padrão comercial BR)
+  const partes = resto
+    .split(/\s+[-–]\s+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+
+  // Se a última parte for UF (ex.: sobrou "SP"), promove
+  if (!uf && partes.length > 0) {
+    const ultima = partes[partes.length - 1]
+    if (/^[A-Za-z]{2}$/.test(ultima) && UFS_BR.has(ultima.toUpperCase())) {
+      uf = ultima.toUpperCase()
+      partes.pop()
+    }
+  }
+
+  let logradouro = ''
+  let numero = ''
+  let complemento = ''
+  let bairro = ''
+  let cidade = ''
+
+  if (partes.length >= 2) {
+    const cabeca = partes[0]
+    const mNum = cabeca.match(/^(.+?),\s*(\d{1,6}[A-Za-z/\-]?)\s*$/)
+    if (mNum) {
+      logradouro = mNum[1].trim()
+      numero = mNum[2].trim()
+    } else {
+      logradouro = cabeca
+      numero = extrairNumeroDigitado(cabeca) || ''
+      if (numero) {
+        logradouro = cabeca
+          .replace(new RegExp(`,?\\s*${escapeRegExp(numero)}\\b`), '')
+          .trim()
+      }
+    }
+
+    const meio = partes.slice(1)
+    // Última parte (sem UF/CEP) costuma ser cidade
+    if (meio.length >= 1) {
+      cidade = meio[meio.length - 1]
+      const antes = meio.slice(0, -1)
+      const comps = antes.filter(pareceComplementoBr)
+      const bairros = antes.filter((p) => !pareceComplementoBr(p))
+      complemento = comps.join(' - ')
+      bairro = bairros.join(' - ')
+    }
+  } else {
+    const mNum = resto.match(/^(.+?),\s*(\d{1,6}[A-Za-z/\-]?)\b(.*)$/)
+    if (mNum) {
+      logradouro = mNum[1].trim()
+      numero = mNum[2].trim()
+      const cauda = mNum[3].replace(/^[\s,;-–]+/, '').trim()
+      if (cauda) {
+        if (pareceComplementoBr(cauda)) complemento = cauda
+        else bairro = cauda
+      }
+    } else {
+      logradouro = resto
+      numero = extrairNumeroDigitado(resto) || ''
+    }
+  }
+
+  if (!numero) numero = extrairNumeroDigitado(original) || ''
+
+  // Se parseCidadeUf clássico achar algo melhor para município puro
+  if (!cidade || !uf) {
+    const mun = parseCidadeUf(original.replace(/\bCEP\s*[:.]?\s*[\d.\-\s]+/i, '').trim())
+    if (mun) {
+      if (!uf) uf = mun.uf
+      // só usa cidade do parse se ainda vazia e o "cidade" não parecer logradouro inteiro
+      if (!cidade && mun.cidade.length < 60 && !pareceLogradouroTxt(mun.cidade)) {
+        cidade = mun.cidade
+      }
+    }
+  }
+
+  const queryGeocode = [
+    logradouro,
+    numero,
+    bairro,
+    cidade,
+    uf,
+    cep ? formatCepBr(cep) : '',
+    'Brasil',
+  ]
+    .map((p) => (p || '').trim())
+    .filter(Boolean)
+    .join(', ')
+
+  const rico =
+    Boolean(cep) ||
+    /\bKM\s*\d/i.test(original) ||
+    /\b(quadra|lote|quinh[aã]o)\b/i.test(original) ||
+    (original.match(/\s[-–]\s/g) || []).length >= 2
+
+  return {
+    logradouro,
+    numero,
+    complemento,
+    bairro,
+    cidade,
+    uf,
+    cep,
+    queryGeocode,
+    rico,
+  }
+}
+
+function pareceLogradouroTxt(s: string): boolean {
+  return /\b(rua|r\.|avenida|av\.?|alameda|al\.|travessa|tv\.?|rodovia|rod\.|estrada|est\.|praça|praca|largo|viela|via)\b/i.test(
+    s,
+  )
 }
 
 function limparEstado(uf: string): string {
@@ -511,18 +703,23 @@ function montarLabelMaps(parts: {
 /**
  * Se o usuário digitou número e a sugestão é só a rua, inclui o número no preenchimento
  * (comportamento típico do Google Maps).
+ * Endereços BR “ricos” (CEP, KM, Quadra/Lote, vários hífens) são preservados.
  */
 export function aplicarNumeroDigitado(
   sugestao: SugestaoEndereco,
   consulta: string,
 ): string {
-  const num = (sugestao.housenumber || '').trim() || extrairNumeroDigitado(consulta)
+  const parsed = parseEnderecoBrLivre(consulta)
+  if (parsed.rico && consulta.trim().length >= 20) {
+    return consulta.trim()
+  }
+
+  const num = (sugestao.housenumber || '').trim() || parsed.numero || extrairNumeroDigitado(consulta)
   if (!num) return sugestao.label
 
   const temNumero = new RegExp(`\\b${escapeRegExp(num)}\\b`, 'i').test(sugestao.label)
   if (temNumero) return sugestao.label
 
-  // Primary pode ser "Rua X" ou já "Rua X, 123" — garante ", número" após o logradouro
   const rua = sugestao.primary
     .replace(/,\s*\d{1,6}[A-Za-z/\-]?.*$/i, '')
     .trim()
@@ -706,6 +903,7 @@ async function sugerirEnderecosNominatim(
 /**
  * Sugestões de endereço estilo Google Maps (Photon, fallback Nominatim).
  * Debounce no componente que chama.
+ * Endereços BR longos (KM/Quadra/CEP) usam query enxuta para achar o local.
  */
 export async function sugerirEnderecos(
   consulta: string,
@@ -714,18 +912,64 @@ export async function sugerirEnderecos(
   const q = consulta.trim()
   if (q.length < 2) return []
 
+  const parsed = parseEnderecoBrLivre(q)
+  const queries = Array.from(
+    new Set(
+      [
+        parsed.rico && parsed.queryGeocode ? parsed.queryGeocode : '',
+        parsed.logradouro && parsed.cidade
+          ? [parsed.logradouro, parsed.numero, parsed.cidade, parsed.uf, 'Brasil']
+              .filter(Boolean)
+              .join(', ')
+          : '',
+        q,
+      ].filter((s) => s.trim().length >= 2),
+    ),
+  )
+
   let hits: SugestaoEndereco[] = []
-  try {
-    hits = await sugerirEnderecosPhoton(q, limit)
-  } catch {
-    /* tenta Nominatim */
+  for (const query of queries) {
+    try {
+      hits = await sugerirEnderecosPhoton(query, limit)
+    } catch {
+      /* tenta Nominatim */
+    }
+    if (hits.length === 0) {
+      try {
+        hits = await sugerirEnderecosNominatim(query, limit)
+      } catch {
+        hits = []
+      }
+    }
+    if (hits.length > 0) break
   }
 
-  if (hits.length === 0) {
-    try {
-      hits = await sugerirEnderecosNominatim(q, limit)
-    } catch {
-      return []
+  // CEP: enriquece ranking com cidade do ViaCEP se a busca vier vazia
+  if (hits.length === 0 && parsed.cep) {
+    const via = await buscarEnderecoPorCep(parsed.cep)
+    if (via.ok) {
+      const qCep = [
+        parsed.logradouro || via.dados.endereco,
+        parsed.numero,
+        via.dados.bairro || parsed.bairro,
+        via.dados.cidade || parsed.cidade,
+        via.dados.uf || parsed.uf,
+        'Brasil',
+      ]
+        .filter(Boolean)
+        .join(', ')
+      try {
+        hits = await sugerirEnderecosPhoton(qCep, limit)
+      } catch {
+        /* ignore */
+      }
+      if (hits.length === 0) {
+        try {
+          hits = await sugerirEnderecosNominatim(qCep, limit)
+        } catch {
+          hits = []
+        }
+      }
     }
   }
 
@@ -735,6 +979,7 @@ export async function sugerirEnderecos(
 /**
  * Geocodifica texto livre (rua, cidade, CEP, etc.) via Nominatim.
  * Municípios no formato "Cidade - UF" usam busca estruturada (sem viés SP do Photon).
+ * Aceita também o formato comercial BR com KM / Quadra / Lote / CEP.
  */
 export async function geocodificarConsulta(
   consulta: string,
@@ -742,14 +987,42 @@ export async function geocodificarConsulta(
   const q = consulta.trim()
   if (q.length < 3) return { ok: false, erro: 'Digite um endereço ou lugar.' }
 
-  const mun = parseCidadeUf(q)
-  const temNumero = Boolean(extrairNumeroDigitado(q))
-  const pareceLogradouro =
-    /\b(rua|r\.|avenida|av\.?|alameda|al\.|travessa|tv\.?|rodovia|rod\.|estrada|est\.|praça|praca|largo|viela|via)\b/i.test(
-      q,
-    )
+  const parsed = parseEnderecoBrLivre(q)
+  const displayFinal = parsed.rico ? q : undefined
+
+  // 1) CEP completo → geocode estruturado (mais estável p/ galpões / rodovias)
+  if (parsed.cep) {
+    const via = await buscarEnderecoPorCep(parsed.cep)
+    if (via.ok) {
+      const campos: EnderecoCampos = {
+        cep: formatCepBr(parsed.cep),
+        cidade: via.dados.cidade || parsed.cidade || '',
+        uf: via.dados.uf || parsed.uf || '',
+        endereco: parsed.logradouro || via.dados.endereco || '',
+        numero: parsed.numero || '',
+        bairro: parsed.bairro || via.dados.bairro || '',
+        complemento: parsed.complemento || via.dados.complemento,
+      }
+      const geo = await geocodificarEndereco(campos)
+      if (geo.ok) {
+        return {
+          ok: true,
+          coords: geo.coords,
+          display: displayFinal || geo.display || q,
+        }
+      }
+    }
+  }
+
+  const mun =
+    parsed.cidade && parsed.uf
+      ? { cidade: parsed.cidade, uf: parsed.uf }
+      : parseCidadeUf(q.replace(/\bCEP\s*[:.]?\s*[\d.\-\s]+/i, '').trim())
+  const temNumero = Boolean(parsed.numero || extrairNumeroDigitado(q))
+  const pareceLogradouro = pareceLogradouroTxt(q) || Boolean(parsed.logradouro)
+
   // Só trata como município puro se não houver número nem logradouro
-  if (mun && !temNumero && !pareceLogradouro) {
+  if (mun && !temNumero && !pareceLogradouro && !parsed.rico) {
     const geo = await geocodificarMunicipioBr(mun.cidade, mun.uf)
     if (geo) {
       return { ok: true, coords: { lat: geo.lat, lng: geo.lng }, display: geo.display }
@@ -758,14 +1031,27 @@ export async function geocodificarConsulta(
 
   // Endereço completo: pega vários hits e ranqueia (evita 1º resultado enviesado do Photon)
   const hits = await sugerirEnderecos(q, 8)
-  const melhor = escolherMelhorHit(hits, q, mun?.uf)
+  const melhor = escolherMelhorHit(hits, q, mun?.uf || parsed.uf || undefined)
   if (melhor) {
     return {
       ok: true,
       coords: { lat: melhor.lat, lng: melhor.lng },
-      display: aplicarNumeroDigitado(melhor, q),
+      display: displayFinal || aplicarNumeroDigitado(melhor, q),
     }
   }
+
+  // Fallback: só cidade/UF do parse rico
+  if (parsed.cidade && parsed.uf) {
+    const geo = await geocodificarMunicipioBr(parsed.cidade, parsed.uf)
+    if (geo) {
+      return {
+        ok: true,
+        coords: { lat: geo.lat, lng: geo.lng },
+        display: displayFinal || geo.display,
+      }
+    }
+  }
+
   return { ok: false, erro: 'Endereço não encontrado.' }
 }
 
@@ -941,9 +1227,11 @@ function escolherMelhorHit(
   if (hits.length === 0) return null
   if (hits.length === 1) return hits[0]
 
+  const parsed = parseEnderecoBrLivre(consulta)
   const qNorm = normalizarGeo(consulta)
-  const uf = ufHint?.toUpperCase()
-  const numDigitado = extrairNumeroDigitado(consulta)
+  const uf = (ufHint || parsed.uf || '').toUpperCase() || undefined
+  const numDigitado = parsed.numero || extrairNumeroDigitado(consulta)
+  const cidadeNorm = parsed.cidade ? normalizarGeo(parsed.cidade) : ''
   let best = hits[0]
   let bestScore = -Infinity
 
@@ -957,7 +1245,7 @@ function escolherMelhorHit(
       const estadoN = normalizarGeo(UF_NOME[uf] || '')
       if (label.includes(ufN) || display.includes(ufN) || display.includes(estadoN)) score += 30
     }
-    // Preferir hits com cidade no secondary (menos "rua só")
+    if (cidadeNorm && (label.includes(cidadeNorm) || display.includes(cidadeNorm))) score += 35
     if (h.secondary) score += 5
     if (numDigitado) {
       const hn = (h.housenumber || '').trim()
