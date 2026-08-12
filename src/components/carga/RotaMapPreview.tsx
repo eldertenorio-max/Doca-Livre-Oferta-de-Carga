@@ -18,6 +18,8 @@ type Props = {
   /** Tipo de veículo da carga — define eixos do pedágio. */
   veiculo?: string
   eixos?: number
+  /** Chamado quando o trajeto OSRM for calculado (km / duração). */
+  onRotaCalculada?: (info: { km: number; duracaoMin: number }) => void
 }
 
 function pinIcon(label: string, color: string) {
@@ -86,11 +88,14 @@ export function RotaMapPreview({
   className = '',
   veiculo,
   eixos: eixosProp,
+  onRotaCalculada,
 }: Props) {
   const mapEl = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const layerRef = useRef<L.LayerGroup | null>(null)
   const reqId = useRef(0)
+  const onRotaRef = useRef(onRotaCalculada)
+  onRotaRef.current = onRotaCalculada
 
   const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'erro'>('idle')
   const [msg, setMsg] = useState('Informe origem e destino para ver o trajeto')
@@ -284,6 +289,10 @@ export function RotaMapPreview({
         })
         setStatus('ok')
         setMsg('')
+        onRotaRef.current?.({
+          km: rota.distanciaKm,
+          duracaoMin: rota.duracaoMin,
+        })
       })()
     }, 550)
 

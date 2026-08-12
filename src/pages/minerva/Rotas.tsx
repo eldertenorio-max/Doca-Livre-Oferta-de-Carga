@@ -882,6 +882,21 @@ export function RotasPage() {
             destino={form.destino ?? ''}
             waypoints={waypointsPreview}
             className="h-[280px] min-h-[280px] w-full"
+            onRotaCalculada={({ km }) => {
+              const valor = Math.max(1, Math.round(km * 10) / 10)
+              setForm((prev) => {
+                // Só respeita KM manual se o usuário já digitou um valor > 0
+                if (kmManual.current && (prev.km ?? 0) > 0) return prev
+                kmManual.current = false
+                setKmStr(String(valor))
+                setGeoInfo(
+                  `Distância pela rota: ${valor.toLocaleString('pt-BR', {
+                    maximumFractionDigits: 1,
+                  })} km`,
+                )
+                return { ...prev, km: valor }
+              })
+            }}
           />
         </div>
         <Button variant="success" className="mt-4" onClick={save}>
