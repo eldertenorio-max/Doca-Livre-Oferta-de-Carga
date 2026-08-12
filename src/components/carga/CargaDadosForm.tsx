@@ -135,11 +135,32 @@ function pontosDaCargaOuRota(carga: Carga, rotas: Rota[]): PontoPassagemRota[] {
   return limparPontosPassagemRota(r?.pontos_passagem);
 }
 
+function classificacaoDaCargaOuRota(
+  carga: Carga,
+  rotas: Rota[],
+): ClassificacaoRota {
+  if (carga.rota_id) {
+    const r = rotas.find((x) => x.id === carga.rota_id);
+    if (r?.classificacao === "A" || r?.classificacao === "B" || r?.classificacao === "C") {
+      return r.classificacao;
+    }
+  }
+  if (
+    carga.classificacao_rota === "A" ||
+    carga.classificacao_rota === "B" ||
+    carga.classificacao_rota === "C"
+  ) {
+    return carga.classificacao_rota;
+  }
+  return "B";
+}
+
 function resumoOpcaoRota(r: Rota): string {
   const vias = limparPontosPassagemRota(r.pontos_passagem);
   const base = `${r.origem} → ${r.destino}`;
-  if (vias.length === 0) return base;
-  return `${base} · ${vias.length} ponto${vias.length === 1 ? "" : "s"}`;
+  const cls = `Rota ${r.classificacao || "B"}`;
+  if (vias.length === 0) return `${base} · ${cls}`;
+  return `${base} · ${vias.length} ponto${vias.length === 1 ? "" : "s"} · ${cls}`;
 }
 
 const SUGESTOES_OBS = [
@@ -200,8 +221,8 @@ export function CargaDadosForm({
   const [anttInfo, setAnttInfo] = useState<AnttInfoCarga | null>(
     carga.antt ?? null,
   );
-  const [classificacao, setClassificacao] = useState<ClassificacaoRota>(
-    carga.classificacao_rota ?? "B",
+  const [classificacao, setClassificacao] = useState<ClassificacaoRota>(() =>
+    classificacaoDaCargaOuRota(carga, rotas),
   );
   const [salvarFavorita, setSalvarFavorita] = useState(false);
   const [cargaRetorno, setCargaRetorno] = useState(Boolean(carga.carga_retorno));
@@ -435,7 +456,7 @@ export function CargaDadosForm({
     setRiscoTxt(labelGerenciamentoRisco(carga.gerenciamento_risco));
     setFreteTabela(formatMoneyInput(carga.frete_tabela || 0));
     setAnttInfo(carga.antt ?? null);
-    setClassificacao(carga.classificacao_rota ?? "B");
+    setClassificacao(classificacaoDaCargaOuRota(carga, rotas));
     setSalvarFavorita(false);
     setCargaRetorno(Boolean(carga.carga_retorno));
     setRetornaOrigem(Boolean(carga.retorna_origem));
@@ -468,13 +489,17 @@ export function CargaDadosForm({
     ultimoCnpjBuscado.current = "";
   }, [carga.id, carga.updated_at]);
 
-  // Se a rota cadastrada chega depois (sync), preenche pontos vazios
+  // Se a rota cadastrada chega depois (sync), preenche pontos + classificação
   useEffect(() => {
     if (!rotaId) return;
+    const r = rotas.find((x) => x.id === rotaId);
+    if (!r) return;
+    if (r.classificacao === "A" || r.classificacao === "B" || r.classificacao === "C") {
+      setClassificacao(r.classificacao);
+    }
     setPontosPassagem((prev) => {
       if (prev.length > 0) return prev;
-      const r = rotas.find((x) => x.id === rotaId);
-      const pts = limparPontosPassagemRota(r?.pontos_passagem);
+      const pts = limparPontosPassagemRota(r.pontos_passagem);
       if (pts.length === 0) return prev;
       setPontosMapsStr((m) => {
         const next = { ...m };
@@ -594,13 +619,16 @@ export function CargaDadosForm({
     }
     setPontosMapsStr(maps);
     setFreteTabela(formatMoneyInput(r.frete_tabela || 0));
-    setClassificacao(r.classificacao ?? "B");
+    const classif = (r.classificacao === "A" || r.classificacao === "B" || r.classificacao === "C"
+      ? r.classificacao
+      : "B") as ClassificacaoRota;
+    setClassificacao(classif);
     setSalvarFavorita(false);
     const nVias = pts.length;
     setInfo(
       nVias > 0
-        ? `Rota “${r.descricao}” aplicada com ${nVias} ponto${nVias === 1 ? "" : "s"} de passagem.`
-        : `Rota “${r.descricao}” aplicada (${r.origem} → ${r.destino}).`,
+        ? `Rota “${r.descricao}” (classificação ${classif}) aplicada com ${nVias} ponto${nVias === 1 ? "" : "s"} de passagem.`
+        : `Rota “${r.descricao}” (classificação ${classif}) aplicada (${r.origem} → ${r.destino}).`,
     );
   }
 
@@ -1153,14 +1181,21 @@ export function CargaDadosForm({
             <select
               className={inputClass}
               value={classificacao}
-              onChange={(e) =>
-                setClassificacao(e.target.value as ClassificacaoRota)
-              }
+              disabled={!editavel}
+              onChange={(e) => {
+                setClassificacao(e.target.value as ClassificacaoRota);
+                if (rotaId) setRotaId("");
+              }}
             >
               <option value="A">Rota A</option>
               <option value="B">Rota B</option>
               <option value="C">Rota C</option>
             </select>
+            {rotaSelecionada && (
+              <p className="mt-0.5 text-[11px] text-ink-muted">
+                Da rota cadastrada: <strong>Rota {rotaSelecionada.classificacao}</strong>
+              </p>
+            )}
           </Field>
           <Field label="Veículo *" className="sm:col-span-3">
             <VeiculoSuggestInput
