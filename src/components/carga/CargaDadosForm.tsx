@@ -889,14 +889,16 @@ export function CargaDadosForm({
     };
   }
 
-  function handleBaixarPdf() {
+  async function handleBaixarPdf() {
+    setPdfBusy(true);
     setPdfMsg("");
     try {
-      baixarPdfCarga(montarDadosPdf());
+      await baixarPdfCarga(montarDadosPdf());
       setPdfMsg("PDF baixado.");
     } catch {
       setPdfMsg("Não foi possível gerar o PDF.");
     }
+    setPdfBusy(false);
   }
 
   async function handleCompartilharPdf() {
@@ -1789,10 +1791,11 @@ export function CargaDadosForm({
             <Button
               variant="ghost"
               className="flex-1 !border !border-ink/20 !bg-white"
-              onClick={handleBaixarPdf}
+              disabled={pdfBusy}
+              onClick={() => void handleBaixarPdf()}
             >
               <Download size={16} />
-              Baixar PDF
+              {pdfBusy ? "Gerando…" : "Baixar PDF"}
             </Button>
             <Button
               variant="primary"
