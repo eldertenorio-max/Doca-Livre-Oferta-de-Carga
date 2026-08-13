@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Download, FileText, Share2 } from "lucide-react";
 import { isCargaEphemeral, useData } from "../../context/DataContext";
 import {
   formatCurrency,
@@ -17,7 +18,7 @@ import type {
   PontoPassagemRota,
   Rota,
 } from "../../types";
-import { Button, Field, inputClass } from "../ui/Modal";
+import { Button, Field, Modal, inputClass } from "../ui/Modal";
 import { CnpjInput } from "../ui/CnpjInput";
 import { SuggestInput } from "../ui/SuggestInput";
 import { AddressSuggestInput, PLACEHOLDER_ENDERECO_EXEMPLO } from "../ui/AddressSuggestInput";
@@ -33,6 +34,11 @@ import { CarroceriaSuggestInput } from "../ui/CarroceriaSuggestInput";
 import { VeiculoSuggestInput } from "../ui/VeiculoSuggestInput";
 import { AnttFretePanel } from "./AnttFretePanel";
 import { RotaMapPreview } from "./RotaMapPreview";
+import {
+  baixarPdfCarga,
+  compartilharPdfCarga,
+  type CargaPdfData,
+} from "../../lib/cargaPdf";
 
 function labelEndereco(dados: EnderecoCampos, display?: string): string {
   if (display?.trim()) return display.trim();
@@ -241,6 +247,9 @@ export function CargaDadosForm({
     },
   );
   const skipRevPontos = useRef<Record<string, boolean>>({});
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfMsg, setPdfMsg] = useState("");
   const [pedido, setPedido] = useState(carga.pedido);
   const [tipoCarga, setTipoCarga] = useState(carga.tipo_carga);
   const [veiculo, setVeiculo] = useState(carga.veiculo);
@@ -845,6 +854,66 @@ export function CargaDadosForm({
       window.clearTimeout(timer);
     };
   }, [destinoMapsStr, editavel]);
+
+  function montarDadosPdf(): CargaPdfData {
+    return {
+      numero: carga.numero,
+      pedido: pedido.trim(),
+      origem: origem.trim(),
+      destino: destino.trim(),
+      pontosPassagem: limparPontosPassagemRota(pontosPassagem),
+      classificacao,
+      tipoCarga: tipoCarga.trim(),
+      veiculo: veiculo.trim(),
+      carrocerias: parseCarrocerias(carroceriaTxt),
+      complemento: labelComplemento(parseComplemento(complementoTxt)),
+      gerenciamentoRisco: labelGerenciamentoRisco(
+        parseGerenciamentoRisco(riscoTxt),
+      ),
+      cargaRetorno,
+      retornaOrigem,
+      remetente: carga.remetente,
+      remetenteCnpj: carga.remetente_cnpj,
+      destinatario: destinatario.trim(),
+      destinatarioCnpj: destinatarioCnpj,
+      destinatarioWhatsapp: destinatarioWhatsapp,
+      destinatarioEmail: destinatarioEmail,
+      peso: parseMoneyInput(peso),
+      volumes: Number(volumes) || 0,
+      numEntregas: Number(numEntregas) || 0,
+      valorMercadorias: parseMoneyInput(valorMerc),
+      freteTabela: parseMoneyInput(freteTabela),
+      dataCarregamentoIso: fromDateInput(dataCarreg),
+      previsaoEntregaIso: fromDateInput(previsao),
+      observacao: observacao.trim(),
+    };
+  }
+
+  function handleBaixarPdf() {
+    setPdfMsg("");
+    try {
+      baixarPdfCarga(montarDadosPdf());
+      setPdfMsg("PDF baixado.");
+    } catch {
+      setPdfMsg("Não foi possível gerar o PDF.");
+    }
+  }
+
+  async function handleCompartilharPdf() {
+    setPdfBusy(true);
+    setPdfMsg("");
+    const res = await compartilharPdfCarga(montarDadosPdf());
+    setPdfBusy(false);
+    if (!res.ok) {
+      setPdfMsg(res.erro);
+      return;
+    }
+    setPdfMsg(
+      res.via === "share"
+        ? "PDF compartilhado."
+        : "Compartilhamento não suportado neste navegador — PDF baixado, envie o arquivo manualmente.",
+    );
+  }
 
   function handleSalvar(irParaPublicar = false) {
     setError("");
@@ -1660,6 +1729,22 @@ export function CargaDadosForm({
 
       <div className="sticky bottom-0 -mx-1 flex flex-col gap-1.5 border-t border-ink/15 bg-white/95 px-1 pt-2 backdrop-blur sm:flex-row">
         <Button
+          variant="ghost"
+          className="!border !border-ink/20 !bg-white"
+          onClick={() => {
+            setError("");
+            if (!origem.trim() || !destino.trim()) {
+              setError("Preencha origem e destino para gerar o PDF.");
+              return;
+            }
+            setPdfMsg("");
+            setPdfOpen(true);
+          }}
+        >
+          <FileText size={16} />
+          Gerar PDF
+        </Button>
+        <Button
           variant="success"
           className="flex-1"
           onClick={() => handleSalvar(false)}
@@ -1674,6 +1759,58 @@ export function CargaDadosForm({
           Salvar e publicar
         </Button>
       </div>
+
+      <Modal
+        open={pdfOpen}
+        title={`PDF da carga ${carga.numero}`}
+        onClose={() => setPdfOpen(false)}
+      >
+        <div className="space-y-3 text-sm">
+          <p className="text-ink-muted">
+            Gere um PDF com os dados desta carga (rota, veículo, frete, destinatário)
+            para baixar ou compartilhar com quem estiver fora do sistema (ex.: WhatsApp,
+            e-mail).
+          </p>
+          <div className="rounded-lg border border-ink/10 bg-sand-light/40 px-3 py-2.5 text-xs text-ink">
+            <p>
+              <span className="font-bold">Origem:</span> {origem || "—"}
+            </p>
+            <p>
+              <span className="font-bold">Destino:</span> {destino || "—"}
+            </p>
+            {limparPontosPassagemRota(pontosPassagem).length > 0 && (
+              <p>
+                <span className="font-bold">Pontos de passagem:</span>{" "}
+                {limparPontosPassagemRota(pontosPassagem).length}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              variant="ghost"
+              className="flex-1 !border !border-ink/20 !bg-white"
+              onClick={handleBaixarPdf}
+            >
+              <Download size={16} />
+              Baixar PDF
+            </Button>
+            <Button
+              variant="primary"
+              className="flex-1"
+              disabled={pdfBusy}
+              onClick={() => void handleCompartilharPdf()}
+            >
+              <Share2 size={16} />
+              {pdfBusy ? "Preparando…" : "Compartilhar"}
+            </Button>
+          </div>
+          {pdfMsg && (
+            <p className="rounded-md border border-ink/10 bg-white px-2.5 py-1.5 text-xs text-ink-muted">
+              {pdfMsg}
+            </p>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }
