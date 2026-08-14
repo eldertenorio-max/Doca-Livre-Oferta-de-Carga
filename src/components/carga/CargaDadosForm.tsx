@@ -102,7 +102,7 @@ type Props = {
   onSaved?: () => void;
   onGoPublish?: () => void;
   /** Chamado quando o rascunho efêmero é gravado pela 1ª vez (ou atualizado na UI). */
-  onPersisted?: (carga: Carga) => void;
+  onPersisted?: (carga: Carga, opts?: { irParaPublicar?: boolean }) => void;
 };
 
 function toDateInput(iso: string) {
@@ -917,11 +917,21 @@ export function CargaDadosForm({
     );
   }
 
+  function falhaSalvar(msg: string) {
+    setError(msg);
+    window.requestAnimationFrame(() => {
+      document.getElementById("carga-dados-erro")?.scrollIntoView({
+        block: "nearest",
+        behavior: "smooth",
+      });
+    });
+  }
+
   function handleSalvar(irParaPublicar = false) {
     setError("");
     setInfo("");
     if (!editavel) {
-      setError("Esta carga já foi publicada e não pode ser editada aqui.");
+      falhaSalvar("Esta carga já foi publicada e não pode ser editada aqui.");
       return;
     }
 
@@ -931,34 +941,34 @@ export function CargaDadosForm({
     const classifFinal: ClassificacaoRota = classificacao;
 
     if (!origemFinal || !destinoFinal) {
-      setError("Informe origem e destino da rota.");
+      falhaSalvar("Informe origem e destino da rota.");
       return;
     }
     const pontosLimpos = limparPontosPassagemRota(pontosPassagem);
     if (mesmaOrigemDestino(origemFinal, destinoFinal) && pontosLimpos.length === 0) {
-      setError(
+      falhaSalvar(
         "Origem = destino: adicione pelo menos 1 ponto de passagem com endereço.",
       );
       return;
     }
     if (!veiculo.trim()) {
-      setError("Selecione o tipo de veículo.");
+      falhaSalvar("Selecione o tipo de veículo.");
       return;
     }
     const complementoFinal = parseComplemento(complementoTxt);
     if (!complementoFinal) {
-      setError("Selecione o complemento (Sim, Não ou Ambos).");
+      falhaSalvar("Selecione o complemento (Sim, Não ou Ambos).");
       return;
     }
     const riscoFinal = parseGerenciamentoRisco(riscoTxt);
     if (!riscoFinal) {
-      setError(
+      falhaSalvar(
         "Selecione o gerenciamento de risco (rastreador ou localizador).",
       );
       return;
     }
     if (Number.isNaN(freteFinal) || freteFinal <= 0) {
-      setError("Informe o valor do frete tabela.");
+      falhaSalvar("Informe o valor do frete tabela.");
       return;
     }
 
@@ -993,11 +1003,11 @@ export function CargaDadosForm({
     }
 
     if (!pedido.trim()) {
-      setError("Informe o pedido.");
+      falhaSalvar("Informe o pedido.");
       return;
     }
     if (!destinatario.trim()) {
-      setError("Informe o destinatário.");
+      falhaSalvar("Informe o destinatário.");
       return;
     }
     const pesoNum = parseMoneyInput(peso);
@@ -1005,19 +1015,19 @@ export function CargaDadosForm({
     const entregasNum = Number(numEntregas);
     const valorNum = parseMoneyInput(valorMerc);
     if (Number.isNaN(pesoNum) || pesoNum <= 0) {
-      setError("Peso inválido.");
+      falhaSalvar("Peso inválido.");
       return;
     }
     if (Number.isNaN(volumesNum) || volumesNum < 0) {
-      setError("Volumes inválidos.");
+      falhaSalvar("Volumes inválidos.");
       return;
     }
     if (Number.isNaN(entregasNum) || entregasNum < 1) {
-      setError("Número de entregas inválido (mínimo 1).");
+      falhaSalvar("Número de entregas inválido (mínimo 1).");
       return;
     }
     if (Number.isNaN(valorNum) || valorNum < 0) {
-      setError("Valor das mercadorias inválido.");
+      falhaSalvar("Valor das mercadorias inválido.");
       return;
     }
 
@@ -1056,23 +1066,29 @@ export function CargaDadosForm({
       created_at: carga.created_at,
     };
 
-    if (isCargaEphemeral(carga)) {
-      const criada = criarCarga(patch);
-      if (!salvarFavorita) setInfo("Carga salva em Cargas salvas.");
-      onPersisted?.(criada);
+    try {
+      if (isCargaEphemeral(carga)) {
+        const criada = criarCarga(patch);
+        if (!salvarFavorita) setInfo("Carga salva em Cargas salvas.");
+        onPersisted?.(criada, { irParaPublicar });
+        onSaved?.();
+        if (irParaPublicar) onGoPublish?.();
+        return;
+      }
+
+      const res = atualizarCarga(carga.id, patch);
+      if (!res.ok) {
+        falhaSalvar(res.error ?? "Erro ao salvar");
+        return;
+      }
+      if (!salvarFavorita) setInfo("Dados salvos.");
       onSaved?.();
       if (irParaPublicar) onGoPublish?.();
-      return;
+    } catch (e) {
+      falhaSalvar(
+        e instanceof Error ? e.message : "Não foi possível salvar a carga.",
+      );
     }
-
-    const res = atualizarCarga(carga.id, patch);
-    if (!res.ok) {
-      setError(res.error ?? "Erro ao salvar");
-      return;
-    }
-    if (!salvarFavorita) setInfo("Dados salvos.");
-    onSaved?.();
-    if (irParaPublicar) onGoPublish?.();
   }
 
   if (!editavel) {
@@ -1718,25 +1734,29 @@ export function CargaDadosForm({
         </div>
       </section>
 
-      {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-900">
-          {error}
-        </p>
-      )}
-      {info && (
+      {info && !error && (
         <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">
           {info}
         </p>
       )}
 
-      <div className="sticky bottom-0 -mx-1 flex flex-col gap-1.5 border-t border-ink/15 bg-white/95 px-1 pt-2 backdrop-blur sm:flex-row">
+      <div className="sticky bottom-0 z-20 -mx-1 flex flex-col gap-1.5 border-t border-ink/15 bg-white/95 px-1 pt-2 pb-1 backdrop-blur">
+        {error && (
+          <p
+            id="carga-dados-erro"
+            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-900"
+          >
+            {error}
+          </p>
+        )}
+        <div className="flex flex-col gap-1.5 sm:flex-row">
         <Button
           variant="ghost"
           className="!border !border-ink/20 !bg-white"
           onClick={() => {
             setError("");
             if (!origem.trim() || !destino.trim()) {
-              setError("Preencha origem e destino para gerar o PDF.");
+              falhaSalvar("Preencha origem e destino para gerar o PDF.");
               return;
             }
             setPdfMsg("");
@@ -1760,6 +1780,7 @@ export function CargaDadosForm({
         >
           Salvar e publicar
         </Button>
+        </div>
       </div>
 
       <Modal

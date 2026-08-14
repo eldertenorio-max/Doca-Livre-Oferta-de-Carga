@@ -10,7 +10,7 @@ import './index.css'
  * Força novo bundle (setas da galeria). Depois do primeiro load limpo,
  * updates de deploy só no F5 (ver onNeedRefresh).
  */
-const BUILD_ID = 'carga-pdf-logo-v11'
+const BUILD_ID = 'salvar-publicar-tab-v12'
 
 async function forceFreshOnce(): Promise<boolean> {
   const key = `doca-build:${BUILD_ID}`

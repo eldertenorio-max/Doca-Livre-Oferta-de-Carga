@@ -89,6 +89,7 @@ export function KanbanMinerva() {
   const [panelOpen, setPanelOpen] = useState(false)
   const [panelSize, setPanelSize] = useState<PanelSize>(() => loadPanelSize())
   const [initialTab, setInitialTab] = useState<'dados' | 'salvas' | 'publicar'>('dados')
+  const [panelSession, setPanelSession] = useState('')
   const [prefillPublicacao, setPrefillPublicacao] = useState<PrefillPublicacao | null>(null)
   const [dragMsg, setDragMsg] = useState<string | null>(null)
   const [syncBusy, setSyncBusy] = useState(false)
@@ -151,6 +152,7 @@ export function KanbanMinerva() {
   function openPanel(c: Carga, tab?: 'dados' | 'salvas' | 'publicar') {
     setEphemeral(null)
     setSelected(c)
+    setPanelSession(c.id)
     setInitialTab(tab ?? (isRascunhoNaoPublicado(c) ? 'dados' : 'publicar'))
     setPanelOpen(true)
   }
@@ -159,6 +161,7 @@ export function KanbanMinerva() {
     const draft = montarNovaCarga(undefined, user?.id ?? null, { persistir: false })
     setEphemeral(draft)
     setSelected(draft)
+    setPanelSession(draft.id)
     setPrefillPublicacao(prefill ?? null)
     setInitialTab('dados')
     setPanelOpen(true)
@@ -347,7 +350,7 @@ export function KanbanMinerva() {
 
       {panelOpen && liveSelected && (
         <PublishPanel
-          key={`${liveSelected.id}-${initialTab}-${prefillPublicacao?.modo ?? ''}-${(prefillPublicacao?.transportadorIds ?? []).join(',')}`}
+          key={`${panelSession || liveSelected.id}-${prefillPublicacao?.modo ?? ''}-${(prefillPublicacao?.transportadorIds ?? []).join(',')}`}
           carga={liveSelected}
           open={panelOpen}
           initialTab={initialTab}
@@ -356,10 +359,12 @@ export function KanbanMinerva() {
           onSelectCarga={(c) => {
             setEphemeral(null)
             setSelected(c)
+            setPanelSession(c.id)
             setPrefillPublicacao(null)
             setInitialTab('dados')
           }}
-          onCargaPersistida={(c) => {
+          onCargaPersistida={(c, opts) => {
+            if (opts?.irParaPublicar) setInitialTab('publicar')
             if (isCargaEphemeral(c)) {
               setEphemeral(c)
               setSelected(c)
@@ -372,6 +377,7 @@ export function KanbanMinerva() {
             setPanelOpen(false)
             setSelected(null)
             setEphemeral(null)
+            setPanelSession('')
             setPrefillPublicacao(null)
           }}
         />

@@ -73,7 +73,7 @@ interface Props {
   /** Troca a carga aberta no painel (rascunhos salvos) */
   onSelectCarga?: (carga: Carga) => void
   /** Rascunho efêmero virou carga salva (primeiro Salvar) */
-  onCargaPersistida?: (carga: Carga) => void
+  onCargaPersistida?: (carga: Carga, opts?: { irParaPublicar?: boolean }) => void
   /** Notifica o layout (Kanban) para expandir até o menu lateral */
   onPanelSizeChange?: (size: PanelSize) => void
 }
@@ -177,8 +177,15 @@ export function PublishPanel({
   const usarRegra = config.usar_regra_prioridade_modo !== false
 
   // Reset do formulário só ao trocar de carga (sync de grupos não pode resetar a aba)
+  const cargaIdAnterior = useRef(carga?.id)
   useEffect(() => {
     if (!carga) return
+    const prevId = cargaIdAnterior.current
+    const nextId = carga.id
+    cargaIdAnterior.current = nextId
+    const persistindoRascunho =
+      Boolean(prevId?.startsWith('draft-')) && Boolean(nextId) && !nextId.startsWith('draft-')
+
     const m = config.margens[carga.classificacao_rota ?? 'B']
     setMargem(m[1] ?? m[0])
     const ativos = grupos.filter((g) => g.situacao === 'ativo').map((g) => g.id)
@@ -217,6 +224,11 @@ export function PublishPanel({
     setMotivo(carga.justificativa_motivo ?? '')
     setObs(carga.justificativa_obs ?? '')
     setObservacao(carga.observacao ?? '')
+    // Rascunho gravado (draft-* → c-*): não voltar para Dados — senão "Salvar e publicar" parece não funcionar.
+    if (persistindoRascunho) {
+      if (initialTab === 'publicar') setTab('publicar')
+      return
+    }
     // Publicada: só Negociação (dados ficam no painel dividido). Rascunho: respeita initialTab.
     const defaultTab: PanelTab =
       carga.status !== 'nova_carga'
