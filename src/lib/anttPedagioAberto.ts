@@ -152,22 +152,26 @@ export async function carregarPracasAntt(force = false): Promise<PracaAntt[]> {
 }
 
 /**
- * Tarifa-base (automóvel / cat.1) estimada por rodovia — médias operacionais BR.
- * Usada só quando a ANTT não publica a tabela tarifária no dataset aberto.
+ * Tarifa-base (automóvel / cat.1) estimada por rodovia.
+ * Referência operacional ARTESP/ANTT 2026 (cobrança por eixo = esta tarifa × eixos).
  */
-function tarifaBaseCarro(rodovia: string): number {
-  const r = rodovia.toUpperCase().replace(/\s+/g, '')
-  if (/BR-?116|BR-?101|BR-?040|BR-?381|SP-?330|SP-?348|SP-?070/.test(r)) return 12.4
-  if (/BR-?153|BR-?262|BR-?277|BR-?376|BR-?050/.test(r)) return 10.8
-  if (/BR-?290|BR-?386|BR-?163|BR-?364/.test(r)) return 9.6
-  return 11.2
+function tarifaBaseCarro(rodovia: string, nome = ''): number {
+  const r = `${rodovia} ${nome}`.toUpperCase().replace(/\s+/g, '')
+  if (/SP-?280|CASTELO|SP-?270|RAPOSO/.test(r)) return 3.65
+  if (/SP-?021|RODOANEL/.test(r)) return 3.5
+  if (/BR-?116|DUTRA|SP-?070|AYRTON|BANDEIRANTES|SP-?348/.test(r)) return 3.8
+  if (/BR-?101|BR-?040|BR-?381|SP-?330|ANHANGUERA/.test(r)) return 3.7
+  if (/BR-?153|BR-?262|BR-?277|BR-?376|BR-?050/.test(r)) return 3.4
+  if (/BR-?290|BR-?386|BR-?163|BR-?364/.test(r)) return 3.2
+  return 3.5
 }
 
-/** Valor comercial por praça conforme eixos (aproximação das categorias ANTT). */
+/**
+ * Caminhão: tarifa = valor do automóvel × número de eixos (regra ARTESP / maioria das concessões).
+ */
 function valorPracaPorEixos(tarifaCarro: number, eixos: number): number {
   const e = Math.max(2, Math.min(9, Math.round(eixos)))
-  // Categoria comercial: em muitas concessões ≈ tarifa_auto × (eixos / 2)
-  return roundMoney(tarifaCarro * (e / 2))
+  return roundMoney(tarifaCarro * e)
 }
 
 export type PedagioRotaResultado = {
@@ -179,8 +183,28 @@ export type PedagioRotaResultado = {
   fonte: string
 }
 
+function normTxt(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function chavePraca(p: { nome: string; concessionaria: string; rodovia: string }): string {
+  const nome = normTxt(p.nome)
+    .replace(/\b(free flow|ocr|portico|praca|pedagio|de|da|do|das|dos)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const conc = normTxt(p.concessionaria)
+  const rod = normTxt(p.rodovia).replace(/\s+/g, '')
+  return `${conc}|${rod}|${nome}`
+}
+
 /**
- * Cruza a polilinha da rota com praças ANTT + OSM (raio ~900 m) e estima o pedágio.
+ * Cruza a polilinha da rota com praças ANTT + OSM.
+ * Raio curto (~250 m) para não pegar praça de rodovia paralela (comum na Grande SP).
  */
 export async function calcularPedagioNaRota(
   polyline: Array<{ lat: number; lng: number }>,
@@ -197,7 +221,6 @@ export async function calcularPedagioNaRota(
     }
   }
 
-  // bbox da rota com margem
   let minLat = Infinity
   let maxLat = -Infinity
   let minLng = Infinity
@@ -208,64 +231,77 @@ export async function calcularPedagioNaRota(
     minLng = Math.min(minLng, p.lng)
     maxLng = Math.max(maxLng, p.lng)
   }
-  const pad = 0.06
+  const pad = 0.03
   minLat -= pad
   maxLat += pad
   minLng -= pad
   maxLng += pad
 
-  const RAIO_M = 900
-  const DEDUPE_M = 350
-  const hits: AnttPracaPedagio[] = []
+  const RAIO_M = 250
+  const DEDUPE_M = 500
 
-  function jaTemProximo(lat: number, lng: number): boolean {
-    return hits.some(
-      (h) =>
-        h.lat != null &&
-        h.lng != null &&
-        haversineM({ lat, lng }, { lat: h.lat, lng: h.lng }) < DEDUPE_M,
-    )
-  }
+  type Cand = PracaAntt & { dist: number }
+  const candidatos: Cand[] = []
 
   let fonteAntt = false
   let fonteOsm = false
   try {
     const todas = await carregarPracasAntt()
-    const candidatas = todas.filter(
+    const noBbox = todas.filter(
       (p) =>
         p.lat >= minLat &&
         p.lat <= maxLat &&
         p.lng >= minLng &&
         p.lng <= maxLng,
     )
-    for (const p of candidatas) {
+    for (const p of noBbox) {
       const d = distPontoPolilinhaM({ lat: p.lat, lng: p.lng }, polyline)
       if (d > RAIO_M) continue
-      if (jaTemProximo(p.lat, p.lng)) continue
-      const isOsm = p.fonte === 'osm'
-      const base = tarifaBaseCarro(p.rodovia)
-      const valor = valorPracaPorEixos(base, eixos)
-      const sufixo =
-        p.rodovia && p.uf ? ` (${p.rodovia}/${p.uf})` : p.rodovia ? ` (${p.rodovia})` : ''
-      hits.push({
-        nome: `${p.nome}${sufixo}`,
-        valor,
-        tipo: p.free_flow
-          ? isOsm
-            ? 'Free Flow / OCR (OSM)'
-            : 'Free Flow / OCR'
-          : isOsm
-            ? 'Praça (OpenStreetMap)'
-            : 'Praça convencional',
-        free_flow: Boolean(p.free_flow),
-        lat: p.lat,
-        lng: p.lng,
-      })
-      if (isOsm) fonteOsm = true
-      else fonteAntt = true
+      candidatos.push({ ...p, dist: d })
     }
   } catch {
     /* catálogo local indisponível */
+  }
+
+  candidatos.sort((a, b) => a.dist - b.dist)
+
+  const hits: AnttPracaPedagio[] = []
+  const chaves = new Set<string>()
+
+  function jaTem(c: Cand): boolean {
+    const key = chavePraca(c)
+    if (key && chaves.has(key)) return true
+    return hits.some((h) => {
+      if (h.lat == null || h.lng == null) return false
+      return haversineM({ lat: c.lat, lng: c.lng }, { lat: h.lat, lng: h.lng }) < DEDUPE_M
+    })
+  }
+
+  for (const p of candidatos) {
+    if (jaTem(p)) continue
+    const isOsm = p.fonte === 'osm'
+    const base = tarifaBaseCarro(p.rodovia, p.nome)
+    const valor = valorPracaPorEixos(base, eixos)
+    const sufixo =
+      p.rodovia && p.uf ? ` (${p.rodovia}/${p.uf})` : p.rodovia ? ` (${p.rodovia})` : ''
+    hits.push({
+      nome: `${p.nome}${sufixo}`,
+      valor,
+      tipo: p.free_flow
+        ? isOsm
+          ? 'Free Flow / OCR (OSM)'
+          : 'Free Flow / OCR'
+        : isOsm
+          ? 'Praça (OpenStreetMap)'
+          : 'Praça convencional',
+      free_flow: Boolean(p.free_flow),
+      lat: p.lat,
+      lng: p.lng,
+    })
+    const key = chavePraca(p)
+    if (key) chaves.add(key)
+    if (isOsm) fonteOsm = true
+    else fonteAntt = true
   }
 
   const pedagio = roundMoney(hits.reduce((s, h) => s + h.valor, 0))
@@ -284,7 +320,7 @@ export async function calcularPedagioNaRota(
       (fontes.length
         ? `Praças: ${fontes.join(' + ')}`
         : 'Sem praças georreferenciadas nesta rota') +
-      ' · estimativa tarifária por eixos · Res. Vale-Pedágio 6.024/2023',
+      ' · tarifa por eixo (cat.1 × eixos) · Res. Vale-Pedágio 6.024/2023',
   }
 }
 
@@ -298,8 +334,7 @@ type OsrmRouteRaw = {
 
 function slimPolyline(coords: [number, number][]): Array<{ lat: number; lng: number }> {
   const polyline = coords.map(([lng, lat]) => ({ lat, lng }))
-  // Mais pontos = melhor cruzamento com praças de pedágio
-  const step = Math.max(1, Math.floor(polyline.length / 500))
+  const step = Math.max(1, Math.floor(polyline.length / 1200))
   return polyline.filter((_, i) => i % step === 0 || i === polyline.length - 1)
 }
 

@@ -208,6 +208,8 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
           waypoints={waypoints}
           origemCoords={origemCoords}
           destinoCoords={destinoCoords}
+          consumoKmL={parseNumBr(consumo, consSugNum)}
+          precoDiesel={parseNumBr(precoDiesel, PRECO_DIESEL_SUGERIDO)}
         />
 
         <p className="text-xs font-bold uppercase tracking-wide text-ink-muted">

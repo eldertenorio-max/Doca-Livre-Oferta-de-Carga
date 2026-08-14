@@ -119,18 +119,25 @@ export function formatDuracaoAntt(minutos: number): string {
   return `${h} h ${String(rest).padStart(2, '0')} m`
 }
 
-/** Consumo médio (km/l) por faixa de eixos — estimativa operacional. */
+/**
+ * Consumo médio carregado (km/l) — alinhado a calculadoras de mercado (QualP/Trizy).
+ * Valores anteriores (~5,5 km/l no toco) eram de caminhão vazio/rodovia e subestimavam o combustível.
+ */
 export function consumoPadraoKmL(eixos: number): number {
-  if (eixos <= 2) return 8
-  if (eixos <= 3) return 5.5
-  if (eixos <= 4) return 4.2
-  if (eixos <= 5) return 3.5
-  if (eixos <= 6) return 3.2
-  if (eixos <= 7) return 2.9
-  return 2.6
+  if (eixos <= 2) return 6
+  if (eixos <= 3) return 2.1
+  if (eixos <= 4) return 1.9
+  if (eixos <= 5) return 1.8
+  if (eixos <= 6) return 1.7
+  if (eixos <= 7) return 1.6
+  return 1.5
 }
 
-export const PRECO_DIESEL_SUGERIDO = 6.5
+export const PRECO_DIESEL_SUGERIDO = 7
+
+function roundKm(distanciaKm: number): number {
+  return Math.max(0.1, Math.round(distanciaKm * 10) / 10)
+}
 
 const DIESEL_RS = PRECO_DIESEL_SUGERIDO
 /** Pedágio médio por eixo por km (calibrado em rotas BR típicas). */
@@ -142,7 +149,7 @@ export function estimarCustosRota(
   duracaoMin: number,
   opts?: { consumoKmL?: number; precoDiesel?: number },
 ): AnttRotaCustos {
-  const km = Math.max(1, Math.round(distanciaKm))
+  const km = roundKm(distanciaKm)
   const pedagioPorEixo = roundMoney(km * PEDAGIO_EIXO_POR_KM)
   const pedagio = roundMoney(pedagioPorEixo * eixos)
   const kmL = opts?.consumoKmL && opts.consumoKmL > 0 ? opts.consumoKmL : consumoPadraoKmL(eixos)
@@ -308,18 +315,19 @@ export async function calcularRotaOperacional(params: {
   }
 
   const tabela = params.tabela ?? 'A'
-  const { pisos, eixosUtilizados } = listarPisosAntt(tabela, eixos, distKm)
-  const rota = estimarCustosRota(distKm, eixosUtilizados, durMin, {
+  const kmRota = roundKm(distKm)
+  const { pisos, eixosUtilizados } = listarPisosAntt(tabela, eixos, kmRota)
+  const rota = estimarCustosRota(kmRota, eixos, durMin, {
     consumoKmL: params.consumoKmL,
     precoDiesel: params.precoDiesel,
   })
 
   let pedFonte = 'estimativa por km'
   try {
-    const pedIdaRes = await calcularPedagioNaRota(rotaIda.polyline, eixosUtilizados)
+    const pedIdaRes = await calcularPedagioNaRota(rotaIda.polyline, eixos)
     const pedVoltaRes =
       idaEVolta && polylineVolta
-        ? await calcularPedagioNaRota(polylineVolta, eixosUtilizados)
+        ? await calcularPedagioNaRota(polylineVolta, eixos)
         : null
 
     const pracasIda = pedIdaRes.pracas
@@ -344,7 +352,7 @@ export async function calcularRotaOperacional(params: {
     } else if (temPracas) {
       const pedTotal = roundMoney(pedIdaRes.pedagio + (pedVoltaRes?.pedagio ?? 0))
       rota.pedagio = pedTotal
-      rota.pedagio_por_eixo = roundMoney(pedTotal / Math.max(1, eixosUtilizados))
+      rota.pedagio_por_eixo = roundMoney(pedTotal / Math.max(1, eixos))
       rota.vale_pedagio = pedTotal
       rota.pracas = [
         ...pracasIda.map((p) =>
@@ -426,6 +434,8 @@ export async function calcularAnttCompleto(params: {
   waypoints?: AnttWaypointInput[]
   origemCoords?: { lat: number; lng: number } | null
   destinoCoords?: { lat: number; lng: number } | null
+  consumoKmL?: number
+  precoDiesel?: number
 }): Promise<{ ok: true; data: AnttCalculo } | { ok: false; erro: string }> {
   const origemTxt = params.origem.trim()
   const destinoTxt = params.destino.trim()
@@ -493,17 +503,21 @@ export async function calcularAnttCompleto(params: {
   }
 
   const eixos = eixosDoVeiculo(params.veiculo)
+  const kmRota = roundKm(rotaGeo.distanciaKm)
   const { pisos, eixosUtilizados } = listarPisosAntt(
     params.tabela,
     eixos,
-    rotaGeo.distanciaKm,
+    kmRota,
   )
 
-  const rota = estimarCustosRota(rotaGeo.distanciaKm, eixosUtilizados, rotaGeo.duracaoMin)
+  const rota = estimarCustosRota(kmRota, eixos, rotaGeo.duracaoMin, {
+    consumoKmL: params.consumoKmL,
+    precoDiesel: params.precoDiesel,
+  })
 
   let pedFonte = 'estimativa por km'
   try {
-    const ped = await calcularPedagioNaRota(rotaGeo.polyline, eixosUtilizados)
+    const ped = await calcularPedagioNaRota(rotaGeo.polyline, eixos)
     if (ped.pracas.length > 0) {
       rota.pedagio = ped.pedagio
       rota.pedagio_por_eixo = ped.pedagio_por_eixo

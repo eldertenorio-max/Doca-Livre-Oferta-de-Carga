@@ -28,6 +28,8 @@ type Props = {
   waypoints?: WaypointAntt[]
   origemCoords?: { lat: number; lng: number } | null
   destinoCoords?: { lat: number; lng: number } | null
+  consumoKmL?: number
+  precoDiesel?: number
 }
 
 export function AnttFretePanel({
@@ -40,6 +42,8 @@ export function AnttFretePanel({
   waypoints = [],
   origemCoords = null,
   destinoCoords = null,
+  consumoKmL,
+  precoDiesel,
 }: Props) {
   const [tabela, setTabela] = useState<TabelaAntt>(value?.tabela ?? 'A')
   const [categoriaId, setCategoriaId] = useState<number | ''>(value?.categoria_id ?? '')
@@ -76,6 +80,8 @@ export function AnttFretePanel({
       waypoints,
       origemCoords,
       destinoCoords,
+      consumoKmL,
+      precoDiesel,
     })
     if (id !== reqId.current) return
     setBusy(false)
@@ -169,6 +175,12 @@ export function AnttFretePanel({
           {busy ? 'Calculando…' : 'Recalcular'}
         </Button>
       </div>
+      {modoConsulta ? (
+        <p className="text-[11px] text-ink-muted">
+          Combustível, pedágio e piso ANTT só atualizam neste botão — não recalcula enquanto você
+          digita consumo e diesel.
+        </p>
+      ) : null}
 
       <div className="grid gap-1.5 sm:grid-cols-2">
         <Field label="Tabela ANTT">
@@ -266,21 +278,26 @@ export function AnttFretePanel({
                 />
                 <RowCusto label="Combustível" value={formatCurrency(rota.combustivel)} />
                 <div className="mt-1.5 flex items-center justify-between border-t border-ink/15 pt-2 font-bold text-ink">
-                  <span>Custo Total</span>
+                  <span>Custo operacional</span>
                   <span className="tabular-nums">{formatCurrency(rota.custo_total)}</span>
                 </div>
+                <p className="text-[10px] text-ink-muted">
+                  Pedágio + combustível. Não inclui o piso ANTT.
+                </p>
+                {calc.piso_selecionado != null && (
+                  <div className="mt-1.5 flex items-center justify-between rounded-md bg-ink px-2 py-1.5 text-[13px] font-bold text-white">
+                    <span>Piso ANTT (mínimo do frete)</span>
+                    <span className="tabular-nums">{formatCurrency(calc.piso_selecionado)}</span>
+                  </div>
+                )}
                 <p className="mt-2 text-[10px] text-ink-muted">
                   Eixos: {calc.eixos_utilizados}
                   {rota.provedor === 'antt_aberto'
-                    ? ' · praças na rota'
+                    ? ` · ${pracas.length} praça${pracas.length === 1 ? '' : 's'} na rota`
                     : ' · pedágio estimado'}
-                  {rota.free_flow ? ' · Free Flow/OCR na base' : ''}
-                  {calc.piso_selecionado != null && (
-                    <>
-                      {' '}
-                      · Piso: <strong>{formatCurrency(calc.piso_selecionado)}</strong>
-                    </>
-                  )}
+                  {rota.free_flow ? ' · Free Flow/OCR' : ''}
+                  {' · '}
+                  Piso = CCD × km + CC (Res. 6.084/2026)
                 </p>
               </div>
 
