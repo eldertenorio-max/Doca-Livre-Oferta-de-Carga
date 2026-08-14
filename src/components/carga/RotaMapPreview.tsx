@@ -27,6 +27,10 @@ type Props = {
   /** Tipo de veículo da carga — define eixos do pedágio. */
   veiculo?: string
   eixos?: number
+  /** Consumo (km/l) para o custo de combustível no mapa. */
+  consumoKmL?: number
+  /** Preço do diesel (R$/L) para o custo de combustível no mapa. */
+  precoDiesel?: number
   /** Chamado quando o trajeto OSRM for calculado (km / duração). */
   onRotaCalculada?: (info: { km: number; duracaoMin: number }) => void
 }
@@ -130,6 +134,8 @@ export function RotaMapPreview({
   className = '',
   veiculo,
   eixos: eixosProp,
+  consumoKmL,
+  precoDiesel,
   onRotaCalculada,
 }: Props) {
   const mapEl = useRef<HTMLDivElement>(null)
@@ -291,7 +297,10 @@ export function RotaMapPreview({
         }
         try {
           const pedRes = await calcularPedagioNaRota(rota.polyline, eixos)
-          const custos = estimarCustosRota(rota.distanciaKm, eixos, rota.duracaoMin)
+          const custos = estimarCustosRota(rota.distanciaKm, eixos, rota.duracaoMin, {
+            consumoKmL,
+            precoDiesel,
+          })
           const pedagio =
             pedRes.pracas.length > 0 ? pedRes.pedagio : custos.pedagio
           const combustivel = custos.combustivel
@@ -302,7 +311,10 @@ export function RotaMapPreview({
             pracas: pedRes.pracas,
           }
         } catch {
-          const custos = estimarCustosRota(rota.distanciaKm, eixos, rota.duracaoMin)
+          const custos = estimarCustosRota(rota.distanciaKm, eixos, rota.duracaoMin, {
+            consumoKmL,
+            precoDiesel,
+          })
           ped = {
             pedagio: custos.pedagio,
             combustivel: custos.combustivel,
@@ -375,11 +387,11 @@ export function RotaMapPreview({
     }, 550)
 
     return () => window.clearTimeout(timer)
-  }, [origem, destino, viasKey, coordsKey, veiculo, eixosProp])
+  }, [origem, destino, viasKey, coordsKey, veiculo, eixosProp, consumoKmL, precoDiesel])
 
   return (
     <div
-      className={`rota-map-preview relative overflow-hidden rounded-lg border border-ink/15 bg-[#f4f6f8] ${className}`}
+      className={`rota-map-preview relative z-0 isolate overflow-hidden rounded-lg border border-ink/15 bg-[#f4f6f8] ${className}`}
     >
       <div ref={mapEl} className="absolute inset-0 z-0" />
       {status === 'loading' || status === 'erro' || status === 'idle' ? (

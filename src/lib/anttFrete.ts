@@ -130,7 +130,9 @@ export function consumoPadraoKmL(eixos: number): number {
   return 2.6
 }
 
-const DIESEL_RS = 5.94
+export const PRECO_DIESEL_SUGERIDO = 6.5
+
+const DIESEL_RS = PRECO_DIESEL_SUGERIDO
 /** Pedágio médio por eixo por km (calibrado em rotas BR típicas). */
 const PEDAGIO_EIXO_POR_KM = 0.0526
 
