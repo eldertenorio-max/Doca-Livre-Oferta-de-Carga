@@ -192,12 +192,26 @@ function normTxt(s: string): string {
     .trim()
 }
 
+/** Praça antiga / fora de uso no catálogo ANTT (ex. "1 Norte - Defasada"). */
+function nomePracaObsoleta(nome: string): boolean {
+  return /\b(defasada|desativad|desativada|inativa|inativo)\b/i.test(nome)
+}
+
+/**
+ * Mesma estação em sentidos opostos ou fontes diferentes:
+ * "1 Norte (Mairiporã)", "1 Sul (Mairiporã)" e "1 Norte - Defasada" → uma chave.
+ */
 function chavePraca(p: { nome: string; concessionaria: string; rodovia: string }): string {
   const nome = normTxt(p.nome)
-    .replace(/\b(free flow|ocr|portico|praca|pedagio|de|da|do|das|dos)\b/g, ' ')
+    .replace(/\b(free flow|ocr|portico|praca|pedagio|defasada|desativada|desativado|inativa|inativo)\b/g, ' ')
+    .replace(/\b(norte|sul|leste|oeste|sentido|autopista)\b/g, ' ')
+    .replace(/\b(de|da|do|das|dos)\b/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
   const conc = normTxt(p.concessionaria)
+    .replace(/\b(autopista|concessionaria)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
   const rod = normTxt(p.rodovia).replace(/\s+/g, '')
   return `${conc}|${rod}|${nome}`
 }
@@ -238,7 +252,10 @@ export async function calcularPedagioNaRota(
   maxLng += pad
 
   const RAIO_M = 250
+  /** Norte/Sul da mesma praça ficam ~1 km; 500 m não junta. */
   const DEDUPE_M = 500
+  /** OSM costuma repetir a mesma cabine ANTT com outro nome (ex. "Autopista Fernão Dias"). */
+  const DEDUPE_OSM_ANTT_M = 2500
 
   type Cand = PracaAntt & { dist: number }
   const candidatos: Cand[] = []
@@ -263,7 +280,15 @@ export async function calcularPedagioNaRota(
     /* catálogo local indisponível */
   }
 
-  candidatos.sort((a, b) => a.dist - b.dist)
+  candidatos.sort((a, b) => {
+    const obsoletaA = nomePracaObsoleta(a.nome) ? 1 : 0
+    const obsoletaB = nomePracaObsoleta(b.nome) ? 1 : 0
+    if (obsoletaA !== obsoletaB) return obsoletaA - obsoletaB
+    const osmA = a.fonte === 'osm' ? 1 : 0
+    const osmB = b.fonte === 'osm' ? 1 : 0
+    if (osmA !== osmB) return osmA - osmB
+    return a.dist - b.dist
+  })
 
   const hits: AnttPracaPedagio[] = []
   const chaves = new Set<string>()
@@ -274,12 +299,15 @@ export async function calcularPedagioNaRota(
     return /free.?flow|p[oó]rtico|\bpfe\s*\d+/i.test(`${p.nome} ${p.rodovia}`)
   }
 
-  function jaTem(c: Cand): boolean {
+  function jaTem(c: Cand, isOsm: boolean): boolean {
     const key = chavePraca(c)
     if (key && chaves.has(key)) return true
     return hits.some((h) => {
       if (h.lat == null || h.lng == null) return false
-      return haversineM({ lat: c.lat, lng: c.lng }, { lat: h.lat, lng: h.lng }) < DEDUPE_M
+      const d = haversineM({ lat: c.lat, lng: c.lng }, { lat: h.lat, lng: h.lng })
+      const anttHit = h.tipo !== 'Praça (OpenStreetMap)'
+      const lim = isOsm && anttHit ? DEDUPE_OSM_ANTT_M : DEDUPE_M
+      return d < lim
     })
   }
 
@@ -288,8 +316,9 @@ export async function calcularPedagioNaRota(
       porticosFreeFlow += 1
       continue
     }
-    if (jaTem(p)) continue
+    if (nomePracaObsoleta(p.nome)) continue
     const isOsm = p.fonte === 'osm'
+    if (jaTem(p, isOsm)) continue
     const raioOsm = isOsm ? 160 : RAIO_M
     if (p.dist > raioOsm) continue
     const base = tarifaBaseCarro(p.rodovia, p.nome)
@@ -523,7 +552,7 @@ function escolherRota(
 
 /**
  * Rota:
- * - eficiente: Valhalla com use_tolls=0 (como QualP: desvia de praça quando dá)
+ * - eficiente: Valhalla use_tolls=0.5 (menor tempo, como QualP Rota 1)
  * - curta: OSRM menor distância
  * - evitar_pedagio: Valhalla use_tolls=0 (OSRM público não aceita exclude=toll)
  */
@@ -550,10 +579,20 @@ export async function rotaOsrmComGeometria(
     )
     const pontos = [origem, ...vias, destino]
 
-    if (preferencia === 'evitar_pedagio' || preferencia === 'eficiente') {
+    if (preferencia === 'evitar_pedagio') {
       const valhalla = await fetchValhallaRoute(pontos, { useTolls: 0 })
       if (valhalla) return { ...valhalla, preferencia }
-      // OSRM público não suporta exclude=toll — usa a mais rápida como fallback
+      const routes = await fetchOsrmRoutes(pontos, { alternatives: true })
+      const escolhida = escolherRota(routes, 'eficiente')
+      if (!escolhida) return null
+      const mapped = mapOsrmRoute(escolhida)
+      if (!mapped) return null
+      return { ...mapped, preferencia }
+    }
+
+    if (preferencia === 'eficiente') {
+      const valhalla = await fetchValhallaRoute(pontos, { useTolls: 0.5 })
+      if (valhalla) return { ...valhalla, preferencia }
       const routes = await fetchOsrmRoutes(pontos, { alternatives: true })
       const escolhida = escolherRota(routes, 'eficiente')
       if (!escolhida) return null

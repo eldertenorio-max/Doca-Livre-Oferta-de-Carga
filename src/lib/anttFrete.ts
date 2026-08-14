@@ -398,7 +398,7 @@ export async function calcularRotaOperacional(params: {
       ? 'rota curta (menor km)'
       : preferencia === 'evitar_pedagio'
         ? 'evitar pedágios'
-        : 'rota eficiente (desvia pedágio quando possível)'
+        : 'rota eficiente (menor tempo)'
   pedFonte = `${rotuloPref} · ${pedFonte}`
 
   const cat =

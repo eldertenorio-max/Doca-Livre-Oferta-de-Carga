@@ -405,7 +405,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
           <div className="flex flex-wrap gap-2">
             {(
               [
-                ['eficiente', 'Rota eficiente (evita pedágio)'],
+                ['eficiente', 'Rota eficiente'],
                 ['curta', 'Rota curta'],
                 ['evitar_pedagio', 'Evitar pedágios'],
               ] as const
