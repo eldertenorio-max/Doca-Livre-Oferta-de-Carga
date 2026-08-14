@@ -264,6 +264,11 @@ export async function upsertRotaRemote(
   return { ok: false, erro: error.message }
 }
 
+export async function deleteRotaRemote(id: string): Promise<void> {
+  if (!isSupabaseConfigured || !supabase || !isUuid(id)) return
+  await supabase.from('rotas').delete().eq('id', id)
+}
+
 /**
  * Rotas que ainda precisam migrar para UUID/tabela:
  * — não é seed demo

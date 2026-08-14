@@ -121,6 +121,7 @@ import {
   newRotaId,
   rotasPendentesMigracao,
   upsertRotaRemote,
+  deleteRotaRemote,
 } from '../lib/rotasSync'
 import {
   applySyncSlice,
@@ -188,6 +189,8 @@ interface DataState {
   veiculos_excluidos: string[]
   /** Motoristas excluídos (tombstones p/ sync) */
   motoristas_excluidos: string[]
+  /** Rotas excluídas (tombstones p/ sync e seeds) */
+  rotas_excluidos: string[]
 }
 
 interface AuthState {
@@ -285,6 +288,7 @@ interface DataContextValue extends DataState, AuthState {
   salvarMotorista: (m: Motorista) => void
   excluirMotorista: (id: string) => void
   salvarRota: (r: Rota) => void
+  excluirRota: (id: string) => void
   criarCarga: (partial?: Partial<Carga>) => Carga
   atualizarCarga: (
     id: string,
@@ -371,6 +375,7 @@ function defaultState(): DataState {
     transportadores_excluidos: [],
     veiculos_excluidos: [],
     motoristas_excluidos: [],
+    rotas_excluidos: [],
   }
 }
 
@@ -988,6 +993,7 @@ function wipeKanbanFields<T extends DataState>(state: T): T {
     transportadores_excluidos: state.transportadores_excluidos ?? [],
     veiculos_excluidos: state.veiculos_excluidos ?? [],
     motoristas_excluidos: state.motoristas_excluidos ?? [],
+    rotas_excluidos: state.rotas_excluidos ?? [],
   }
 }
 
@@ -1063,6 +1069,9 @@ function loadState(): DataState {
       motoristas_excluidos: Array.isArray(parsed.motoristas_excluidos)
         ? parsed.motoristas_excluidos.filter((id): id is string => typeof id === 'string')
         : [],
+      rotas_excluidos: Array.isArray(parsed.rotas_excluidos)
+        ? parsed.rotas_excluidos.filter((id): id is string => typeof id === 'string')
+        : [],
     }
     // Tombstones locais sem cargas “vivas” costumam zerar o Kanban do embarcador no sync —
     // descarta a lista de excluídas na migração; o remoto manda a verdade.
@@ -1089,6 +1098,16 @@ function loadState(): DataState {
           ...g,
           transportador_ids: (g.transportador_ids ?? []).filter((tid) => !tex.has(tid)),
         })),
+      }
+    }
+    if (loaded.rotas_excluidos.length > 0) {
+      const rex = new Set(loaded.rotas_excluidos)
+      loaded = {
+        ...loaded,
+        rotas: loaded.rotas.filter((r) => !rex.has(r.id)),
+        cargas: loaded.cargas.map((c) =>
+          c.rota_id && rex.has(c.rota_id) ? { ...c, rota_id: null } : c,
+        ),
       }
     }
     // Apaga blob local — daqui pra frente só banco
@@ -1501,10 +1520,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
             ),
           )
         : prev.veiculos
-      const rotasAntes = prev.rotas ?? []
+      const rExcluidos = new Set(prev.rotas_excluidos ?? [])
+      const rotasAntes = (prev.rotas ?? []).filter((r) => !rExcluidos.has(r.id))
       const rotas = dedupeRotas(
         remoteRotas
-          ? mergeRotasLocalRemote(rotasAntes, remoteRotas)
+          ? mergeRotasLocalRemote(
+              rotasAntes,
+              remoteRotas.filter((r) => !rExcluidos.has(r.id)),
+            )
           : rotasAntes,
       )
       const next = unificarTransportadoresDuplicados(
@@ -4777,7 +4800,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
               )
             : [...prev.rotas, rotaFinal],
         )
-        const next = { ...prev, rotas }
+        const idSalvo = mesma?.id ?? rotaFinal.id
+        const next = {
+          ...prev,
+          rotas,
+          rotas_excluidos: (prev.rotas_excluidos ?? []).filter(
+            (x) => x !== idSalvo && x !== r.id && x !== rotaFinal.id,
+          ),
+        }
         stateRef.current = next
         flushKanbanPush(next)
         return next
@@ -4799,6 +4829,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
           return next
         })
       })
+    },
+    [flushKanbanPush],
+  )
+
+  const excluirRota = useCallback(
+    (id: string) => {
+      setState((prev) => {
+        const next = {
+          ...prev,
+          rotas: (prev.rotas ?? []).filter((r) => r.id !== id),
+          cargas: (prev.cargas ?? []).map((c) =>
+            c.rota_id === id ? { ...c, rota_id: null } : c,
+          ),
+          rotas_excluidos: [
+            ...(prev.rotas_excluidos ?? []).filter((x) => x !== id),
+            id,
+          ].slice(-500),
+        }
+        stateRef.current = next
+        flushKanbanPush(next)
+        return next
+      })
+      void deleteRotaRemote(id)
     },
     [flushKanbanPush],
   )
@@ -5309,6 +5362,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       salvarMotorista,
       excluirMotorista,
       salvarRota,
+      excluirRota,
       criarCarga,
       atualizarCarga,
       excluirCargaRascunho,
@@ -5386,6 +5440,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       salvarMotorista,
       excluirMotorista,
       salvarRota,
+      excluirRota,
       criarCarga,
       atualizarCarga,
       excluirCargaRascunho,

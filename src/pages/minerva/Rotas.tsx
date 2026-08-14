@@ -96,7 +96,7 @@ function limparPontosPassagem(
 }
 
 export function RotasPage() {
-  const { rotas, salvarRota } = useData()
+  const { rotas, salvarRota, excluirRota } = useData()
   const [form, setForm] = useState<Partial<Rota>>(emptyForm)
   const [freteStr, setFreteStr] = useState('')
   const [kmStr, setKmStr] = useState('')
@@ -733,6 +733,31 @@ export function RotasPage() {
                       }}
                     >
                       Editar
+                    </button>
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-red-600 hover:underline"
+                      onClick={() => {
+                        const nome =
+                          r.descricao?.trim() ||
+                          `${r.origem} → ${r.destino}`
+                        if (
+                          !window.confirm(
+                            `Excluir a rota "${nome}"? Esta ação não pode ser desfeita.`,
+                          )
+                        ) {
+                          return
+                        }
+                        if (editingId === r.id) {
+                          setEditingId(null)
+                          carregarForm(null)
+                        }
+                        if (mapaRota?.id === r.id) setMapaRota(null)
+                        if (pontosRotaVer?.id === r.id) setPontosRotaVer(null)
+                        excluirRota(r.id)
+                      }}
+                    >
+                      Excluir
                     </button>
                   </div>
                 </td>

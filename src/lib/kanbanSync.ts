@@ -45,6 +45,8 @@ export type KanbanSyncSlice = {
   /** Placas/motoristas removidos — impede o merge de “ressuscitar” o cadastro */
   veiculos_excluidos?: string[]
   motoristas_excluidos?: string[]
+  /** Rotas removidas — impede o merge de “ressuscitar” o cadastro */
+  rotas_excluidos?: string[]
 }
 
 export type KanbanSyncPayload = {
@@ -91,6 +93,7 @@ export function pickSyncSlice(state: KanbanSyncSlice): KanbanSyncSlice {
     transportadores_excluidos: state.transportadores_excluidos ?? [],
     veiculos_excluidos: state.veiculos_excluidos ?? [],
     motoristas_excluidos: state.motoristas_excluidos ?? [],
+    rotas_excluidos: state.rotas_excluidos ?? [],
   }
 }
 
@@ -290,13 +293,21 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
     new Set([...(prev.motoristas_excluidos ?? []), ...(slice.motoristas_excluidos ?? [])]),
   ).slice(-500)
   const mExcluidos = new Set(motoristasExcluidos)
+  const rotasExcluidos = Array.from(
+    new Set([...(prev.rotas_excluidos ?? []), ...(slice.rotas_excluidos ?? [])]),
+  ).slice(-500)
+  const rExcluidos = new Set(rotasExcluidos)
 
   // Remoto vazio NÃO apaga cargas locais publicadas/rascunhos
   const cargasMerged =
     remoteCargas.length === 0 && prev.cargas.length > 0
       ? prev.cargas
       : mergeCargas(prev.cargas, remoteCargas)
-  const cargas = cargasMerged.filter((c) => !excluidas.has(c.id))
+  const cargas = cargasMerged
+    .filter((c) => !excluidas.has(c.id))
+    .map((c) =>
+      c.rota_id && rExcluidos.has(c.rota_id) ? { ...c, rota_id: null } : c,
+    )
 
   const lancesMerged =
     remoteLances.length === 0 && prev.lances.length > 0
@@ -313,6 +324,7 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
     transportadores_excluidos: transportadoresExcluidos,
     veiculos_excluidos: veiculosExcluidos,
     motoristas_excluidos: motoristasExcluidos,
+    rotas_excluidos: rotasExcluidos,
     veiculos: mergeById(prev.veiculos ?? [], slice.veiculos ?? [])
       .filter((v) => !vExcluidos.has(v.id))
       .map((v) => preservarFotosLocais(prev.veiculos ?? [], v))
@@ -355,8 +367,11 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
       const remote = Array.isArray(slice.rotas) ? slice.rotas : []
       const local = prev.rotas ?? []
       // Remoto sem rotas não apaga cadastros locais (payload antigo / corrida)
-      if (remote.length === 0 && local.length > 0) return dedupeRotas(local)
-      return dedupeRotas(mergeById(local, remote))
+      const merged =
+        remote.length === 0 && local.length > 0
+          ? local
+          : mergeById(local, remote)
+      return dedupeRotas(merged.filter((r) => !rExcluidos.has(r.id)))
     })(),
     notificacoes: (() => {
       const local = prev.notificacoes ?? []
