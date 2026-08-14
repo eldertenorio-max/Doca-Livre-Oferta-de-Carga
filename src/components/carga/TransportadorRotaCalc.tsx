@@ -346,11 +346,12 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
             </p>
             <p className="mt-0.5 text-[12px] text-ink-muted">
               Sugestão: {consSug} km/l · diesel {formatCurrency(PRECO_DIESEL_SUGERIDO)}/L.
-              Digite à vontade — o cálculo só roda quando você clicar em Recalcular.
+              Consumo é km por litro: número maior = caminhão mais econômico = menos gasto.
+              O cálculo só roda quando você clicar em Recalcular.
             </p>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Consumo (KM/L)" className="min-w-0">
+            <Field label="Consumo (km por litro)" className="min-w-0">
               <input
                 className={`${inputClass} w-full min-w-0 bg-white`}
                 value={consumo}
@@ -446,6 +447,9 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
                 <p className="text-[11px] text-ink-muted">
                   Usando {fmtConsumo(consumoAplicado)} km/l · diesel{' '}
                   {formatCurrency(dieselAplicado)}/L
+                  {calc.rota.litros != null
+                    ? ` · ${calc.rota.distancia_km} km ÷ ${fmtConsumo(consumoAplicado)} km/l = ${String(calc.rota.litros).replace('.', ',')} L × ${formatCurrency(dieselAplicado)}`
+                    : ''}
                 </p>
               )}
               <Row label="Duração" value={calc.rota.duracao_label} />
