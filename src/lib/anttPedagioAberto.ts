@@ -431,15 +431,40 @@ function slimLatLng(
 
 const VALHALLA_URL = 'https://valhalla1.openstreetmap.de/route'
 
+type CostingValhalla = 'auto' | 'truck'
+
+function costingDeEixos(eixos?: number): CostingValhalla {
+  return eixos != null && eixos >= 3 ? 'truck' : 'auto'
+}
+
+/**
+ * OSM (Valhalla/OSRM) no Brasil costuma marcar ~70 km/h em rodovia.
+ * QualP/Google na Fernão Dias ficam ~92 km/h. Só ajusta trecho interurbano
+ * já em velocidade de estrada (não cidade lenta).
+ */
+function calibrarDuracaoRodovia(km: number, duracaoMin: number): number {
+  if (km < 80 || duracaoMin <= 0) return duracaoMin
+  const vel = km / (duracaoMin / 60)
+  if (vel < 55 || vel >= 88) return duracaoMin
+  return (km / 92) * 60
+}
+
+function comDuracaoCalibrada<T extends { distanciaKm: number; duracaoMin: number }>(
+  r: T,
+): T {
+  return { ...r, duracaoMin: calibrarDuracaoRodovia(r.distanciaKm, r.duracaoMin) }
+}
+
 async function fetchValhallaRoute(
   pontos: Array<{ lat: number; lng: number }>,
-  opts: { useTolls: number },
+  opts: { useTolls: number; costing?: CostingValhalla },
 ): Promise<{
   distanciaKm: number
   duracaoMin: number
   polyline: Array<{ lat: number; lng: number }>
 } | null> {
   if (pontos.length < 2) return null
+  const costing: CostingValhalla = opts.costing ?? 'auto'
   const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null
   const timer = ctrl ? setTimeout(() => ctrl.abort(), 12000) : 0
   try {
@@ -449,8 +474,10 @@ async function fetchValhallaRoute(
       signal: ctrl?.signal,
       body: JSON.stringify({
         locations: pontos.map((p) => ({ lat: p.lat, lon: p.lng })),
-        costing: 'auto',
-        costing_options: { auto: { use_tolls: opts.useTolls } },
+        costing,
+        costing_options: {
+          [costing]: { use_tolls: opts.useTolls, use_highways: 1 },
+        },
         shape_format: 'polyline6',
         units: 'kilometers',
       }),
@@ -555,6 +582,7 @@ function escolherRota(
  * - eficiente: Valhalla use_tolls=0.5 (menor tempo, como QualP Rota 1)
  * - curta: OSRM menor distância
  * - evitar_pedagio: Valhalla use_tolls=0 (OSRM público não aceita exclude=toll)
+ * Caminhão (3+ eixos) usa perfil truck. Duração em rodovia calibrada (~92 km/h).
  */
 export async function rotaOsrmComGeometria(
   origem: { lat: number; lng: number },
@@ -564,6 +592,8 @@ export async function rotaOsrmComGeometria(
     preferencia?: PreferenciaOsrm
     /** Paradas intermediárias entre origem e destino. */
     waypoints?: Array<{ lat: number; lng: number }>
+    /** Define perfil Valhalla auto vs truck. */
+    eixos?: number
   },
 ): Promise<{
   distanciaKm: number
@@ -578,27 +608,28 @@ export async function rotaOsrmComGeometria(
       (p) => Number.isFinite(p.lat) && Number.isFinite(p.lng),
     )
     const pontos = [origem, ...vias, destino]
+    const costing = costingDeEixos(opts?.eixos)
 
     if (preferencia === 'evitar_pedagio') {
-      const valhalla = await fetchValhallaRoute(pontos, { useTolls: 0 })
-      if (valhalla) return { ...valhalla, preferencia }
+      const valhalla = await fetchValhallaRoute(pontos, { useTolls: 0, costing })
+      if (valhalla) return { ...comDuracaoCalibrada(valhalla), preferencia }
       const routes = await fetchOsrmRoutes(pontos, { alternatives: true })
       const escolhida = escolherRota(routes, 'eficiente')
       if (!escolhida) return null
       const mapped = mapOsrmRoute(escolhida)
       if (!mapped) return null
-      return { ...mapped, preferencia }
+      return { ...comDuracaoCalibrada(mapped), preferencia }
     }
 
     if (preferencia === 'eficiente') {
-      const valhalla = await fetchValhallaRoute(pontos, { useTolls: 0.5 })
-      if (valhalla) return { ...valhalla, preferencia }
+      const valhalla = await fetchValhallaRoute(pontos, { useTolls: 0.5, costing })
+      if (valhalla) return { ...comDuracaoCalibrada(valhalla), preferencia }
       const routes = await fetchOsrmRoutes(pontos, { alternatives: true })
       const escolhida = escolherRota(routes, 'eficiente')
       if (!escolhida) return null
       const mapped = mapOsrmRoute(escolhida)
       if (!mapped) return null
-      return { ...mapped, preferencia }
+      return { ...comDuracaoCalibrada(mapped), preferencia }
     }
 
     const routes = await fetchOsrmRoutes(pontos, { alternatives: true })
@@ -606,7 +637,7 @@ export async function rotaOsrmComGeometria(
     if (!escolhida) return null
     const mapped = mapOsrmRoute(escolhida)
     if (!mapped) return null
-    return { ...mapped, preferencia: 'curta' }
+    return { ...comDuracaoCalibrada(mapped), preferencia: 'curta' }
   } catch {
     return null
   }

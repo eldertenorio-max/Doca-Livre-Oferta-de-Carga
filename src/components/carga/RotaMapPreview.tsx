@@ -285,6 +285,7 @@ export function RotaMapPreview({
 
         const rota = await rotaOsrmComGeometria(oCoords, dCoords, {
           waypoints: viaCoords,
+          eixos,
         })
         if (id !== reqId.current) return
         if (!rota?.polyline.length) {

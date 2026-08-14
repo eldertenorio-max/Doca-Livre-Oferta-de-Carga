@@ -289,6 +289,7 @@ export async function calcularRotaOperacional(params: {
   const rotaIda = await rotaOsrmComGeometria(o.coords, d.coords, {
     preferencia,
     waypoints: viaCoords,
+    eixos,
   })
   if (!rotaIda) {
     if (evitar) {
@@ -309,6 +310,7 @@ export async function calcularRotaOperacional(params: {
     const rotaVolta = await rotaOsrmComGeometria(d.coords, o.coords, {
       preferencia,
       waypoints: viasVolta,
+      eixos,
     })
     if (rotaVolta) {
       distKm += rotaVolta.distanciaKm
@@ -501,15 +503,15 @@ export async function calcularAnttCompleto(params: {
     }
   }
 
+  const eixos = eixosDoVeiculo(params.veiculo)
   const { rotaOsrmComGeometria, calcularPedagioNaRota } = await import('./anttPedagioAberto')
   const rotaGeo = await rotaOsrmComGeometria(o.coords, d.coords, {
     waypoints: viaCoords,
+    eixos,
   })
   if (!rotaGeo) {
     return { ok: false, erro: 'Não foi possível calcular a rota entre origem e destino.' }
   }
-
-  const eixos = eixosDoVeiculo(params.veiculo)
   const kmRota = roundKm(rotaGeo.distanciaKm)
   const { pisos, eixosUtilizados } = listarPisosAntt(
     params.tabela,
