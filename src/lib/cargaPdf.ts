@@ -662,11 +662,13 @@ export async function gerarPdfCarga(
     )
     linhasDuplas(
       ['Piso ANTT', moeda(antt?.piso_selecionado)],
-      ['Eixos', antt?.eixos_utilizados != null ? String(antt.eixos_utilizados) : '—'],
+      ['Eixos', antt?.eixos != null ? String(antt.eixos) : '—'],
     )
     linhasDuplas(
-      ['Consumo sugerido', data.consumoSugeridoKmL ? `${String(data.consumoSugeridoKmL).replace('.', ',')} km/l` : '—'],
-      ['Diesel sugerido', moeda(data.precoDieselSugerido)],
+      ['Consumo (km/l)', (rota?.consumo_km_l ?? data.consumoSugeridoKmL) != null
+        ? `${String(rota?.consumo_km_l ?? data.consumoSugeridoKmL).replace('.', ',')} km/l`
+        : '—'],
+      ['Preço diesel', moeda(rota?.preco_diesel ?? data.precoDieselSugerido)],
     )
     if (rota) {
       linhasDuplas(

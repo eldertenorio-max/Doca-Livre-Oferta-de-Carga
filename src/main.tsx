@@ -10,7 +10,7 @@ import './index.css'
  * Força novo bundle (setas da galeria). Depois do primeiro load limpo,
  * updates de deploy só no F5 (ver onNeedRefresh).
  */
-const BUILD_ID = 'pdf-mapa-real-v22'
+const BUILD_ID = 'antt-mostra-eixo-consumo-diesel-v23'
 
 async function forceFreshOnce(): Promise<boolean> {
   const key = `doca-build:${BUILD_ID}`

@@ -35,6 +35,8 @@ export type AnttRotaCustos = {
   combustivel: number
   /** Litros estimados (distância ÷ km/l). */
   litros?: number
+  consumo_km_l?: number
+  preco_diesel?: number
   custo_total: number
   /** Vale-Pedágio obrigatório (Res. ANTT 6.024/2023) — em geral = pedágio da rota */
   vale_pedagio?: number
@@ -166,6 +168,8 @@ export function estimarCustosRota(
     pedagio_por_eixo: pedagioPorEixo,
     combustivel,
     litros: Math.round(litros * 10) / 10,
+    consumo_km_l: kmL,
+    preco_diesel: diesel,
     custo_total: roundMoney(pedagio + combustivel),
   }
 }

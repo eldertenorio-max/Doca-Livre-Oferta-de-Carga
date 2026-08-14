@@ -4,6 +4,8 @@ import {
   calcularAnttCompleto,
   CATEGORIAS_ANTT,
   TABELAS_ANTT,
+  consumoPadraoKmL,
+  PRECO_DIESEL_SUGERIDO,
   type AnttCalculo,
   type TabelaAntt,
 } from '../../lib/anttFrete'
@@ -135,6 +137,19 @@ export function AnttFretePanel({
 
   const rota = calc?.rota
   const pracas = rota?.pracas ?? []
+  const eixosOp = calc?.eixos ?? 3
+  const consUsado =
+    rota?.consumo_km_l && rota.consumo_km_l > 0
+      ? rota.consumo_km_l
+      : consumoKmL && consumoKmL > 0
+        ? consumoKmL
+        : consumoPadraoKmL(eixosOp)
+  const dieselUsado =
+    rota?.preco_diesel && rota.preco_diesel > 0
+      ? rota.preco_diesel
+      : precoDiesel && precoDiesel > 0
+        ? precoDiesel
+        : PRECO_DIESEL_SUGERIDO
 
   return (
     <section className="space-y-1.5 rounded-lg border border-ink/15 bg-sand-light/40 p-2.5">
@@ -268,6 +283,31 @@ export function AnttFretePanel({
           {rota && (
             <div className="space-y-2">
               <div className="rounded-lg border border-ink/10 bg-white px-3 py-2 text-sm">
+                <p className="mb-1.5 text-[10px] font-extrabold uppercase tracking-wide text-ink">
+                  Considerado neste cálculo
+                </p>
+                <RowCusto
+                  label="Eixos"
+                  value={`${calc.eixos} eixos${
+                    calc.eixos_utilizados !== calc.eixos
+                      ? ` (piso ANTT usa ${calc.eixos_utilizados})`
+                      : ''
+                  }`}
+                />
+                <RowCusto
+                  label="Consumo"
+                  value={`${fmtKmL(consUsado)} km/l`}
+                />
+                <RowCusto
+                  label="Preço do diesel"
+                  value={`${formatCurrency(dieselUsado)}/L`}
+                />
+                {rota.litros != null && (
+                  <p className="mb-1 text-[11px] text-ink-muted">
+                    {rota.distancia_km} km ÷ {fmtKmL(consUsado)} km/l ={' '}
+                    {fmtKmL(rota.litros)} L × {formatCurrency(dieselUsado)}
+                  </p>
+                )}
                 <RowCusto label="Duração" value={rota.duracao_label} />
                 <RowCusto label="Distância" value={`${rota.distancia_km} km`} />
                 <RowCusto label="Pedágio" value={formatCurrency(rota.pedagio)} />
@@ -291,10 +331,9 @@ export function AnttFretePanel({
                   </div>
                 )}
                 <p className="mt-2 text-[10px] text-ink-muted">
-                  Eixos: {calc.eixos_utilizados}
                   {rota.provedor === 'antt_aberto'
-                    ? ` · ${pracas.length} praça${pracas.length === 1 ? '' : 's'} na rota`
-                    : ' · pedágio estimado'}
+                    ? `${pracas.length} praça${pracas.length === 1 ? '' : 's'} na rota`
+                    : 'Pedágio estimado'}
                   {rota.free_flow ? ' · Free Flow próximo (não somado)' : ''}
                   {' · '}
                   Piso = CCD × km + CC (Res. 6.084/2026)
@@ -343,6 +382,10 @@ function RowCusto({ label, value }: { label: string; value: string }) {
       <span className="tabular-nums text-ink">{value}</span>
     </div>
   )
+}
+
+function fmtKmL(n: number): string {
+  return String(n).replace('.', ',')
 }
 
 function toSaved(c: AnttCalculo): AnttInfoCarga {

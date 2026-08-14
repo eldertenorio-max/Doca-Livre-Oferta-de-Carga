@@ -296,6 +296,9 @@ export interface AnttInfoCarga {
     pedagio: number
     pedagio_por_eixo: number
     combustivel: number
+    litros?: number
+    consumo_km_l?: number
+    preco_diesel?: number
     custo_total: number
     vale_pedagio?: number
     pracas?: {
