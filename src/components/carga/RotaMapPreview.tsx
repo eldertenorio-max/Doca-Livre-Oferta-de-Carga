@@ -145,6 +145,11 @@ export function RotaMapPreview({
   const onRotaRef = useRef(onRotaCalculada)
   onRotaRef.current = onRotaCalculada
 
+  const consumoRef = useRef(consumoKmL)
+  const precoRef = useRef(precoDiesel)
+  consumoRef.current = consumoKmL
+  precoRef.current = precoDiesel
+
   const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'erro' | 'circular'>('idle')
   const [msg, setMsg] = useState('Informe origem e destino para ver o trajeto')
   const [meta, setMeta] = useState<MetaRota | null>(null)
@@ -299,8 +304,8 @@ export function RotaMapPreview({
         try {
           const pedRes = await calcularPedagioNaRota(rota.polyline, eixos)
           const custos = estimarCustosRota(rota.distanciaKm, eixos, rota.duracaoMin, {
-            consumoKmL,
-            precoDiesel,
+            consumoKmL: consumoRef.current,
+            precoDiesel: precoRef.current,
           })
           const pedagio =
             pedRes.pracas.length > 0 ? pedRes.pedagio : custos.pedagio
@@ -313,8 +318,8 @@ export function RotaMapPreview({
           }
         } catch {
           const custos = estimarCustosRota(rota.distanciaKm, eixos, rota.duracaoMin, {
-            consumoKmL,
-            precoDiesel,
+            consumoKmL: consumoRef.current,
+            precoDiesel: precoRef.current,
           })
           ped = {
             pedagio: custos.pedagio,
@@ -388,7 +393,7 @@ export function RotaMapPreview({
     }, 550)
 
     return () => window.clearTimeout(timer)
-  }, [origem, destino, viasKey, coordsKey, veiculo, eixosProp, consumoKmL, precoDiesel])
+  }, [origem, destino, viasKey, coordsKey, veiculo, eixosProp])
 
   return (
     <div

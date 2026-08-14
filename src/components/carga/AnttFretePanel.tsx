@@ -50,13 +50,18 @@ export function AnttFretePanel({
   onChangeRef.current = onChange
   const reqId = useRef(0)
 
+  const valueKey = value
+    ? `${value.tabela}|${value.categoria_id ?? ''}|${value.rota?.distancia_km ?? ''}|${value.piso_selecionado ?? ''}`
+    : ''
+
   useEffect(() => {
     if (value) {
       setTabela(value.tabela)
       setCategoriaId(value.categoria_id ?? '')
       setCalc(fromSaved(value))
     }
-  }, [value])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valueKey])
 
   async function calcular(catId: number | '' = categoriaId) {
     const id = ++reqId.current
@@ -90,14 +95,14 @@ export function AnttFretePanel({
     .join('\u0001')
   const coordsKey = `${origemCoords?.lat ?? ''},${origemCoords?.lng ?? ''}|${destinoCoords?.lat ?? ''},${destinoCoords?.lng ?? ''}`
 
-  // Automático ao mudar origem / destino / vias / veículo / tabela
+  // Embarcador: automático ao mudar origem / destino / vias / veículo / tabela.
+  // Transportador (consulta): NÃO recalcula sozinho — evita travar a digitação.
   useEffect(() => {
+    if (modoConsulta) return
     const o = origem.trim()
     const d = destino.trim()
     const v = veiculo.trim()
     if (o.length < 5 || d.length < 5 || !v) return
-    // Em consulta com snapshot: só recalcula se mudar tabela (Recalcular sempre disponível)
-    if (modoConsulta && value?.rota && tabela === value.tabela) return
     const t = window.setTimeout(() => {
       void calcular(categoriaId)
     }, 900)

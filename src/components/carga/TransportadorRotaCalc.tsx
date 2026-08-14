@@ -60,6 +60,8 @@ function pontosDaCarga(
 
 export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
   const { rotas } = useData()
+  const rotasRef = useRef(rotas)
+  rotasRef.current = rotas
   const [origem, setOrigem] = useState('')
   const [destino, setDestino] = useState('')
   const [waypoints, setWaypoints] = useState<PontoPassagemRota[]>([])
@@ -76,23 +78,22 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
   const reqId = useRef(0)
   const iniciadoId = useRef<string | null>(null)
 
+  const origemLat = carga?.origem_lat
+  const origemLng = carga?.origem_lng
+  const destinoLat = carga?.destino_lat
+  const destinoLng = carga?.destino_lng
+
   const origemCoords = useMemo(() => {
-    if (!carga) return null
-    if (carga.origem_lat == null || carga.origem_lng == null) return null
-    if (!Number.isFinite(carga.origem_lat) || !Number.isFinite(carga.origem_lng)) return null
-    return { lat: Number(carga.origem_lat), lng: Number(carga.origem_lng) }
-  }, [carga])
+    if (origemLat == null || origemLng == null) return null
+    if (!Number.isFinite(origemLat) || !Number.isFinite(origemLng)) return null
+    return { lat: Number(origemLat), lng: Number(origemLng) }
+  }, [origemLat, origemLng])
 
   const destinoCoords = useMemo(() => {
-    if (!carga) return null
-    if (carga.destino_lat == null || carga.destino_lng == null) return null
-    if (!Number.isFinite(carga.destino_lat) || !Number.isFinite(carga.destino_lng)) return null
-    return { lat: Number(carga.destino_lat), lng: Number(carga.destino_lng) }
-  }, [carga])
-
-  const viasKey = waypoints
-    .map((p) => `${p.id}|${p.endereco}|${p.lat ?? ''}|${p.lng ?? ''}`)
-    .join('\u0001')
+    if (destinoLat == null || destinoLng == null) return null
+    if (!Number.isFinite(destinoLat) || !Number.isFinite(destinoLng)) return null
+    return { lat: Number(destinoLat), lng: Number(destinoLng) }
+  }, [destinoLat, destinoLng])
 
   async function calcular(override?: Partial<CalcParams>) {
     const o = override?.origem ?? origem
@@ -144,18 +145,18 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
       return
     }
     if (!carga) return
+    // Só inicializa uma vez por carga. Sync/tick NÃO pode resetar o que o usuário está digitando.
+    if (iniciadoId.current === carga.id) return
+
     const o = carga.origem || ''
     const d = carga.destino || ''
-    const vias = pontosDaCarga(carga, rotas)
+    const vias = pontosDaCarga(carga, rotasRef.current)
     const ex = eixosDoVeiculo(carga.veiculo || 'Carreta')
     const consSug = fmtConsumo(consumoPadraoKmL(ex))
     const precoSug = fmtDiesel(PRECO_DIESEL_SUGERIDO)
-    const primeiraVez = iniciadoId.current !== carga.id
-
-    setWaypoints(vias)
-    if (!primeiraVez) return
 
     iniciadoId.current = carga.id
+    setWaypoints(vias)
     setOrigem(o)
     setDestino(d)
     setEixos(ex)
@@ -167,26 +168,8 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
     setCalc(null)
     setConsumoAplicado(null)
     setDieselAplicado(null)
-    if (o.trim().length >= 3 && d.trim().length >= 3) {
-      void calcular({
-        origem: o,
-        destino: d,
-        eixos: ex,
-        consumo: consSug,
-        preco: precoSug,
-        volta: false,
-        pref: 'eficiente',
-        waypoints: vias,
-      })
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, carga?.id, rotas])
-
-  function alternarIdaEVolta() {
-    const next = !idaEVolta
-    setIdaEVolta(next)
-    void calcular({ volta: next })
-  }
+  }, [open, carga?.id])
 
   function usarSugestao() {
     const consSug = fmtConsumo(consumoPadraoKmL(eixos))
@@ -289,7 +272,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
               Mapa da rota
             </p>
             <RotaMapPreview
-              key={`calc-map-${carga.id}-${origem}-${destino}-${eixos}-${viasKey}`}
+              key={`calc-map-${carga.id}`}
               origem={origem}
               destino={destino}
               origemCoords={origemCoords}
@@ -331,7 +314,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
               type="button"
               role="switch"
               aria-checked={idaEVolta}
-              onClick={alternarIdaEVolta}
+              onClick={() => setIdaEVolta((v) => !v)}
               className={`flex h-10 w-full min-w-0 items-center justify-between gap-2 rounded-lg border px-3 text-sm font-semibold ${
                 idaEVolta
                   ? 'border-brand/40 bg-brand/10 text-ink'
@@ -360,8 +343,8 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
               Recalcule seu combustível
             </p>
             <p className="mt-0.5 text-[12px] text-ink-muted">
-              Sugestão atual: {consSug} km/l · diesel {formatCurrency(PRECO_DIESEL_SUGERIDO)}/L.
-              Altere os valores e recálcule para ver o combustível e o frete atualizados.
+              Sugestão: {consSug} km/l · diesel {formatCurrency(PRECO_DIESEL_SUGERIDO)}/L.
+              Digite à vontade — o cálculo só roda quando você clicar em Recalcular.
             </p>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -395,7 +378,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
               type="button"
               variant="ghost"
               className="flex-1 !border !border-ink/20 !bg-white"
-              disabled={usandoSugestao || busy}
+              disabled={usandoSugestao}
               onClick={usarSugestao}
             >
               Usar sugestão
@@ -437,17 +420,12 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
                   name="pref-rota"
                   className="accent-[var(--color-brand,#c45c26)]"
                   checked={preferencia === id}
-                  onChange={() => {
-                    setPreferencia(id)
-                    void calcular({ pref: id })
-                  }}
+                  onChange={() => setPreferencia(id)}
                 />
                 {label}
               </label>
             ))}
           </div>
-        </fieldset>
-
         </fieldset>
 
         {erro && (
