@@ -295,7 +295,7 @@ export function AnttFretePanel({
                   {rota.provedor === 'antt_aberto'
                     ? ` · ${pracas.length} praça${pracas.length === 1 ? '' : 's'} na rota`
                     : ' · pedágio estimado'}
-                  {rota.free_flow ? ' · Free Flow/OCR' : ''}
+                  {rota.free_flow ? ' · Free Flow próximo (não somado)' : ''}
                   {' · '}
                   Piso = CCD × km + CC (Res. 6.084/2026)
                 </p>

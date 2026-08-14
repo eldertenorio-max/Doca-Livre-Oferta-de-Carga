@@ -267,6 +267,12 @@ export async function calcularPedagioNaRota(
 
   const hits: AnttPracaPedagio[] = []
   const chaves = new Set<string>()
+  let porticosFreeFlow = 0
+
+  function pareceFreeFlow(p: PracaAntt): boolean {
+    if (p.free_flow) return true
+    return /free.?flow|p[oó]rtico|\bpfe\s*\d+/i.test(`${p.nome} ${p.rodovia}`)
+  }
 
   function jaTem(c: Cand): boolean {
     const key = chavePraca(c)
@@ -278,8 +284,14 @@ export async function calcularPedagioNaRota(
   }
 
   for (const p of candidatos) {
+    if (pareceFreeFlow(p)) {
+      porticosFreeFlow += 1
+      continue
+    }
     if (jaTem(p)) continue
     const isOsm = p.fonte === 'osm'
+    const raioOsm = isOsm ? 160 : RAIO_M
+    if (p.dist > raioOsm) continue
     const base = tarifaBaseCarro(p.rodovia, p.nome)
     const valor = valorPracaPorEixos(base, eixos)
     const sufixo =
@@ -287,14 +299,8 @@ export async function calcularPedagioNaRota(
     hits.push({
       nome: `${p.nome}${sufixo}`,
       valor,
-      tipo: p.free_flow
-        ? isOsm
-          ? 'Free Flow / OCR (OSM)'
-          : 'Free Flow / OCR'
-        : isOsm
-          ? 'Praça (OpenStreetMap)'
-          : 'Praça convencional',
-      free_flow: Boolean(p.free_flow),
+      tipo: isOsm ? 'Praça (OpenStreetMap)' : 'Praça convencional',
+      free_flow: false,
       lat: p.lat,
       lng: p.lng,
     })
@@ -310,16 +316,21 @@ export async function calcularPedagioNaRota(
     fonteAntt ? 'ANTT' : null,
     fonteOsm ? 'OpenStreetMap' : null,
   ].filter(Boolean)
+  const avisoFf =
+    porticosFreeFlow > 0
+      ? ` · ${porticosFreeFlow} pórtico(s) Free Flow próximos não somados (rota alternativa / conferir se o trecho é tarifado)`
+      : ''
   return {
     pedagio,
     pedagio_por_eixo: roundMoney(pedagio / e),
     vale_pedagio: pedagio,
     pracas: hits,
-    free_flow: hits.some((h) => h.free_flow),
+    free_flow: porticosFreeFlow > 0,
     fonte:
       (fontes.length
-        ? `Praças: ${fontes.join(' + ')}`
-        : 'Sem praças georreferenciadas nesta rota') +
+        ? `Praças convencionais: ${fontes.join(' + ')}`
+        : 'Nenhuma praça convencional nesta rota') +
+      avisoFf +
       ' · tarifa por eixo (cat.1 × eixos) · Res. Vale-Pedágio 6.024/2023',
   }
 }
@@ -348,6 +359,94 @@ function mapOsrmRoute(r: OsrmRouteRaw): {
     distanciaKm: r.distance / 1000,
     duracaoMin: r.duration / 60,
     polyline: slimPolyline(r.geometry.coordinates),
+  }
+}
+
+/** Valhalla polyline6 (precisão 1e6). */
+function decodePolyline6(encoded: string): Array<{ lat: number; lng: number }> {
+  let i = 0
+  let lat = 0
+  let lng = 0
+  const out: Array<{ lat: number; lng: number }> = []
+  while (i < encoded.length) {
+    let b = 0
+    let shift = 0
+    let result = 0
+    do {
+      b = encoded.charCodeAt(i++) - 63
+      result |= (b & 0x1f) << shift
+      shift += 5
+    } while (b >= 0x20)
+    const dlat = result & 1 ? ~(result >> 1) : result >> 1
+    lat += dlat
+    shift = 0
+    result = 0
+    do {
+      b = encoded.charCodeAt(i++) - 63
+      result |= (b & 0x1f) << shift
+      shift += 5
+    } while (b >= 0x20)
+    const dlng = result & 1 ? ~(result >> 1) : result >> 1
+    lng += dlng
+    out.push({ lat: lat / 1e6, lng: lng / 1e6 })
+  }
+  return out
+}
+
+function slimLatLng(
+  line: Array<{ lat: number; lng: number }>,
+): Array<{ lat: number; lng: number }> {
+  const step = Math.max(1, Math.floor(line.length / 1200))
+  return line.filter((_, i) => i % step === 0 || i === line.length - 1)
+}
+
+const VALHALLA_URL = 'https://valhalla1.openstreetmap.de/route'
+
+async function fetchValhallaRoute(
+  pontos: Array<{ lat: number; lng: number }>,
+  opts: { useTolls: number },
+): Promise<{
+  distanciaKm: number
+  duracaoMin: number
+  polyline: Array<{ lat: number; lng: number }>
+} | null> {
+  if (pontos.length < 2) return null
+  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), 12000) : 0
+  try {
+    const res = await fetch(VALHALLA_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: ctrl?.signal,
+      body: JSON.stringify({
+        locations: pontos.map((p) => ({ lat: p.lat, lon: p.lng })),
+        costing: 'auto',
+        costing_options: { auto: { use_tolls: opts.useTolls } },
+        shape_format: 'polyline6',
+        units: 'kilometers',
+      }),
+    })
+    if (!res.ok) return null
+    const data = (await res.json()) as {
+      trip?: {
+        summary?: { length?: number; time?: number }
+        legs?: Array<{ shape?: string }>
+      }
+    }
+    const legs = data.trip?.legs ?? []
+    const line = legs.flatMap((l) => (l.shape ? decodePolyline6(l.shape) : []))
+    const km = Number(data.trip?.summary?.length)
+    const sec = Number(data.trip?.summary?.time)
+    if (!line.length || !Number.isFinite(km) || km <= 0 || !Number.isFinite(sec)) return null
+    return {
+      distanciaKm: km,
+      duracaoMin: sec / 60,
+      polyline: slimLatLng(line),
+    }
+  } catch {
+    return null
+  } finally {
+    if (timer) clearTimeout(timer)
   }
 }
 
@@ -423,10 +522,10 @@ function escolherRota(
 }
 
 /**
- * Rota OSRM:
- * - eficiente: entre alternativas, menor duração
- * - curta: entre alternativas, menor distância
- * - evitar_pedagio: exclude=toll (falha → null; quem chama trata a mensagem)
+ * Rota:
+ * - eficiente: Valhalla com use_tolls=0 (como QualP: desvia de praça quando dá)
+ * - curta: OSRM menor distância
+ * - evitar_pedagio: Valhalla use_tolls=0 (OSRM público não aceita exclude=toll)
  */
 export async function rotaOsrmComGeometria(
   origem: { lat: number; lng: number },
@@ -451,12 +550,12 @@ export async function rotaOsrmComGeometria(
     )
     const pontos = [origem, ...vias, destino]
 
-    if (preferencia === 'evitar_pedagio') {
-      const semToll = await fetchOsrmRoutes(pontos, {
-        excludeToll: true,
-        alternatives: true,
-      })
-      const escolhida = escolherRota(semToll, 'eficiente')
+    if (preferencia === 'evitar_pedagio' || preferencia === 'eficiente') {
+      const valhalla = await fetchValhallaRoute(pontos, { useTolls: 0 })
+      if (valhalla) return { ...valhalla, preferencia }
+      // OSRM público não suporta exclude=toll — usa a mais rápida como fallback
+      const routes = await fetchOsrmRoutes(pontos, { alternatives: true })
+      const escolhida = escolherRota(routes, 'eficiente')
       if (!escolhida) return null
       const mapped = mapOsrmRoute(escolhida)
       if (!mapped) return null
@@ -464,12 +563,11 @@ export async function rotaOsrmComGeometria(
     }
 
     const routes = await fetchOsrmRoutes(pontos, { alternatives: true })
-    const modo = preferencia === 'curta' ? 'curta' : 'eficiente'
-    const escolhida = escolherRota(routes, modo)
+    const escolhida = escolherRota(routes, 'curta')
     if (!escolhida) return null
     const mapped = mapOsrmRoute(escolhida)
     if (!mapped) return null
-    return { ...mapped, preferencia: modo }
+    return { ...mapped, preferencia: 'curta' }
   } catch {
     return null
   }
