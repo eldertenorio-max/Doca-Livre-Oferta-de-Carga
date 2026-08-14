@@ -234,6 +234,7 @@ export function CargaDadosForm({
     classificacaoDaCargaOuRota(carga, rotas),
   );
   const [salvarFavorita, setSalvarFavorita] = useState(false);
+  const [rotaDescricaoSalvar, setRotaDescricaoSalvar] = useState("");
   const [cargaRetorno, setCargaRetorno] = useState(flagSim(carga.carga_retorno));
   const [retornaOrigem, setRetornaOrigem] = useState(flagSim(carga.retorna_origem));
   const [rotaId, setRotaId] = useState(carga.rota_id ?? "");
@@ -470,6 +471,7 @@ export function CargaDadosForm({
     setAnttInfo(carga.antt ?? null);
     setClassificacao(classificacaoDaCargaOuRota(carga, rotas));
     setSalvarFavorita(false);
+    setRotaDescricaoSalvar("");
     setCargaRetorno(flagSim(carga.carga_retorno));
     setRetornaOrigem(flagSim(carga.retorna_origem));
     setRotaId(carga.rota_id ?? "");
@@ -635,6 +637,7 @@ export function CargaDadosForm({
     const classif = asClassificacaoRota(r.classificacao);
     setClassificacao(classif);
     setSalvarFavorita(false);
+    setRotaDescricaoSalvar("");
     const nVias = pts.length;
     setInfo(
       nVias > 0
@@ -1004,9 +1007,14 @@ export function CargaDadosForm({
     }
 
     if (salvarFavorita) {
+      const nomeRota = rotaDescricaoSalvar.trim();
+      if (nomeRota.length < 3) {
+        falhaSalvar("Informe a descrição da rota para salvá-la na aba Rotas.");
+        return;
+      }
       const novaRota: Rota = {
         id: newRotaId(),
-        descricao: descricaoRota(origemFinal, destinoFinal),
+        descricao: nomeRota,
         origem: origemFinal,
         destino: destinoFinal,
         origem_lat: origemLat,
@@ -1022,7 +1030,7 @@ export function CargaDadosForm({
       salvarRota(novaRota);
       rotaIdFinal = novaRota.id;
       setRotaId(novaRota.id);
-      setInfo("Rota salva na aba Rotas (disponível para próximas cargas).");
+      setInfo(`Rota “${nomeRota}” salva na aba Rotas (disponível para próximas cargas).`);
     }
 
     if (!pedido.trim()) {
@@ -1513,12 +1521,38 @@ export function CargaDadosForm({
               <select
                 className={inputClass}
                 value={salvarFavorita ? "sim" : "nao"}
-                onChange={(e) => setSalvarFavorita(e.target.value === "sim")}
+                onChange={(e) => {
+                  const sim = e.target.value === "sim";
+                  setSalvarFavorita(sim);
+                  if (sim && !rotaDescricaoSalvar.trim()) {
+                    setRotaDescricaoSalvar(
+                      descricaoRota(origem, destino),
+                    );
+                  }
+                  if (!sim) setRotaDescricaoSalvar("");
+                }}
               >
                 <option value="nao">Não</option>
                 <option value="sim">Sim</option>
               </select>
             </Field>
+            {salvarFavorita ? (
+              <Field
+                label="Descrição da rota *"
+                className="sm:col-span-3"
+              >
+                <input
+                  className={inputClass}
+                  value={rotaDescricaoSalvar}
+                  onChange={(e) => setRotaDescricaoSalvar(e.target.value)}
+                  placeholder="Ex.: Guarulhos/SP → Pouso Alegre/MG"
+                  maxLength={120}
+                />
+                <p className="mt-0.5 text-[11px] text-ink-muted">
+                  Nome que aparece na lista de rotas cadastradas.
+                </p>
+              </Field>
+            ) : null}
           </div>
         </div>
       </section>
