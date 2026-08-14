@@ -110,24 +110,225 @@ function coordsTxt(lat?: number | null, lng?: number | null): string {
   return `${lat.toFixed(6)}, ${lng.toFixed(6)}`
 }
 
-/** Captura o mapa da tela de Nova carga (Leaflet) para embutir no PDF. */
-export async function capturarMapaCarga(): Promise<string | null> {
-  if (typeof document === 'undefined') return null
-  const el = document.querySelector('.rota-map-preview') as HTMLElement | null
-  if (!el || el.offsetWidth < 40 || el.offsetHeight < 40) return null
-  try {
-    const html2canvas = (await import('html2canvas')).default
-    const canvas = await html2canvas(el, {
-      useCORS: true,
-      allowTaint: false,
-      backgroundColor: '#eef1f4',
-      scale: 2,
-      logging: false,
-    })
-    return canvas.toDataURL('image/jpeg', 0.88)
-  } catch {
-    return null
+type MapaPonto = { label: string; lat: number; lng: number }
+
+export type CapturaMapaOpts = {
+  origemLat?: number | null
+  origemLng?: number | null
+  destinoLat?: number | null
+  destinoLng?: number | null
+  pontosPassagem?: PontoPassagemRota[]
+}
+
+function pontosDoMapa(opts?: CapturaMapaOpts): MapaPonto[] {
+  const pts: MapaPonto[] = []
+  if (
+    opts?.origemLat != null &&
+    opts?.origemLng != null &&
+    Number.isFinite(opts.origemLat) &&
+    Number.isFinite(opts.origemLng)
+  ) {
+    pts.push({ label: 'O', lat: Number(opts.origemLat), lng: Number(opts.origemLng) })
   }
+  for (const [i, p] of (opts?.pontosPassagem ?? []).entries()) {
+    if (p.lat != null && p.lng != null && Number.isFinite(p.lat) && Number.isFinite(p.lng)) {
+      pts.push({ label: String(i + 1), lat: Number(p.lat), lng: Number(p.lng) })
+    }
+  }
+  if (
+    opts?.destinoLat != null &&
+    opts?.destinoLng != null &&
+    Number.isFinite(opts.destinoLat) &&
+    Number.isFinite(opts.destinoLng)
+  ) {
+    pts.push({ label: 'D', lat: Number(opts.destinoLat), lng: Number(opts.destinoLng) })
+  }
+  return pts
+}
+
+function lon2tile(lon: number, z: number) {
+  return ((lon + 180) / 360) * 2 ** z
+}
+
+function lat2tile(lat: number, z: number) {
+  const rad = (lat * Math.PI) / 180
+  return (
+    ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * 2 ** z
+  )
+}
+
+function loadTileImg(url: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    const t = window.setTimeout(() => resolve(null), 9000)
+    img.onload = () => {
+      window.clearTimeout(t)
+      resolve(img)
+    }
+    img.onerror = () => {
+      window.clearTimeout(t)
+      resolve(null)
+    }
+    img.src = url
+  })
+}
+
+/** Mapa real (tiles CARTO/OSM) com pinos — não depende do Leaflet na tela. */
+async function gerarMapaEstatico(pts: MapaPonto[]): Promise<string | null> {
+  if (typeof document === 'undefined' || pts.length === 0) return null
+  const W = 960
+  const H = 480
+  const TILE = 256
+  const lats = pts.map((p) => p.lat)
+  const lngs = pts.map((p) => p.lng)
+  let minLat = Math.min(...lats)
+  let maxLat = Math.max(...lats)
+  let minLng = Math.min(...lngs)
+  let maxLng = Math.max(...lngs)
+  const padLat = Math.max((maxLat - minLat) * 0.22, 0.012)
+  const padLng = Math.max((maxLng - minLng) * 0.22, 0.012)
+  minLat -= padLat
+  maxLat += padLat
+  minLng -= padLng
+  maxLng += padLng
+
+  let z = 14
+  for (; z >= 6; z--) {
+    const w = (lon2tile(maxLng, z) - lon2tile(minLng, z)) * TILE
+    const h = (lat2tile(minLat, z) - lat2tile(maxLat, z)) * TILE
+    const nx = Math.ceil(w / TILE) + 2
+    const ny = Math.ceil(h / TILE) + 2
+    if (nx * ny <= 20 && w < W * 1.4 && h < H * 1.4) break
+  }
+
+  const cx = (lon2tile(minLng, z) + lon2tile(maxLng, z)) / 2
+  const cy = (lat2tile(minLat, z) + lat2tile(maxLat, z)) / 2
+  const tlX = cx - W / 2 / TILE
+  const tlY = cy - H / 2 / TILE
+  const x0 = Math.floor(tlX)
+  const y0 = Math.floor(tlY)
+  const x1 = Math.ceil(tlX + W / TILE)
+  const y1 = Math.ceil(tlY + H / TILE)
+  const n = 2 ** z
+  const subs = ['a', 'b', 'c', 'd']
+
+  const canvas = document.createElement('canvas')
+  canvas.width = W
+  canvas.height = H
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  ctx.fillStyle = '#e8eef3'
+  ctx.fillRect(0, 0, W, H)
+
+  const jobs: Promise<void>[] = []
+  for (let tx = x0; tx <= x1; tx++) {
+    for (let ty = y0; ty <= y1; ty++) {
+      if (ty < 0 || ty >= n) continue
+      const wx = ((tx % n) + n) % n
+      const sub = subs[Math.abs(wx + ty) % 4]
+      const url = `https://${sub}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${wx}/${ty}.png`
+      jobs.push(
+        loadTileImg(url).then((img) => {
+          if (!img) return
+          ctx.drawImage(img, (tx - tlX) * TILE, (ty - tlY) * TILE, TILE, TILE)
+        }),
+      )
+    }
+  }
+  await Promise.all(jobs)
+
+  function toPx(lat: number, lng: number) {
+    return {
+      x: (lon2tile(lng, z) - tlX) * TILE,
+      y: (lat2tile(lat, z) - tlY) * TILE,
+    }
+  }
+
+  ctx.strokeStyle = '#2563eb'
+  ctx.lineWidth = 4
+  ctx.lineJoin = 'round'
+  ctx.lineCap = 'round'
+  ctx.beginPath()
+  pts.forEach((p, i) => {
+    const { x, y } = toPx(p.lat, p.lng)
+    if (i === 0) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
+  })
+  ctx.stroke()
+
+  pts.forEach((p, i) => {
+    const { x, y } = toPx(p.lat, p.lng)
+    const fill = i === 0 ? '#16a34a' : i === pts.length - 1 ? '#dc2626' : '#2563eb'
+    ctx.beginPath()
+    ctx.arc(x, y, 11, 0, Math.PI * 2)
+    ctx.fillStyle = fill
+    ctx.fill()
+    ctx.lineWidth = 2
+    ctx.strokeStyle = '#fff'
+    ctx.stroke()
+    ctx.fillStyle = '#fff'
+    ctx.font = 'bold 11px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(p.label, x, y + 0.5)
+  })
+
+  ctx.fillStyle = 'rgba(255,255,255,0.88)'
+  ctx.fillRect(8, H - 22, 280, 16)
+  ctx.fillStyle = '#64748b'
+  ctx.font = '10px sans-serif'
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'alphabetic'
+  ctx.fillText('© OpenStreetMap · © CARTO', 12, H - 10)
+
+  return canvas.toDataURL('image/jpeg', 0.9)
+}
+
+function canvasQuaseEmBranco(canvas: HTMLCanvasElement): boolean {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return true
+  const { width, height } = canvas
+  if (width < 20 || height < 20) return true
+  const data = ctx.getImageData(0, 0, width, height).data
+  let claros = 0
+  let n = 0
+  for (let i = 0; i < data.length; i += 64) {
+    n += 1
+    if (data[i] > 242 && data[i + 1] > 242 && data[i + 2] > 242) claros += 1
+  }
+  return n > 0 && claros / n > 0.9
+}
+
+/** Captura o mapa da tela (Leaflet) ou gera tiles reais se a captura falhar. */
+export async function capturarMapaCarga(opts?: CapturaMapaOpts): Promise<string | null> {
+  if (typeof document === 'undefined') return null
+  const pts = pontosDoMapa(opts)
+
+  const el = document.querySelector('.rota-map-preview') as HTMLElement | null
+  if (el && el.offsetWidth >= 40 && el.offsetHeight >= 40) {
+    try {
+      const html2canvas = (await import('html2canvas')).default
+      const canvas = await html2canvas(el, {
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: '#eef1f4',
+        scale: 2,
+        logging: false,
+        ignoreElements: (node) =>
+          node instanceof HTMLElement &&
+          (node.hasAttribute('data-pdf-ignore') ||
+            node.classList.contains('leaflet-control-container')),
+      })
+      if (!canvasQuaseEmBranco(canvas)) {
+        return canvas.toDataURL('image/jpeg', 0.88)
+      }
+    } catch {
+      /* tiles OSM sem CORS — usa mapa estático */
+    }
+  }
+
+  return gerarMapaEstatico(pts)
 }
 
 /** Gera o PDF da carga em memória (client-side, sem backend). */
@@ -347,6 +548,15 @@ export async function gerarPdfCarga(
       try {
         doc.addImage(data.mapaDataUrl, 'JPEG', marginX, y, mapW, imgH)
         y += imgH + 8
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8)
+        doc.setTextColor(...COR_LABEL)
+        doc.text(
+          'O = origem · números = pontos de passagem · D = destino · mapa OpenStreetMap',
+          marginX,
+          y,
+        )
+        y += 12
         return
       } catch {
         /* cai no esquema */

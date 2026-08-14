@@ -175,9 +175,11 @@ export function RotaMapPreview({
       zoomControl: true,
       attributionControl: false,
     })
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 18,
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      subdomains: 'abcd',
       crossOrigin: true,
+      attribution: '© OpenStreetMap © CARTO',
     }).addTo(map)
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
@@ -401,7 +403,10 @@ export function RotaMapPreview({
     >
       <div ref={mapEl} className="absolute inset-0 z-0" />
       {status === 'loading' || status === 'erro' || status === 'idle' ? (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-white/75 px-3 text-center">
+        <div
+          data-pdf-ignore
+          className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-white/75 px-3 text-center"
+        >
           <p
             className={`text-xs font-semibold ${
               status === 'erro' ? 'text-red-700' : 'text-ink-muted'
@@ -412,12 +417,18 @@ export function RotaMapPreview({
         </div>
       ) : null}
       {status === 'circular' ? (
-        <div className="absolute bottom-2 left-2 right-2 z-10 rounded-lg bg-teal-50/95 px-2.5 py-2 text-[11px] font-semibold text-teal-900 shadow-md ring-1 ring-teal-200">
+        <div
+          data-pdf-ignore
+          className="absolute bottom-2 left-2 right-2 z-10 rounded-lg bg-teal-50/95 px-2.5 py-2 text-[11px] font-semibold text-teal-900 shadow-md ring-1 ring-teal-200"
+        >
           {msg}
         </div>
       ) : null}
       {status === 'ok' && meta && (
-        <div className="absolute bottom-2 left-2 z-10 max-w-[min(100%,220px)] rounded-lg bg-white/95 px-2.5 py-2 text-[11px] text-ink shadow-md ring-1 ring-ink/10">
+        <div
+          data-pdf-ignore
+          className="absolute bottom-2 left-2 z-10 max-w-[min(100%,220px)] rounded-lg bg-white/95 px-2.5 py-2 text-[11px] text-ink shadow-md ring-1 ring-ink/10"
+        >
           <p className="text-sm font-extrabold text-blue-700">{formatDur(meta.dur)}</p>
           <p className="font-semibold tabular-nums">{formatKm(meta.km)}</p>
           <p className="mt-0.5 font-bold text-orange-700 tabular-nums">

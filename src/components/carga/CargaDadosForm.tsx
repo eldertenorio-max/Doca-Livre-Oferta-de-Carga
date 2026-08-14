@@ -862,7 +862,13 @@ export function CargaDadosForm({
     const ex = anttInfo?.eixos_utilizados || eixosDoVeiculo(veiculo || "Carreta");
     let mapaDataUrl: string | null = null;
     try {
-      mapaDataUrl = await capturarMapaCarga();
+      mapaDataUrl = await capturarMapaCarga({
+        origemLat,
+        origemLng,
+        destinoLat,
+        destinoLng,
+        pontosPassagem: limparPontosPassagemRota(pontosPassagem),
+      });
     } catch {
       mapaDataUrl = null;
     }
