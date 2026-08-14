@@ -139,6 +139,7 @@ export function TransportadoresPage() {
     refreshTransportadores,
   } = useData()
   const [mode, setMode] = useState<'lista' | 'form' | 'revisao' | 'ficha'>('lista')
+  const [origemVoltar, setOrigemVoltar] = useState<'lista' | 'ficha' | 'revisao'>('lista')
   const [vista, setVista] = useState<'quadro' | 'grid'>(() => {
     try {
       return sessionStorage.getItem('doca-livre-transportadoras-vista') === 'quadro'
@@ -259,7 +260,29 @@ export function TransportadoresPage() {
   const revisao = revisaoId ? transportadores.find((t) => t.id === revisaoId) : null
   const docsRevisao = revisaoId ? documentosDoTransportador(revisaoId) : []
 
+  function voltarTela() {
+    if (origemVoltar === 'ficha' && fichaId) {
+      setOrigemVoltar('lista')
+      setMode('ficha')
+      return
+    }
+    if (origemVoltar === 'revisao' && revisaoId) {
+      setOrigemVoltar('lista')
+      setMode('revisao')
+      return
+    }
+    setMode('lista')
+  }
+
+  const labelVoltar =
+    origemVoltar === 'ficha'
+      ? '← Voltar'
+      : origemVoltar === 'revisao'
+        ? '← Voltar para revisão'
+        : '← Voltar'
+
   function openNew() {
+    setOrigemVoltar('lista')
     setEditingId(null)
     setForm(emptyForm())
     setError('')
@@ -270,6 +293,7 @@ export function TransportadoresPage() {
   }
 
   function openEdit(t: Transportador) {
+    setOrigemVoltar(mode === 'ficha' ? 'ficha' : mode === 'revisao' ? 'revisao' : 'lista')
     setEditingId(t.id)
     setForm({
       ...t,
@@ -284,6 +308,7 @@ export function TransportadoresPage() {
   }
 
   function openRevisao(t: Transportador) {
+    setOrigemVoltar('lista')
     setRevisaoId(t.id)
     setMotivoRecusa(t.motivo_recusa ?? '')
     setError('')
@@ -291,6 +316,7 @@ export function TransportadoresPage() {
   }
 
   function openFicha(t: Transportador) {
+    setOrigemVoltar('lista')
     setFichaId(t.id)
     setFichaTab('painel')
     setMode('ficha')
@@ -404,7 +430,7 @@ export function TransportadoresPage() {
 
     setLogoFile(null)
     setLogoRemovida(false)
-    setMode('lista')
+    voltarTela()
   }
 
   async function handleAprovar() {
@@ -460,7 +486,7 @@ export function TransportadoresPage() {
     return (
       <div className="cadastro-page animate-fade-up">
         <button type="button" className="cadastro-back" onClick={() => setMode('lista')}>
-          ← Voltar para Lista
+          ← Voltar
         </button>
         <h1 className="cadastro-page-title" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {ficha.logo_url ? (
@@ -680,7 +706,7 @@ export function TransportadoresPage() {
     return (
       <div className="cadastro-page animate-fade-up">
         <button type="button" className="cadastro-back" onClick={() => setMode('lista')}>
-          ← Voltar para Lista
+          ← Voltar
         </button>
         <h1 className="cadastro-page-title">
           <IconBuilding />
@@ -1176,8 +1202,8 @@ export function TransportadoresPage() {
 
   return (
     <div className="cadastro-page animate-fade-up">
-      <button type="button" className="cadastro-back" onClick={() => setMode('lista')}>
-        ← Voltar para Lista
+      <button type="button" className="cadastro-back" onClick={voltarTela}>
+        {labelVoltar}
       </button>
       <h1 className="cadastro-page-title">
         <IconBuilding />
