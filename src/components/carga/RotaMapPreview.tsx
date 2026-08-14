@@ -172,6 +172,7 @@ export function RotaMapPreview({
     })
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
+      crossOrigin: true,
     }).addTo(map)
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map

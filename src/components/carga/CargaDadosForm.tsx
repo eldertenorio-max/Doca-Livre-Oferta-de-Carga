@@ -35,8 +35,10 @@ import { CarroceriaSuggestInput } from "../ui/CarroceriaSuggestInput";
 import { VeiculoSuggestInput } from "../ui/VeiculoSuggestInput";
 import { AnttFretePanel } from "./AnttFretePanel";
 import { RotaMapPreview } from "./RotaMapPreview";
+import { consumoPadraoKmL, eixosDoVeiculo, PRECO_DIESEL_SUGERIDO } from "../../lib/anttFrete";
 import {
   baixarPdfCarga,
+  capturarMapaCarga,
   compartilharPdfCarga,
   type CargaPdfData,
 } from "../../lib/cargaPdf";
@@ -856,12 +858,23 @@ export function CargaDadosForm({
     };
   }, [destinoMapsStr, editavel]);
 
-  function montarDadosPdf(): CargaPdfData {
+  async function montarDadosPdf(): Promise<CargaPdfData> {
+    const ex = anttInfo?.eixos_utilizados || eixosDoVeiculo(veiculo || "Carreta");
+    let mapaDataUrl: string | null = null;
+    try {
+      mapaDataUrl = await capturarMapaCarga();
+    } catch {
+      mapaDataUrl = null;
+    }
     return {
       numero: carga.numero,
       pedido: pedido.trim(),
       origem: origem.trim(),
       destino: destino.trim(),
+      origemLat,
+      origemLng,
+      destinoLat,
+      destinoLng,
       pontosPassagem: limparPontosPassagemRota(pontosPassagem),
       classificacao,
       tipoCarga: tipoCarga.trim(),
@@ -887,6 +900,10 @@ export function CargaDadosForm({
       dataCarregamentoIso: fromDateInput(dataCarreg),
       previsaoEntregaIso: fromDateInput(previsao),
       observacao: observacao.trim(),
+      antt: anttInfo,
+      consumoSugeridoKmL: consumoPadraoKmL(ex),
+      precoDieselSugerido: PRECO_DIESEL_SUGERIDO,
+      mapaDataUrl,
     };
   }
 
@@ -894,7 +911,7 @@ export function CargaDadosForm({
     setPdfBusy(true);
     setPdfMsg("");
     try {
-      await baixarPdfCarga(montarDadosPdf());
+      await baixarPdfCarga(await montarDadosPdf());
       setPdfMsg("PDF baixado.");
     } catch {
       setPdfMsg("Não foi possível gerar o PDF.");
@@ -905,7 +922,7 @@ export function CargaDadosForm({
   async function handleCompartilharPdf() {
     setPdfBusy(true);
     setPdfMsg("");
-    const res = await compartilharPdfCarga(montarDadosPdf());
+    const res = await compartilharPdfCarga(await montarDadosPdf());
     setPdfBusy(false);
     if (!res.ok) {
       setPdfMsg(res.erro);
@@ -1806,9 +1823,8 @@ export function CargaDadosForm({
       >
         <div className="space-y-3 text-sm">
           <p className="text-ink-muted">
-            Gere um PDF com os dados desta carga (rota, veículo, frete, destinatário)
-            para baixar ou compartilhar com quem estiver fora do sistema (ex.: WhatsApp,
-            e-mail).
+            Gere um PDF com todos os dados da Nova carga: rota, mapa, ANTT, combustível,
+            veículo, destinatário e prazos — para baixar ou enviar fora do sistema.
           </p>
           <div className="rounded-lg border border-ink/10 bg-sand-light/40 px-3 py-2.5 text-xs text-ink">
             <p>

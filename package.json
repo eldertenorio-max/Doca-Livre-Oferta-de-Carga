@@ -20,6 +20,7 @@
     "@vitejs/plugin-react": "^6.0.3",
     "date-fns": "^4.4.0",
     "easy-location-br": "^1.0.9",
+    "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.25.0",
