@@ -863,6 +863,8 @@ export function CargaDadosForm({
         origemLng,
         destinoLat,
         destinoLng,
+        origemNome: origem,
+        destinoNome: destino,
         pontosPassagem: limparPontosPassagemRota(pontosPassagem),
       });
     } catch {

@@ -110,40 +110,107 @@ function coordsTxt(lat?: number | null, lng?: number | null): string {
   return `${lat.toFixed(6)}, ${lng.toFixed(6)}`
 }
 
-type MapaPonto = { label: string; lat: number; lng: number }
+type MapaPontoTipo = 'origem' | 'parada' | 'destino' | 'od'
+
+type MapaPonto = {
+  label: string
+  lat: number
+  lng: number
+  nome: string
+  tipo: MapaPontoTipo
+}
 
 export type CapturaMapaOpts = {
   origemLat?: number | null
   origemLng?: number | null
   destinoLat?: number | null
   destinoLng?: number | null
+  origemNome?: string
+  destinoNome?: string
   pontosPassagem?: PontoPassagemRota[]
 }
 
+function cidadeDoEndereco(endereco?: string): string {
+  const parts = (endereco || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  if (parts.length >= 2) return parts[parts.length - 2] || parts[parts.length - 1]
+  return parts[0] || ''
+}
+
+function mesmaCoord(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+  tol = 0.00035,
+): boolean {
+  return Math.abs(a.lat - b.lat) < tol && Math.abs(a.lng - b.lng) < tol
+}
+
 function pontosDoMapa(opts?: CapturaMapaOpts): MapaPonto[] {
-  const pts: MapaPonto[] = []
-  if (
+  const oNome = cidadeDoEndereco(opts?.origemNome) || 'Origem'
+  const dNome = cidadeDoEndereco(opts?.destinoNome) || 'Destino'
+  const origem =
     opts?.origemLat != null &&
     opts?.origemLng != null &&
     Number.isFinite(opts.origemLat) &&
     Number.isFinite(opts.origemLng)
-  ) {
-    pts.push({ label: 'O', lat: Number(opts.origemLat), lng: Number(opts.origemLng) })
-  }
+      ? {
+          label: 'O',
+          lat: Number(opts.origemLat),
+          lng: Number(opts.origemLng),
+          nome: `Origem · ${oNome}`,
+          tipo: 'origem' as const,
+        }
+      : null
+  const paradas: MapaPonto[] = []
   for (const [i, p] of (opts?.pontosPassagem ?? []).entries()) {
-    if (p.lat != null && p.lng != null && Number.isFinite(p.lat) && Number.isFinite(p.lng)) {
-      pts.push({ label: String(i + 1), lat: Number(p.lat), lng: Number(p.lng) })
+    if (p.lat == null || p.lng == null || !Number.isFinite(p.lat) || !Number.isFinite(p.lng)) {
+      continue
     }
+    const cid = cidadeDoEndereco(p.endereco)
+    paradas.push({
+      label: String(paradas.length + 1),
+      lat: Number(p.lat),
+      lng: Number(p.lng),
+      nome: cid ? `Parada ${paradas.length + 1} · ${cid}` : `Parada ${paradas.length + 1}`,
+      tipo: 'parada',
+    })
   }
-  if (
+  const destino =
     opts?.destinoLat != null &&
     opts?.destinoLng != null &&
     Number.isFinite(opts.destinoLat) &&
     Number.isFinite(opts.destinoLng)
-  ) {
-    pts.push({ label: 'D', lat: Number(opts.destinoLat), lng: Number(opts.destinoLng) })
+      ? {
+          label: 'D',
+          lat: Number(opts.destinoLat),
+          lng: Number(opts.destinoLng),
+          nome: `Destino · ${dNome}`,
+          tipo: 'destino' as const,
+        }
+      : null
+
+  if (origem && destino && mesmaCoord(origem, destino)) {
+    return [
+      {
+        label: 'O/D',
+        lat: origem.lat,
+        lng: origem.lng,
+        nome: `Origem e destino · ${oNome}`,
+        tipo: 'od',
+      },
+      ...paradas,
+    ]
   }
-  return pts
+  return [origem, ...paradas, destino].filter(Boolean) as MapaPonto[]
+}
+
+function corPino(tipo: MapaPontoTipo): string {
+  if (tipo === 'origem') return '#16a34a'
+  if (tipo === 'destino') return '#dc2626'
+  if (tipo === 'od') return '#0f766e'
+  return '#2563eb'
 }
 
 function lon2tile(lon: number, z: number) {
@@ -174,20 +241,60 @@ function loadTileImg(url: string): Promise<HTMLImageElement | null> {
   })
 }
 
-/** Mapa real (tiles CARTO/OSM) com pinos — não depende do Leaflet na tela. */
+function roundRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  const rr = Math.min(r, w / 2, h / 2)
+  ctx.beginPath()
+  ctx.moveTo(x + rr, y)
+  ctx.arcTo(x + w, y, x + w, y + h, rr)
+  ctx.arcTo(x + w, y + h, x, y + h, rr)
+  ctx.arcTo(x, y + h, x, y, rr)
+  ctx.arcTo(x, y, x + w, y, rr)
+  ctx.closePath()
+}
+
+async function polylineDaRota(
+  pts: MapaPonto[],
+): Promise<Array<{ lat: number; lng: number }>> {
+  const o = pts.find((p) => p.tipo === 'origem' || p.tipo === 'od')
+  const d = pts.find((p) => p.tipo === 'destino' || p.tipo === 'od')
+  const vias = pts.filter((p) => p.tipo === 'parada')
+  if (!o || !d) return pts
+  try {
+    const { rotaOsrmComGeometria } = await import('./anttPedagioAberto')
+    const rota = await rotaOsrmComGeometria(
+      { lat: o.lat, lng: o.lng },
+      { lat: d.lat, lng: d.lng },
+      { waypoints: vias.map((v) => ({ lat: v.lat, lng: v.lng })) },
+    )
+    if (rota?.polyline && rota.polyline.length > 2) return rota.polyline
+  } catch {
+    /* usa segmentos entre paradas */
+  }
+  return pts
+}
+
+/** Mapa real (tiles CARTO/OSM) com pinos e nomes das paradas. */
 async function gerarMapaEstatico(pts: MapaPonto[]): Promise<string | null> {
   if (typeof document === 'undefined' || pts.length === 0) return null
   const W = 960
-  const H = 480
+  const H = 520
   const TILE = 256
-  const lats = pts.map((p) => p.lat)
-  const lngs = pts.map((p) => p.lng)
+  const line = await polylineDaRota(pts)
+  const lats = [...pts.map((p) => p.lat), ...line.map((p) => p.lat)]
+  const lngs = [...pts.map((p) => p.lng), ...line.map((p) => p.lng)]
   let minLat = Math.min(...lats)
   let maxLat = Math.max(...lats)
   let minLng = Math.min(...lngs)
   let maxLng = Math.max(...lngs)
-  const padLat = Math.max((maxLat - minLat) * 0.22, 0.012)
-  const padLng = Math.max((maxLng - minLng) * 0.22, 0.012)
+  const padLat = Math.max((maxLat - minLat) * 0.28, 0.018)
+  const padLng = Math.max((maxLng - minLng) * 0.32, 0.018)
   minLat -= padLat
   maxLat += padLat
   minLng -= padLng
@@ -245,42 +352,79 @@ async function gerarMapaEstatico(pts: MapaPonto[]): Promise<string | null> {
     }
   }
 
-  ctx.strokeStyle = '#2563eb'
-  ctx.lineWidth = 4
-  ctx.lineJoin = 'round'
-  ctx.lineCap = 'round'
-  ctx.beginPath()
-  pts.forEach((p, i) => {
-    const { x, y } = toPx(p.lat, p.lng)
-    if (i === 0) ctx.moveTo(x, y)
-    else ctx.lineTo(x, y)
-  })
-  ctx.stroke()
-
-  pts.forEach((p, i) => {
-    const { x, y } = toPx(p.lat, p.lng)
-    const fill = i === 0 ? '#16a34a' : i === pts.length - 1 ? '#dc2626' : '#2563eb'
+  const pxLine = line.map((p) => toPx(p.lat, p.lng))
+  if (pxLine.length >= 2) {
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+    ctx.strokeStyle = 'rgba(255,255,255,0.95)'
+    ctx.lineWidth = 8
     ctx.beginPath()
-    ctx.arc(x, y, 11, 0, Math.PI * 2)
-    ctx.fillStyle = fill
+    pxLine.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)))
+    ctx.stroke()
+    ctx.strokeStyle = '#2563eb'
+    ctx.lineWidth = 4.5
+    ctx.beginPath()
+    pxLine.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)))
+    ctx.stroke()
+  }
+
+  const pins = pts.map((p, i) => {
+    const { x, y } = toPx(p.lat, p.lng)
+    return { ...p, x, y, lado: i % 2 === 0 ? 1 : -1 }
+  })
+
+  pins.forEach((p) => {
+    const color = corPino(p.tipo)
+    const r = 13
+    ctx.save()
+    ctx.shadowColor = 'rgba(0,0,0,0.35)'
+    ctx.shadowBlur = 5
+    ctx.shadowOffsetY = 2
+    ctx.beginPath()
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2)
+    ctx.fillStyle = color
     ctx.fill()
-    ctx.lineWidth = 2
+    ctx.shadowColor = 'transparent'
+    ctx.lineWidth = 3
     ctx.strokeStyle = '#fff'
     ctx.stroke()
     ctx.fillStyle = '#fff'
-    ctx.font = 'bold 11px sans-serif'
+    ctx.font = 'bold 12px system-ui,sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText(p.label, x, y + 0.5)
+    ctx.fillText(p.label, p.x, p.y + 0.5)
+    ctx.restore()
+
+    ctx.font = 'bold 12px system-ui,sans-serif'
+    const padX = 8
+    const tw = Math.min(ctx.measureText(p.nome).width, 220)
+    const chipW = tw + padX * 2
+    const chipH = 22
+    let bx = p.lado > 0 ? p.x + 18 : p.x - 18 - chipW
+    let by = p.y - 36
+    if (bx < 8) bx = 8
+    if (bx + chipW > W - 8) bx = W - 8 - chipW
+    if (by < 8) by = p.y + 18
+    ctx.fillStyle = 'rgba(255,255,255,0.96)'
+    ctx.strokeStyle = color
+    ctx.lineWidth = 1.6
+    roundRectPath(ctx, bx, by, chipW, chipH, 6)
+    ctx.fill()
+    ctx.stroke()
+    ctx.fillStyle = '#1c1917'
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(p.nome, bx + padX, by + chipH / 2, tw)
   })
 
-  ctx.fillStyle = 'rgba(255,255,255,0.88)'
-  ctx.fillRect(8, H - 22, 280, 16)
+  ctx.fillStyle = 'rgba(255,255,255,0.92)'
+  roundRectPath(ctx, 8, H - 26, 268, 18, 4)
+  ctx.fill()
   ctx.fillStyle = '#64748b'
   ctx.font = '10px sans-serif'
   ctx.textAlign = 'left'
   ctx.textBaseline = 'alphabetic'
-  ctx.fillText('© OpenStreetMap · © CARTO', 12, H - 10)
+  ctx.fillText('© OpenStreetMap · © CARTO', 14, H - 13)
 
   return canvas.toDataURL('image/jpeg', 0.9)
 }
@@ -300,10 +444,12 @@ function canvasQuaseEmBranco(canvas: HTMLCanvasElement): boolean {
   return n > 0 && claros / n > 0.9
 }
 
-/** Captura o mapa da tela (Leaflet) ou gera tiles reais se a captura falhar. */
+/** Gera mapa estático com paradas e trajeto pela rodovia (melhor no PDF). */
 export async function capturarMapaCarga(opts?: CapturaMapaOpts): Promise<string | null> {
   if (typeof document === 'undefined') return null
   const pts = pontosDoMapa(opts)
+  const estatico = await gerarMapaEstatico(pts)
+  if (estatico) return estatico
 
   const el = document.querySelector('.rota-map-preview') as HTMLElement | null
   if (el && el.offsetWidth >= 40 && el.offsetHeight >= 40) {
@@ -324,11 +470,10 @@ export async function capturarMapaCarga(opts?: CapturaMapaOpts): Promise<string 
         return canvas.toDataURL('image/jpeg', 0.88)
       }
     } catch {
-      /* tiles OSM sem CORS — usa mapa estático */
+      /* captura da tela indisponível */
     }
   }
-
-  return gerarMapaEstatico(pts)
+  return null
 }
 
 /** Gera o PDF da carga em memória (client-side, sem backend). */
@@ -543,7 +688,7 @@ export async function gerarPdfCarga(
   secao('Mapa da rota', () => {
     const mapW = pageW - marginX * 2
     if (data.mapaDataUrl) {
-      const imgH = 188
+      const imgH = 210
       ensureSpace(imgH + 6)
       try {
         doc.addImage(data.mapaDataUrl, 'JPEG', marginX, y, mapW, imgH)
@@ -552,7 +697,7 @@ export async function gerarPdfCarga(
         doc.setFontSize(8)
         doc.setTextColor(...COR_LABEL)
         doc.text(
-          'O = origem · números = pontos de passagem · D = destino · mapa OpenStreetMap',
+          'O = origem · números = paradas · D = destino · O/D = origem e destino (retorno)',
           marginX,
           y,
         )
