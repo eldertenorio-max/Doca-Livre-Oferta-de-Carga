@@ -72,6 +72,7 @@ import type {
   TipoHistorico,
   Transportador,
   TransportadorDocumento,
+  TipoDocumentoTransportador,
   Veiculo,
 } from '../types'
 import {
@@ -305,6 +306,11 @@ interface DataContextValue extends DataState, AuthState {
   ) => Promise<{ ok: boolean; error?: string }>
   substituirDocumentoTransportador: (
     documentoId: string,
+    file: File,
+  ) => Promise<{ ok: boolean; error?: string }>
+  enviarDocumentoTransportador: (
+    transportadorId: string,
+    tipo: TipoDocumentoTransportador,
     file: File,
   ) => Promise<{ ok: boolean; error?: string }>
   historicoDoTransportador: (transportadorId: string) => HistoricoEvento[]
@@ -4314,6 +4320,76 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [flushKanbanPush],
   )
 
+  const enviarDocumentoTransportador = useCallback(
+    async (transportadorId: string, tipo: TipoDocumentoTransportador, file: File) => {
+      const existente = (stateRef.current.documentos ?? []).find(
+        (d) => d.transportador_id === transportadorId && d.tipo === tipo,
+      )
+      if (existente) return substituirDocumentoTransportador(existente.id, file)
+
+      const now = new Date().toISOString()
+      let url = ''
+      let storage_path: string | undefined
+      let id = uid('doc')
+
+      if (isSupabaseConfigured && supabase) {
+        const safeName = file.name.replace(/[^\w.\-]+/g, '_')
+        const path = `${transportadorId}/${tipo}-${Date.now()}-${safeName}`
+        const { error: upErr } = await supabase.storage
+          .from('documentos-transportadores')
+          .upload(path, file, { upsert: true })
+        if (upErr) return { ok: false, error: upErr.message }
+
+        const { data: pub } = supabase.storage.from('documentos-transportadores').getPublicUrl(path)
+        url = pub.publicUrl
+        storage_path = path
+
+        const { data: docRow, error } = await supabase
+          .from('transportador_documentos')
+          .insert({
+            transportador_id: transportadorId,
+            tipo,
+            nome_arquivo: file.name,
+            url,
+            storage_path: path,
+          })
+          .select('*')
+          .single()
+        if (error) return { ok: false, error: error.message }
+        if (docRow?.id) id = docRow.id
+        url = docRow?.url ?? url
+      } else {
+        url = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(String(reader.result))
+          reader.onerror = () => reject(new Error('Falha ao ler arquivo'))
+          reader.readAsDataURL(file)
+        })
+      }
+
+      const novo: TransportadorDocumento = {
+        id,
+        transportador_id: transportadorId,
+        tipo,
+        nome_arquivo: file.name,
+        url,
+        storage_path,
+        created_at: now,
+      }
+      setState((prev) => {
+        const next = {
+          ...prev,
+          documentos: [...(prev.documentos ?? []), novo],
+        }
+        stateRef.current = next
+        return next
+      })
+      flushKanbanPush(stateRef.current)
+      return { ok: true }
+    },
+    [flushKanbanPush, substituirDocumentoTransportador],
+  )
+
   const registrarCadastroTransportador = useCallback(
     async (input: CadastroTransportadorInput) => {
       const result = await submeterCadastroTransportador(input)
@@ -5255,6 +5331,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       documentosDoTransportador,
       excluirDocumentoTransportador,
       substituirDocumentoTransportador,
+      enviarDocumentoTransportador,
       registrarCadastroTransportador,
       refreshTransportadores,
       forcarSincronizarKanban,
@@ -5330,6 +5407,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       documentosDoTransportador,
       excluirDocumentoTransportador,
       substituirDocumentoTransportador,
+      enviarDocumentoTransportador,
       registrarCadastroTransportador,
       refreshTransportadores,
       aprovarTransportador,

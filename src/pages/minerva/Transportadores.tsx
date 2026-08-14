@@ -16,7 +16,7 @@ import { CnpjInput } from '../../components/ui/CnpjInput'
 import { formatCnpj } from '../../lib/cnpj'
 import { formatPhoneBr } from '../../lib/phoneBr'
 import { formatCurrency, formatDateTime } from '../../lib/businessRules'
-import { labelDocumento, isAcceptedDocFile } from '../../lib/transportadorDocs'
+import { labelDocumento, isAcceptedDocFile, DOCUMENTOS_TRANSPORTADOR } from '../../lib/transportadorDocs'
 import { urlDocumentoTransportador, origemCadastroDe, labelOrigemCadastro } from '../../lib/cadastroTransportador'
 import { isAcceptedImageFile, fileToDataUrl } from '../../lib/veiculoFotos'
 import { ImageCropModal } from '../../components/ui/ImageCropModal'
@@ -26,13 +26,13 @@ import {
   mensagemCredenciaisTransportador,
   whatsappCredenciaisHref,
 } from '../../lib/credenciaisTransportadorMsg'
-import type { ClassificacaoTransportador, SituacaoTransportador, Transportador } from '../../types'
+import type { ClassificacaoTransportador, SituacaoTransportador, TipoDocumentoTransportador, Transportador } from '../../types'
 import '../../styles/cadastro.css'
 import '../../styles/grid-cargas.css'
 
 type FilterSit = 'todos' | SituacaoTransportador
 type FilterOrigem = 'todos' | 'link' | 'painel'
-type FichaTab = 'painel' | 'dados' | 'historico'
+type FichaTab = 'painel' | 'dados' | 'documentos' | 'historico'
 
 const emptyForm = (): Partial<Transportador> => ({
   razao_social: '',
@@ -129,6 +129,7 @@ export function TransportadoresPage() {
     documentosDoTransportador,
     excluirDocumentoTransportador,
     substituirDocumentoTransportador,
+    enviarDocumentoTransportador,
     aprovarTransportador,
     recusarTransportador,
     historicoDoTransportador,
@@ -164,6 +165,8 @@ export function TransportadoresPage() {
   const [linkCopiado, setLinkCopiado] = useState(false)
   const replaceInputRef = useRef<HTMLInputElement>(null)
   const [replaceDocId, setReplaceDocId] = useState<string | null>(null)
+  const [docUploadTipo, setDocUploadTipo] = useState<TipoDocumentoTransportador | null>(null)
+  const [docsModo, setDocsModo] = useState<'ver' | 'editar'>('ver')
   /** Logo/foto do perfil no formulário (arquivo novo + preview). */
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
@@ -319,6 +322,7 @@ export function TransportadoresPage() {
     setOrigemVoltar('lista')
     setFichaId(t.id)
     setFichaTab('painel')
+    setDocsModo('ver')
     setMode('ficha')
   }
 
@@ -366,6 +370,52 @@ export function TransportadoresPage() {
     ? grupos.filter((g) => g.transportador_ids.includes(fichaId))
     : []
   const ranking = rankingTransportadores()
+  const fichaDocs = fichaId ? documentosDoTransportador(fichaId) : []
+
+  async function handleArquivoDocumento(file: File) {
+    const donoId = fichaId || revisaoId
+    if (!isAcceptedDocFile(file)) {
+      setError('Use PDF ou imagem (JPG, PNG, WEBP).')
+      return
+    }
+    setBusy(true)
+    setError('')
+    let res: { ok: boolean; error?: string }
+    if (replaceDocId) {
+      res = await substituirDocumentoTransportador(replaceDocId, file)
+    } else if (docUploadTipo && donoId) {
+      res = await enviarDocumentoTransportador(donoId, docUploadTipo, file)
+    } else {
+      setBusy(false)
+      return
+    }
+    setBusy(false)
+    setReplaceDocId(null)
+    setDocUploadTipo(null)
+    if (!res.ok) setError(res.error || 'Falha ao enviar documento.')
+  }
+
+  async function abrirDocumento(docId: string, lista: typeof fichaDocs) {
+    const d = lista.find((x) => x.id === docId)
+    if (!d) {
+      setError('Documento não encontrado.')
+      return
+    }
+    try {
+      const href = await urlDocumentoTransportador(d)
+      if (!href) {
+        setError('Documento sem arquivo disponível.')
+        return
+      }
+      window.open(href, '_blank', 'noopener,noreferrer')
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Não foi possível abrir o documento. Verifique o bucket no Supabase.',
+      )
+    }
+  }
 
   function set<K extends keyof Transportador>(key: K, value: Transportador[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -481,6 +531,7 @@ export function TransportadoresPage() {
     const tabs: { id: FichaTab; label: string }[] = [
       { id: 'painel', label: 'Painel' },
       { id: 'dados', label: 'Dados' },
+      { id: 'documentos', label: 'Documentos' },
       { id: 'historico', label: 'Histórico' },
     ]
     return (
@@ -673,6 +724,136 @@ export function TransportadoresPage() {
           </div>
         )}
 
+        {fichaTab === 'documentos' && (
+          <section className="form-card form-card--green">
+            <header className="form-card__head" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 className="form-card__title">Documentos</h2>
+              <div className="cadastro-filtros" style={{ margin: 0 }}>
+                <button
+                  type="button"
+                  className={`cadastro-btn ${docsModo === 'ver' ? 'cadastro-btn--primary' : 'cadastro-btn--ghost'}`}
+                  onClick={() => setDocsModo('ver')}
+                >
+                  Ver
+                </button>
+                <button
+                  type="button"
+                  className={`cadastro-btn ${docsModo === 'editar' ? 'cadastro-btn--primary' : 'cadastro-btn--ghost'}`}
+                  onClick={() => setDocsModo('editar')}
+                >
+                  Editar
+                </button>
+              </div>
+            </header>
+            <div className="form-card__body">
+              <input
+                ref={replaceInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*"
+                style={{ display: 'none' }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ''
+                  if (file) await handleArquivoDocumento(file)
+                }}
+              />
+              {error && <p style={{ color: '#dc2626', marginBottom: 10 }}>{error}</p>}
+              <p className="form-field-hint" style={{ marginBottom: 12, fontSize: 12, color: '#1a1d21' }}>
+                {docsModo === 'ver'
+                  ? 'Abra os arquivos enviados no cadastro. Para substituir ou incluir, use Editar.'
+                  : 'Substitua um documento existente ou envie os que ainda faltam (PDF ou imagem).'}
+              </p>
+              <ul className="doc-review-list">
+                {DOCUMENTOS_TRANSPORTADOR.map((item) => {
+                  const doc = fichaDocs.find((d) => d.tipo === item.tipo)
+                  return (
+                    <li key={item.tipo}>
+                      <strong>
+                        {item.label}
+                        {item.obrigatorio ? (
+                          <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 700, color: '#b45309' }}>
+                            obrigatório
+                          </span>
+                        ) : (
+                          <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 600, color: '#64748b' }}>
+                            opcional
+                          </span>
+                        )}
+                      </strong>
+                      <span>{doc ? doc.nome_arquivo : 'Não enviado'}</span>
+                      <div className="doc-review-actions">
+                        {doc ? (
+                          <button
+                            type="button"
+                            className="cadastro-link"
+                            disabled={busy}
+                            onClick={() => void abrirDocumento(doc.id, fichaDocs)}
+                          >
+                            Ver
+                          </button>
+                        ) : null}
+                        {docsModo === 'editar' && doc ? (
+                          <>
+                            <button
+                              type="button"
+                              className="cadastro-link"
+                              disabled={busy}
+                              onClick={() => {
+                                setError('')
+                                setDocUploadTipo(null)
+                                setReplaceDocId(doc.id)
+                                replaceInputRef.current?.click()
+                              }}
+                            >
+                              Editar
+                            </button>
+                            <button
+                              type="button"
+                              className="cadastro-link cadastro-link--danger"
+                              disabled={busy}
+                              onClick={async () => {
+                                if (
+                                  !window.confirm(
+                                    `Excluir o documento "${item.label}"? Esta ação não pode ser desfeita.`,
+                                  )
+                                ) {
+                                  return
+                                }
+                                setBusy(true)
+                                setError('')
+                                const res = await excluirDocumentoTransportador(doc.id)
+                                setBusy(false)
+                                if (!res.ok) setError(res.error || 'Falha ao excluir documento.')
+                              }}
+                            >
+                              Excluir
+                            </button>
+                          </>
+                        ) : null}
+                        {docsModo === 'editar' && !doc ? (
+                          <button
+                            type="button"
+                            className="cadastro-link"
+                            disabled={busy}
+                            onClick={() => {
+                              setError('')
+                              setReplaceDocId(null)
+                              setDocUploadTipo(item.tipo)
+                              replaceInputRef.current?.click()
+                            }}
+                          >
+                            Enviar
+                          </button>
+                        ) : null}
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          </section>
+        )}
+
         {fichaTab === 'historico' && (
           <section className="form-card form-card--orange">
             <header className="form-card__head">
@@ -815,17 +996,7 @@ export function TransportadoresPage() {
                 onChange={async (e) => {
                   const file = e.target.files?.[0]
                   e.target.value = ''
-                  if (!file || !replaceDocId) return
-                  if (!isAcceptedDocFile(file)) {
-                    setError('Use PDF ou imagem (JPG, PNG, WEBP).')
-                    return
-                  }
-                  setBusy(true)
-                  setError('')
-                  const res = await substituirDocumentoTransportador(replaceDocId, file)
-                  setBusy(false)
-                  setReplaceDocId(null)
-                  if (!res.ok) setError(res.error || 'Falha ao substituir documento.')
+                  if (file) await handleArquivoDocumento(file)
                 }}
               />
               {docsRevisao.length === 0 ? (
