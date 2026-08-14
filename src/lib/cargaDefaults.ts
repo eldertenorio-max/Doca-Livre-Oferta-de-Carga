@@ -12,9 +12,9 @@ export function flagSim(v: unknown): boolean {
   return false
 }
 
-/** Carga marcada como retorno (carga retorno ou retorna à origem). */
-export function isCargaRetorno(c: Pick<Carga, 'carga_retorno' | 'retorna_origem'>): boolean {
-  return flagSim(c.carga_retorno) || flagSim(c.retorna_origem)
+/** Carga marcada como retorno (somente o campo “Carga retorno”). */
+export function isCargaRetorno(c: Pick<Carga, 'carga_retorno'>): boolean {
+  return flagSim(c.carga_retorno)
 }
 
 export function normalizeCarga(c: Carga): Carga {

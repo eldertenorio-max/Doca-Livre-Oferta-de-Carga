@@ -13,6 +13,7 @@ import type {
   Veiculo,
 } from '../types'
 import { alinharStatusComLances } from './kanbanColumns'
+import { flagSim } from './cargaDefaults'
 import { dedupeRotas, limparPontosPassagemRota } from './rotasSync'
 import { isSupabaseConfigured, supabase } from './supabase'
 import { veiculoParaSync } from './veiculosSync'
@@ -170,10 +171,10 @@ function mergeCargas(local: Carga[], remote: Carga[]): Carga[] {
     map.set(item.id, {
       ...prev,
       ...item,
-      carga_retorno: remotoTemRetorno ? Boolean(item.carga_retorno) : Boolean(prev.carga_retorno),
+      carga_retorno: remotoTemRetorno ? flagSim(item.carga_retorno) : flagSim(prev.carga_retorno),
       retorna_origem: remotoTemOrigem
-        ? Boolean(item.retorna_origem)
-        : Boolean(prev.retorna_origem),
+        ? flagSim(item.retorna_origem)
+        : flagSim(prev.retorna_origem),
       pontos_passagem: pontosRem.length > 0 ? pontosRem : pontosPrev,
     })
   }

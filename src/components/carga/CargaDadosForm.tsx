@@ -6,6 +6,7 @@ import {
   formatMoneyInput,
   parseMoneyInput,
 } from "../../lib/businessRules";
+import { flagSim } from "../../lib/cargaDefaults";
 import { buscarCidades, filtrarSugestoes } from "../../lib/cidadesBrasil";
 import { cnpjDigits, formatCnpj, isValidCnpj } from "../../lib/cnpj";
 import { buscarDadosPorCnpj } from "../../lib/cnpjLookup";
@@ -231,8 +232,8 @@ export function CargaDadosForm({
     classificacaoDaCargaOuRota(carga, rotas),
   );
   const [salvarFavorita, setSalvarFavorita] = useState(false);
-  const [cargaRetorno, setCargaRetorno] = useState(Boolean(carga.carga_retorno));
-  const [retornaOrigem, setRetornaOrigem] = useState(Boolean(carga.retorna_origem));
+  const [cargaRetorno, setCargaRetorno] = useState(flagSim(carga.carga_retorno));
+  const [retornaOrigem, setRetornaOrigem] = useState(flagSim(carga.retorna_origem));
   const [rotaId, setRotaId] = useState(carga.rota_id ?? "");
   const [pontosPassagem, setPontosPassagem] = useState<PontoPassagemRota[]>(() =>
     pontosDaCargaOuRota(carga, rotas),
@@ -467,8 +468,8 @@ export function CargaDadosForm({
     setAnttInfo(carga.antt ?? null);
     setClassificacao(classificacaoDaCargaOuRota(carga, rotas));
     setSalvarFavorita(false);
-    setCargaRetorno(Boolean(carga.carga_retorno));
-    setRetornaOrigem(Boolean(carga.retorna_origem));
+    setCargaRetorno(flagSim(carga.carga_retorno));
+    setRetornaOrigem(flagSim(carga.retorna_origem));
     setRotaId(carga.rota_id ?? "");
     const pts = pontosDaCargaOuRota(carga, rotas);
     setPontosPassagem(pts);
@@ -1123,10 +1124,24 @@ export function CargaDadosForm({
             <Field label="Retorna para origem">
               <select
                 className={inputClass}
-                value={carga.retorna_origem ? "sim" : "nao"}
+                value={flagSim(carga.retorna_origem) ? "sim" : "nao"}
                 onChange={(e) => {
                   void atualizarCarga(carga.id, {
                     retorna_origem: e.target.value === "sim",
+                  });
+                }}
+              >
+                <option value="nao">Não</option>
+                <option value="sim">Sim</option>
+              </select>
+            </Field>
+            <Field label="Carga retorno">
+              <select
+                className={inputClass}
+                value={flagSim(carga.carga_retorno) ? "sim" : "nao"}
+                onChange={(e) => {
+                  void atualizarCarga(carga.id, {
+                    carga_retorno: e.target.value === "sim",
                   });
                 }}
               >
@@ -1149,19 +1164,20 @@ export function CargaDadosForm({
               </select>
             </Field>
             <p className="sm:col-span-2 text-[11px] text-ink-muted">
-              Com “Sim”, o card mostra <strong className="text-red-600">Retorno</strong> em
-              vermelho abaixo do frete.
+              Só o campo <strong>Carga retorno</strong> em “Sim” mostra{" "}
+              <strong className="text-red-600">Retorno</strong> em vermelho no card.
+              Origem = destino (rota circular) não marca retorno automaticamente.
             </p>
           </div>
         ) : (
           <>
             <Row
               label="Retorna para origem"
-              value={carga.retorna_origem ? "Sim" : "Não"}
+              value={flagSim(carga.retorna_origem) ? "Sim" : "Não"}
             />
             <Row
               label="Carga retorno"
-              value={carga.carga_retorno ? "Sim" : "Não"}
+              value={flagSim(carga.carga_retorno) ? "Sim" : "Não"}
             />
           </>
         )}
