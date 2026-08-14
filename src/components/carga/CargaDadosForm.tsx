@@ -144,24 +144,24 @@ function pontosDaCargaOuRota(carga: Carga, rotas: Rota[]): PontoPassagemRota[] {
   return limparPontosPassagemRota(r?.pontos_passagem);
 }
 
+function asClassificacaoRota(raw: unknown): ClassificacaoRota {
+  const v = String(raw ?? "B")
+    .trim()
+    .toUpperCase()
+    .replace(/^ROTA\s+/, "");
+  if (v === "A" || v === "B" || v === "C") return v;
+  return "B";
+}
+
 function classificacaoDaCargaOuRota(
   carga: Carga,
   rotas: Rota[],
 ): ClassificacaoRota {
   if (carga.rota_id) {
     const r = rotas.find((x) => x.id === carga.rota_id);
-    if (r?.classificacao === "A" || r?.classificacao === "B" || r?.classificacao === "C") {
-      return r.classificacao;
-    }
+    if (r?.classificacao) return asClassificacaoRota(r.classificacao);
   }
-  if (
-    carga.classificacao_rota === "A" ||
-    carga.classificacao_rota === "B" ||
-    carga.classificacao_rota === "C"
-  ) {
-    return carga.classificacao_rota;
-  }
-  return "B";
+  return asClassificacaoRota(carga.classificacao_rota);
 }
 
 function resumoOpcaoRota(r: Rota): string {
@@ -506,9 +506,7 @@ export function CargaDadosForm({
     if (!rotaId) return;
     const r = rotas.find((x) => x.id === rotaId);
     if (!r) return;
-    if (r.classificacao === "A" || r.classificacao === "B" || r.classificacao === "C") {
-      setClassificacao(r.classificacao);
-    }
+    setClassificacao(asClassificacaoRota(r.classificacao));
     setPontosPassagem((prev) => {
       if (prev.length > 0) return prev;
       const pts = limparPontosPassagemRota(r.pontos_passagem);
@@ -594,6 +592,9 @@ export function CargaDadosForm({
   const rotaSelecionada =
     rotasAtivas.find((r) => r.id === rotaId) ||
     rotas.find((r) => r.id === carga.rota_id);
+  const classificacaoEfetiva: ClassificacaoRota = rotaId
+    ? asClassificacaoRota(rotas.find((r) => r.id === rotaId)?.classificacao ?? classificacao)
+    : classificacao;
 
   function aplicarRotaCadastrada(id: string) {
     setRotaId(id);
@@ -631,9 +632,7 @@ export function CargaDadosForm({
     }
     setPontosMapsStr(maps);
     setFreteTabela(formatMoneyInput(r.frete_tabela || 0));
-    const classif = (r.classificacao === "A" || r.classificacao === "B" || r.classificacao === "C"
-      ? r.classificacao
-      : "B") as ClassificacaoRota;
+    const classif = asClassificacaoRota(r.classificacao);
     setClassificacao(classif);
     setSalvarFavorita(false);
     const nVias = pts.length;
@@ -740,7 +739,6 @@ export function CargaDadosForm({
               };
             }),
           );
-          if (rotaId) setRotaId("");
         })();
       }, 500);
       timers.push(t);
@@ -748,7 +746,7 @@ export function CargaDadosForm({
     return () => {
       for (const t of timers) window.clearTimeout(t);
     };
-  }, [pontosMapsStr, editavel, rotaId]);
+  }, [pontosMapsStr, editavel]);
 
   // Endereço origem → coordenadas Maps
   useEffect(() => {
@@ -821,7 +819,6 @@ export function CargaDadosForm({
         if (!res.ok) return;
         skipGeoOrigem.current = true;
         setOrigem(labelEndereco(res.dados, res.display));
-        if (rotaId) setRotaId("");
       })();
     }, 500);
     return () => {
@@ -849,7 +846,6 @@ export function CargaDadosForm({
         if (!res.ok) return;
         skipGeoDestino.current = true;
         setDestino(labelEndereco(res.dados, res.display));
-        if (rotaId) setRotaId("");
       })();
     }, 500);
     return () => {
@@ -882,7 +878,7 @@ export function CargaDadosForm({
       destinoLat,
       destinoLng,
       pontosPassagem: limparPontosPassagemRota(pontosPassagem),
-      classificacao,
+      classificacao: classificacaoEfetiva,
       tipoCarga: tipoCarga.trim(),
       veiculo: veiculo.trim(),
       carrocerias: parseCarrocerias(carroceriaTxt),
@@ -962,7 +958,7 @@ export function CargaDadosForm({
     const origemFinal = origem.trim();
     const destinoFinal = destino.trim();
     const freteFinal = parseMoneyInput(freteTabela);
-    const classifFinal: ClassificacaoRota = classificacao;
+    const classifFinal: ClassificacaoRota = classificacaoEfetiva;
 
     if (!origemFinal || !destinoFinal) {
       falhaSalvar("Informe origem e destino da rota.");
@@ -1326,7 +1322,7 @@ export function CargaDadosForm({
           <Field label="Classificação da rota" className="sm:col-span-3">
             <select
               className={inputClass}
-              value={classificacao}
+              value={classificacaoEfetiva}
               disabled={!editavel}
               onChange={(e) => {
                 setClassificacao(e.target.value as ClassificacaoRota);
@@ -1355,7 +1351,7 @@ export function CargaDadosForm({
               value={origem}
               onChange={(v) => {
                 setOrigem(v);
-                if (rotaId) setRotaId("");
+                if (rotaId && v.trim() !== origem.trim()) setRotaId("");
               }}
               localSuggestions={sugOrigem}
               minChars={2}
@@ -1367,7 +1363,7 @@ export function CargaDadosForm({
               value={destino}
               onChange={(v) => {
                 setDestino(v);
-                if (rotaId) setRotaId("");
+                if (rotaId && v.trim() !== destino.trim()) setRotaId("");
               }}
               localSuggestions={sugDestino}
               minChars={2}
@@ -1380,7 +1376,10 @@ export function CargaDadosForm({
               inputMode="text"
               placeholder="-23.5613545,-46.6590692,17"
               value={origemMapsStr}
-              onChange={(e) => setOrigemMapsStr(e.target.value)}
+              onChange={(e) => {
+                setOrigemMapsStr(e.target.value);
+                if (rotaId) setRotaId("");
+              }}
             />
             <p className="mt-0.5 text-[11px] text-ink-muted">
               Cole lat,lng ou lat,lng,zoom do Google Maps.
@@ -1392,7 +1391,10 @@ export function CargaDadosForm({
               inputMode="text"
               placeholder="-22.9068470,-43.1728970,17"
               value={destinoMapsStr}
-              onChange={(e) => setDestinoMapsStr(e.target.value)}
+              onChange={(e) => {
+                setDestinoMapsStr(e.target.value);
+                if (rotaId) setRotaId("");
+              }}
             />
             <p className="mt-0.5 text-[11px] text-ink-muted">
               Cole lat,lng ou lat,lng,zoom do Google Maps.
