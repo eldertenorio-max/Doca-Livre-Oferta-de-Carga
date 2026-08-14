@@ -908,6 +908,7 @@ export function CargaDadosForm({
       consumoSugeridoKmL: consumoPadraoKmL(ex),
       precoDieselSugerido: PRECO_DIESEL_SUGERIDO,
       mapaDataUrl,
+      rotaNome: rotaSelecionada?.descricao,
     };
   }
 

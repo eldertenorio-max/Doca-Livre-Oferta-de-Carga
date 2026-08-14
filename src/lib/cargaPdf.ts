@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf'
 import { formatCnpj } from './cnpj'
 import { formatPhoneBr } from './phoneBr'
 import { LOGO_DOCA_LIVRE_SRC } from './brandAssets'
+import { TABELAS_ANTT } from './anttCoeficientes'
 import type { AnttInfoCarga, PontoPassagemRota } from '../types'
 
 export type CargaPdfData = {
@@ -40,6 +41,8 @@ export type CargaPdfData = {
   consumoSugeridoKmL?: number
   precoDieselSugerido?: number
   mapaDataUrl?: string | null
+  /** Nome da rota cadastrada, se houver. */
+  rotaNome?: string
 }
 
 type LogoInfo = { dataUrl: string; width: number; height: number }
@@ -103,11 +106,6 @@ function corClassificacao(c?: string): [number, number, number] {
   if (c === 'A') return [16, 150, 100]
   if (c === 'B') return [217, 141, 20]
   return [176, 148, 0]
-}
-
-function coordsTxt(lat?: number | null, lng?: number | null): string {
-  if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return '—'
-  return `${lat.toFixed(6)}, ${lng.toFixed(6)}`
 }
 
 type MapaPontoTipo = 'origem' | 'parada' | 'destino' | 'od'
@@ -609,75 +607,208 @@ export async function gerarPdfCarga(
     y += 30
   }
 
+  const contentW = pageW - marginX * 2
+  const antt = data.antt
+  const rota = antt?.rota
+  const tabelaAntt =
+    TABELAS_ANTT.find((t) => t.id === antt?.tabela)?.label ||
+    (antt?.tabela ? `Tabela ${antt.tabela}` : '—')
+  const kml = rota?.consumo_km_l ?? data.consumoSugeridoKmL
+  const diesel = rota?.preco_diesel ?? data.precoDieselSugerido
+  const litros =
+    rota?.litros ??
+    (rota?.distancia_km && kml && kml > 0
+      ? Math.round((rota.distancia_km / kml) * 10) / 10
+      : null)
+  const formulaComb =
+    rota?.distancia_km && kml && diesel
+      ? `${String(rota.distancia_km).replace('.', ',')} km ÷ ${String(kml).replace('.', ',')} km/l = ${String(litros ?? '—').replace('.', ',')} L × ${moeda(diesel)}`
+      : ''
+
+  function kpis(items: { label: string; value: string }[]) {
+    const cols = 3
+    const gap = 7
+    const w = (contentW - gap * (cols - 1)) / cols
+    const h = 44
+    items.forEach((it, i) => {
+      const col = i % cols
+      if (col === 0) {
+        if (i > 0) y += h + gap
+        ensureSpace(h + 10)
+      }
+      const x = marginX + col * (w + gap)
+      doc.setFillColor(252, 252, 253)
+      doc.setDrawColor(...COR_LINHA)
+      doc.setLineWidth(0.55)
+      doc.roundedRect(x, y, w, h, 4, 4, 'FD')
+      doc.setFillColor(...COR_MARCA)
+      doc.rect(x, y + 5, 3.2, h - 10, 'F')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(6.5)
+      doc.setTextColor(...COR_LABEL)
+      doc.text(it.label.toUpperCase(), x + 10, y + 15)
+      doc.setFontSize(10.5)
+      doc.setTextColor(...COR_PRETO)
+      const val = doc.splitTextToSize(it.value || '—', w - 16)
+      doc.text(val[0], x + 10, y + 32)
+    })
+    y += h + 12
+  }
+
+  function tabela2(headers: [string, string], rows: [string, string][]) {
+    if (rows.length === 0) return
+    const rowH = 15
+    const headH = 16
+    ensureSpace(headH + rows.length * rowH + 10)
+    doc.setFillColor(...COR_PRETO)
+    doc.roundedRect(marginX, y, contentW, headH, 2, 2, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7.5)
+    doc.setTextColor(255, 255, 255)
+    doc.text(headers[0].toUpperCase(), marginX + 8, y + 11)
+    doc.text(headers[1].toUpperCase(), marginX + contentW - 8, y + 11, { align: 'right' })
+    y += headH
+    rows.forEach((row, ri) => {
+      if (ri % 2 === 0) {
+        doc.setFillColor(...COR_FUNDO_CARD)
+        doc.rect(marginX, y, contentW, rowH, 'F')
+      }
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8.5)
+      doc.setTextColor(...COR_TEXTO)
+      const left = doc.splitTextToSize(row[0], contentW * 0.68)
+      doc.text(left[0], marginX + 8, y + 11)
+      doc.setFont('helvetica', 'bold')
+      doc.text(row[1], marginX + contentW - 8, y + 11, { align: 'right' })
+      y += rowH
+    })
+    y += 10
+  }
+
   // ---- Cabeçalho (só na 1ª página) ----
   const logo = await carregarLogo()
-  y = 40
+  y = 36
   if (logo) {
-    const logoH = 30
+    const logoH = 28
     const logoW = (logo.width / logo.height) * logoH
-    doc.addImage(logo.dataUrl, 'PNG', marginX, y - 22, logoW, logoH)
+    doc.addImage(logo.dataUrl, 'PNG', marginX, y - 18, logoW, logoH)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(9)
+    doc.setTextColor(...COR_PRETO)
+    doc.text('Oferta de Carga', marginX + logoW + 10, y - 2)
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9.5)
+    doc.setFontSize(8)
     doc.setTextColor(...COR_LABEL)
-    doc.text('Oferta de Carga', marginX + logoW + 10, y + 3)
+    doc.text('Documento da carga para o transportador', marginX + logoW + 10, y + 11)
   } else {
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(18)
+    doc.setFontSize(16)
     doc.setTextColor(...COR_MARCA_ESCURA)
     doc.text('DOCA LIVRE', marginX, y)
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(10)
+    doc.setFontSize(9)
     doc.setTextColor(...COR_LABEL)
-    doc.text('Oferta de Carga', marginX + 118, y)
+    doc.text('Oferta de Carga', marginX + 108, y)
   }
-  y += 18
-  doc.setFillColor(...COR_MARCA)
-  doc.rect(marginX, y, pageW - marginX * 2, 2.4, 'F')
+  const agora = new Date()
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.setTextColor(...COR_LABEL)
+  doc.text(
+    `${agora.toLocaleDateString('pt-BR')} ${agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
+    pageW - marginX,
+    y + 4,
+    { align: 'right' },
+  )
   y += 22
+  doc.setFillColor(...COR_MARCA)
+  doc.rect(marginX, y, contentW, 3, 'F')
+  y += 12
 
-  // Barra de título preta com número da carga
-  const barH = 30
+  const barH = 34
   doc.setFillColor(...COR_PRETO)
-  doc.roundedRect(marginX, y, pageW - marginX * 2, barH, 4, 4, 'F')
+  doc.roundedRect(marginX, y, contentW, barH, 5, 5, 'F')
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(13)
   doc.setTextColor(255, 255, 255)
-  doc.text(`Carga ${data.numero || ''}`.trim(), marginX + 14, y + barH / 2 + 4.5)
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8.5)
-  doc.setTextColor(230, 230, 230)
-  const agora = new Date()
-  doc.text(
-    `Gerado em ${agora.toLocaleDateString('pt-BR')} às ${agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`,
-    pageW - marginX - 14,
-    y + barH / 2 + 4.5,
-    { align: 'right' },
-  )
-  y += barH + 22
+  doc.text(`Carga ${data.numero || ''}`.trim(), marginX + 12, y + 21)
+  let bx = marginX + 12 + doc.getTextWidth(`Carga ${data.numero || ''}`.trim()) + 14
+  if (data.pedido) {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(210, 210, 210)
+    doc.text(`Pedido ${data.pedido}`, bx, y + 21)
+  }
+  if (data.classificacao) {
+    const lab = `ROTA ${data.classificacao}`
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    const bw = doc.getTextWidth(lab) + 14
+    const cor = corClassificacao(data.classificacao)
+    doc.setFillColor(...cor)
+    doc.roundedRect(pageW - marginX - bw - 10, y + 9, bw, 16, 3, 3, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.text(lab, pageW - marginX - bw - 3, y + 20)
+  }
+  y += barH + 16
   paginaTemCabecalho = true
 
   // ---- Rota ----
   secao('Rota', () => {
-    linha('Pedido', data.pedido || '—')
-    linha('Origem', data.origem || '—')
-    linha('Coords origem', coordsTxt(data.origemLat, data.origemLng))
-    linha('Destino', data.destino || '—')
-    linha('Coords destino', coordsTxt(data.destinoLat, data.destinoLng))
+    const colW = (contentW - 10) / 2
+    const boxH = 58
+    ensureSpace(boxH + 8)
+    doc.setFillColor(255, 255, 255)
+    doc.setDrawColor(...COR_LINHA)
+    doc.roundedRect(marginX, y, colW, boxH, 4, 4, 'S')
+    doc.setFillColor(22, 163, 74)
+    doc.rect(marginX, y, 4, boxH, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7)
+    doc.setTextColor(...COR_LABEL)
+    doc.text('ORIGEM', marginX + 12, y + 13)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(...COR_TEXTO)
+    doc.text(doc.splitTextToSize(data.origem || '—', colW - 20).slice(0, 3), marginX + 12, y + 26)
+
+    doc.setDrawColor(...COR_LINHA)
+    doc.roundedRect(marginX + colW + 10, y, colW, boxH, 4, 4, 'S')
+    doc.setFillColor(220, 38, 38)
+    doc.rect(marginX + colW + 10, y, 4, boxH, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7)
+    doc.setTextColor(...COR_LABEL)
+    doc.text('DESTINO', marginX + colW + 22, y + 13)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(...COR_TEXTO)
+    doc.text(
+      doc.splitTextToSize(data.destino || '—', colW - 20).slice(0, 3),
+      marginX + colW + 22,
+      y + 26,
+    )
+    y += boxH + 10
+
+    if (data.rotaNome) {
+      linha('Rota cadastrada', data.rotaNome)
+    }
     const vias = data.pontosPassagem ?? []
     if (vias.length > 0) {
       linha(
-        vias.length === 1 ? 'Ponto de passagem' : 'Pontos de passagem',
+        vias.length === 1 ? 'Parada' : `Paradas (${vias.length})`,
         vias
           .map((p, i) => {
-            const end = (p.endereco || '').trim() || `Ponto ${i + 1}`
-            const c = coordsTxt(p.lat, p.lng)
-            return c !== '—' ? `${i + 1}) ${end} (${c})` : `${i + 1}) ${end}`
+            const end = (p.endereco || '').trim() || `Parada ${i + 1}`
+            return `${i + 1}) ${end}`
           })
           .join('\n'),
       )
-    } else {
-      linha('Pontos de passagem', 'Nenhum')
     }
+    linhasDuplas(
+      ['Veículo', data.veiculo || '—'],
+      ['Carroceria', (data.carrocerias ?? []).join(', ') || '—'],
+    )
     linhasDuplas(
       ['Retorna p/ origem', data.retornaOrigem ? 'Sim' : 'Não'],
       ['Carga retorno', data.cargaRetorno ? 'Sim' : 'Não'],
@@ -686,22 +817,22 @@ export async function gerarPdfCarga(
 
   // ---- Mapa ----
   secao('Mapa da rota', () => {
-    const mapW = pageW - marginX * 2
+    const mapW = contentW
     if (data.mapaDataUrl) {
-      const imgH = 210
-      ensureSpace(imgH + 6)
+      const imgH = 208
+      ensureSpace(imgH + 8)
       try {
         doc.addImage(data.mapaDataUrl, 'JPEG', marginX, y, mapW, imgH)
         y += imgH + 8
         doc.setFont('helvetica', 'normal')
-        doc.setFontSize(8)
+        doc.setFontSize(7.5)
         doc.setTextColor(...COR_LABEL)
         doc.text(
           'O = origem · números = paradas · D = destino · O/D = origem e destino (retorno)',
           marginX,
           y,
         )
-        y += 12
+        y += 10
         return
       } catch {
         /* cai no esquema */
@@ -764,11 +895,34 @@ export async function gerarPdfCarga(
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(8)
       doc.setTextColor(...COR_LABEL)
-      doc.text('O = origem · números = pontos de passagem · D = destino', marginX, y)
+      doc.text('O = origem · números = paradas · D = destino', marginX, y)
       y += 12
     } else {
-      linha('', 'Mapa indisponível — preencha origem, destino e coordenadas para gerar o trajeto.')
+      linha('', 'Mapa indisponível — preencha origem, destino e coordenadas.')
     }
+  })
+
+  // ---- Resumo da viagem ----
+  secao('Resumo da viagem', () => {
+    kpis([
+      {
+        label: 'Distância',
+        value: rota?.distancia_km != null ? `${rota.distancia_km} km` : '—',
+      },
+      { label: 'Duração', value: rota?.duracao_label || '—' },
+      { label: 'Frete tabela', value: moeda(data.freteTabela) },
+      { label: 'Pedágio', value: moeda(rota?.pedagio) },
+      { label: 'Combustível', value: moeda(rota?.combustivel) },
+      { label: 'Custo operacional', value: moeda(rota?.custo_total) },
+    ])
+    linhasDuplas(
+      ['Carregamento', dataBr(data.dataCarregamentoIso)],
+      ['Previsão de entrega', dataBr(data.previsaoEntregaIso)],
+    )
+    linhasDuplas(
+      ['Vale-pedágio', moeda(rota?.vale_pedagio ?? rota?.pedagio)],
+      ['Pedágio / eixo', moeda(rota?.pedagio_por_eixo)],
+    )
   })
 
   // ---- Veículo e carga ----
@@ -790,69 +944,71 @@ export async function gerarPdfCarga(
       ['Nº de entregas', data.numEntregas != null ? String(data.numEntregas) : '—'],
       ['Valor mercadorias', moeda(data.valorMercadorias)],
     )
+    linhasDuplas(
+      ['Pedido', data.pedido || '—'],
+      ['Eixos', antt?.eixos != null ? `${antt.eixos} eixos` : '—'],
+    )
   })
 
   // ---- Frete, ANTT e combustível ----
   secao('Frete, ANTT e combustível', () => {
+    kpis([
+      { label: 'Frete tabela', value: moeda(data.freteTabela) },
+      { label: 'Piso ANTT', value: moeda(antt?.piso_selecionado) },
+      { label: 'Custo (pedágio + comb.)', value: moeda(rota?.custo_total) },
+    ])
+    linhasDuplas(['Tabela ANTT', tabelaAntt], ['Categoria', antt?.categoria_label || '—'])
     linhasDuplas(
-      ['Frete tabela', moeda(data.freteTabela)],
-      ['Data carregamento', dataBr(data.dataCarregamentoIso)],
-    )
-    linhasDuplas(['Previsão de entrega', dataBr(data.previsaoEntregaIso)], ['', ''])
-    const antt = data.antt
-    const rota = antt?.rota
-    linhasDuplas(
-      ['Tabela ANTT', antt?.tabela ? `Tabela ${antt.tabela}` : '—'],
-      ['Categoria', antt?.categoria_label || '—'],
-    )
-    linhasDuplas(
-      ['Piso ANTT', moeda(antt?.piso_selecionado)],
-      ['Eixos', antt?.eixos != null ? String(antt.eixos) : '—'],
+      ['Eixos no cálculo', antt?.eixos != null ? String(antt.eixos) : '—'],
+      [
+        'Consumo',
+        kml != null ? `${String(kml).replace('.', ',')} km/l` : '—',
+      ],
     )
     linhasDuplas(
-      ['Consumo (km/l)', (rota?.consumo_km_l ?? data.consumoSugeridoKmL) != null
-        ? `${String(rota?.consumo_km_l ?? data.consumoSugeridoKmL).replace('.', ',')} km/l`
-        : '—'],
-      ['Preço diesel', moeda(rota?.preco_diesel ?? data.precoDieselSugerido)],
+      ['Preço do diesel', moeda(diesel)],
+      ['Litros', litros != null ? `${String(litros).replace('.', ',')} L` : '—'],
     )
-    if (rota) {
-      linhasDuplas(
-        ['Duração', rota.duracao_label || '—'],
-        ['Distância', rota.distancia_km != null ? `${rota.distancia_km} km` : '—'],
-      )
-      linhasDuplas(
-        ['Pedágio', moeda(rota.pedagio)],
-        ['Pedágio / eixo', moeda(rota.pedagio_por_eixo)],
-      )
-      linhasDuplas(
-        ['Vale-pedágio', moeda(rota.vale_pedagio ?? rota.pedagio)],
-        ['Combustível', moeda(rota.combustivel)],
-      )
-      linhasDuplas(['Custo total (pedágio + comb.)', moeda(rota.custo_total)], ['', ''])
-      if (antt?.fonte) {
-        linha('Fonte', antt.fonte)
-      }
-      const pracas = rota.pracas ?? []
-      if (pracas.length > 0) {
-        linha(
-          `Praças (${pracas.length})`,
-          pracas
-            .map((p) => `${p.nome}${p.free_flow ? ' (Free Flow)' : ''}: ${moeda(p.valor)}`)
-            .join('\n'),
-        )
-      }
-    } else {
-      linha(
-        'Cálculo de rota',
-        'Ainda sem cálculo ANTT/combustível. Preencha origem, destino e veículo na Nova carga para gerar.',
-      )
+    if (formulaComb) {
+      linha('Conta do combustível', formulaComb)
+    }
+    if (antt?.fonte) {
+      linha('Fonte', antt.fonte)
     }
     if (antt?.pisos?.length) {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(8)
+      doc.setTextColor(...COR_LABEL)
+      ensureSpace(18)
+      doc.text('PISOS ANTT POR CATEGORIA', marginX, y)
+      y += 8
+      tabela2(
+        ['Categoria', 'Valor'],
+        antt.pisos.map((p) => [
+          `${p.label}${p.id === antt.categoria_id ? '  ← selecionada' : ''}`,
+          p.valor != null ? moeda(p.valor) : '—',
+        ]),
+      )
+    }
+    const pracas = rota?.pracas ?? []
+    if (pracas.length > 0) {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(8)
+      doc.setTextColor(...COR_LABEL)
+      ensureSpace(18)
+      doc.text(`PRAÇAS NA ROTA (${pracas.length})`, marginX, y)
+      y += 8
+      tabela2(
+        ['Praça', 'Valor'],
+        pracas.map((p) => [
+          `${p.nome}${p.free_flow ? ' (Free Flow)' : ''}`,
+          moeda(p.valor),
+        ]),
+      )
+    } else if (!rota) {
       linha(
-        'Pisos ANTT',
-        antt.pisos
-          .map((p) => `${p.label}: ${p.valor != null ? moeda(p.valor) : '—'}`)
-          .join('\n'),
+        'Cálculo de rota',
+        'Ainda sem cálculo ANTT/combustível. Preencha origem, destino e veículo e clique em Recalcular.',
       )
     }
   })
@@ -874,7 +1030,14 @@ export async function gerarPdfCarga(
   })
 
   secao('Observações', () => {
-    linha('', data.observacao?.trim() || '—')
+    const txt = data.observacao?.trim() || '—'
+    const lines = doc.splitTextToSize(txt, contentW)
+    ensureSpace(lines.length * 12 + 4)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.setTextColor(...COR_TEXTO)
+    doc.text(lines, marginX, y)
+    y += lines.length * 12 + 4
   })
 
   // ---- Rodapé em todas as páginas ----
@@ -894,8 +1057,6 @@ export async function gerarPdfCarga(
     )
     doc.text(`Página ${i} de ${totalPaginas}`, pageW - marginX, pageH - 26, { align: 'right' })
   }
-
-  void COR_FUNDO_CARD // reservado para uso futuro (zebra/cards preenchidos)
 
   const blob = doc.output('blob') as Blob
   const numLimpo = (data.numero || 'carga').replace(/[^\w-]+/g, '')
