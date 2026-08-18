@@ -431,6 +431,25 @@ function slimLatLng(
 
 const VALHALLA_URL = 'https://valhalla1.openstreetmap.de/route'
 
+/**
+ * Rodoanel Norte trecho 2 (Fernão Dias → Av. Raimundo Pereira de Magalhães).
+ * O OSM/Valhalla trata o alinhamento como motorway aberta, mas em ago/2026
+ * só o trecho 1 (Dutra ↔ Fernão Dias) opera; o trecho 2 segue em obras.
+ * Anel Valhalla: [lon, lat]. Remover quando o trecho 2 for liberado.
+ */
+const EXCLUDE_RODOANEL_NORTE_TRECHO2: number[][] = [
+  [-46.79, -23.4],
+  [-46.72, -23.39],
+  [-46.64, -23.395],
+  [-46.585, -23.405],
+  [-46.568, -23.43],
+  [-46.575, -23.455],
+  [-46.64, -23.465],
+  [-46.72, -23.46],
+  [-46.785, -23.478],
+  [-46.798, -23.45],
+]
+
 type CostingValhalla = 'auto' | 'truck'
 
 function costingDeEixos(eixos?: number): CostingValhalla {
@@ -478,6 +497,7 @@ async function fetchValhallaRoute(
         costing_options: {
           [costing]: { use_tolls: opts.useTolls, use_highways: 1 },
         },
+        exclude_polygons: [EXCLUDE_RODOANEL_NORTE_TRECHO2],
         shape_format: 'polyline6',
         units: 'kilometers',
       }),
