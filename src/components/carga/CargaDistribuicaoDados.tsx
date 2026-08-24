@@ -117,7 +117,7 @@ export function CargaDistribuicaoDados({
     fmtMapsCoords(carga.origem_lat, carga.origem_lng),
   )
   const [retornaOrigem, setRetornaOrigem] = useState(flagSim(carga.retorna_origem))
-  const [seqDistribuicao, setSeqDistribuicao] = useState<SeqDistribuicao>(() =>
+  const [seqDistribuicao, setSeqDistribuicao] = useState<SeqDistribuicao | null>(() =>
     seqInicial(carga.seq_distribuicao, carga.clientes_distribuicao ?? []),
   )
   const [clientesDist, setClientesDist] = useState<ClienteDistForm[]>(() =>
@@ -622,6 +622,11 @@ export function CargaDistribuicaoDados({
       return
     }
 
+    if (!seqDistribuicao) {
+      falhaSalvar('Selecione a sequência de clientes ou a sequência de cidades.')
+      return
+    }
+
     const clientesFinais = modoClientes
       ? formParaClientes(clientesDist)
       : formParaCidades(cidadesDist)
@@ -906,16 +911,13 @@ export function CargaDistribuicaoDados({
           </button>
         </div>
         <p className="text-[11px] font-semibold text-black">
-          Preencha um modo por vez: o outro fica desabilitado.
+          {seqDistribuicao
+            ? 'Os campos da opção escolhida aparecem abaixo.'
+            : 'Escolha sequência de clientes ou de cidades para preencher os pontos.'}
         </p>
 
-        <div
-          className={`space-y-2 rounded-lg border p-2.5 ${
-            modoClientes
-              ? 'border-emerald-200 bg-emerald-50/40'
-              : 'border-ink/10 bg-ink/[0.03] opacity-60'
-          }`}
-        >
+        {modoClientes && (
+        <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50/40 p-2.5">
           <p className="text-[12px] font-extrabold uppercase tracking-wide text-black">
             Clientes
           </p>
@@ -932,7 +934,7 @@ export function CargaDistribuicaoDados({
                   <button
                     type="button"
                     title="Subir na sequência"
-                    disabled={!modoClientes || idx === 0}
+                    disabled={idx === 0}
                     className="rounded-md border border-ink/15 bg-white p-1 text-ink disabled:opacity-30"
                     onClick={() =>
                       setClientesDist((prev) => reordenarPontos(prev, idx, -1))
@@ -943,7 +945,7 @@ export function CargaDistribuicaoDados({
                   <button
                     type="button"
                     title="Descer na sequência"
-                    disabled={!modoClientes || idx === clientesDist.length - 1}
+                    disabled={idx === clientesDist.length - 1}
                     className="rounded-md border border-ink/15 bg-white p-1 text-ink disabled:opacity-30"
                     onClick={() =>
                       setClientesDist((prev) => reordenarPontos(prev, idx, 1))
@@ -954,8 +956,7 @@ export function CargaDistribuicaoDados({
                   {clientesDist.length > 1 && (
                     <button
                       type="button"
-                      disabled={!modoClientes}
-                      className="ml-1 inline-flex items-center gap-1 text-[11px] font-semibold text-red-600 hover:underline disabled:opacity-40"
+                      className="ml-1 inline-flex items-center gap-1 text-[11px] font-semibold text-red-600 hover:underline"
                       onClick={() =>
                         setClientesDist((prev) => prev.filter((x) => x.id !== cli.id))
                       }
@@ -971,7 +972,7 @@ export function CargaDistribuicaoDados({
                   <CnpjInput
                     value={cli.cnpj}
                     onChange={(v) => onCnpjCliente(cli.id, v)}
-                    disabled={!modoClientes || cli.cnpjBuscando}
+                    disabled={cli.cnpjBuscando}
                     showHint={!cli.cnpjBuscando && !cli.cnpjInfo}
                   />
                   {(cli.cnpjBuscando || cli.cnpjInfo) && (
@@ -993,7 +994,6 @@ export function CargaDistribuicaoDados({
                 <Field label="Nome / empresa">
                   <input
                     className={inputClass}
-                    disabled={!modoClientes}
                     value={cli.nome}
                     onChange={(e) => patchCliente(cli.id, { nome: e.target.value })}
                     placeholder="Razão social ou fantasia"
@@ -1002,7 +1002,6 @@ export function CargaDistribuicaoDados({
                 <Field label="Pedido deste cliente">
                   <input
                     className={inputClass}
-                    disabled={!modoClientes}
                     value={cli.pedido}
                     onChange={(e) => patchCliente(cli.id, { pedido: e.target.value })}
                     placeholder="Número do pedido"
@@ -1011,7 +1010,6 @@ export function CargaDistribuicaoDados({
                 <Field label="Destinatário (endereço do ponto)">
                   <AddressSuggestInput
                     value={cli.endereco}
-                    disabled={!modoClientes}
                     onChange={(v) =>
                       patchCliente(cli.id, { endereco: v, lat: null, lng: null })
                     }
@@ -1023,7 +1021,6 @@ export function CargaDistribuicaoDados({
                 <Field label="Coordenadas (Maps)" className="sm:col-span-2">
                   <input
                     className={inputClass}
-                    disabled={!modoClientes}
                     inputMode="text"
                     placeholder="-23.5613545,-46.6590692,17"
                     value={cli.mapsStr}
@@ -1042,8 +1039,7 @@ export function CargaDistribuicaoDados({
           ))}
           <button
             type="button"
-            disabled={!modoClientes}
-            className="inline-flex items-center gap-1.5 rounded-md border border-[#2f9e6a]/40 bg-white px-3 py-1.5 text-xs font-bold text-[#2f9e6a] hover:bg-emerald-50 disabled:opacity-40"
+            className="inline-flex items-center gap-1.5 rounded-md border border-[#2f9e6a]/40 bg-white px-3 py-1.5 text-xs font-bold text-[#2f9e6a] hover:bg-emerald-50"
             onClick={() =>
               setClientesDist((prev) => [...prev, emptyClienteDistForm()])
             }
@@ -1052,14 +1048,10 @@ export function CargaDistribuicaoDados({
             Adicionar cliente
           </button>
         </div>
+        )}
 
-        <div
-          className={`space-y-2 rounded-lg border p-2.5 ${
-            modoCidades
-              ? 'border-emerald-200 bg-emerald-50/40'
-              : 'border-ink/10 bg-ink/[0.03] opacity-60'
-          }`}
-        >
+        {modoCidades && (
+        <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50/40 p-2.5">
           <p className="text-[12px] font-extrabold uppercase tracking-wide text-black">
             Cidades
           </p>
@@ -1075,7 +1067,7 @@ export function CargaDistribuicaoDados({
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    disabled={!modoCidades || idx === 0}
+                    disabled={idx === 0}
                     className="rounded-md border border-ink/15 bg-white p-1 text-ink disabled:opacity-30"
                     onClick={() =>
                       setCidadesDist((prev) => reordenarPontos(prev, idx, -1))
@@ -1085,7 +1077,7 @@ export function CargaDistribuicaoDados({
                   </button>
                   <button
                     type="button"
-                    disabled={!modoCidades || idx === cidadesDist.length - 1}
+                    disabled={idx === cidadesDist.length - 1}
                     className="rounded-md border border-ink/15 bg-white p-1 text-ink disabled:opacity-30"
                     onClick={() =>
                       setCidadesDist((prev) => reordenarPontos(prev, idx, 1))
@@ -1096,8 +1088,7 @@ export function CargaDistribuicaoDados({
                   {cidadesDist.length > 1 && (
                     <button
                       type="button"
-                      disabled={!modoCidades}
-                      className="ml-1 inline-flex items-center gap-1 text-[11px] font-semibold text-red-600 hover:underline disabled:opacity-40"
+                      className="ml-1 inline-flex items-center gap-1 text-[11px] font-semibold text-red-600 hover:underline"
                       onClick={() =>
                         setCidadesDist((prev) => prev.filter((x) => x.id !== cid.id))
                       }
@@ -1111,7 +1102,6 @@ export function CargaDistribuicaoDados({
               <Field label="Cidade">
                 <SuggestInput
                   value={cid.cidade}
-                  disabled={!modoCidades}
                   onChange={(v) =>
                     patchCidade(cid.id, { cidade: v, lat: null, lng: null })
                   }
@@ -1122,7 +1112,6 @@ export function CargaDistribuicaoDados({
               <Field label="Coordenadas (Maps)">
                 <input
                   className={inputClass}
-                  disabled={!modoCidades}
                   inputMode="text"
                   placeholder="-23.5613545,-46.6590692,17"
                   value={cid.mapsStr}
@@ -1136,8 +1125,7 @@ export function CargaDistribuicaoDados({
           ))}
           <button
             type="button"
-            disabled={!modoCidades}
-            className="inline-flex items-center gap-1.5 rounded-md border border-[#2f9e6a]/40 bg-white px-3 py-1.5 text-xs font-bold text-[#2f9e6a] hover:bg-emerald-50 disabled:opacity-40"
+            className="inline-flex items-center gap-1.5 rounded-md border border-[#2f9e6a]/40 bg-white px-3 py-1.5 text-xs font-bold text-[#2f9e6a] hover:bg-emerald-50"
             onClick={() =>
               setCidadesDist((prev) => [...prev, emptyCidadeDistForm()])
             }
@@ -1146,6 +1134,7 @@ export function CargaDistribuicaoDados({
             Adicionar cidade
           </button>
         </div>
+        )}
       </section>
 
       <section className="space-y-1.5 border-t border-ink/15 pt-2">

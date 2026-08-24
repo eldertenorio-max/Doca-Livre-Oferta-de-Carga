@@ -135,8 +135,17 @@ export function formParaCidades(rows: CidadeDistForm[]): ClienteDistribuicao[] {
 export function seqInicial(
   seq: SeqDistribuicao | undefined,
   list: ClienteDistribuicao[],
-): SeqDistribuicao {
+): SeqDistribuicao | null {
+  const temDado = (p: ClienteDistribuicao) =>
+    Boolean(
+      (p.nome || '').trim() ||
+        (p.endereco || '').trim() ||
+        (p.cnpj || '').trim() ||
+        (p.cidade || '').trim(),
+    )
+  const pts = list.filter(temDado)
+  if (pts.length === 0) return null
   if (seq === 'cidades' || seq === 'clientes') return seq
-  if (list.length > 0 && list.every((p) => p.tipo === 'cidade')) return 'cidades'
+  if (pts.every((p) => p.tipo === 'cidade')) return 'cidades'
   return 'clientes'
 }
