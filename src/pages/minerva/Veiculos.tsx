@@ -384,7 +384,10 @@ export function VeiculosPage() {
       fotos,
       foto_url: fotos.dianteira,
       tipo_carroceria: form.tipo_carroceria,
-      qtd_pallets: form.qtd_pallets != null ? Number(form.qtd_pallets) : undefined,
+      qtd_pallets:
+        form.qtd_pallets != null && Number.isFinite(Number(form.qtd_pallets))
+          ? Math.min(40, Math.max(0, Math.round(Number(form.qtd_pallets))))
+          : undefined,
       aclimatacao: form.aclimatacao,
       capacidade_kg: form.capacidade_kg != null ? Number(form.capacidade_kg) : undefined,
       comprimento_m: form.comprimento_m != null ? Number(form.comprimento_m) : undefined,
@@ -914,15 +917,24 @@ export function VeiculosPage() {
                   placeholder="Baú, Sider, Graneleiro…"
                 />
               </Field>
-              <Field label="Quantidade de Pallets (Max 32)">
+              <Field label="Quantidade de Pallets (Max 40)">
                 <input
                   type="number"
                   min={0}
-                  max={32}
+                  max={40}
                   value={form.qtd_pallets ?? ''}
-                  onChange={(e) =>
-                    set('qtd_pallets', e.target.value === '' ? undefined : Number(e.target.value))
-                  }
+                  onChange={(e) => {
+                    if (e.target.value === '') {
+                      set('qtd_pallets', undefined)
+                      return
+                    }
+                    const n = Number(e.target.value)
+                    if (!Number.isFinite(n)) {
+                      set('qtd_pallets', undefined)
+                      return
+                    }
+                    set('qtd_pallets', Math.min(40, Math.max(0, n)))
+                  }}
                 />
               </Field>
               <Field label="Aclimação">

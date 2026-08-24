@@ -322,7 +322,7 @@ export function parsePlanilhaVeiculosRows(rows: string[][]): {
             foto_url: '',
             fotos: emptyFotosVeiculo(),
             tipo_carroceria: cell(raw, 'tipo_carroceria') || undefined,
-            qtd_pallets: qtd_pallets != null ? Math.min(32, Math.max(0, Math.round(qtd_pallets))) : undefined,
+            qtd_pallets: qtd_pallets != null ? Math.min(40, Math.max(0, Math.round(qtd_pallets))) : undefined,
             aclimatacao: cell(raw, 'aclimatacao') || undefined,
             capacidade_kg: capacidade_kg != null ? Math.round(capacidade_kg) : undefined,
             cubagem_m3: cubagem_m3 != null ? cubagem_m3 : undefined,
