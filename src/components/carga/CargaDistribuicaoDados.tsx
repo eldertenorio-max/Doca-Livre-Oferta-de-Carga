@@ -23,6 +23,7 @@ import {
   MODELO_SEM_ESPECIFICO,
   MODELOS_LOCALIZADOR,
   MODELOS_RASTREADOR,
+  labelFaixaTemperatura,
   labelModeloRisco,
 } from '../../lib/cargaExigencias'
 import { CnpjInput } from '../ui/CnpjInput'
@@ -133,6 +134,9 @@ export function CargaDistribuicaoDados({
   const [modeloLocalizador, setModeloLocalizador] = useState(
     carga.modelo_localizador || MODELO_SEM_ESPECIFICO,
   )
+  const [tempMin, setTempMin] = useState<number | undefined>(carga.temp_min)
+  const [tempMax, setTempMax] = useState<number | undefined>(carga.temp_max)
+  const [exigeAjudante, setExigeAjudante] = useState(Boolean(carga.exige_ajudante))
   const [origem, setOrigem] = useState(carga.origem)
   const [origemLat, setOrigemLat] = useState<number | null>(carga.origem_lat ?? null)
   const [origemLng, setOrigemLng] = useState<number | null>(carga.origem_lng ?? null)
@@ -183,6 +187,9 @@ export function CargaDistribuicaoDados({
     setMarcaLocalizador(carga.marca_localizador || MARCA_SEM_ESPECIFICA)
     setModeloRastreador(carga.modelo_rastreador || MODELO_SEM_ESPECIFICO)
     setModeloLocalizador(carga.modelo_localizador || MODELO_SEM_ESPECIFICO)
+    setTempMin(carga.temp_min)
+    setTempMax(carga.temp_max)
+    setExigeAjudante(Boolean(carga.exige_ajudante))
     setOrigem(carga.origem)
     setOrigemLat(carga.origem_lat ?? null)
     setOrigemLng(carga.origem_lng ?? null)
@@ -685,6 +692,14 @@ export function CargaDistribuicaoDados({
     const pedidoPrimeiro =
       clientesFinais.map((p) => p.pedido?.trim()).find(Boolean) || 'Distribuição'
 
+    let tmin = tempMin
+    let tmax = tempMax
+    if (tmin != null && tmax != null && tmin > tmax) {
+      const tmp = tmin
+      tmin = tmax
+      tmax = tmp
+    }
+
     const patch: Partial<Carga> = {
       origem: origemFinal,
       destino: destinoFinal,
@@ -721,6 +736,9 @@ export function CargaDistribuicaoDados({
         risco === 'localizador' || risco === 'ambos' ? marcaLocalizador : undefined,
       modelo_localizador:
         risco === 'localizador' || risco === 'ambos' ? modeloLocalizador : undefined,
+      temp_min: tmin,
+      temp_max: tmax,
+      exige_ajudante: exigeAjudante,
       created_at: carga.created_at,
     }
 
@@ -796,6 +814,11 @@ export function CargaDistribuicaoDados({
             )}
           />
         )}
+        <Row
+          label="Temperatura"
+          value={labelFaixaTemperatura(carga) || '—'}
+        />
+        <Row label="Exige ajudante" value={carga.exige_ajudante ? 'Sim' : 'Não'} />
         <Row label="Origem" value={carga.origem || '—'} />
         <Row
           label="Retorna para origem"
@@ -918,8 +941,8 @@ export function CargaDistribuicaoDados({
           Gerenciamento de risco
         </h3>
         <p className="text-[11px] font-semibold text-black">
-          Depois de rastreador ou localizador, escolha 1 modelo. A oferta só aparece
-          para quem tiver esse equipamento na frota.
+          Rastreador/localizador, temperatura e ajudante viram requisito: a oferta só
+          aparece para quem atender na frota.
         </p>
         <Field label="Exige">
           <select
@@ -941,7 +964,9 @@ export function CargaDistribuicaoDados({
           marcaLocalizador={marcaLocalizador}
           modeloRastreador={modeloRastreador}
           modeloLocalizador={modeloLocalizador}
-          somenteRisco
+          tempMin={tempMin}
+          tempMax={tempMax}
+          exigeAjudante={exigeAjudante}
           onChange={(patch) => {
             if ('marca_rastreador' in patch) {
               setMarcaRastreador(patch.marca_rastreador || MARCA_SEM_ESPECIFICA)
@@ -954,6 +979,11 @@ export function CargaDistribuicaoDados({
             }
             if ('modelo_localizador' in patch) {
               setModeloLocalizador(patch.modelo_localizador || MODELO_SEM_ESPECIFICO)
+            }
+            if ('temp_min' in patch) setTempMin(patch.temp_min)
+            if ('temp_max' in patch) setTempMax(patch.temp_max)
+            if ('exige_ajudante' in patch) {
+              setExigeAjudante(Boolean(patch.exige_ajudante))
             }
           }}
         />

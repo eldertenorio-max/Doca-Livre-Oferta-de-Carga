@@ -10,7 +10,7 @@ import './index.css'
  * Força novo bundle (setas da galeria). Depois do primeiro load limpo,
  * updates de deploy só no F5 (ver onNeedRefresh).
  */
-const BUILD_ID = 'risco-modelos-mercado-v43'
+const BUILD_ID = 'dist-temp-ajudante-v44'
 
 async function forceFreshOnce(): Promise<boolean> {
   const key = `doca-build:${BUILD_ID}`
