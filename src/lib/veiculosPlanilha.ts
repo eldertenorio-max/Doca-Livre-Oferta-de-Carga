@@ -300,8 +300,12 @@ export function parsePlanilhaVeiculosRows(rows: string[][]): {
 
     const risco = mapRisco(cell(raw, 'gerenciamento_risco'))
     const rastreador = cell(raw, 'rastreador_dados')
-    if (risco === 'rastreador' && !rastreador) {
-      erros.push('Informe rastreador_dados quando gerenciamento_risco = rastreador')
+    if ((risco === 'rastreador' || risco === 'localizador') && !rastreador) {
+      erros.push(
+        risco === 'localizador'
+          ? 'Informe rastreador_dados quando gerenciamento_risco = localizador'
+          : 'Informe rastreador_dados quando gerenciamento_risco = rastreador',
+      )
     }
 
     let marca = cell(raw, 'marca')
@@ -349,7 +353,8 @@ export function parsePlanilhaVeiculosRows(rows: string[][]): {
             usa_manobrista: false,
             padiado: false,
             gerenciamento_risco: risco,
-            rastreador_dados: risco === 'rastreador' ? rastreador : undefined,
+            rastreador_dados:
+              risco === 'rastreador' || risco === 'localizador' ? rastreador : undefined,
             situacao,
           }
         : undefined

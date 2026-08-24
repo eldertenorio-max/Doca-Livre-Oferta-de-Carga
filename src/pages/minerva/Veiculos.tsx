@@ -354,8 +354,12 @@ export function VeiculosPage() {
         ? form.gerenciamento_risco
         : 'nenhum'
     const dadosRastreador = (form.rastreador_dados || '').trim()
-    if (risco === 'rastreador' && !dadosRastreador) {
-      setError('Cole os dados do rastreador (IMEI, serial, fornecedor…).')
+    if ((risco === 'rastreador' || risco === 'localizador') && !dadosRastreador) {
+      setError(
+        risco === 'localizador'
+          ? 'Cole os dados do localizador (serial, fornecedor…).'
+          : 'Cole os dados do rastreador (IMEI, serial, fornecedor…).',
+      )
       return
     }
     const locErro = validarLocalizacaoVeiculo(
@@ -426,7 +430,8 @@ export function VeiculosPage() {
       usa_manobrista: Boolean(form.usa_manobrista),
       padiado: Boolean(form.padiado),
       gerenciamento_risco: risco,
-      rastreador_dados: risco === 'rastreador' ? dadosRastreador : undefined,
+      rastreador_dados:
+        risco === 'rastreador' || risco === 'localizador' ? dadosRastreador : undefined,
       situacao: (form.situacao as 'ativo' | 'inativo') ?? 'ativo',
       created_at: form.created_at ?? new Date().toISOString(),
       // Preserva localização do veículo (editada em “Alterar localização”)
@@ -833,7 +838,9 @@ export function VeiculosPage() {
                     ...prev,
                     gerenciamento_risco: value,
                     rastreador_dados:
-                      value === 'rastreador' ? prev.rastreador_dados ?? '' : '',
+                      value === 'rastreador' || value === 'localizador'
+                        ? prev.rastreador_dados ?? ''
+                        : '',
                   }))
                 }}
               >
@@ -842,13 +849,25 @@ export function VeiculosPage() {
                 <option value="nenhum">Nenhum</option>
               </select>
             </Field>
-            {form.gerenciamento_risco === 'rastreador' && (
-              <Field label="Dados do rastreador" required>
+            {(form.gerenciamento_risco === 'rastreador' ||
+              form.gerenciamento_risco === 'localizador') && (
+              <Field
+                label={
+                  form.gerenciamento_risco === 'localizador'
+                    ? 'Dados do localizador'
+                    : 'Dados do rastreador'
+                }
+                required
+              >
                 <textarea
                   rows={3}
                   value={form.rastreador_dados ?? ''}
                   onChange={(e) => set('rastreador_dados', e.target.value)}
-                  placeholder="Cole aqui IMEI, serial, fornecedor, link do portal…"
+                  placeholder={
+                    form.gerenciamento_risco === 'localizador'
+                      ? 'Cole aqui serial, fornecedor, link do portal…'
+                      : 'Cole aqui IMEI, serial, fornecedor, link do portal…'
+                  }
                   style={{ width: '100%', resize: 'vertical' }}
                 />
               </Field>

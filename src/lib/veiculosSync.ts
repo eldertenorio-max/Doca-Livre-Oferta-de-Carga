@@ -227,7 +227,8 @@ export async function upsertVeiculoRemote(
     padiado: Boolean(limpo.padiado),
     gerenciamento_risco: limpo.gerenciamento_risco ?? 'nenhum',
     rastreador_dados:
-      limpo.gerenciamento_risco === 'rastreador'
+      limpo.gerenciamento_risco === 'rastreador' ||
+      limpo.gerenciamento_risco === 'localizador'
         ? (limpo.rastreador_dados ?? null)
         : null,
     situacao: limpo.situacao,
