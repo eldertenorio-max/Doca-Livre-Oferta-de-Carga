@@ -771,7 +771,9 @@ export function CargaDistribuicaoDados({
     const seq = asSeqDistribuicao(carga.seq_distribuicao)
     return (
       <div className="space-y-0.5 text-[13px] leading-snug">
-        <Row label="Tipo de oferta" value={labelTipoOferta(carga.tipo_oferta)} />
+        <p className="mb-2 rounded-md bg-emerald-600 px-2.5 py-1.5 text-center text-[12px] font-extrabold uppercase tracking-wide text-white">
+          {labelTipoOferta(carga.tipo_oferta)}
+        </p>
         <Row label="Número" value={carga.numero} />
         <Row label="Veículo" value={carga.veiculo || '—'} />
         <Row label="Tipo de carga" value={carga.tipo_carga || '—'} />
@@ -853,8 +855,11 @@ export function CargaDistribuicaoDados({
   return (
     <div className="carga-dados-form space-y-2 text-sm font-medium text-black">
       <div className="border-b border-ink/15 pb-2">
+        <p className="mb-1.5 rounded-md bg-emerald-600 px-2.5 py-1.5 text-center text-[12px] font-extrabold uppercase tracking-wide text-white">
+          Carga distribuição
+        </p>
         <p className="font-display text-base font-bold text-ink">
-          Carga distribuição · Carga {numeroCarga || carga.numero}
+          Carga {numeroCarga || carga.numero}
         </p>
         <p className="text-[12px] font-semibold text-black">
           Número, veículo, entregas, NFs, peso, valor e volumes. Abaixo, origem e a

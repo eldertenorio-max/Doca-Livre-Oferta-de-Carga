@@ -972,10 +972,7 @@ export function PublishPanel({
               <p className="font-display text-lg font-bold tracking-wide text-[#e8c547]">
                 Carga {carga.numero}
               </p>
-              <p className="text-[11px] font-bold uppercase tracking-wide text-sand/80">
-                {labelTipoOferta(asTipoOferta(carga.tipo_oferta))}
-              </p>
-              <p className="text-sm text-sand/90">{formatDateTime(carga.data_carregamento)}</p>
+              <p className="mt-1 text-sm text-sand/90">{formatDateTime(carga.data_carregamento)}</p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
               <button
@@ -1040,6 +1037,15 @@ export function PublishPanel({
             </p>
           )}
         </div>
+        <p
+          className={`px-4 py-1.5 text-center text-[12px] font-extrabold uppercase tracking-wide ${
+            asTipoOferta(carga.tipo_oferta) === 'distribuicao'
+              ? 'bg-emerald-600 text-white'
+              : 'bg-[#e8c547] text-ink'
+          }`}
+        >
+          {labelTipoOferta(asTipoOferta(carga.tipo_oferta))}
+        </p>
 
         {isNova ? (
           <div className="flex border-b border-ink/10 bg-sand-light/30">
@@ -1162,8 +1168,17 @@ export function PublishPanel({
                             }}
                             className="min-w-0 flex-1 px-2.5 py-2 text-left text-xs transition hover:bg-white/60"
                           >
-                            <span className="flex items-center gap-1.5">
+                            <span className="flex flex-wrap items-center gap-1.5">
                               <span className="font-semibold text-ink">Carga {c.numero}</span>
+                              <span
+                                className={`rounded px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide ${
+                                  asTipoOferta(c.tipo_oferta) === 'distribuicao'
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'bg-slate-800 text-white'
+                                }`}
+                              >
+                                {labelTipoOferta(asTipoOferta(c.tipo_oferta))}
+                              </span>
                               {atual && (
                                 <span className="rounded bg-brand/15 px-1.5 py-0.5 text-[10px] font-bold text-ink">
                                   Aberta
@@ -1290,6 +1305,17 @@ export function PublishPanel({
           </p>
 
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
+            <div className="col-span-full">
+              <p
+                className={`rounded-md px-2.5 py-1.5 text-center text-[12px] font-extrabold uppercase tracking-wide ${
+                  asTipoOferta(carga.tipo_oferta) === 'distribuicao'
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-slate-800 text-white'
+                }`}
+              >
+                {labelTipoOferta(asTipoOferta(carga.tipo_oferta))}
+              </p>
+            </div>
             <Detail label="Pedido" value={carga.pedido || '—'} />
             <Detail label="Tipo de Carga" value={carga.tipo_carga} />
             <Detail label="Veículo" value={carga.veiculo} />

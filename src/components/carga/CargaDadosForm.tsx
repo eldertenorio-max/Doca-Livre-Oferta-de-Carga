@@ -1311,8 +1311,14 @@ function CargaDadosFormLongoPercurso({
     const pontosReadonly = pontosDaCargaOuRota(carga, rotas);
     return (
       <div className="space-y-0.5 text-[13px] leading-snug">
+        <p
+          className={`mb-2 rounded-md px-2.5 py-1.5 text-center text-[12px] font-extrabold uppercase tracking-wide ${
+            isOfertaDistribuicao(carga) ? "bg-emerald-600 text-white" : "bg-slate-800 text-white"
+          }`}
+        >
+          {labelTipoOferta(carga.tipo_oferta)}
+        </p>
         <Row label="Número" value={carga.numero} />
-        <Row label="Tipo de oferta" value={labelTipoOferta(carga.tipo_oferta)} />
         {isOfertaDistribuicao(carga) && (
           <Row label="Nome da rota" value={carga.nome_rota?.trim() || "—"} />
         )}
@@ -1514,9 +1520,16 @@ function CargaDadosFormLongoPercurso({
   return (
     <div className="carga-dados-form space-y-2 text-sm font-medium text-black">
       <div className="flex flex-wrap items-end justify-between gap-2 border-b border-ink/15 pb-2">
-        <div>
+        <div className="min-w-0 flex-1">
+          <p
+            className={`mb-1.5 rounded-md px-2.5 py-1.5 text-center text-[12px] font-extrabold uppercase tracking-wide ${
+              isDistribuicao ? "bg-emerald-600 text-white" : "bg-slate-800 text-white"
+            }`}
+          >
+            {isDistribuicao ? "Carga distribuição" : "Carga longo percurso"}
+          </p>
           <p className="font-display text-base font-bold text-ink">
-            {isDistribuicao ? "Carga distribuição" : "Carga longo percurso"} · Carga {numeroCarga || carga.numero}
+            Carga {numeroCarga || carga.numero}
           </p>
           <p className="text-[12px] font-semibold text-black">
             {isDistribuicao

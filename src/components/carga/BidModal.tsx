@@ -12,6 +12,7 @@ import {
 import { sameTransportadorId } from '../../lib/transportadorIds'
 import { showActionFlash } from '../../lib/actionFlash'
 import { limparPontosPassagemRota } from '../../lib/rotasSync'
+import { asTipoOferta, isOfertaDistribuicao, labelTipoOferta } from '../../lib/cargaDefaults'
 import type { Carga } from '../../types'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
 import { AnttFretePanel } from './AnttFretePanel'
@@ -317,6 +318,15 @@ export function BidModal({
         )}
 
         <div className="rounded-lg bg-emerald-50/80 px-3 py-2.5 text-sm">
+          <p
+            className={`mb-2 rounded-md px-2.5 py-1.5 text-center text-[12px] font-extrabold uppercase tracking-wide ${
+              isOfertaDistribuicao(live)
+                ? 'bg-emerald-600 text-white'
+                : 'bg-slate-800 text-white'
+            }`}
+          >
+            {labelTipoOferta(asTipoOferta(live.tipo_oferta))}
+          </p>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-x-4 gap-y-2">
             <Detail label="Carga" value={live.numero} />
             <Detail label="Pedido" value={live.pedido} />
