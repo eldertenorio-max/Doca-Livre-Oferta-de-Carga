@@ -430,29 +430,35 @@ export function RotaMapPreview({
           {msg}
         </div>
       ) : null}
-      {status === 'ok' && meta && (
-        <div
-          data-pdf-ignore
-          className="absolute bottom-2 left-2 z-10 max-w-[min(100%,220px)] rounded-lg bg-white/95 px-2.5 py-2 text-[11px] text-ink shadow-md ring-1 ring-ink/10"
-        >
-          <p className="text-sm font-extrabold text-blue-700">{formatDur(meta.dur)}</p>
-          <p className="font-semibold tabular-nums">{formatKm(meta.km)}</p>
-          {mostrarCustos ? (
-            <>
-              <p className="mt-0.5 font-bold text-orange-700 tabular-nums">
-                {formatCurrency(meta.pedagio)} Pedágio
-                {meta.pracas > 0 ? ` · ${meta.pracas} praça${meta.pracas === 1 ? '' : 's'}` : ''}
-              </p>
-              <p className="font-semibold text-ink/80 tabular-nums">
-                {formatCurrency(meta.combustivel)} Comb.
-              </p>
-              <p className="mt-1 border-t border-ink/10 pt-1 font-extrabold tabular-nums">
-                {formatCurrency(meta.custo)} · {meta.eixos} eixos
-              </p>
-            </>
-          ) : null}
-        </div>
-      )}
+      <div
+        data-pdf-ignore
+        className="pointer-events-none absolute bottom-2 right-2 z-20 min-w-[132px] max-w-[min(100%,220px)] rounded-lg bg-white/95 px-2.5 py-2 text-[11px] text-ink shadow-md ring-1 ring-ink/10"
+      >
+        <p className="text-[10px] font-bold uppercase tracking-wide text-ink-muted">Total km</p>
+        <p className="text-sm font-extrabold tabular-nums text-ink">
+          {status === 'ok' && meta ? formatKm(meta.km) : status === 'loading' ? '…' : '—'}
+        </p>
+        <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-ink-muted">
+          Tempo em rota
+        </p>
+        <p className="text-sm font-extrabold tabular-nums text-blue-700">
+          {status === 'ok' && meta ? formatDur(meta.dur) : status === 'loading' ? '…' : '—'}
+        </p>
+        {mostrarCustos && status === 'ok' && meta ? (
+          <>
+            <p className="mt-1.5 font-bold text-orange-700 tabular-nums">
+              {formatCurrency(meta.pedagio)} Pedágio
+              {meta.pracas > 0 ? ` · ${meta.pracas} praça${meta.pracas === 1 ? '' : 's'}` : ''}
+            </p>
+            <p className="font-semibold text-ink/80 tabular-nums">
+              {formatCurrency(meta.combustivel)} Comb.
+            </p>
+            <p className="mt-1 border-t border-ink/10 pt-1 font-extrabold tabular-nums">
+              {formatCurrency(meta.custo)} · {meta.eixos} eixos
+            </p>
+          </>
+        ) : null}
+      </div>
     </div>
   )
 }
