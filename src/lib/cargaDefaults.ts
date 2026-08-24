@@ -34,7 +34,7 @@ export function isOfertaDistribuicao(c: Pick<Carga, 'tipo_oferta'>): boolean {
 }
 
 export function labelTipoOferta(t?: TipoOfertaCarga | null): string {
-  return t === 'distribuicao' ? 'Oferta Distribuição' : 'Oferta Longo Percurso'
+  return t === 'distribuicao' ? 'Oferta distribuição' : 'Oferta longo percurso'
 }
 
 export function asSeqDistribuicao(v: unknown): SeqDistribuicao {

@@ -547,10 +547,10 @@ export function CargoCard({
         </p>
       )}
       <p
-        className={`mb-2 rounded px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide ${
+        className={`mb-2 rounded px-2 py-1 text-[11px] font-extrabold uppercase tracking-wide ${
           isDist
-            ? 'bg-emerald-100 text-emerald-900'
-            : 'bg-slate-200 text-slate-800'
+            ? 'bg-emerald-600 text-white'
+            : 'bg-slate-800 text-white'
         }`}
       >
         {labelTipoOferta(tipoOferta)}
@@ -586,6 +586,12 @@ export function CargoCard({
       )}
       <div className="mb-1.5 flex items-start gap-2.5">
         <div className="min-w-0 flex-1 space-y-1">
+          <p>
+            <span className="font-bold text-ink">Oferta:</span>{' '}
+            <span className={isDist ? 'font-extrabold text-emerald-800' : 'font-extrabold text-ink'}>
+              {labelTipoOferta(tipoOferta)}
+            </span>
+          </p>
           <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
             <p>
               <span className="font-bold text-ink">Carga:</span>{' '}

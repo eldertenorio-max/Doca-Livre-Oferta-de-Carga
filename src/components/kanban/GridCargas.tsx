@@ -282,8 +282,8 @@ export function GridCargas({
                       <span
                         className={
                           asTipoOferta(c.tipo_oferta) === 'distribuicao'
-                            ? 'grid-cargas__pill'
-                            : 'grid-cargas__muted'
+                            ? 'grid-cargas__pill grid-cargas__pill--dist'
+                            : 'grid-cargas__pill grid-cargas__pill--longo'
                         }
                         title={labelTipoOferta(asTipoOferta(c.tipo_oferta))}
                       >

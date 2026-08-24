@@ -162,7 +162,7 @@
 .grid-cargas__pill {
   display: inline-flex;
   align-items: center;
-  max-width: 160px;
+  max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
   border-radius: 6px;
@@ -170,6 +170,16 @@
   font-weight: 700;
   font-size: 0.72rem;
   line-height: 1.4;
+}
+
+.grid-cargas__pill--longo {
+  background: #1e293b;
+  color: #fff;
+}
+
+.grid-cargas__pill--dist {
+  background: #059669;
+  color: #fff;
 }
 
 .grid-cargas__pill--placa {
