@@ -13,7 +13,7 @@ import type {
   Veiculo,
 } from '../types'
 import { alinharStatusComLances } from './kanbanColumns'
-import { flagSim } from './cargaDefaults'
+import { flagSim, normalizeCarga } from './cargaDefaults'
 import { dedupeRotas, limparPontosPassagemRota } from './rotasSync'
 import { isSupabaseConfigured, supabase } from './supabase'
 import { veiculoParaSync } from './veiculosSync'
@@ -311,7 +311,9 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
   const cargas = cargasMerged
     .filter((c) => !excluidas.has(c.id))
     .map((c) =>
-      c.rota_id && rExcluidos.has(c.rota_id) ? { ...c, rota_id: null } : c,
+      normalizeCarga(
+        c.rota_id && rExcluidos.has(c.rota_id) ? { ...c, rota_id: null } : c,
+      ),
     )
 
   const lancesMerged =

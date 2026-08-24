@@ -35,6 +35,7 @@ import {
   type PanelSize,
 } from '../../lib/cargasMontadas'
 import { isRascunhoNaoPublicado } from '../../lib/kanbanColumns'
+import { asTipoOferta, labelTipoOferta } from '../../lib/cargaDefaults'
 import { limparPontosPassagemRota } from '../../lib/rotasSync'
 import { prazosAlocacaoPermitidos, prazosOfertaPermitidos } from '../../lib/configNegocio'
 import { canEditModulo } from '../../lib/portalModules'
@@ -894,13 +895,9 @@ export function PublishPanel({
               <p className="font-display text-lg font-bold tracking-wide text-[#e8c547]">
                 Carga {carga.numero}
               </p>
-              {carga.tipo_oferta ? (
-                <p className="text-[11px] font-bold uppercase tracking-wide text-sand/80">
-                  {carga.tipo_oferta === 'distribuicao'
-                    ? 'Oferta distribuição'
-                    : 'Oferta longo percurso'}
-                </p>
-              ) : null}
+              <p className="text-[11px] font-bold uppercase tracking-wide text-sand/80">
+                {labelTipoOferta(asTipoOferta(carga.tipo_oferta))}
+              </p>
               <p className="text-sm text-sand/90">{formatDateTime(carga.data_carregamento)}</p>
             </div>
             <div className="flex shrink-0 items-center gap-1">

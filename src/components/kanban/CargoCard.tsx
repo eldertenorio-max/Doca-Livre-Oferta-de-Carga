@@ -6,7 +6,7 @@ import {
   tempoDecorrido,
   tempoRestante,
 } from '../../lib/businessRules'
-import { isCargaRetorno } from '../../lib/cargaDefaults'
+import { asTipoOferta, isCargaRetorno, isOfertaDistribuicao, labelTipoOferta, totaisDistribuicao } from '../../lib/cargaDefaults'
 import { limparPontosPassagemRota } from '../../lib/rotasSync'
 import type { Carga, PontoPassagemRota } from '../../types'
 import { useData } from '../../context/DataContext'
@@ -481,6 +481,7 @@ export function CargoCard({
   const [chatOpen, setChatOpen] = useState(false)
   const [diretosOpen, setDiretosOpen] = useState(false)
   const [pontosOpen, setPontosOpen] = useState(false)
+  const [seqOpen, setSeqOpen] = useState(false)
   void tick
   const chatNaoLidas = mensagensNaoLidasDaCarga(carga.id)
   const diretosIds = carga.transportador_direto_ids ?? []
@@ -489,6 +490,10 @@ export function CargoCard({
     [carga, rotas],
   )
   const qtdPontos = pontosPassagem.length
+  const tipoOferta = asTipoOferta(carga.tipo_oferta)
+  const isDist = isOfertaDistribuicao(carga)
+  const pontosDist = carga.clientes_distribuicao ?? []
+  const distTotais = totaisDistribuicao(carga)
 
   // Transportador sempre vê frete oferta/tabela no card (mesmo em Nova Carga).
   const frete =
@@ -540,21 +545,21 @@ export function CargoCard({
           Rascunho — ainda não publicada (transportador não vê)
         </p>
       )}
+      <p
+        className={`mb-2 rounded px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide ${
+          isDist
+            ? 'bg-emerald-100 text-emerald-900'
+            : 'bg-slate-200 text-slate-800'
+        }`}
+      >
+        {labelTipoOferta(tipoOferta)}
+      </p>
       <div className="mb-1.5 flex items-start gap-2.5">
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
             <p>
               <span className="font-bold text-ink">Carga:</span>{' '}
               <span className="font-semibold tabular-nums text-ink">{carga.numero}</span>
-              {carga.tipo_oferta === 'distribuicao' ? (
-                <span className="ml-1.5 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-emerald-800">
-                  Distribuição
-                </span>
-              ) : carga.tipo_oferta === 'longo_percurso' ? (
-                <span className="ml-1.5 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-slate-700">
-                  Longo percurso
-                </span>
-              ) : null}
             </p>
             {tempoViagem != null ? (
               <p className="font-semibold tabular-nums text-[#2563eb]">
@@ -584,7 +589,7 @@ export function CargoCard({
             <span className="font-bold text-ink">Destino:</span>{' '}
             <span className="text-ink/90">{carga.destino || '—'}</span>
           </p>
-          {carga.tipo_oferta === 'distribuicao' ? (
+          {isDist ? (
             <>
               {carga.nome_rota?.trim() ? (
                 <p>
@@ -595,19 +600,40 @@ export function CargoCard({
               <p>
                 <span className="font-bold text-ink">Entregas:</span>{' '}
                 <span className="text-ink/90">
-                  {carga.clientes_distribuicao?.length ?? 0} ponto
-                  {(carga.clientes_distribuicao?.length ?? 0) === 1 ? '' : 's'}
+                  {distTotais.pontos} ponto{distTotais.pontos === 1 ? '' : 's'}
                   {' · '}
-                  {carga.num_entregas || 0} entrega
-                  {(carga.num_entregas || 0) === 1 ? '' : 's'}
+                  {distTotais.entregas} entrega{distTotais.entregas === 1 ? '' : 's'}
                   {' · '}
-                  {(carga.clientes_distribuicao ?? []).reduce(
-                    (acc, p) => acc + (p.qtd_nfs || 0),
-                    0,
-                  )}{' '}
-                  NF
+                  {distTotais.nfs} NF{distTotais.nfs === 1 ? '' : 's'}
                 </span>
               </p>
+              {pontosDist.length > 0 ? (
+                <div className="rounded bg-emerald-50/80 px-1.5 py-1">
+                  <ol className="list-decimal space-y-0.5 pl-4 text-[11px] text-ink">
+                    {pontosDist.slice(0, 5).map((p) => (
+                      <li key={p.id}>
+                        <span className="font-semibold">{p.nome || p.endereco || 'Ponto'}</span>
+                        {' — '}
+                        {p.qtd_entregas || 1} ent. · {p.qtd_nfs || 1} NF
+                        {p.peso > 0 ? ` · ${formatNumber(p.peso)} kg` : ''}
+                        {p.valor > 0 ? ` · ${formatCurrency(p.valor)}` : ''}
+                      </li>
+                    ))}
+                  </ol>
+                  <button
+                    type="button"
+                    className="mt-0.5 text-[11px] font-semibold text-emerald-800 underline-offset-2 hover:underline"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setSeqOpen(true)
+                    }}
+                  >
+                    {pontosDist.length > 5
+                      ? `Ver sequência completa (${pontosDist.length})`
+                      : 'Ver sequência'}
+                  </button>
+                </div>
+              ) : null}
             </>
           ) : null}
           {qtdPontos > 0 ? (
@@ -629,8 +655,16 @@ export function CargoCard({
           ) : null}
           <p>
             <span className="font-bold text-ink">Peso:</span>{' '}
-            <span className="text-ink/90">{formatNumber(carga.peso ?? 0)}</span>
+            <span className="text-ink/90">
+              {formatNumber(isDist ? distTotais.peso : (carga.peso ?? 0))} kg
+            </span>
           </p>
+          {isDist ? (
+            <p>
+              <span className="font-bold text-ink">Valor da carga:</span>{' '}
+              <span className="text-ink/90">{formatCurrency(distTotais.valor)}</span>
+            </p>
+          ) : null}
           {(carga.placa || carga.motorista) && (
             <>
               <p>
@@ -939,6 +973,62 @@ export function CargoCard({
               </ol>
               <div className="flex justify-end pt-1">
                 <Button variant="ghost" onClick={() => setPontosOpen(false)}>
+                  Fechar
+                </Button>
+              </div>
+            </div>
+          </Modal>
+        </div>
+      ) : null}
+
+      {seqOpen && isDist ? (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <Modal
+            open={seqOpen}
+            title={`Sequência de entrega — ${carga.numero}`}
+            onClose={() => setSeqOpen(false)}
+          >
+            <div className="space-y-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">
+                {labelTipoOferta('distribuicao')}
+              </p>
+              {carga.nome_rota?.trim() ? (
+                <p className="text-sm text-ink">
+                  <span className="font-bold">Rota:</span> {carga.nome_rota}
+                </p>
+              ) : null}
+              <p className="text-xs text-ink-muted">
+                {distTotais.pontos} ponto{distTotais.pontos === 1 ? '' : 's'} ·{' '}
+                {distTotais.entregas} entrega{distTotais.entregas === 1 ? '' : 's'} ·{' '}
+                {distTotais.nfs} NF{distTotais.nfs === 1 ? '' : 's'} ·{' '}
+                {formatNumber(distTotais.peso)} kg · {formatCurrency(distTotais.valor)}
+              </p>
+              <ol className="list-decimal space-y-2 pl-5 text-sm text-ink">
+                {pontosDist.map((p, idx) => (
+                  <li key={p.id || idx} className="pl-1">
+                    <p className="font-semibold">
+                      {p.nome || p.endereco || `Ponto ${idx + 1}`}
+                    </p>
+                    {p.endereco && p.nome ? (
+                      <p className="text-xs text-ink-muted">{p.endereco}</p>
+                    ) : null}
+                    {p.cnpj?.trim() ? (
+                      <p className="text-xs text-ink-muted">CNPJ {p.cnpj}</p>
+                    ) : null}
+                    <p className="text-xs text-ink-muted">
+                      {p.qtd_entregas || 1} entrega{(p.qtd_entregas || 1) === 1 ? '' : 's'} ·{' '}
+                      {p.qtd_nfs || 1} NF{(p.qtd_nfs || 1) === 1 ? '' : 's'} ·{' '}
+                      {formatNumber(p.peso || 0)} kg · {formatCurrency(p.valor || 0)}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+              <div className="flex justify-end pt-1">
+                <Button variant="ghost" onClick={() => setSeqOpen(false)}>
                   Fechar
                 </Button>
               </div>

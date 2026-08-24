@@ -33,7 +33,24 @@ export function isOfertaDistribuicao(c: Pick<Carga, 'tipo_oferta'>): boolean {
 }
 
 export function labelTipoOferta(t?: TipoOfertaCarga | null): string {
-  return t === 'distribuicao' ? 'Oferta distribuição' : 'Oferta longo percurso'
+  return t === 'distribuicao' ? 'Oferta Distribuição' : 'Oferta Longo Percurso'
+}
+
+export function totaisDistribuicao(
+  c: Pick<Carga, 'clientes_distribuicao' | 'num_entregas' | 'peso' | 'valor_mercadorias'>,
+) {
+  const pts = Array.isArray(c.clientes_distribuicao) ? c.clientes_distribuicao : []
+  const entregas = pts.reduce((acc, p) => acc + (Number(p.qtd_entregas) || 0), 0)
+  const nfs = pts.reduce((acc, p) => acc + (Number(p.qtd_nfs) || 0), 0)
+  const peso = pts.reduce((acc, p) => acc + (Number(p.peso) || 0), 0)
+  const valor = pts.reduce((acc, p) => acc + (Number(p.valor) || 0), 0)
+  return {
+    pontos: pts.length,
+    entregas: entregas || c.num_entregas || 0,
+    nfs,
+    peso: peso || c.peso || 0,
+    valor: valor || c.valor_mercadorias || 0,
+  }
 }
 
 export function newClienteDistribuicaoId(): string {

@@ -2191,7 +2191,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       const cargas = prev.cargas.map((c) => {
         if (c.id !== payload.cargaId) return c
-        return {
+        return normalizeCarga({
           ...c,
           margem_percentual: payload.margemPercentual,
           frete_oferta: freteOferta,
@@ -2223,7 +2223,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           motorista_id: null,
           alocacao_expira_em: null,
           updated_at: nowIso,
-        }
+        })
       })
       // Republicar/publicar de novo = zera propostas; Kanban volta a Nova Carga
       const lances = cancelarLancesDaCarga(prev.lances, payload.cargaId, nowIso)
@@ -4862,23 +4862,36 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const criarCarga = useCallback(
     (partial?: Partial<Carga>) => {
-      const nova = montarNovaCarga(partial, user?.id ?? null, { persistir: true })
-      setState((prev) => ({
-        ...prev,
-        cargas: [...prev.cargas.filter((c) => c.id !== nova.id), nova],
-        historico: [
-          makeHistorico('carga_criada', `Carga ${nova.numero} criada`, { carga_id: nova.id }, user),
-          ...prev.historico,
-        ].slice(0, 2000),
-      }))
+      const nova = normalizeCarga(
+        montarNovaCarga(partial, user?.id ?? null, { persistir: true }),
+      )
+      setState((prev) => {
+        const next = {
+          ...prev,
+          cargas: [...prev.cargas.filter((c) => c.id !== nova.id), nova],
+          historico: [
+            makeHistorico(
+              'carga_criada',
+              `Carga ${nova.numero} criada`,
+              { carga_id: nova.id },
+              user,
+            ),
+            ...prev.historico,
+          ].slice(0, 2000),
+        }
+        stateRef.current = next
+        flushKanbanPush(next)
+        return next
+      })
       return nova
     },
-    [user],
+    [user, flushKanbanPush],
   )
 
   const atualizarCarga = useCallback(
     (id: string, patch: Partial<Carga>) => {
-      const atual = state.cargas.find((c) => c.id === id)
+      const prev = stateRef.current
+      const atual = prev.cargas.find((c) => c.id === id)
       if (!atual) return { ok: false, error: 'Carga não encontrada' }
       if (atual.status !== 'nova_carga') {
         // Após publicar, só permite ajustar flags de retorno (aparecem no card).
@@ -4893,21 +4906,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (!patch.rota_id && !atual.rota_id && !(patch.origem && patch.destino)) {
         /* ok — validação de campos obrigatórios fica na UI */
       }
-      setState((prev) => ({
+      const next = {
         ...prev,
         cargas: prev.cargas.map((c) =>
           c.id === id
-            ? {
+            ? normalizeCarga({
                 ...c,
                 ...patch,
                 updated_at: new Date().toISOString(),
-              }
+              })
             : c,
         ),
-      }))
+      }
+      stateRef.current = next
+      setState(next)
+      flushKanbanPush(next)
       return { ok: true }
     },
-    [state.cargas],
+    [flushKanbanPush],
   )
 
   const excluirCargaRascunho = useCallback(

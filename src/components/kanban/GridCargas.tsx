@@ -14,6 +14,7 @@ import {
   type ColunaTransportador,
 } from '../../lib/kanbanColumns'
 import { statusViagemEfetivo } from '../../lib/viagensColumns'
+import { asTipoOferta, labelTipoOferta } from '../../lib/cargaDefaults'
 import { useData } from '../../context/DataContext'
 import type { Carga, Lance } from '../../types'
 import '../../styles/grid-cargas.css'
@@ -225,6 +226,7 @@ export function GridCargas({
               <th>Foto</th>
               <th>Data</th>
               <th>Carga</th>
+              <th>Tipo</th>
               <th>Pedido</th>
               <th>Origem</th>
               <th>Destino</th>
@@ -242,7 +244,7 @@ export function GridCargas({
           <tbody>
             {filtradas.length === 0 ? (
               <tr>
-                <td colSpan={mode === 'minerva' ? 15 : 14}>
+                <td colSpan={mode === 'minerva' ? 16 : 15}>
                   <div className="grid-cargas__empty">Nenhuma carga neste filtro.</div>
                 </td>
               </tr>
@@ -275,6 +277,18 @@ export function GridCargas({
                     <td>{c.data_carregamento ? formatDate(c.data_carregamento) : '—'}</td>
                     <td>
                       <strong className="tabular-nums">{c.numero}</strong>
+                    </td>
+                    <td>
+                      <span
+                        className={
+                          asTipoOferta(c.tipo_oferta) === 'distribuicao'
+                            ? 'grid-cargas__pill'
+                            : 'grid-cargas__muted'
+                        }
+                        title={labelTipoOferta(asTipoOferta(c.tipo_oferta))}
+                      >
+                        {labelTipoOferta(asTipoOferta(c.tipo_oferta))}
+                      </span>
                     </td>
                     <td>{c.pedido || '—'}</td>
                     <td title={c.origem}>{c.origem || '—'}</td>
