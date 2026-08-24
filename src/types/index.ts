@@ -5,6 +5,18 @@ export type ClassificacaoTransportador = 'ouro' | 'prata' | 'bronze'
 export type Prioridade = 'alta' | 'media' | 'baixa'
 export type ModoPublicacao = 'leilao' | 'oferta' | 'negociacao_direta'
 
+/** Tipo da oferta ao criar Nova carga. */
+export type TipoOfertaCarga = 'longo_percurso' | 'distribuicao'
+
+/** Cliente da oferta de distribuição (NFs e valor da mercadoria). */
+export interface ClienteDistribuicao {
+  id: string
+  nome: string
+  cnpj?: string
+  qtd_nfs: number
+  valor: number
+}
+
 export type StatusCargaMinerva =
   | 'nova_carga'
   | 'negociando'
@@ -404,6 +416,10 @@ export interface Carga {
   /** Transportadores que recusaram esta oferta (some do Kanban deles). */
   recusado_por_ids?: string[]
   observacao?: string
+  /** Longo percurso (padrão) ou distribuição urbana com NFs por cliente. */
+  tipo_oferta?: TipoOfertaCarga
+  /** Clientes da oferta de distribuição (quantidade de NFs e valor). */
+  clientes_distribuicao?: ClienteDistribuicao[]
   motivo_cancelamento?: string | null
   created_at: string
   updated_at?: string

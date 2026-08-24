@@ -6,6 +6,7 @@ import { CargoCard } from '../../components/kanban/CargoCard'
 import { KanbanBoard } from '../../components/kanban/KanbanBoard'
 import { GridCargas, VistaToggle } from '../../components/kanban/GridCargas'
 import { PublishPanel } from '../../components/carga/PublishPanel'
+import { EscolhaTipoOferta } from '../../components/carga/EscolhaTipoOferta'
 import {
   colunaMinerva,
   isRascunhoNaoPublicado,
@@ -16,7 +17,8 @@ import {
 import { isKanbanSyncReady } from '../../lib/kanbanSync'
 import { loadPanelSize, type PanelSize } from '../../lib/cargasMontadas'
 import type { PrefillPublicacao } from '../../lib/cotacaoTransportadores'
-import type { Carga } from '../../types'
+import { emptyClienteDistribuicao } from '../../lib/cargaDefaults'
+import type { Carga, TipoOfertaCarga } from '../../types'
 
 const COLUMNS: {
   key: ColunaMinerva
@@ -91,6 +93,8 @@ export function KanbanMinerva() {
   const [initialTab, setInitialTab] = useState<'dados' | 'salvas' | 'publicar'>('dados')
   const [panelSession, setPanelSession] = useState('')
   const [prefillPublicacao, setPrefillPublicacao] = useState<PrefillPublicacao | null>(null)
+  const [escolhaTipoOpen, setEscolhaTipoOpen] = useState(false)
+  const [prefillPendente, setPrefillPendente] = useState<PrefillPublicacao | null>(null)
   const [dragMsg, setDragMsg] = useState<string | null>(null)
   const [syncBusy, setSyncBusy] = useState(false)
   const [isNarrow, setIsNarrow] = useState(
@@ -157,14 +161,35 @@ export function KanbanMinerva() {
     setPanelOpen(true)
   }
 
-  function openNovaCarga(prefill?: PrefillPublicacao | null) {
-    const draft = montarNovaCarga(undefined, user?.id ?? null, { persistir: false })
+  function openNovaCarga(
+    prefill?: PrefillPublicacao | null,
+    tipo: TipoOfertaCarga = 'longo_percurso',
+  ) {
+    const draft = montarNovaCarga(
+      {
+        tipo_oferta: tipo,
+        clientes_distribuicao:
+          tipo === 'distribuicao' ? [emptyClienteDistribuicao()] : [],
+      },
+      user?.id ?? null,
+      { persistir: false },
+    )
     setEphemeral(draft)
     setSelected(draft)
     setPanelSession(draft.id)
     setPrefillPublicacao(prefill ?? null)
     setInitialTab('dados')
     setPanelOpen(true)
+  }
+
+  function pedirEscolhaTipo(prefill?: PrefillPublicacao | null) {
+    setPanelOpen(false)
+    setSelected(null)
+    setEphemeral(null)
+    setPanelSession('')
+    setPrefillPublicacao(null)
+    setPrefillPendente(prefill ?? null)
+    setEscolhaTipoOpen(true)
   }
 
   // Topbar “+ Nova carga” ou cotação de transportadora
@@ -175,7 +200,7 @@ export function KanbanMinerva() {
       prefillPublicacao?: PrefillPublicacao
     } | null
     if (!st?.novaCarga) return
-    openNovaCarga(st.prefillPublicacao ?? null)
+    pedirEscolhaTipo(st.prefillPublicacao ?? null)
     navigate(location.pathname, { replace: true, state: null })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao chegar com o sinal da topbar/cotação
   }, [location.state, location.pathname, navigate])
@@ -233,8 +258,8 @@ export function KanbanMinerva() {
     <div
       className={
         panelFullscreen
-          ? 'flex h-[calc(100dvh-var(--app-topbar-h,54px))] min-h-0 gap-0 -mx-[8px] -mt-[8px] -mb-[16px] sm:-mx-[14px] sm:-mt-[10px] sm:-mb-[24px]'
-          : 'flex h-full min-h-0 gap-3 overflow-hidden'
+          ? 'relative flex h-[calc(100dvh-var(--app-topbar-h,54px))] min-h-0 gap-0 -mx-[8px] -mt-[8px] -mb-[16px] sm:-mx-[14px] sm:-mt-[10px] sm:-mb-[24px]'
+          : 'relative flex h-full min-h-0 gap-3 overflow-hidden'
       }
     >
       {!panelFullscreen && (
@@ -379,6 +404,21 @@ export function KanbanMinerva() {
             setEphemeral(null)
             setPanelSession('')
             setPrefillPublicacao(null)
+          }}
+        />
+      )}
+
+      {escolhaTipoOpen && (
+        <EscolhaTipoOferta
+          onCancelar={() => {
+            setEscolhaTipoOpen(false)
+            setPrefillPendente(null)
+          }}
+          onEscolher={(tipo) => {
+            const prefill = prefillPendente
+            setEscolhaTipoOpen(false)
+            setPrefillPendente(null)
+            openNovaCarga(prefill, tipo)
           }}
         />
       )}

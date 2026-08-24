@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, FileText, Share2 } from "lucide-react";
+import { Download, FileText, Plus, Share2, Trash2 } from "lucide-react";
 import { isCargaEphemeral, useData } from "../../context/DataContext";
 import {
   formatCurrency,
   formatMoneyInput,
   parseMoneyInput,
 } from "../../lib/businessRules";
-import { flagSim } from "../../lib/cargaDefaults";
+import { flagSim, emptyClienteDistribuicao, isOfertaDistribuicao, labelTipoOferta, newClienteDistribuicaoId } from "../../lib/cargaDefaults";
 import { buscarCidades, filtrarSugestoes } from "../../lib/cidadesBrasil";
 import { cnpjDigits, formatCnpj, isValidCnpj } from "../../lib/cnpj";
 import { buscarDadosPorCnpj } from "../../lib/cnpjLookup";
@@ -15,6 +15,7 @@ import { TIPOS_CARGA } from "../../lib/tiposCarga";
 import type {
   AnttInfoCarga,
   Carga,
+  ClienteDistribuicao,
   ClassificacaoRota,
   PontoPassagemRota,
   Rota,
@@ -97,6 +98,53 @@ function parseGerenciamentoRisco(txt: string): GerenciamentoRisco | undefined {
   if (n === "nao" || n === "não" || n === "nao exige" || n === "não exige")
     return "nao";
   return undefined;
+}
+
+type ClienteDistForm = {
+  id: string
+  nome: string
+  cnpj: string
+  qtdNfs: string
+  valorStr: string
+}
+
+function clientesParaForm(list: ClienteDistribuicao[]): ClienteDistForm[] {
+  const rows = list.map((c) => ({
+    id: c.id || newClienteDistribuicaoId(),
+    nome: c.nome || "",
+    cnpj: c.cnpj || "",
+    qtdNfs: String(c.qtd_nfs || 1),
+    valorStr: c.valor > 0 ? formatMoneyInput(c.valor) : "",
+  }))
+  return rows.length > 0
+    ? rows
+    : [
+        {
+          id: emptyClienteDistribuicao().id,
+          nome: "",
+          cnpj: "",
+          qtdNfs: "1",
+          valorStr: "",
+        },
+      ]
+}
+
+function formParaClientes(rows: ClienteDistForm[]): ClienteDistribuicao[] {
+  const out: ClienteDistribuicao[] = []
+  for (const r of rows) {
+    const nome = r.nome.trim()
+    if (!nome) continue
+    const qtd = Math.round(Number(r.qtdNfs) || 0)
+    const valor = parseMoneyInput(r.valorStr)
+    out.push({
+      id: r.id || newClienteDistribuicaoId(),
+      nome,
+      cnpj: r.cnpj.trim() || undefined,
+      qtd_nfs: qtd > 0 ? qtd : 1,
+      valor: Number.isNaN(valor) || valor < 0 ? 0 : valor,
+    })
+  }
+  return out
 }
 
 type Props = {
@@ -278,6 +326,10 @@ export function CargaDadosForm({
   const [valorMerc, setValorMerc] = useState(
     formatMoneyInput(carga.valor_mercadorias || 0),
   );
+  const [clientesDist, setClientesDist] = useState<ClienteDistForm[]>(() =>
+    clientesParaForm(carga.clientes_distribuicao ?? []),
+  );
+  const isDistribuicao = isOfertaDistribuicao(carga);
   const [dataCarreg, setDataCarreg] = useState(
     toDateInput(carga.data_carregamento),
   );
@@ -492,6 +544,7 @@ export function CargaDadosForm({
     setVolumes(String(carga.volumes || 0));
     setNumEntregas(String(carga.num_entregas || 1));
     setValorMerc(formatMoneyInput(carga.valor_mercadorias || 0));
+    setClientesDist(clientesParaForm(carga.clientes_distribuicao ?? []));
     setDataCarreg(toDateInput(carga.data_carregamento));
     setPrevisao(toDateInput(carga.previsao_entrega));
     setObservacao(carga.observacao ?? "");
@@ -502,6 +555,19 @@ export function CargaDadosForm({
     setCnpjInfoOk(false);
     ultimoCnpjBuscado.current = "";
   }, [carga.id, carga.updated_at]);
+
+  const totaisDist = useMemo(() => {
+    const clientes = formParaClientes(clientesDist);
+    const nfs = clientes.reduce((acc, c) => acc + c.qtd_nfs, 0);
+    const valor = clientes.reduce((acc, c) => acc + c.valor, 0);
+    return { clientes: clientes.length, nfs, valor };
+  }, [clientesDist]);
+
+  useEffect(() => {
+    if (!isDistribuicao) return;
+    setNumEntregas(String(Math.max(1, totaisDist.clientes)));
+    setValorMerc(formatMoneyInput(totaisDist.valor));
+  }, [isDistribuicao, totaisDist.clientes, totaisDist.valor]);
 
   // Se a rota cadastrada chega depois (sync), preenche pontos + classificação
   useEffect(() => {
@@ -1037,14 +1103,29 @@ export function CargaDadosForm({
       falhaSalvar("Informe o pedido.");
       return;
     }
-    if (!destinatario.trim()) {
+    const clientesFinais = isDistribuicao ? formParaClientes(clientesDist) : [];
+    if (isDistribuicao) {
+      if (clientesFinais.length === 0) {
+        falhaSalvar("Inclua ao menos um cliente com a quantidade de notas fiscais e o valor.");
+        return;
+      }
+      const semNf = clientesFinais.find((c) => c.qtd_nfs < 1);
+      if (semNf) {
+        falhaSalvar(`Informe a quantidade de notas fiscais de ${semNf.nome}.`);
+        return;
+      }
+    } else if (!destinatario.trim()) {
       falhaSalvar("Informe o destinatário.");
       return;
     }
     const pesoNum = parseMoneyInput(peso);
     const volumesNum = Number(volumes);
-    const entregasNum = Number(numEntregas);
-    const valorNum = parseMoneyInput(valorMerc);
+    const entregasNum = isDistribuicao
+      ? Math.max(1, totaisDist.clientes)
+      : Number(numEntregas);
+    const valorNum = isDistribuicao
+      ? totaisDist.valor
+      : parseMoneyInput(valorMerc);
     if (Number.isNaN(pesoNum) || pesoNum <= 0) {
       falhaSalvar("Peso inválido.");
       return;
@@ -1082,7 +1163,9 @@ export function CargaDadosForm({
       tipo_carga: tipoCarga.trim() || TIPOS_CARGA[0],
       veiculo: veiculo.trim(),
       carrocerias: parseCarrocerias(carroceriaTxt),
-      destinatario: destinatario.trim(),
+      destinatario: isDistribuicao
+        ? (destinatario.trim() || clientesFinais[0]?.nome || "")
+        : destinatario.trim(),
       destinatario_cnpj: formatCnpj(destinatarioCnpj),
       destinatario_whatsapp: formatPhoneBr(destinatarioWhatsapp).trim() || null,
       destinatario_email: destinatarioEmail.trim() || null,
@@ -1090,6 +1173,8 @@ export function CargaDadosForm({
       volumes: Math.round(volumesNum),
       num_entregas: Math.round(entregasNum),
       valor_mercadorias: valorNum,
+      tipo_oferta: isDistribuicao ? "distribuicao" : "longo_percurso",
+      clientes_distribuicao: isDistribuicao ? clientesFinais : [],
       data_carregamento: fromDateInput(dataCarreg),
       previsao_entrega: fromDateInput(previsao),
       observacao: observacao.trim() || undefined,
@@ -1127,6 +1212,7 @@ export function CargaDadosForm({
     return (
       <div className="space-y-0.5 text-[13px] leading-snug">
         <Row label="Número" value={carga.numero} />
+        <Row label="Tipo de oferta" value={labelTipoOferta(carga.tipo_oferta)} />
         <Row label="Pedido" value={carga.pedido || "—"} />
         <Row label="Origem" value={carga.origem || "—"} />
         <Row label="Destino" value={carga.destino || "—"} />
@@ -1255,6 +1341,23 @@ export function CargaDadosForm({
           label="Mercadorias"
           value={formatCurrency(carga.valor_mercadorias)}
         />
+        {isOfertaDistribuicao(carga) &&
+          (carga.clientes_distribuicao?.length ?? 0) > 0 && (
+            <div className="rounded-md border border-emerald-200 bg-emerald-50/70 px-2.5 py-2 my-1">
+              <p className="text-[12px] font-bold text-emerald-900">
+                Clientes da distribuição ({carga.clientes_distribuicao?.length})
+              </p>
+              <ul className="mt-1 space-y-1 text-[12px] text-emerald-950">
+                {(carga.clientes_distribuicao ?? []).map((c) => (
+                  <li key={c.id}>
+                    <strong>{c.nome}</strong>
+                    {c.cnpj ? ` · ${c.cnpj}` : ""} — {c.qtd_nfs} NF
+                    {c.qtd_nfs === 1 ? "" : "s"} · {formatCurrency(c.valor)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         <Row
           label="Carregamento"
           value={
@@ -1281,10 +1384,12 @@ export function CargaDadosForm({
       <div className="flex flex-wrap items-end justify-between gap-2 border-b border-ink/15 pb-2">
         <div>
           <p className="font-display text-base font-bold text-ink">
-            Carga {carga.numero}
+            {isDistribuicao ? "Oferta distribuição" : "Oferta longo percurso"} · Carga {carga.numero}
           </p>
           <p className="text-[12px] font-semibold text-black">
-            Preencha por seção: rota, frete, veículo, pedido e destinatário.
+            {isDistribuicao
+              ? "Preencha a rota e, para cada cliente, a quantidade de notas fiscais e o valor."
+              : "Preencha por seção: rota, frete, veículo, pedido e destinatário."}
           </p>
         </div>
         {rotaSelecionada && (
@@ -1677,11 +1782,17 @@ export function CargaDadosForm({
               value={valorMerc}
               onChange={setValorMerc}
               suggestions={sugValorMerc}
+              disabled={isDistribuicao}
               onBlur={() => {
                 const n = parseMoneyInput(valorMerc);
                 if (!Number.isNaN(n)) setValorMerc(formatMoneyInput(n));
               }}
             />
+            {isDistribuicao && (
+              <p className="mt-0.5 text-[11px] font-semibold text-black">
+                Soma automática dos valores por cliente.
+              </p>
+            )}
           </Field>
           <Field label="Peso (kg) *">
             <SuggestInput
@@ -1709,7 +1820,13 @@ export function CargaDadosForm({
               suggestions={sugEntregas}
               placeholder="1"
               inputMode="numeric"
+              disabled={isDistribuicao}
             />
+            {isDistribuicao && (
+              <p className="mt-0.5 text-[11px] font-semibold text-black">
+                Igual à quantidade de clientes abaixo.
+              </p>
+            )}
           </Field>
         </div>
       </section>
@@ -1717,10 +1834,10 @@ export function CargaDadosForm({
       {/* 5. Destinatário */}
       <section className="space-y-1.5 border-t border-ink/15 pt-2">
         <h3 className="text-[13px] font-extrabold uppercase tracking-wide text-black">
-          5 · Destinatário
+          5 · Destinatário{isDistribuicao ? " (opcional)" : ""}
         </h3>
         <div className="grid gap-1.5 sm:grid-cols-2">
-          <Field label="Nome / empresa *">
+          <Field label={isDistribuicao ? "Nome / empresa" : "Nome / empresa *"}>
             <SuggestInput
               value={destinatario}
               onChange={setDestinatario}
@@ -1779,10 +1896,142 @@ export function CargaDadosForm({
         </div>
       </section>
 
+      {isDistribuicao && (
+        <section className="space-y-1.5 border-t border-ink/15 pt-2">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <h3 className="text-[13px] font-extrabold uppercase tracking-wide text-black">
+              6 · Clientes, notas fiscais e valor
+            </h3>
+            <p className="text-[12px] font-semibold text-black">
+              {totaisDist.clientes} cliente{totaisDist.clientes === 1 ? "" : "s"} ·{" "}
+              {totaisDist.nfs} NF{totaisDist.nfs === 1 ? "" : "s"} ·{" "}
+              {formatCurrency(totaisDist.valor)}
+            </p>
+          </div>
+          <div className="space-y-2">
+            {clientesDist.map((cli, idx) => (
+              <div
+                key={cli.id}
+                className="rounded-lg border border-ink/15 bg-sand-light/40 p-2.5"
+              >
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <p className="text-[12px] font-extrabold uppercase tracking-wide text-black">
+                    Cliente {idx + 1}
+                  </p>
+                  {clientesDist.length > 1 && (
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-600 hover:underline"
+                      onClick={() =>
+                        setClientesDist((prev) => prev.filter((x) => x.id !== cli.id))
+                      }
+                    >
+                      <Trash2 size={12} />
+                      Remover
+                    </button>
+                  )}
+                </div>
+                <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-4">
+                  <Field label="Cliente *" className="lg:col-span-2">
+                    <input
+                      className={inputClass}
+                      value={cli.nome}
+                      onChange={(e) =>
+                        setClientesDist((prev) =>
+                          prev.map((x) =>
+                            x.id === cli.id ? { ...x, nome: e.target.value } : x,
+                          ),
+                        )
+                      }
+                      placeholder="Nome / empresa"
+                    />
+                  </Field>
+                  <Field label="CNPJ">
+                    <input
+                      className={inputClass}
+                      value={cli.cnpj}
+                      onChange={(e) =>
+                        setClientesDist((prev) =>
+                          prev.map((x) =>
+                            x.id === cli.id ? { ...x, cnpj: e.target.value } : x,
+                          ),
+                        )
+                      }
+                      placeholder="00.000.000/0000-00"
+                    />
+                  </Field>
+                  <Field label="Qtd. notas fiscais *">
+                    <input
+                      className={inputClass}
+                      value={cli.qtdNfs}
+                      inputMode="numeric"
+                      onChange={(e) =>
+                        setClientesDist((prev) =>
+                          prev.map((x) =>
+                            x.id === cli.id ? { ...x, qtdNfs: e.target.value } : x,
+                          ),
+                        )
+                      }
+                      placeholder="1"
+                    />
+                  </Field>
+                  <Field label="Valor (R$) *" className="sm:col-span-2 lg:col-span-4">
+                    <input
+                      className={inputClass}
+                      value={cli.valorStr}
+                      inputMode="decimal"
+                      onChange={(e) =>
+                        setClientesDist((prev) =>
+                          prev.map((x) =>
+                            x.id === cli.id ? { ...x, valorStr: e.target.value } : x,
+                          ),
+                        )
+                      }
+                      onBlur={() => {
+                        const n = parseMoneyInput(cli.valorStr);
+                        if (Number.isNaN(n)) return;
+                        setClientesDist((prev) =>
+                          prev.map((x) =>
+                            x.id === cli.id
+                              ? { ...x, valorStr: formatMoneyInput(n) }
+                              : x,
+                          ),
+                        );
+                      }}
+                      placeholder="0,00"
+                    />
+                  </Field>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 rounded-md border border-[#2f9e6a]/40 bg-white px-3 py-1.5 text-xs font-bold text-[#2f9e6a] hover:bg-emerald-50"
+            onClick={() => {
+              const novo = emptyClienteDistribuicao();
+              setClientesDist((prev) => [
+                ...prev,
+                {
+                  id: novo.id,
+                  nome: "",
+                  cnpj: "",
+                  qtdNfs: "1",
+                  valorStr: "",
+                },
+              ]);
+            }}
+          >
+            <Plus size={14} />
+            Adicionar cliente
+          </button>
+        </section>
+      )}
+
       {/* 6. Prazos e obs */}
       <section className="space-y-1.5 border-t border-ink/15 pt-2">
         <h3 className="text-[13px] font-extrabold uppercase tracking-wide text-black">
-          6 · Prazos e observações
+          {isDistribuicao ? "7 · Prazos e observações" : "6 · Prazos e observações"}
         </h3>
         <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Carregamento">

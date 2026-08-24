@@ -546,6 +546,15 @@ export function CargoCard({
             <p>
               <span className="font-bold text-ink">Carga:</span>{' '}
               <span className="font-semibold tabular-nums text-ink">{carga.numero}</span>
+              {carga.tipo_oferta === 'distribuicao' ? (
+                <span className="ml-1.5 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-emerald-800">
+                  Distribuição
+                </span>
+              ) : carga.tipo_oferta === 'longo_percurso' ? (
+                <span className="ml-1.5 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-slate-700">
+                  Longo percurso
+                </span>
+              ) : null}
             </p>
             {tempoViagem != null ? (
               <p className="font-semibold tabular-nums text-[#2563eb]">

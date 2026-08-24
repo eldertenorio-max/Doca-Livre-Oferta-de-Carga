@@ -1,6 +1,13 @@
 import { parseCarrocerias } from './tiposCarroceria'
 import { limparPontosPassagemRota } from './rotasSync'
-import type { Carga, HistoricoEvento, Profile, TipoHistorico } from '../types'
+import type {
+  Carga,
+  ClienteDistribuicao,
+  HistoricoEvento,
+  Profile,
+  TipoHistorico,
+  TipoOfertaCarga,
+} from '../types'
 
 /** Aceita true/1/"sim"/"true" — útil após sync JSON antigo. */
 export function flagSim(v: unknown): boolean {
@@ -15,6 +22,46 @@ export function flagSim(v: unknown): boolean {
 /** Carga marcada como retorno (somente o campo “Carga retorno”). */
 export function isCargaRetorno(c: Pick<Carga, 'carga_retorno'>): boolean {
   return flagSim(c.carga_retorno)
+}
+
+export function asTipoOferta(v: unknown): TipoOfertaCarga {
+  return v === 'distribuicao' ? 'distribuicao' : 'longo_percurso'
+}
+
+export function isOfertaDistribuicao(c: Pick<Carga, 'tipo_oferta'>): boolean {
+  return asTipoOferta(c.tipo_oferta) === 'distribuicao'
+}
+
+export function labelTipoOferta(t?: TipoOfertaCarga | null): string {
+  return t === 'distribuicao' ? 'Oferta distribuição' : 'Oferta longo percurso'
+}
+
+export function newClienteDistribuicaoId(): string {
+  return `cdist_${Math.random().toString(36).slice(2, 10)}`
+}
+
+export function emptyClienteDistribuicao(): ClienteDistribuicao {
+  return { id: newClienteDistribuicaoId(), nome: '', cnpj: '', qtd_nfs: 1, valor: 0 }
+}
+
+export function normalizeClientesDistribuicao(raw: unknown): ClienteDistribuicao[] {
+  if (!Array.isArray(raw)) return []
+  const out: ClienteDistribuicao[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const o = item as Record<string, unknown>
+    const nome = String(o.nome ?? '').trim()
+    const qtd = Math.max(0, Math.round(Number(o.qtd_nfs) || 0))
+    const valor = Number(o.valor)
+    out.push({
+      id: String(o.id || newClienteDistribuicaoId()),
+      nome,
+      cnpj: String(o.cnpj ?? '').trim() || undefined,
+      qtd_nfs: qtd > 0 ? qtd : 1,
+      valor: Number.isFinite(valor) && valor >= 0 ? valor : 0,
+    })
+  }
+  return out
 }
 
 export function normalizeCarga(c: Carga): Carga {
@@ -62,6 +109,8 @@ export function normalizeCarga(c: Carga): Carga {
         ? c.gerenciamento_risco
         : undefined,
     antt: c.antt ?? null,
+    tipo_oferta: asTipoOferta(c.tipo_oferta),
+    clientes_distribuicao: normalizeClientesDistribuicao(c.clientes_distribuicao),
     frete_minimo: c.frete_minimo ?? null,
     frete_maximo: c.frete_maximo ?? null,
     pausado_em: c.pausado_em ?? null,
