@@ -89,6 +89,8 @@ export function mapVeiculoRow(row: Record<string, unknown>): Veiculo {
     usa_manobrista: Boolean(row.usa_manobrista),
     padiado: Boolean(row.padiado),
     gerenciamento_risco: mapGerenciamentoRisco(row.gerenciamento_risco),
+    marca_rastreador: (row.marca_rastreador as string) || undefined,
+    marca_localizador: (row.marca_localizador as string) || undefined,
     rastreador_dados: (row.rastreador_dados as string) || undefined,
     situacao: row.situacao === 'inativo' ? 'inativo' : 'ativo',
     created_at: String(row.created_at || new Date().toISOString()),
@@ -226,6 +228,8 @@ export async function upsertVeiculoRemote(
     usa_manobrista: Boolean(limpo.usa_manobrista),
     padiado: Boolean(limpo.padiado),
     gerenciamento_risco: limpo.gerenciamento_risco ?? 'nenhum',
+    marca_rastreador: limpo.marca_rastreador ?? null,
+    marca_localizador: limpo.marca_localizador ?? null,
     rastreador_dados:
       limpo.gerenciamento_risco === 'rastreador' ||
       limpo.gerenciamento_risco === 'localizador'
@@ -256,8 +260,15 @@ export async function upsertVeiculoRemote(
     retryRow = rest
     stripped = true
   }
-  if (/marca_termico|temp_min|temp_max/i.test(error.message)) {
-    const { marca_termico: _mt, temp_min: _tmin, temp_max: _tmax, ...rest } = retryRow
+  if (/marca_rastreador|marca_localizador|marca_termico|temp_min|temp_max/i.test(error.message)) {
+    const {
+      marca_termico: _mt,
+      temp_min: _tmin,
+      temp_max: _tmax,
+      marca_rastreador: _mr,
+      marca_localizador: _ml,
+      ...rest
+    } = retryRow
     retryRow = rest
     stripped = true
   }

@@ -36,6 +36,11 @@ import {
 } from '../../lib/cargasMontadas'
 import { isRascunhoNaoPublicado } from '../../lib/kanbanColumns'
 import { asTipoOferta, labelTipoOferta } from '../../lib/cargaDefaults'
+import {
+  MARCA_SEM_ESPECIFICA,
+  transportadorAtendeCarga,
+} from '../../lib/cargaExigencias'
+import { CargaExigenciasFields } from './CargaExigenciasFields'
 import { limparPontosPassagemRota } from '../../lib/rotasSync'
 import { prazosAlocacaoPermitidos, prazosOfertaPermitidos } from '../../lib/configNegocio'
 import { canEditModulo } from '../../lib/portalModules'
@@ -130,6 +135,7 @@ export function PublishPanel({
     tick,
     atualizarCarga,
     excluirCargaRascunho,
+    veiculos,
   } = useData()
   void tick
 
@@ -174,6 +180,12 @@ export function PublishPanel({
   /** null = segue sugestão do prazo; valor = escolha manual Leilão/Oferta */
   const [modoOverride, setModoOverride] = useState<ModoPublicacao | null>(null)
   const [prioridadeManual, setPrioridadeManual] = useState<Prioridade | null>(null)
+  const [riscoPub, setRiscoPub] = useState<NonNullable<Carga['gerenciamento_risco']>>('nao')
+  const [marcaRastreadorPub, setMarcaRastreadorPub] = useState(MARCA_SEM_ESPECIFICA)
+  const [marcaLocalizadorPub, setMarcaLocalizadorPub] = useState(MARCA_SEM_ESPECIFICA)
+  const [tempMinPub, setTempMinPub] = useState<number | undefined>()
+  const [tempMaxPub, setTempMaxPub] = useState<number | undefined>()
+  const [exigeAjudantePub, setExigeAjudantePub] = useState(false)
 
   const usarRegra = config.usar_regra_prioridade_modo !== false
 
@@ -225,6 +237,12 @@ export function PublishPanel({
     setMotivo(carga.justificativa_motivo ?? '')
     setObs(carga.justificativa_obs ?? '')
     setObservacao(carga.observacao ?? '')
+    setRiscoPub(carga.gerenciamento_risco ?? 'nao')
+    setMarcaRastreadorPub(carga.marca_rastreador || MARCA_SEM_ESPECIFICA)
+    setMarcaLocalizadorPub(carga.marca_localizador || MARCA_SEM_ESPECIFICA)
+    setTempMinPub(carga.temp_min)
+    setTempMaxPub(carga.temp_max)
+    setExigeAjudantePub(Boolean(carga.exige_ajudante))
     // Rascunho gravado (draft-* → c-*): não voltar para Dados — senão "Salvar e publicar" parece não funcionar.
     if (persistindoRascunho) {
       if (initialTab === 'publicar') setTab('publicar')
@@ -358,8 +376,36 @@ export function PublishPanel({
             (t) => !agora.some((a) => a.id === t.id),
           )
         : []
-    return { agora, depois }
-  }, [grupoIds, escalonar, grupos, transportadores])
+    const rascunhoExigencias: Carga | null = carga
+      ? {
+          ...carga,
+          gerenciamento_risco: riscoPub,
+          marca_rastreador: marcaRastreadorPub,
+          marca_localizador: marcaLocalizadorPub,
+          temp_min: tempMinPub,
+          temp_max: tempMaxPub,
+          exige_ajudante: exigeAjudantePub,
+        }
+      : null
+    const filtra = (lista: Transportador[]) =>
+      rascunhoExigencias
+        ? lista.filter((t) => transportadorAtendeCarga(rascunhoExigencias, veiculos, t.id))
+        : lista
+    return { agora: filtra(agora), depois: filtra(depois), totalSemFiltro: agora.length + depois.length }
+  }, [
+    grupoIds,
+    escalonar,
+    grupos,
+    transportadores,
+    carga,
+    veiculos,
+    riscoPub,
+    marcaRastreadorPub,
+    marcaLocalizadorPub,
+    tempMinPub,
+    tempMaxPub,
+    exigeAjudantePub,
+  ])
 
   const gruposAtivos = useMemo(
     () => grupos.filter((g) => g.situacao === 'ativo'),
@@ -552,6 +598,21 @@ export function PublishPanel({
       return false
     }
     const isDireta = modo === 'negociacao_direta'
+    const patchExigencias: Partial<Carga> = {
+      gerenciamento_risco: riscoPub,
+      marca_rastreador:
+        riscoPub === 'rastreador' || riscoPub === 'ambos' ? marcaRastreadorPub : undefined,
+      marca_localizador:
+        riscoPub === 'localizador' || riscoPub === 'ambos' ? marcaLocalizadorPub : undefined,
+      temp_min: tempMinPub,
+      temp_max: tempMaxPub,
+      exige_ajudante: exigeAjudantePub,
+    }
+    const salvo = atualizarCarga(carga!.id, patchExigencias)
+    if (!salvo.ok) {
+      setError(salvo.error ?? 'Não foi possível gravar as exigências.')
+      return false
+    }
     const res = publicarCarga({
       cargaId: carga!.id,
       margemPercentual: margem,
@@ -1282,6 +1343,29 @@ export function PublishPanel({
                         : '—'
               }
             />
+            {(carga.gerenciamento_risco === 'rastreador' ||
+              carga.gerenciamento_risco === 'ambos') && (
+              <Detail
+                label="Marca rastreador"
+                value={carga.marca_rastreador || MARCA_SEM_ESPECIFICA}
+              />
+            )}
+            {(carga.gerenciamento_risco === 'localizador' ||
+              carga.gerenciamento_risco === 'ambos') && (
+              <Detail
+                label="Marca localizador"
+                value={carga.marca_localizador || MARCA_SEM_ESPECIFICA}
+              />
+            )}
+            <Detail
+              label="Temperatura"
+              value={
+                carga.temp_min != null || carga.temp_max != null
+                  ? `${carga.temp_min ?? '—'} a ${carga.temp_max ?? '—'} °C`
+                  : '—'
+              }
+            />
+            <Detail label="Exige ajudante" value={carga.exige_ajudante ? 'Sim' : 'Não'} />
             <Detail label="Destinatário" value={carga.destinatario || '—'} />
             <Detail
               label="WhatsApp destinatário"
@@ -1648,7 +1732,12 @@ export function PublishPanel({
 
                   <div className="rounded-lg border border-ink/10 bg-white p-2 text-xs">
                     <p className="mb-1 font-semibold text-ink">
-                      Recebem agora ({previewTransportadores.agora.length})
+                      Recebem agora ({previewTransportadores.agora.length}
+                      {previewTransportadores.totalSemFiltro >
+                      previewTransportadores.agora.length + previewTransportadores.depois.length
+                        ? ` · filtrados por exigências`
+                        : ''}
+                      )
                     </p>
                     {previewTransportadores.agora.length === 0 ? (
                       <p className="text-ink-muted">Nenhum — selecione um grupo.</p>
@@ -1677,6 +1766,53 @@ export function PublishPanel({
                   </div>
                 </>
               )}
+
+              <div className="rounded-lg border border-ink/10 bg-white p-3 space-y-2">
+                <p className="text-xs font-bold uppercase tracking-wide text-ink">
+                  Exigências da oferta
+                </p>
+                <p className="text-[11px] text-ink-muted">
+                  Só vê a carga quem tiver veículo atendendo temperatura, ajudante e
+                  rastreador/localizador.
+                </p>
+                <Field label="Gerenciamento de risco">
+                  <select
+                    className={inputClass}
+                    disabled={!canEdit}
+                    value={riscoPub}
+                    onChange={(e) =>
+                      setRiscoPub(e.target.value as NonNullable<Carga['gerenciamento_risco']>)
+                    }
+                  >
+                    <option value="nao">Não exige</option>
+                    <option value="rastreador">Rastreador</option>
+                    <option value="localizador">Localizador</option>
+                    <option value="ambos">Ambos</option>
+                  </select>
+                </Field>
+                <CargaExigenciasFields
+                  risco={riscoPub}
+                  marcaRastreador={marcaRastreadorPub}
+                  marcaLocalizador={marcaLocalizadorPub}
+                  tempMin={tempMinPub}
+                  tempMax={tempMaxPub}
+                  exigeAjudante={exigeAjudantePub}
+                  disabled={!canEdit}
+                  onChange={(patch) => {
+                    if ('marca_rastreador' in patch) {
+                      setMarcaRastreadorPub(patch.marca_rastreador || MARCA_SEM_ESPECIFICA)
+                    }
+                    if ('marca_localizador' in patch) {
+                      setMarcaLocalizadorPub(patch.marca_localizador || MARCA_SEM_ESPECIFICA)
+                    }
+                    if ('temp_min' in patch) setTempMinPub(patch.temp_min)
+                    if ('temp_max' in patch) setTempMaxPub(patch.temp_max)
+                    if ('exige_ajudante' in patch) {
+                      setExigeAjudantePub(Boolean(patch.exige_ajudante))
+                    }
+                  }}
+                />
+              </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <Field label="Prazo da negociação">

@@ -140,6 +140,14 @@ export function normalizeCarga(c: Carga): Carga {
       c.gerenciamento_risco === 'nao'
         ? c.gerenciamento_risco
         : undefined,
+    marca_rastreador: typeof c.marca_rastreador === 'string' ? c.marca_rastreador : c.marca_rastreador,
+    marca_localizador:
+      typeof c.marca_localizador === 'string' ? c.marca_localizador : c.marca_localizador,
+    temp_min:
+      c.temp_min != null && Number.isFinite(Number(c.temp_min)) ? Number(c.temp_min) : undefined,
+    temp_max:
+      c.temp_max != null && Number.isFinite(Number(c.temp_max)) ? Number(c.temp_max) : undefined,
+    exige_ajudante: flagSim(c.exige_ajudante),
     antt: c.antt ?? null,
     tipo_oferta: asTipoOferta(c.tipo_oferta),
     nome_rota: typeof c.nome_rota === 'string' ? c.nome_rota.trim() : c.nome_rota,

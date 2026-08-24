@@ -26,6 +26,11 @@ import {
   parseTempC,
   selectMarcaTermico,
 } from '../../lib/termicoVeiculo'
+import {
+  MARCAS_LOCALIZADOR,
+  MARCAS_RASTREADOR,
+  MARCA_SEM_ESPECIFICA,
+} from '../../lib/cargaExigencias'
 import { ImportarVeiculosModal } from '../../components/veiculos/ImportarVeiculosModal'
 import { LocalizacaoVeiculoModal } from '../../components/veiculos/LocalizacaoVeiculoModal'
 import {
@@ -80,6 +85,8 @@ const emptyForm = (): Partial<Veiculo> => ({
   usa_manobrista: false,
   padiado: false,
   gerenciamento_risco: 'nenhum',
+  marca_rastreador: undefined,
+  marca_localizador: undefined,
   rastreador_dados: '',
   situacao: 'ativo',
 })
@@ -430,6 +437,10 @@ export function VeiculosPage() {
       usa_manobrista: Boolean(form.usa_manobrista),
       padiado: Boolean(form.padiado),
       gerenciamento_risco: risco,
+      marca_rastreador:
+        risco === 'rastreador' ? (form.marca_rastreador || undefined) : undefined,
+      marca_localizador:
+        risco === 'localizador' ? (form.marca_localizador || undefined) : undefined,
       rastreador_dados:
         risco === 'rastreador' || risco === 'localizador' ? dadosRastreador : undefined,
       situacao: (form.situacao as 'ativo' | 'inativo') ?? 'ativo',
@@ -851,27 +862,69 @@ export function VeiculosPage() {
             </Field>
             {(form.gerenciamento_risco === 'rastreador' ||
               form.gerenciamento_risco === 'localizador') && (
-              <Field
-                label={
-                  form.gerenciamento_risco === 'localizador'
-                    ? 'Dados do localizador'
-                    : 'Dados do rastreador'
-                }
-                required
-              >
-                <textarea
-                  rows={3}
-                  value={form.rastreador_dados ?? ''}
-                  onChange={(e) => set('rastreador_dados', e.target.value)}
-                  placeholder={
+              <>
+                <Field
+                  label={
                     form.gerenciamento_risco === 'localizador'
-                      ? 'Cole aqui serial, fornecedor, link do portal…'
-                      : 'Cole aqui IMEI, serial, fornecedor, link do portal…'
+                      ? 'Marca do localizador'
+                      : 'Marca do rastreador'
                   }
-                  style={{ width: '100%', resize: 'vertical' }}
-                />
-              </Field>
+                >
+                  <select
+                    value={
+                      form.gerenciamento_risco === 'localizador'
+                        ? form.marca_localizador || MARCA_SEM_ESPECIFICA
+                        : form.marca_rastreador || MARCA_SEM_ESPECIFICA
+                    }
+                    onChange={(e) => {
+                      if (form.gerenciamento_risco === 'localizador') {
+                        set('marca_localizador', e.target.value)
+                      } else {
+                        set('marca_rastreador', e.target.value)
+                      }
+                    }}
+                  >
+                    {(form.gerenciamento_risco === 'localizador'
+                      ? MARCAS_LOCALIZADOR
+                      : MARCAS_RASTREADOR
+                    ).map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field
+                  label={
+                    form.gerenciamento_risco === 'localizador'
+                      ? 'Dados do localizador'
+                      : 'Dados do rastreador'
+                  }
+                  required
+                >
+                  <textarea
+                    rows={3}
+                    value={form.rastreador_dados ?? ''}
+                    onChange={(e) => set('rastreador_dados', e.target.value)}
+                    placeholder={
+                      form.gerenciamento_risco === 'localizador'
+                        ? 'Cole aqui serial, fornecedor, link do portal…'
+                        : 'Cole aqui IMEI, serial, fornecedor, link do portal…'
+                    }
+                    style={{ width: '100%', resize: 'vertical' }}
+                  />
+                </Field>
+              </>
             )}
+            <Field label="Tem ajudante / manobrista">
+              <select
+                value={form.usa_manobrista ? 'sim' : 'nao'}
+                onChange={(e) => set('usa_manobrista', e.target.value === 'sim')}
+              >
+                <option value="nao">Não</option>
+                <option value="sim">Sim</option>
+              </select>
+            </Field>
           </div>
         </div>
       </section>

@@ -220,7 +220,11 @@ export interface Veiculo {
   padiado: boolean
   /** Gerenciamento de risco do veículo */
   gerenciamento_risco?: 'rastreador' | 'localizador' | 'nenhum'
-  /** Dados do equipamento (IMEI, serial, fornecedor…) quando tem rastreador */
+  /** Marca do rastreador (quando gerenciamento_risco = rastreador). */
+  marca_rastreador?: string
+  /** Marca do localizador (quando gerenciamento_risco = localizador). */
+  marca_localizador?: string
+  /** Dados do equipamento (IMEI, serial, fornecedor…) quando tem rastreador/localizador */
   rastreador_dados?: string
   situacao: 'ativo' | 'inativo'
   /** Avaliação média do veículo (0–5). */
@@ -361,6 +365,15 @@ export interface Carga {
   retorna_origem?: boolean
   /** Gerenciamento de risco: exige rastreador e/ou localizador */
   gerenciamento_risco?: 'rastreador' | 'localizador' | 'ambos' | 'nao'
+  /** Marca do rastreador exigida (ou “Sem marca específica”). */
+  marca_rastreador?: string
+  /** Marca do localizador exigida (ou “Sem marca específica”). */
+  marca_localizador?: string
+  /** Faixa de temperatura exigida da carga (°C). */
+  temp_min?: number
+  temp_max?: number
+  /** Se true, só veículos com ajudante/manobrista. */
+  exige_ajudante?: boolean
   destinatario: string
   destinatario_cnpj: string
   /** WhatsApp do destinatário (contato da entrega). */

@@ -7,6 +7,7 @@ import {
   tempoRestante,
 } from '../../lib/businessRules'
 import { asTipoOferta, isCargaRetorno, isOfertaDistribuicao, labelTipoOferta, totaisDistribuicao } from '../../lib/cargaDefaults'
+import { labelFaixaTemperatura, MARCA_SEM_ESPECIFICA } from '../../lib/cargaExigencias'
 import { limparPontosPassagemRota } from '../../lib/rotasSync'
 import type { Carga, PontoPassagemRota } from '../../types'
 import { useData } from '../../context/DataContext'
@@ -554,6 +555,35 @@ export function CargoCard({
       >
         {labelTipoOferta(tipoOferta)}
       </p>
+      {(carga.temp_min != null ||
+        carga.temp_max != null ||
+        carga.exige_ajudante ||
+        carga.gerenciamento_risco === 'rastreador' ||
+        carga.gerenciamento_risco === 'localizador' ||
+        carga.gerenciamento_risco === 'ambos') && (
+        <p className="mb-2 rounded bg-white/80 px-2 py-1 text-[10px] font-semibold text-ink">
+          {[
+            labelFaixaTemperatura(carga) ? `Temp. ${labelFaixaTemperatura(carga)}` : '',
+            carga.exige_ajudante ? 'Ajudante' : '',
+            carga.gerenciamento_risco === 'rastreador' || carga.gerenciamento_risco === 'ambos'
+              ? `Rastreador${
+                  carga.marca_rastreador && carga.marca_rastreador !== MARCA_SEM_ESPECIFICA
+                    ? ` ${carga.marca_rastreador}`
+                    : ''
+                }`
+              : '',
+            carga.gerenciamento_risco === 'localizador' || carga.gerenciamento_risco === 'ambos'
+              ? `Localizador${
+                  carga.marca_localizador && carga.marca_localizador !== MARCA_SEM_ESPECIFICA
+                    ? ` ${carga.marca_localizador}`
+                    : ''
+                }`
+              : '',
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </p>
+      )}
       <div className="mb-1.5 flex items-start gap-2.5">
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">

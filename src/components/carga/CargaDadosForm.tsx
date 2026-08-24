@@ -20,6 +20,8 @@ import type {
   PontoPassagemRota,
   Rota,
 } from "../../types";
+import { CargaExigenciasFields } from "./CargaExigenciasFields";
+import { MARCA_SEM_ESPECIFICA } from "../../lib/cargaExigencias";
 import { Button, Field, Modal, inputClass } from "../ui/Modal";
 import { CnpjInput } from "../ui/CnpjInput";
 import { SuggestInput } from "../ui/SuggestInput";
@@ -296,6 +298,15 @@ export function CargaDadosForm({
   const [riscoTxt, setRiscoTxt] = useState(() =>
     labelGerenciamentoRisco(carga.gerenciamento_risco),
   );
+  const [marcaRastreador, setMarcaRastreador] = useState(
+    carga.marca_rastreador || MARCA_SEM_ESPECIFICA,
+  );
+  const [marcaLocalizador, setMarcaLocalizador] = useState(
+    carga.marca_localizador || MARCA_SEM_ESPECIFICA,
+  );
+  const [tempMin, setTempMin] = useState<number | undefined>(carga.temp_min);
+  const [tempMax, setTempMax] = useState<number | undefined>(carga.temp_max);
+  const [exigeAjudante, setExigeAjudante] = useState(Boolean(carga.exige_ajudante));
   const [freteTabela, setFreteTabela] = useState(
     formatMoneyInput(carga.frete_tabela || 0),
   );
@@ -545,6 +556,11 @@ export function CargaDadosForm({
     setDestinoMapsStr(fmtMapsCoords(carga.destino_lat, carga.destino_lng));
     setComplementoTxt(labelComplemento(carga.complemento));
     setRiscoTxt(labelGerenciamentoRisco(carga.gerenciamento_risco));
+    setMarcaRastreador(carga.marca_rastreador || MARCA_SEM_ESPECIFICA);
+    setMarcaLocalizador(carga.marca_localizador || MARCA_SEM_ESPECIFICA);
+    setTempMin(carga.temp_min);
+    setTempMax(carga.temp_max);
+    setExigeAjudante(Boolean(carga.exige_ajudante));
     setFreteTabela(formatMoneyInput(carga.frete_tabela || 0));
     setAnttInfo(carga.antt ?? null);
     setClassificacao(classificacaoDaCargaOuRota(carga, rotas));
@@ -1091,6 +1107,13 @@ export function CargaDadosForm({
       );
       return;
     }
+    let tmin = tempMin;
+    let tmax = tempMax;
+    if (tmin != null && tmax != null && tmin > tmax) {
+      const tmp = tmin;
+      tmin = tmax;
+      tmax = tmp;
+    }
     if (Number.isNaN(freteFinal) || freteFinal <= 0) {
       falhaSalvar("Informe o valor do frete tabela.");
       return;
@@ -1198,6 +1221,17 @@ export function CargaDadosForm({
       carga_retorno: cargaRetorno,
       retorna_origem: retornaOrigem,
       gerenciamento_risco: riscoFinal,
+      marca_rastreador:
+        riscoFinal === "rastreador" || riscoFinal === "ambos"
+          ? marcaRastreador
+          : undefined,
+      marca_localizador:
+        riscoFinal === "localizador" || riscoFinal === "ambos"
+          ? marcaLocalizador
+          : undefined,
+      temp_min: tmin,
+      temp_max: tmax,
+      exige_ajudante: exigeAjudante,
       frete_tabela: freteFinal,
       antt: anttInfo,
       pedido: pedido.trim(),
@@ -1349,6 +1383,32 @@ export function CargaDadosForm({
         <Row
           label="Gerenciamento de risco"
           value={labelGerenciamentoRisco(carga.gerenciamento_risco) || "—"}
+        />
+        {(carga.gerenciamento_risco === "rastreador" ||
+          carga.gerenciamento_risco === "ambos") && (
+          <Row
+            label="Marca do rastreador"
+            value={carga.marca_rastreador || MARCA_SEM_ESPECIFICA}
+          />
+        )}
+        {(carga.gerenciamento_risco === "localizador" ||
+          carga.gerenciamento_risco === "ambos") && (
+          <Row
+            label="Marca do localizador"
+            value={carga.marca_localizador || MARCA_SEM_ESPECIFICA}
+          />
+        )}
+        <Row
+          label="Temperatura"
+          value={
+            carga.temp_min != null || carga.temp_max != null
+              ? `${carga.temp_min ?? "—"} a ${carga.temp_max ?? "—"} °C`
+              : "—"
+          }
+        />
+        <Row
+          label="Exige ajudante"
+          value={carga.exige_ajudante ? "Sim" : "Não"}
         />
         <Row label="Tipo" value={carga.tipo_carga || "—"} />
         <Row label="Veículo" value={carga.veiculo || "—"} />
@@ -1816,6 +1876,27 @@ export function CargaDadosForm({
             />
           </Field>
         </div>
+        <CargaExigenciasFields
+          risco={parseGerenciamentoRisco(riscoTxt)}
+          marcaRastreador={marcaRastreador}
+          marcaLocalizador={marcaLocalizador}
+          tempMin={tempMin}
+          tempMax={tempMax}
+          exigeAjudante={exigeAjudante}
+          onChange={(patch) => {
+            if ("marca_rastreador" in patch) {
+              setMarcaRastreador(patch.marca_rastreador || MARCA_SEM_ESPECIFICA)
+            }
+            if ("marca_localizador" in patch) {
+              setMarcaLocalizador(patch.marca_localizador || MARCA_SEM_ESPECIFICA)
+            }
+            if ("temp_min" in patch) setTempMin(patch.temp_min)
+            if ("temp_max" in patch) setTempMax(patch.temp_max)
+            if ("exige_ajudante" in patch) {
+              setExigeAjudante(Boolean(patch.exige_ajudante))
+            }
+          }}
+        />
       </section>
 
       {/* 4. Pedido e carga */}

@@ -184,6 +184,12 @@ function mergeCargas(local: Carga[], remote: Carga[]): Carga[] {
       clientes_distribuicao: Array.isArray(item.clientes_distribuicao)
         ? item.clientes_distribuicao
         : prev.clientes_distribuicao,
+      marca_rastreador: item.marca_rastreador ?? prev.marca_rastreador,
+      marca_localizador: item.marca_localizador ?? prev.marca_localizador,
+      temp_min: item.temp_min ?? prev.temp_min,
+      temp_max: item.temp_max ?? prev.temp_max,
+      exige_ajudante:
+        item.exige_ajudante != null ? Boolean(item.exige_ajudante) : prev.exige_ajudante,
     })
   }
   return Array.from(map.values())

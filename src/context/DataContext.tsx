@@ -50,6 +50,7 @@ import {
   normalizeCarga,
   resetNegociacaoFields,
 } from '../lib/cargaDefaults'
+import { filtrarTidsPorExigencias, transportadorAtendeCarga } from '../lib/cargaExigencias'
 import { normalizeMotorista, normalizeVeiculo } from '../lib/motoristaDefaults'
 import { haEmpateDeValor, ordenarLancesParaVitoria } from '../lib/desempate'
 import { enviarControleFretes } from '../lib/integracaoFretes'
@@ -506,6 +507,7 @@ export function montarNovaCarga(
     tipo_oferta: 'longo_percurso',
     nome_rota: '',
     clientes_distribuicao: [],
+    exige_ajudante: false,
     created_at: new Date().toISOString(),
     ...partial,
     id,
@@ -2240,12 +2242,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
         },
         actor,
       )
-      const tidsPush = isDireta
+      const tidsPushRaw = isDireta
         ? diretoIds.filter((tid) => {
             const t = prev.transportadores.find((x) => sameTransportadorId(x.id, tid))
             return t && t.situacao !== 'inativo'
           })
         : tidsAtivosDosGrupos(prev.grupos, gruposNotif, prev.transportadores)
+      const tidsPush = carga
+        ? filtrarTidsPorExigencias(carga, prev.veiculos, tidsPushRaw)
+        : tidsPushRaw
       const msgPush = textoPushNovaCarga({
         numero: carga?.numero,
         origem: carga?.origem,
@@ -2301,8 +2306,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         pushAviso:
           tidsPush.length === 0
             ? isDireta
-              ? 'Nenhuma transportadora ativa selecionada — push não enviado.'
-              : 'Nenhum transportador ativo nos grupos — push não enviado.'
+              ? 'Nenhuma transportadora ativa selecionada atende as exigências — push não enviado.'
+              : tidsPushRaw.length > 0
+                ? 'Nenhuma transportadora dos grupos atende temperatura, ajudante e rastreador/localizador — a oferta não aparece para elas.'
+                : 'Nenhum transportador ativo nos grupos — push não enviado.'
             : undefined,
       }
     },
@@ -2317,11 +2324,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
       `Notificação manual de todos os grupos — ${carga?.numero ?? ''}`,
       { carga_id: cargaId },
     )
-    const tids = tidsAtivosDosGrupos(
+    const tidsRaw = tidsAtivosDosGrupos(
       prev.grupos,
       carga?.grupo_ids ?? [],
       prev.transportadores,
     )
+    const tids = carga
+      ? filtrarTidsPorExigencias(carga, prev.veiculos, tidsRaw)
+      : tidsRaw
     let notificacoes = prev.notificacoes
     const msg = textoPushNovaCarga({
       numero: carga?.numero,
@@ -5286,9 +5296,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
         // Negociação direta: só as transportadoras escolhidas na publicação
         if (c.modo_publicacao === 'negociacao_direta') {
-          return (c.transportador_direto_ids ?? []).some((id) =>
-            sameTransportadorId(id, transportadorId),
-          )
+          if (
+            !(c.transportador_direto_ids ?? []).some((id) =>
+              sameTransportadorId(id, transportadorId),
+            )
+          ) {
+            return false
+          }
+          return transportadorAtendeCarga(c, state.veiculos, transportadorId)
         }
 
         // Escalonar: só quem já foi notificado; sem escalonar, grupos_notificados = todos
@@ -5297,8 +5312,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
             ? c.grupos_notificados!
             : (c.grupo_ids ?? [])
 
-        // Sem grupo definido: todos os transportadores ativos veem
-        if (candidatos.length === 0) return true
+        // Sem grupo definido: todos os transportadores ativos veem (se atenderem exigências)
+        if (candidatos.length === 0) {
+          return transportadorAtendeCarga(c, state.veiculos, transportadorId)
+        }
 
         const emGrupo = state.grupos.some((g) => {
           if (g.situacao === 'inativo') return false
@@ -5307,16 +5324,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
             sameTransportadorId(id, transportadorId),
           )
         })
-        if (emGrupo) return true
+        if (emGrupo) {
+          return transportadorAtendeCarga(c, state.veiculos, transportadorId)
+        }
 
         // Fallback: IDs de grupo órfãos (migração) — libera para ativos
         const grupoIdsConhecidos = new Set(state.grupos.map((g) => g.id))
         const gruposOrfaos =
           candidatos.length > 0 && candidatos.every((id) => !grupoIdsConhecidos.has(id))
-        return gruposOrfaos
+        if (!gruposOrfaos) return false
+        return transportadorAtendeCarga(c, state.veiculos, transportadorId)
       })
     },
-    [state.cargas, state.grupos, state.transportadores, state.lances],
+    [state.cargas, state.grupos, state.transportadores, state.lances, state.veiculos],
   )
 
   const historicoDoTransportador = useCallback(
