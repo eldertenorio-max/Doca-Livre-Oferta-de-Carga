@@ -17,6 +17,14 @@ import { buscarDadosPorCnpj, montarEnderecoCnpj } from '../../lib/cnpjLookup'
 import { TIPOS_CARGA } from '../../lib/tiposCarga'
 import type { Carga, PontoPassagemRota, SeqDistribuicao } from '../../types'
 import { Button, Field, inputClass } from '../ui/Modal'
+import { CargaExigenciasFields } from './CargaExigenciasFields'
+import {
+  MARCA_SEM_ESPECIFICA,
+  MODELO_SEM_ESPECIFICO,
+  MODELOS_LOCALIZADOR,
+  MODELOS_RASTREADOR,
+  labelModeloRisco,
+} from '../../lib/cargaExigencias'
 import { CnpjInput } from '../ui/CnpjInput'
 import { SuggestInput } from '../ui/SuggestInput'
 import {
@@ -110,6 +118,21 @@ export function CargaDistribuicaoDados({
   )
   const [volumes, setVolumes] = useState(String(carga.volumes || 0))
   const [tipoCarga, setTipoCarga] = useState(carga.tipo_carga)
+  const [risco, setRisco] = useState<NonNullable<Carga['gerenciamento_risco']>>(
+    carga.gerenciamento_risco ?? 'nao',
+  )
+  const [marcaRastreador, setMarcaRastreador] = useState(
+    carga.marca_rastreador || MARCA_SEM_ESPECIFICA,
+  )
+  const [marcaLocalizador, setMarcaLocalizador] = useState(
+    carga.marca_localizador || MARCA_SEM_ESPECIFICA,
+  )
+  const [modeloRastreador, setModeloRastreador] = useState(
+    carga.modelo_rastreador || MODELO_SEM_ESPECIFICO,
+  )
+  const [modeloLocalizador, setModeloLocalizador] = useState(
+    carga.modelo_localizador || MODELO_SEM_ESPECIFICO,
+  )
   const [origem, setOrigem] = useState(carga.origem)
   const [origemLat, setOrigemLat] = useState<number | null>(carga.origem_lat ?? null)
   const [origemLng, setOrigemLng] = useState<number | null>(carga.origem_lng ?? null)
@@ -155,6 +178,11 @@ export function CargaDistribuicaoDados({
     setValorMerc(formatMoneyInput(carga.valor_mercadorias || 0))
     setVolumes(String(carga.volumes || 0))
     setTipoCarga(carga.tipo_carga)
+    setRisco(carga.gerenciamento_risco ?? 'nao')
+    setMarcaRastreador(carga.marca_rastreador || MARCA_SEM_ESPECIFICA)
+    setMarcaLocalizador(carga.marca_localizador || MARCA_SEM_ESPECIFICA)
+    setModeloRastreador(carga.modelo_rastreador || MODELO_SEM_ESPECIFICO)
+    setModeloLocalizador(carga.modelo_localizador || MODELO_SEM_ESPECIFICO)
     setOrigem(carga.origem)
     setOrigemLat(carga.origem_lat ?? null)
     setOrigemLng(carga.origem_lng ?? null)
@@ -684,6 +712,15 @@ export function CargaDistribuicaoDados({
       observacao: observacao.trim() || undefined,
       numero: numeroCarga.trim(),
       antt: null,
+      gerenciamento_risco: risco,
+      marca_rastreador:
+        risco === 'rastreador' || risco === 'ambos' ? marcaRastreador : undefined,
+      modelo_rastreador:
+        risco === 'rastreador' || risco === 'ambos' ? modeloRastreador : undefined,
+      marca_localizador:
+        risco === 'localizador' || risco === 'ambos' ? marcaLocalizador : undefined,
+      modelo_localizador:
+        risco === 'localizador' || risco === 'ambos' ? modeloLocalizador : undefined,
       created_at: carga.created_at,
     }
 
@@ -725,6 +762,40 @@ export function CargaDistribuicaoDados({
         <Row label="Peso" value={formatMoneyInput(carga.peso)} />
         <Row label="Volumes" value={String(carga.volumes)} />
         <Row label="Valor da carga" value={formatCurrency(carga.valor_mercadorias)} />
+        <Row
+          label="Gerenc. de risco"
+          value={
+            carga.gerenciamento_risco === 'rastreador'
+              ? 'Rastreador'
+              : carga.gerenciamento_risco === 'localizador'
+                ? 'Localizador'
+                : carga.gerenciamento_risco === 'ambos'
+                  ? 'Ambos'
+                  : 'Não exige'
+          }
+        />
+        {(carga.gerenciamento_risco === 'rastreador' ||
+          carga.gerenciamento_risco === 'ambos') && (
+          <Row
+            label="Modelo rastreador"
+            value={labelModeloRisco(
+              carga.marca_rastreador,
+              carga.modelo_rastreador,
+              MODELOS_RASTREADOR,
+            )}
+          />
+        )}
+        {(carga.gerenciamento_risco === 'localizador' ||
+          carga.gerenciamento_risco === 'ambos') && (
+          <Row
+            label="Modelo localizador"
+            value={labelModeloRisco(
+              carga.marca_localizador,
+              carga.modelo_localizador,
+              MODELOS_LOCALIZADOR,
+            )}
+          />
+        )}
         <Row label="Origem" value={carga.origem || '—'} />
         <Row
           label="Retorna para origem"
@@ -840,6 +911,52 @@ export function CargaDistribuicaoDados({
             inputMode="numeric"
           />
         </Field>
+      </section>
+
+      <section className="space-y-1.5 border-t border-ink/15 pt-2">
+        <h3 className="text-[13px] font-extrabold uppercase tracking-wide text-black">
+          Gerenciamento de risco
+        </h3>
+        <p className="text-[11px] font-semibold text-black">
+          Depois de rastreador ou localizador, escolha 1 modelo. A oferta só aparece
+          para quem tiver esse equipamento na frota.
+        </p>
+        <Field label="Exige">
+          <select
+            className={inputClass}
+            value={risco}
+            onChange={(e) =>
+              setRisco(e.target.value as NonNullable<Carga['gerenciamento_risco']>)
+            }
+          >
+            <option value="nao">Não exige</option>
+            <option value="rastreador">Rastreador</option>
+            <option value="localizador">Localizador</option>
+            <option value="ambos">Ambos</option>
+          </select>
+        </Field>
+        <CargaExigenciasFields
+          risco={risco}
+          marcaRastreador={marcaRastreador}
+          marcaLocalizador={marcaLocalizador}
+          modeloRastreador={modeloRastreador}
+          modeloLocalizador={modeloLocalizador}
+          somenteRisco
+          onChange={(patch) => {
+            if ('marca_rastreador' in patch) {
+              setMarcaRastreador(patch.marca_rastreador || MARCA_SEM_ESPECIFICA)
+            }
+            if ('marca_localizador' in patch) {
+              setMarcaLocalizador(patch.marca_localizador || MARCA_SEM_ESPECIFICA)
+            }
+            if ('modelo_rastreador' in patch) {
+              setModeloRastreador(patch.modelo_rastreador || MODELO_SEM_ESPECIFICO)
+            }
+            if ('modelo_localizador' in patch) {
+              setModeloLocalizador(patch.modelo_localizador || MODELO_SEM_ESPECIFICO)
+            }
+          }}
+        />
       </section>
 
       <section className="space-y-1.5 border-t border-ink/15 pt-2">

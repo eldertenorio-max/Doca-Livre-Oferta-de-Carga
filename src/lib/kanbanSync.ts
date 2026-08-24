@@ -187,7 +187,9 @@ function mergeCargas(local: Carga[], remote: Carga[]): Carga[] {
         ? item.clientes_distribuicao
         : prev.clientes_distribuicao,
       marca_rastreador: item.marca_rastreador ?? prev.marca_rastreador,
+      modelo_rastreador: item.modelo_rastreador ?? prev.modelo_rastreador,
       marca_localizador: item.marca_localizador ?? prev.marca_localizador,
+      modelo_localizador: item.modelo_localizador ?? prev.modelo_localizador,
       temp_min: item.temp_min ?? prev.temp_min,
       temp_max: item.temp_max ?? prev.temp_max,
       exige_ajudante:

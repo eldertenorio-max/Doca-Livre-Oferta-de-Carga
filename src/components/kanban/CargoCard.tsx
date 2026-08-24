@@ -7,7 +7,14 @@ import {
   tempoRestante,
 } from '../../lib/businessRules'
 import { asTipoOferta, isCargaRetorno, isOfertaDistribuicao, labelTipoOferta, totaisDistribuicao } from '../../lib/cargaDefaults'
-import { labelFaixaTemperatura, MARCA_SEM_ESPECIFICA } from '../../lib/cargaExigencias'
+import {
+  labelFaixaTemperatura,
+  MARCA_SEM_ESPECIFICA,
+  MODELOS_LOCALIZADOR,
+  MODELOS_RASTREADOR,
+  labelModeloRisco,
+  modeloRiscoQualquer,
+} from '../../lib/cargaExigencias'
 import { limparPontosPassagemRota } from '../../lib/rotasSync'
 import type { Carga, PontoPassagemRota } from '../../types'
 import { useData } from '../../context/DataContext'
@@ -567,16 +574,20 @@ export function CargoCard({
             carga.exige_ajudante ? 'Ajudante' : '',
             carga.gerenciamento_risco === 'rastreador' || carga.gerenciamento_risco === 'ambos'
               ? `Rastreador${
-                  carga.marca_rastreador && carga.marca_rastreador !== MARCA_SEM_ESPECIFICA
-                    ? ` ${carga.marca_rastreador}`
-                    : ''
+                  !modeloRiscoQualquer(carga.modelo_rastreador)
+                    ? ` ${labelModeloRisco(carga.marca_rastreador, carga.modelo_rastreador, MODELOS_RASTREADOR)}`
+                    : carga.marca_rastreador && carga.marca_rastreador !== MARCA_SEM_ESPECIFICA
+                      ? ` ${carga.marca_rastreador}`
+                      : ''
                 }`
               : '',
             carga.gerenciamento_risco === 'localizador' || carga.gerenciamento_risco === 'ambos'
               ? `Localizador${
-                  carga.marca_localizador && carga.marca_localizador !== MARCA_SEM_ESPECIFICA
-                    ? ` ${carga.marca_localizador}`
-                    : ''
+                  !modeloRiscoQualquer(carga.modelo_localizador)
+                    ? ` ${labelModeloRisco(carga.marca_localizador, carga.modelo_localizador, MODELOS_LOCALIZADOR)}`
+                    : carga.marca_localizador && carga.marca_localizador !== MARCA_SEM_ESPECIFICA
+                      ? ` ${carga.marca_localizador}`
+                      : ''
                 }`
               : '',
           ]

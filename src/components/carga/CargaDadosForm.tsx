@@ -21,7 +21,7 @@ import type {
   Rota,
 } from "../../types";
 import { CargaExigenciasFields } from "./CargaExigenciasFields";
-import { MARCA_SEM_ESPECIFICA } from "../../lib/cargaExigencias";
+import { MARCA_SEM_ESPECIFICA, MODELO_SEM_ESPECIFICO } from "../../lib/cargaExigencias";
 import { Button, Field, Modal, inputClass } from "../ui/Modal";
 import { CnpjInput } from "../ui/CnpjInput";
 import { SuggestInput } from "../ui/SuggestInput";
@@ -312,6 +312,12 @@ function CargaDadosFormLongoPercurso({
   const [marcaLocalizador, setMarcaLocalizador] = useState(
     carga.marca_localizador || MARCA_SEM_ESPECIFICA,
   );
+  const [modeloRastreador, setModeloRastreador] = useState(
+    carga.modelo_rastreador || MODELO_SEM_ESPECIFICO,
+  );
+  const [modeloLocalizador, setModeloLocalizador] = useState(
+    carga.modelo_localizador || MODELO_SEM_ESPECIFICO,
+  );
   const [tempMin, setTempMin] = useState<number | undefined>(carga.temp_min);
   const [tempMax, setTempMax] = useState<number | undefined>(carga.temp_max);
   const [exigeAjudante, setExigeAjudante] = useState(Boolean(carga.exige_ajudante));
@@ -566,6 +572,8 @@ function CargaDadosFormLongoPercurso({
     setRiscoTxt(labelGerenciamentoRisco(carga.gerenciamento_risco));
     setMarcaRastreador(carga.marca_rastreador || MARCA_SEM_ESPECIFICA);
     setMarcaLocalizador(carga.marca_localizador || MARCA_SEM_ESPECIFICA);
+    setModeloRastreador(carga.modelo_rastreador || MODELO_SEM_ESPECIFICO);
+    setModeloLocalizador(carga.modelo_localizador || MODELO_SEM_ESPECIFICO);
     setTempMin(carga.temp_min);
     setTempMax(carga.temp_max);
     setExigeAjudante(Boolean(carga.exige_ajudante));
@@ -1233,9 +1241,17 @@ function CargaDadosFormLongoPercurso({
         riscoFinal === "rastreador" || riscoFinal === "ambos"
           ? marcaRastreador
           : undefined,
+      modelo_rastreador:
+        riscoFinal === "rastreador" || riscoFinal === "ambos"
+          ? modeloRastreador
+          : undefined,
       marca_localizador:
         riscoFinal === "localizador" || riscoFinal === "ambos"
           ? marcaLocalizador
+          : undefined,
+      modelo_localizador:
+        riscoFinal === "localizador" || riscoFinal === "ambos"
+          ? modeloLocalizador
           : undefined,
       temp_min: tmin,
       temp_max: tmax,
@@ -1888,6 +1904,8 @@ function CargaDadosFormLongoPercurso({
           risco={parseGerenciamentoRisco(riscoTxt)}
           marcaRastreador={marcaRastreador}
           marcaLocalizador={marcaLocalizador}
+          modeloRastreador={modeloRastreador}
+          modeloLocalizador={modeloLocalizador}
           tempMin={tempMin}
           tempMax={tempMax}
           exigeAjudante={exigeAjudante}
@@ -1897,6 +1915,12 @@ function CargaDadosFormLongoPercurso({
             }
             if ("marca_localizador" in patch) {
               setMarcaLocalizador(patch.marca_localizador || MARCA_SEM_ESPECIFICA)
+            }
+            if ("modelo_rastreador" in patch) {
+              setModeloRastreador(patch.modelo_rastreador || MODELO_SEM_ESPECIFICO)
+            }
+            if ("modelo_localizador" in patch) {
+              setModeloLocalizador(patch.modelo_localizador || MODELO_SEM_ESPECIFICO)
             }
             if ("temp_min" in patch) setTempMin(patch.temp_min)
             if ("temp_max" in patch) setTempMax(patch.temp_max)

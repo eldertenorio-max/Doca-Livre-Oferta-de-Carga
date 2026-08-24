@@ -38,6 +38,10 @@ import { isRascunhoNaoPublicado } from '../../lib/kanbanColumns'
 import { asTipoOferta, labelTipoOferta } from '../../lib/cargaDefaults'
 import {
   MARCA_SEM_ESPECIFICA,
+  MODELO_SEM_ESPECIFICO,
+  labelModeloRisco,
+  MODELOS_RASTREADOR,
+  MODELOS_LOCALIZADOR,
   transportadorAtendeCarga,
 } from '../../lib/cargaExigencias'
 import { CargaExigenciasFields } from './CargaExigenciasFields'
@@ -183,6 +187,8 @@ export function PublishPanel({
   const [riscoPub, setRiscoPub] = useState<NonNullable<Carga['gerenciamento_risco']>>('nao')
   const [marcaRastreadorPub, setMarcaRastreadorPub] = useState(MARCA_SEM_ESPECIFICA)
   const [marcaLocalizadorPub, setMarcaLocalizadorPub] = useState(MARCA_SEM_ESPECIFICA)
+  const [modeloRastreadorPub, setModeloRastreadorPub] = useState(MODELO_SEM_ESPECIFICO)
+  const [modeloLocalizadorPub, setModeloLocalizadorPub] = useState(MODELO_SEM_ESPECIFICO)
   const [tempMinPub, setTempMinPub] = useState<number | undefined>()
   const [tempMaxPub, setTempMaxPub] = useState<number | undefined>()
   const [exigeAjudantePub, setExigeAjudantePub] = useState(false)
@@ -240,6 +246,8 @@ export function PublishPanel({
     setRiscoPub(carga.gerenciamento_risco ?? 'nao')
     setMarcaRastreadorPub(carga.marca_rastreador || MARCA_SEM_ESPECIFICA)
     setMarcaLocalizadorPub(carga.marca_localizador || MARCA_SEM_ESPECIFICA)
+    setModeloRastreadorPub(carga.modelo_rastreador || MODELO_SEM_ESPECIFICO)
+    setModeloLocalizadorPub(carga.modelo_localizador || MODELO_SEM_ESPECIFICO)
     setTempMinPub(carga.temp_min)
     setTempMaxPub(carga.temp_max)
     setExigeAjudantePub(Boolean(carga.exige_ajudante))
@@ -382,6 +390,8 @@ export function PublishPanel({
           gerenciamento_risco: riscoPub,
           marca_rastreador: marcaRastreadorPub,
           marca_localizador: marcaLocalizadorPub,
+          modelo_rastreador: modeloRastreadorPub,
+          modelo_localizador: modeloLocalizadorPub,
           temp_min: tempMinPub,
           temp_max: tempMaxPub,
           exige_ajudante: exigeAjudantePub,
@@ -402,6 +412,8 @@ export function PublishPanel({
     riscoPub,
     marcaRastreadorPub,
     marcaLocalizadorPub,
+    modeloRastreadorPub,
+    modeloLocalizadorPub,
     tempMinPub,
     tempMaxPub,
     exigeAjudantePub,
@@ -602,8 +614,12 @@ export function PublishPanel({
       gerenciamento_risco: riscoPub,
       marca_rastreador:
         riscoPub === 'rastreador' || riscoPub === 'ambos' ? marcaRastreadorPub : undefined,
+      modelo_rastreador:
+        riscoPub === 'rastreador' || riscoPub === 'ambos' ? modeloRastreadorPub : undefined,
       marca_localizador:
         riscoPub === 'localizador' || riscoPub === 'ambos' ? marcaLocalizadorPub : undefined,
+      modelo_localizador:
+        riscoPub === 'localizador' || riscoPub === 'ambos' ? modeloLocalizadorPub : undefined,
       temp_min: tempMinPub,
       temp_max: tempMaxPub,
       exige_ajudante: exigeAjudantePub,
@@ -1346,15 +1362,23 @@ export function PublishPanel({
             {(carga.gerenciamento_risco === 'rastreador' ||
               carga.gerenciamento_risco === 'ambos') && (
               <Detail
-                label="Marca rastreador"
-                value={carga.marca_rastreador || MARCA_SEM_ESPECIFICA}
+                label="Modelo rastreador"
+                value={labelModeloRisco(
+                  carga.marca_rastreador,
+                  carga.modelo_rastreador,
+                  MODELOS_RASTREADOR,
+                )}
               />
             )}
             {(carga.gerenciamento_risco === 'localizador' ||
               carga.gerenciamento_risco === 'ambos') && (
               <Detail
-                label="Marca localizador"
-                value={carga.marca_localizador || MARCA_SEM_ESPECIFICA}
+                label="Modelo localizador"
+                value={labelModeloRisco(
+                  carga.marca_localizador,
+                  carga.modelo_localizador,
+                  MODELOS_LOCALIZADOR,
+                )}
               />
             )}
             <Detail
@@ -1772,8 +1796,8 @@ export function PublishPanel({
                   Exigências da oferta
                 </p>
                 <p className="text-[11px] text-ink-muted">
-                  Só vê a carga quem tiver veículo atendendo temperatura, ajudante e
-                  rastreador/localizador.
+                  Só vê a carga quem tiver veículo com o rastreador/localizador
+                  (modelo) e as demais exigências.
                 </p>
                 <Field label="Gerenciamento de risco">
                   <select
@@ -1794,6 +1818,8 @@ export function PublishPanel({
                   risco={riscoPub}
                   marcaRastreador={marcaRastreadorPub}
                   marcaLocalizador={marcaLocalizadorPub}
+                  modeloRastreador={modeloRastreadorPub}
+                  modeloLocalizador={modeloLocalizadorPub}
                   tempMin={tempMinPub}
                   tempMax={tempMaxPub}
                   exigeAjudante={exigeAjudantePub}
@@ -1804,6 +1830,12 @@ export function PublishPanel({
                     }
                     if ('marca_localizador' in patch) {
                       setMarcaLocalizadorPub(patch.marca_localizador || MARCA_SEM_ESPECIFICA)
+                    }
+                    if ('modelo_rastreador' in patch) {
+                      setModeloRastreadorPub(patch.modelo_rastreador || MODELO_SEM_ESPECIFICO)
+                    }
+                    if ('modelo_localizador' in patch) {
+                      setModeloLocalizadorPub(patch.modelo_localizador || MODELO_SEM_ESPECIFICO)
                     }
                     if ('temp_min' in patch) setTempMinPub(patch.temp_min)
                     if ('temp_max' in patch) setTempMaxPub(patch.temp_max)

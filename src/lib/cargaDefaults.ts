@@ -166,8 +166,11 @@ export function normalizeCarga(c: Carga): Carga {
         ? c.gerenciamento_risco
         : undefined,
     marca_rastreador: typeof c.marca_rastreador === 'string' ? c.marca_rastreador : c.marca_rastreador,
+    modelo_rastreador: typeof c.modelo_rastreador === 'string' ? c.modelo_rastreador : undefined,
     marca_localizador:
       typeof c.marca_localizador === 'string' ? c.marca_localizador : c.marca_localizador,
+    modelo_localizador:
+      typeof c.modelo_localizador === 'string' ? c.modelo_localizador : undefined,
     temp_min:
       c.temp_min != null && Number.isFinite(Number(c.temp_min)) ? Number(c.temp_min) : undefined,
     temp_max:

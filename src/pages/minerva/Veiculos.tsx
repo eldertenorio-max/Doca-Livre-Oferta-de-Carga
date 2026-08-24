@@ -29,6 +29,9 @@ import {
 import {
   MARCAS_LOCALIZADOR,
   MARCAS_RASTREADOR,
+  MODELO_SEM_ESPECIFICO,
+  MODELOS_LOCALIZADOR,
+  MODELOS_RASTREADOR,
 } from '../../lib/cargaExigencias'
 import { ImportarVeiculosModal } from '../../components/veiculos/ImportarVeiculosModal'
 import { LocalizacaoVeiculoModal } from '../../components/veiculos/LocalizacaoVeiculoModal'
@@ -919,6 +922,11 @@ export function VeiculosPage() {
                 </Field>
                 <Field label="Modelo" required>
                   <input
+                    list={
+                      form.gerenciamento_risco === 'localizador'
+                        ? 'modelos-localizador'
+                        : 'modelos-rastreador'
+                    }
                     value={
                       form.gerenciamento_risco === 'localizador'
                         ? form.modelo_localizador ?? ''
@@ -931,8 +939,26 @@ export function VeiculosPage() {
                         set('modelo_rastreador', e.target.value)
                       }
                     }}
-                    placeholder="Ex.: Pro 400, Smart, GT…"
+                    placeholder="Escolha um modelo conhecido ou digite"
                   />
+                  <datalist id="modelos-rastreador">
+                    {MODELOS_RASTREADOR.filter((m) => m.modelo !== MODELO_SEM_ESPECIFICO).map(
+                      (m) => (
+                        <option key={m.label} value={m.modelo}>
+                          {m.label}
+                        </option>
+                      ),
+                    )}
+                  </datalist>
+                  <datalist id="modelos-localizador">
+                    {MODELOS_LOCALIZADOR.filter((m) => m.modelo !== MODELO_SEM_ESPECIFICO).map(
+                      (m) => (
+                        <option key={m.label} value={m.modelo}>
+                          {m.label}
+                        </option>
+                      ),
+                    )}
+                  </datalist>
                 </Field>
               </>
             )}

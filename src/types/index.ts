@@ -379,8 +379,12 @@ export interface Carga {
   gerenciamento_risco?: 'rastreador' | 'localizador' | 'ambos' | 'nao'
   /** Marca do rastreador exigida (ou “Sem marca específica”). */
   marca_rastreador?: string
+  /** Modelo do rastreador exigido (catálogo de mercado). */
+  modelo_rastreador?: string
   /** Marca do localizador exigida (ou “Sem marca específica”). */
   marca_localizador?: string
+  /** Modelo do localizador exigido (catálogo de mercado). */
+  modelo_localizador?: string
   /** Faixa de temperatura exigida da carga (°C). */
   temp_min?: number
   temp_max?: number
