@@ -19,5 +19,10 @@ export function normalizeVeiculo(v: Veiculo): Veiculo {
     transportador_id: v.transportador_id || null,
     frete_minimo: frete,
     disponivel_mapa: v.disponivel_mapa !== false,
+    marca_termico: v.marca_termico?.trim() || undefined,
+    temp_min:
+      v.temp_min != null && Number.isFinite(Number(v.temp_min)) ? Number(v.temp_min) : undefined,
+    temp_max:
+      v.temp_max != null && Number.isFinite(Number(v.temp_max)) ? Number(v.temp_max) : undefined,
   }
 }

@@ -25,6 +25,9 @@ export const VEICULO_PLANILHA_HEADERS = [
   'tipo_carroceria',
   'qtd_pallets',
   'aclimatacao',
+  'marca_termico',
+  'temp_min',
+  'temp_max',
   'capacidade_kg',
   'cubagem_m3',
   'eixos',
@@ -78,6 +81,9 @@ const EXEMPLO_ROW: string[] = [
   'Baú',
   '28',
   'Seco',
+  '',
+  '',
+  '',
   '23000',
   '90',
   '3',
@@ -221,6 +227,12 @@ const ALIASES: Record<string, VeiculoPlanilhaHeader> = {
   qtd_pallets: 'qtd_pallets',
   pallets: 'qtd_pallets',
   aclimatacao: 'aclimatacao',
+  marca_termico: 'marca_termico',
+  termico: 'marca_termico',
+  temp_min: 'temp_min',
+  temperatura_min: 'temp_min',
+  temp_max: 'temp_max',
+  temperatura_max: 'temp_max',
   capacidade_kg: 'capacidade_kg',
   capacidade: 'capacidade_kg',
   cubagem_m3: 'cubagem_m3',
@@ -304,6 +316,8 @@ export function parsePlanilhaVeiculosRows(rows: string[][]): {
     const capacidade_kg = parseNum(cell(raw, 'capacidade_kg'))
     const cubagem_m3 = parseNum(cell(raw, 'cubagem_m3'))
     const eixos = parseNum(cell(raw, 'eixos'))
+    const temp_min = parseNum(cell(raw, 'temp_min'))
+    const temp_max = parseNum(cell(raw, 'temp_max'))
 
     const veiculo: LinhaVeiculoPlanilha['veiculo'] =
       erros.length === 0
@@ -324,6 +338,9 @@ export function parsePlanilhaVeiculosRows(rows: string[][]): {
             tipo_carroceria: cell(raw, 'tipo_carroceria') || undefined,
             qtd_pallets: qtd_pallets != null ? Math.min(40, Math.max(0, Math.round(qtd_pallets))) : undefined,
             aclimatacao: cell(raw, 'aclimatacao') || undefined,
+            marca_termico: cell(raw, 'marca_termico') || undefined,
+            temp_min: temp_min != null ? temp_min : undefined,
+            temp_max: temp_max != null ? temp_max : undefined,
             capacidade_kg: capacidade_kg != null ? Math.round(capacidade_kg) : undefined,
             cubagem_m3: cubagem_m3 != null ? cubagem_m3 : undefined,
             eixos: eixos != null ? Math.min(20, Math.max(0, Math.round(eixos))) : undefined,

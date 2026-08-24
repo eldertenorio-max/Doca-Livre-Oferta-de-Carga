@@ -59,6 +59,9 @@ export function mapVeiculoRow(row: Record<string, unknown>): Veiculo {
     tipo_carroceria: (row.tipo_carroceria as string) || undefined,
     qtd_pallets: row.qtd_pallets != null ? Number(row.qtd_pallets) : undefined,
     aclimatacao: (row.aclimatacao as string) || undefined,
+    marca_termico: (row.marca_termico as string) || undefined,
+    temp_min: row.temp_min != null && Number.isFinite(Number(row.temp_min)) ? Number(row.temp_min) : undefined,
+    temp_max: row.temp_max != null && Number.isFinite(Number(row.temp_max)) ? Number(row.temp_max) : undefined,
     capacidade_kg: row.capacidade_kg != null ? Number(row.capacidade_kg) : undefined,
     comprimento_m: row.comprimento_m != null ? Number(row.comprimento_m) : undefined,
     largura_m: row.largura_m != null ? Number(row.largura_m) : undefined,
@@ -161,9 +164,20 @@ export function mergeVeiculosLocalRemote(local: Veiculo[], remote: Veiculo[]): V
         origem_lat: prev.origem_lat,
         origem_lng: prev.origem_lng,
         raio_km: prev.raio_km ?? r.raio_km,
+        marca_termico: r.marca_termico ?? prev.marca_termico,
+        temp_min: r.temp_min ?? prev.temp_min,
+        temp_max: r.temp_max ?? prev.temp_max,
       })
     } else {
-      byId.set(r.id, { ...prev, ...r, id: r.id, transportador_id: tid })
+      byId.set(r.id, {
+        ...prev,
+        ...r,
+        id: r.id,
+        transportador_id: tid,
+        marca_termico: r.marca_termico ?? prev.marca_termico,
+        temp_min: r.temp_min ?? prev.temp_min,
+        temp_max: r.temp_max ?? prev.temp_max,
+      })
     }
   }
 
@@ -199,6 +213,9 @@ export async function upsertVeiculoRemote(
     tipo_carroceria: limpo.tipo_carroceria ?? null,
     qtd_pallets: limpo.qtd_pallets ?? null,
     aclimatacao: limpo.aclimatacao ?? null,
+    marca_termico: limpo.marca_termico ?? null,
+    temp_min: limpo.temp_min ?? null,
+    temp_max: limpo.temp_max ?? null,
     capacidade_kg: limpo.capacidade_kg ?? null,
     comprimento_m: limpo.comprimento_m ?? null,
     largura_m: limpo.largura_m ?? null,
@@ -235,6 +252,11 @@ export async function upsertVeiculoRemote(
   let stripped = false
   if (/updated_at/i.test(error.message)) {
     const { updated_at: _u, ...rest } = retryRow
+    retryRow = rest
+    stripped = true
+  }
+  if (/marca_termico|temp_min|temp_max/i.test(error.message)) {
+    const { marca_termico: _mt, temp_min: _tmin, temp_max: _tmax, ...rest } = retryRow
     retryRow = rest
     stripped = true
   }

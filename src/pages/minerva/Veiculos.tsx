@@ -20,6 +20,12 @@ import { newVeiculoId } from '../../lib/veiculosSync'
 import { localizacaoDaTransportadora } from '../../lib/veiculoLocalizacao'
 import { CarroceriaSuggestInput } from '../../components/ui/CarroceriaSuggestInput'
 import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
+import {
+  MARCAS_TERMICO,
+  aclimatacaoComTermico,
+  parseTempC,
+  selectMarcaTermico,
+} from '../../lib/termicoVeiculo'
 import { ImportarVeiculosModal } from '../../components/veiculos/ImportarVeiculosModal'
 import { LocalizacaoVeiculoModal } from '../../components/veiculos/LocalizacaoVeiculoModal'
 import {
@@ -61,6 +67,9 @@ const emptyForm = (): Partial<Veiculo> => ({
   tipo_carroceria: '',
   qtd_pallets: undefined,
   aclimatacao: '',
+  marca_termico: undefined,
+  temp_min: undefined,
+  temp_max: undefined,
   capacidade_kg: undefined,
   comprimento_m: undefined,
   largura_m: undefined,
@@ -389,6 +398,23 @@ export function VeiculosPage() {
           ? Math.min(40, Math.max(0, Math.round(Number(form.qtd_pallets))))
           : undefined,
       aclimatacao: form.aclimatacao,
+      marca_termico: aclimatacaoComTermico(form.aclimatacao)
+        ? (form.marca_termico || '').trim() || undefined
+        : undefined,
+      temp_min: (() => {
+        if (!aclimatacaoComTermico(form.aclimatacao)) return undefined
+        const tmin = parseTempC(form.temp_min)
+        const tmax = parseTempC(form.temp_max)
+        if (tmin != null && tmax != null && tmin > tmax) return tmax
+        return tmin
+      })(),
+      temp_max: (() => {
+        if (!aclimatacaoComTermico(form.aclimatacao)) return undefined
+        const tmin = parseTempC(form.temp_min)
+        const tmax = parseTempC(form.temp_max)
+        if (tmin != null && tmax != null && tmin > tmax) return tmin
+        return tmax
+      })(),
       capacidade_kg: form.capacidade_kg != null ? Number(form.capacidade_kg) : undefined,
       comprimento_m: form.comprimento_m != null ? Number(form.comprimento_m) : undefined,
       largura_m: form.largura_m != null ? Number(form.largura_m) : undefined,
@@ -561,7 +587,21 @@ export function VeiculosPage() {
                         ? (transportadorById(v.transportador_id)?.nome_fantasia ?? '—')
                         : 'Autônomo'}
                     </td>
-                    <td>{v.tipo}</td>
+                    <td>
+                      {v.tipo}
+                      {v.aclimatacao ? (
+                        <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>
+                          {v.aclimatacao}
+                          {aclimatacaoComTermico(v.aclimatacao) && v.marca_termico
+                            ? ` · ${v.marca_termico}`
+                            : ''}
+                          {aclimatacaoComTermico(v.aclimatacao) &&
+                          (v.temp_min != null || v.temp_max != null)
+                            ? ` · ${v.temp_min ?? '—'} a ${v.temp_max ?? '—'} °C`
+                            : ''}
+                        </div>
+                      ) : null}
+                    </td>
                     <td>
                       {v.frete_minimo > 0 ? formatCurrency(v.frete_minimo) : '—'}
                     </td>
@@ -940,7 +980,20 @@ export function VeiculosPage() {
               <Field label="Aclimação">
                 <select
                   value={form.aclimatacao ?? ''}
-                  onChange={(e) => set('aclimatacao', e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setForm((prev) => ({
+                      ...prev,
+                      aclimatacao: value,
+                      ...(aclimatacaoComTermico(value)
+                        ? {}
+                        : {
+                            marca_termico: undefined,
+                            temp_min: undefined,
+                            temp_max: undefined,
+                          }),
+                    }))
+                  }}
                 >
                   <option value="">Selecione...</option>
                   {ACLIMATACAO.map((a) => (
@@ -950,6 +1003,82 @@ export function VeiculosPage() {
                   ))}
                 </select>
               </Field>
+              {aclimatacaoComTermico(form.aclimatacao) ? (
+                <>
+                  <Field label="Marca do térmico / aparelho">
+                    <select
+                      value={selectMarcaTermico(form.marca_termico)}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        setForm((prev) => ({
+                          ...prev,
+                          marca_termico:
+                            value === 'Outra'
+                              ? selectMarcaTermico(prev.marca_termico) === 'Outra'
+                                ? prev.marca_termico
+                                : 'Outra'
+                              : value || undefined,
+                        }))
+                      }}
+                    >
+                      <option value="">Selecione...</option>
+                      {MARCAS_TERMICO.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  {selectMarcaTermico(form.marca_termico) === 'Outra' ? (
+                    <Field label="Qual marca">
+                      <input
+                        type="text"
+                        value={
+                          form.marca_termico && form.marca_termico !== 'Outra'
+                            ? form.marca_termico
+                            : ''
+                        }
+                        onChange={(e) =>
+                          set('marca_termico', e.target.value ? e.target.value : 'Outra')
+                        }
+                        placeholder="Informe a marca do aparelho"
+                      />
+                    </Field>
+                  ) : null}
+                  <Field label="Temperatura mínima (°C)">
+                    <input
+                      type="number"
+                      step={0.5}
+                      min={-50}
+                      max={40}
+                      placeholder="Ex.: -18"
+                      value={form.temp_min ?? ''}
+                      onChange={(e) =>
+                        set(
+                          'temp_min',
+                          e.target.value === '' ? undefined : parseTempC(e.target.value),
+                        )
+                      }
+                    />
+                  </Field>
+                  <Field label="Temperatura máxima (°C)">
+                    <input
+                      type="number"
+                      step={0.5}
+                      min={-50}
+                      max={40}
+                      placeholder="Ex.: 7"
+                      value={form.temp_max ?? ''}
+                      onChange={(e) =>
+                        set(
+                          'temp_max',
+                          e.target.value === '' ? undefined : parseTempC(e.target.value),
+                        )
+                      }
+                    />
+                  </Field>
+                </>
+              ) : null}
             </div>
           </div>
         </section>

@@ -184,6 +184,12 @@ export interface Veiculo {
   tipo_carroceria?: string
   qtd_pallets?: number
   aclimatacao?: string
+  /** Marca do térmico / aparelho de refrigeração (Refrigerado ou Congelado). */
+  marca_termico?: string
+  /** Temperatura mínima que o aparelho atinge (°C). */
+  temp_min?: number
+  /** Temperatura máxima que o aparelho atinge (°C). */
+  temp_max?: number
   capacidade_kg?: number
   /** Dimensões do baú/carroceria (metros) — cubagem = C × L × A. */
   comprimento_m?: number
