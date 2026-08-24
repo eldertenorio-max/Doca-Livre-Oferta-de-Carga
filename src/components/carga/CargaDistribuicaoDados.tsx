@@ -22,8 +22,8 @@ import { CargaExigenciasFields } from './CargaExigenciasFields'
 import {
   MARCA_SEM_ESPECIFICA,
   MODELO_SEM_ESPECIFICO,
-  MODELOS_LOCALIZADOR,
-  MODELOS_RASTREADOR,
+  MODELOS_LOCALIZADOR_DISTRIBUICAO,
+  MODELOS_RASTREADOR_DISTRIBUICAO,
   labelFaixaTemperatura,
   labelModeloRisco,
 } from '../../lib/cargaExigencias'
@@ -808,7 +808,7 @@ export function CargaDistribuicaoDados({
             value={labelModeloRisco(
               carga.marca_rastreador,
               carga.modelo_rastreador,
-              MODELOS_RASTREADOR,
+              MODELOS_RASTREADOR_DISTRIBUICAO,
             )}
           />
         )}
@@ -819,7 +819,7 @@ export function CargaDistribuicaoDados({
             value={labelModeloRisco(
               carga.marca_localizador,
               carga.modelo_localizador,
-              MODELOS_LOCALIZADOR,
+              MODELOS_LOCALIZADOR_DISTRIBUICAO,
             )}
           />
         )}
@@ -973,6 +973,8 @@ export function CargaDistribuicaoDados({
         </Field>
         <CargaExigenciasFields
           risco={risco}
+          catalogoRastreador={MODELOS_RASTREADOR_DISTRIBUICAO}
+          catalogoLocalizador={MODELOS_LOCALIZADOR_DISTRIBUICAO}
           marcaRastreador={marcaRastreador}
           marcaLocalizador={marcaLocalizador}
           modeloRastreador={modeloRastreador}

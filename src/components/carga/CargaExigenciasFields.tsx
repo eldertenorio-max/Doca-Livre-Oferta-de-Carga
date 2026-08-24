@@ -4,6 +4,7 @@ import {
   MODELOS_RASTREADOR,
   labelModeloRisco,
   parseModeloRiscoOpcao,
+  type ModeloRiscoOpcao,
 } from '../../lib/cargaExigencias'
 import { parseTempC } from '../../lib/termicoVeiculo'
 import type { Carga } from '../../types'
@@ -22,6 +23,8 @@ export function CargaExigenciasFields({
   onChange,
   disabled,
   somenteRisco,
+  catalogoRastreador = MODELOS_RASTREADOR,
+  catalogoLocalizador = MODELOS_LOCALIZADOR,
 }: {
   risco?: Risco | null
   marcaRastreador?: string
@@ -35,6 +38,8 @@ export function CargaExigenciasFields({
   disabled?: boolean
   /** Só rastreador/localizador + modelo (formulário de distribuição). */
   somenteRisco?: boolean
+  catalogoRastreador?: ModeloRiscoOpcao[]
+  catalogoLocalizador?: ModeloRiscoOpcao[]
 }) {
   const mostraRastreador = risco === 'rastreador' || risco === 'ambos'
   const mostraLocalizador = risco === 'localizador' || risco === 'ambos'
@@ -46,16 +51,16 @@ export function CargaExigenciasFields({
           <select
             className={inputClass}
             disabled={disabled}
-            value={labelModeloRisco(marcaRastreador, modeloRastreador, MODELOS_RASTREADOR)}
+            value={labelModeloRisco(marcaRastreador, modeloRastreador, catalogoRastreador)}
             onChange={(e) => {
-              const p = parseModeloRiscoOpcao(e.target.value, MODELOS_RASTREADOR)
+              const p = parseModeloRiscoOpcao(e.target.value, catalogoRastreador)
               onChange({
                 marca_rastreador: p.marca,
                 modelo_rastreador: p.modelo,
               })
             }}
           >
-            {MODELOS_RASTREADOR.map((m) => (
+            {catalogoRastreador.map((m) => (
               <option key={m.label} value={m.label}>
                 {m.label}
               </option>
@@ -74,17 +79,17 @@ export function CargaExigenciasFields({
             value={labelModeloRisco(
               marcaLocalizador,
               modeloLocalizador,
-              MODELOS_LOCALIZADOR,
+              catalogoLocalizador,
             )}
             onChange={(e) => {
-              const p = parseModeloRiscoOpcao(e.target.value, MODELOS_LOCALIZADOR)
+              const p = parseModeloRiscoOpcao(e.target.value, catalogoLocalizador)
               onChange({
                 marca_localizador: p.marca,
                 modelo_localizador: p.modelo,
               })
             }}
           >
-            {MODELOS_LOCALIZADOR.map((m) => (
+            {catalogoLocalizador.map((m) => (
               <option key={m.label} value={m.label}>
                 {m.label}
               </option>

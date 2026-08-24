@@ -12,6 +12,8 @@ import {
   MARCA_SEM_ESPECIFICA,
   MODELOS_LOCALIZADOR,
   MODELOS_RASTREADOR,
+  MODELOS_LOCALIZADOR_DISTRIBUICAO,
+  MODELOS_RASTREADOR_DISTRIBUICAO,
   labelModeloRisco,
   modeloRiscoQualquer,
 } from '../../lib/cargaExigencias'
@@ -575,7 +577,7 @@ export function CargoCard({
             carga.gerenciamento_risco === 'rastreador' || carga.gerenciamento_risco === 'ambos'
               ? `Rastreador${
                   !modeloRiscoQualquer(carga.modelo_rastreador)
-                    ? ` ${labelModeloRisco(carga.marca_rastreador, carga.modelo_rastreador, MODELOS_RASTREADOR)}`
+                    ? ` ${labelModeloRisco(carga.marca_rastreador, carga.modelo_rastreador, isDist ? MODELOS_RASTREADOR_DISTRIBUICAO : MODELOS_RASTREADOR)}`
                     : carga.marca_rastreador && carga.marca_rastreador !== MARCA_SEM_ESPECIFICA
                       ? ` ${carga.marca_rastreador}`
                       : ''
@@ -584,7 +586,7 @@ export function CargoCard({
             carga.gerenciamento_risco === 'localizador' || carga.gerenciamento_risco === 'ambos'
               ? `Localizador${
                   !modeloRiscoQualquer(carga.modelo_localizador)
-                    ? ` ${labelModeloRisco(carga.marca_localizador, carga.modelo_localizador, MODELOS_LOCALIZADOR)}`
+                    ? ` ${labelModeloRisco(carga.marca_localizador, carga.modelo_localizador, isDist ? MODELOS_LOCALIZADOR_DISTRIBUICAO : MODELOS_LOCALIZADOR)}`
                     : carga.marca_localizador && carga.marca_localizador !== MARCA_SEM_ESPECIFICA
                       ? ` ${carga.marca_localizador}`
                       : ''

@@ -62,6 +62,67 @@ export const MODELOS_LOCALIZADOR: ModeloRiscoOpcao[] = [
   { marca: MARCA_SEM_ESPECIFICA, modelo: MODELO_SEM_ESPECIFICO, label: MODELO_SEM_ESPECIFICO },
 ]
 
+/** Marcas da oferta de distribuição (rastreadores: só estas). */
+export const MARCAS_RISCO_DISTRIBUICAO = [
+  'AutoTrack',
+  'Omnilink',
+  'Sascar',
+  'OnixSat',
+  'CADS',
+  'SigaBem',
+  'Pósitron',
+  'Ituran',
+  'Ravex',
+  'Outros',
+] as const
+
+const OPCAO_SEM_MODELO: ModeloRiscoOpcao = {
+  marca: MARCA_SEM_ESPECIFICA,
+  modelo: MODELO_SEM_ESPECIFICO,
+  label: MODELO_SEM_ESPECIFICO,
+}
+
+function opcaoMarcaDistribuicao(marca: string): ModeloRiscoOpcao {
+  return { marca, modelo: marca, label: marca }
+}
+
+function chaveOpcaoRisco(label: string): string {
+  return label
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+function mergeCatalogoDistribuicao(
+  prioridades: ModeloRiscoOpcao[],
+  extras: ModeloRiscoOpcao[],
+): ModeloRiscoOpcao[] {
+  const seen = new Set<string>()
+  const out: ModeloRiscoOpcao[] = []
+  const push = (o: ModeloRiscoOpcao) => {
+    if (o.modelo === MODELO_SEM_ESPECIFICO && o.marca === MARCA_SEM_ESPECIFICA) return
+    const k = chaveOpcaoRisco(o.label)
+    if (seen.has(k)) return
+    seen.add(k)
+    out.push(o)
+  }
+  prioridades.forEach(push)
+  extras.forEach(push)
+  out.push(OPCAO_SEM_MODELO)
+  return out
+}
+
+export const MODELOS_RASTREADOR_DISTRIBUICAO: ModeloRiscoOpcao[] = [
+  ...MARCAS_RISCO_DISTRIBUICAO.map(opcaoMarcaDistribuicao),
+  OPCAO_SEM_MODELO,
+]
+
+export const MODELOS_LOCALIZADOR_DISTRIBUICAO: ModeloRiscoOpcao[] = mergeCatalogoDistribuicao(
+  MARCAS_RISCO_DISTRIBUICAO.map(opcaoMarcaDistribuicao),
+  MODELOS_LOCALIZADOR,
+)
+
 export function modeloRiscoQualquer(modelo?: string | null): boolean {
   const s = (modelo || '').trim().toLowerCase()
   return !s || s === 'sem_modelo' || s === MODELO_SEM_ESPECIFICO.toLowerCase()
@@ -96,7 +157,10 @@ export function labelModeloRisco(
     )
   if (hit) return hit.label
   const marcaTxt = (marca || '').trim()
-  if (marcaTxt && marcaTxt !== MARCA_SEM_ESPECIFICA) return `${marcaTxt} ${m}`.trim()
+  if (marcaTxt && marcaTxt !== MARCA_SEM_ESPECIFICA) {
+    if (m.toLowerCase() === marcaTxt.toLowerCase()) return marcaTxt
+    return `${marcaTxt} ${m}`.trim()
+  }
   return m
 }
 
@@ -109,16 +173,43 @@ function norm(s?: string | null): string {
   return (s || '').trim().toLowerCase()
 }
 
+function semAcento(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+}
+
+/** Grafias do mercado / digitação (Autotrac vs AutoTrack, Ceabs vs CADS, etc.). */
+const ALIAS_MARCA_RISCO: Record<string, string> = {
+  autotrac: 'autotrack',
+  autotrack: 'autotrack',
+  ominilink: 'omnilink',
+  omnilink: 'omnilink',
+  onixsat: 'onixsat',
+  cads: 'cads',
+  ceabs: 'cads',
+  sigabem: 'sigabem',
+  positron: 'positron',
+  ituram: 'ituran',
+  ituran: 'ituran',
+  ravex: 'ravex',
+  sascar: 'sascar',
+}
+
+function canonMarcaRisco(s?: string | null): string {
+  const n = semAcento(norm(s))
+  return ALIAS_MARCA_RISCO[n] ?? n
+}
+
 export function marcaRiscoCombina(
   exigida?: string | null,
   doVeiculo?: string | null,
   textoLivre?: string | null,
 ): boolean {
   if (marcaRiscoQualquer(exigida)) return true
-  const want = norm(exigida)
+  const want = canonMarcaRisco(exigida)
   if (!want) return true
-  if (norm(doVeiculo) === want) return true
-  if (textoLivre && textoLivre.toLowerCase().includes(want)) return true
+  if (canonMarcaRisco(doVeiculo) === want) return true
+  const texto = semAcento(norm(textoLivre))
+  if (texto && (texto === want || texto.includes(want))) return true
   return false
 }
 
@@ -148,16 +239,17 @@ export function modeloRiscoCombina(
   textoLivre?: string | null,
 ): boolean {
   if (modeloRiscoQualquer(exigido)) return true
-  const want = norm(exigido)
+  const want = canonMarcaRisco(exigido)
   if (!want) return true
-  const modeloV = norm(doVeiculoModelo)
-  const marcaV = norm(doVeiculoMarca)
+  const modeloV = canonMarcaRisco(doVeiculoModelo)
+  const marcaV = canonMarcaRisco(doVeiculoMarca)
   const composto = [marcaV, modeloV].filter(Boolean).join(' ')
-  const texto = norm(textoLivre)
-  if (modeloV && (modeloV === want || want.endsWith(modeloV) || modeloV === want.replace(marcaV, '').trim())) {
+  const texto = semAcento(norm(textoLivre))
+  if (marcaV && marcaV === want) return true
+  if (modeloV && (modeloV === want || modeloV.startsWith(`${want} `) || want.startsWith(modeloV))) {
     return true
   }
-  if (composto && (composto === want || want.includes(composto))) return true
+  if (composto && (composto === want || composto.includes(want) || want.includes(composto))) return true
   if (texto && (texto === want || texto.includes(want))) return true
   return false
 }

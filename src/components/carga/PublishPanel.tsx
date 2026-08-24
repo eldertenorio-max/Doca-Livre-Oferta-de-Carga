@@ -42,6 +42,8 @@ import {
   labelModeloRisco,
   MODELOS_RASTREADOR,
   MODELOS_LOCALIZADOR,
+  MODELOS_RASTREADOR_DISTRIBUICAO,
+  MODELOS_LOCALIZADOR_DISTRIBUICAO,
   transportadorAtendeCarga,
 } from '../../lib/cargaExigencias'
 import { CargaExigenciasFields } from './CargaExigenciasFields'
@@ -956,6 +958,9 @@ export function PublishPanel({
 
   const classColor =
     classificacao === 'A' ? 'bg-emerald-500' : classificacao === 'B' ? 'bg-amber-500' : 'bg-brand'
+  const distOferta = asTipoOferta(carga.tipo_oferta) === 'distribuicao'
+  const catRastreador = distOferta ? MODELOS_RASTREADOR_DISTRIBUICAO : MODELOS_RASTREADOR
+  const catLocalizador = distOferta ? MODELOS_LOCALIZADOR_DISTRIBUICAO : MODELOS_LOCALIZADOR
 
   return (
     <>
@@ -1392,7 +1397,7 @@ export function PublishPanel({
                 value={labelModeloRisco(
                   carga.marca_rastreador,
                   carga.modelo_rastreador,
-                  MODELOS_RASTREADOR,
+                  catRastreador,
                 )}
               />
             )}
@@ -1403,7 +1408,7 @@ export function PublishPanel({
                 value={labelModeloRisco(
                   carga.marca_localizador,
                   carga.modelo_localizador,
-                  MODELOS_LOCALIZADOR,
+                  catLocalizador,
                 )}
               />
             )}
@@ -1842,6 +1847,8 @@ export function PublishPanel({
                 </Field>
                 <CargaExigenciasFields
                   risco={riscoPub}
+                  catalogoRastreador={catRastreador}
+                  catalogoLocalizador={catLocalizador}
                   marcaRastreador={marcaRastreadorPub}
                   marcaLocalizador={marcaLocalizadorPub}
                   modeloRastreador={modeloRastreadorPub}
