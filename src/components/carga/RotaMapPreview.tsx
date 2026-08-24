@@ -33,6 +33,8 @@ type Props = {
   precoDiesel?: number
   /** Chamado quando o trajeto OSRM for calculado (km / duração). */
   onRotaCalculada?: (info: { km: number; duracaoMin: number }) => void
+  /** Se false, só o trajeto no mapa (sem pedágio / combustível / ANTT). */
+  mostrarCustos?: boolean
 }
 
 function normWaypoint(w: RotaWaypointInput): {
@@ -137,6 +139,7 @@ export function RotaMapPreview({
   consumoKmL,
   precoDiesel,
   onRotaCalculada,
+  mostrarCustos = true,
 }: Props) {
   const mapEl = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
@@ -220,7 +223,7 @@ export function RotaMapPreview({
     }
 
     setStatus('loading')
-    setMsg('Calculando trajeto e pedágios…')
+    setMsg(mostrarCustos ? 'Calculando trajeto e pedágios…' : 'Calculando trajeto…')
     const id = ++reqId.current
     const eixos =
       eixosProp && eixosProp > 0
@@ -304,34 +307,36 @@ export function RotaMapPreview({
           custo: 0,
           pracas: [] as Awaited<ReturnType<typeof calcularPedagioNaRota>>['pracas'],
         }
-        try {
-          const pedRes = await calcularPedagioNaRota(rota.polyline, eixos)
-          const custos = estimarCustosRota(rota.distanciaKm, eixos, rota.duracaoMin, {
-            consumoKmL: consumoRef.current,
-            precoDiesel: precoRef.current,
-          })
-          const pedagio =
-            pedRes.pracas.length > 0 ? pedRes.pedagio : custos.pedagio
-          const combustivel = custos.combustivel
-          ped = {
-            pedagio,
-            combustivel,
-            custo: Math.round((pedagio + combustivel) * 100) / 100,
-            pracas: pedRes.pracas,
+        if (mostrarCustos) {
+          try {
+            const pedRes = await calcularPedagioNaRota(rota.polyline, eixos)
+            const custos = estimarCustosRota(rota.distanciaKm, eixos, rota.duracaoMin, {
+              consumoKmL: consumoRef.current,
+              precoDiesel: precoRef.current,
+            })
+            const pedagio =
+              pedRes.pracas.length > 0 ? pedRes.pedagio : custos.pedagio
+            const combustivel = custos.combustivel
+            ped = {
+              pedagio,
+              combustivel,
+              custo: Math.round((pedagio + combustivel) * 100) / 100,
+              pracas: pedRes.pracas,
+            }
+          } catch {
+            const custos = estimarCustosRota(rota.distanciaKm, eixos, rota.duracaoMin, {
+              consumoKmL: consumoRef.current,
+              precoDiesel: precoRef.current,
+            })
+            ped = {
+              pedagio: custos.pedagio,
+              combustivel: custos.combustivel,
+              custo: custos.custo_total,
+              pracas: [],
+            }
           }
-        } catch {
-          const custos = estimarCustosRota(rota.distanciaKm, eixos, rota.duracaoMin, {
-            consumoKmL: consumoRef.current,
-            precoDiesel: precoRef.current,
-          })
-          ped = {
-            pedagio: custos.pedagio,
-            combustivel: custos.combustivel,
-            custo: custos.custo_total,
-            pracas: [],
-          }
+          if (id !== reqId.current) return
         }
-        if (id !== reqId.current) return
 
         layer.clearLayers()
         const latlngs = rota.polyline.map((p) => [p.lat, p.lng] as L.LatLngExpression)
@@ -396,7 +401,7 @@ export function RotaMapPreview({
     }, 550)
 
     return () => window.clearTimeout(timer)
-  }, [origem, destino, viasKey, coordsKey, veiculo, eixosProp])
+  }, [origem, destino, viasKey, coordsKey, veiculo, eixosProp, mostrarCustos])
 
   return (
     <div
@@ -413,7 +418,7 @@ export function RotaMapPreview({
               status === 'erro' ? 'text-red-700' : 'text-ink-muted'
             }`}
           >
-            {status === 'loading' ? 'Calculando trajeto e pedágios…' : msg}
+            {status === 'loading' ? (mostrarCustos ? 'Calculando trajeto e pedágios…' : 'Calculando trajeto…') : msg}
           </p>
         </div>
       ) : null}
@@ -432,16 +437,20 @@ export function RotaMapPreview({
         >
           <p className="text-sm font-extrabold text-blue-700">{formatDur(meta.dur)}</p>
           <p className="font-semibold tabular-nums">{formatKm(meta.km)}</p>
-          <p className="mt-0.5 font-bold text-orange-700 tabular-nums">
-            {formatCurrency(meta.pedagio)} Pedágio
-            {meta.pracas > 0 ? ` · ${meta.pracas} praça${meta.pracas === 1 ? '' : 's'}` : ''}
-          </p>
-          <p className="font-semibold text-ink/80 tabular-nums">
-            {formatCurrency(meta.combustivel)} Comb.
-          </p>
-          <p className="mt-1 border-t border-ink/10 pt-1 font-extrabold tabular-nums">
-            {formatCurrency(meta.custo)} · {meta.eixos} eixos
-          </p>
+          {mostrarCustos ? (
+            <>
+              <p className="mt-0.5 font-bold text-orange-700 tabular-nums">
+                {formatCurrency(meta.pedagio)} Pedágio
+                {meta.pracas > 0 ? ` · ${meta.pracas} praça${meta.pracas === 1 ? '' : 's'}` : ''}
+              </p>
+              <p className="font-semibold text-ink/80 tabular-nums">
+                {formatCurrency(meta.combustivel)} Comb.
+              </p>
+              <p className="mt-1 border-t border-ink/10 pt-1 font-extrabold tabular-nums">
+                {formatCurrency(meta.custo)} · {meta.eixos} eixos
+              </p>
+            </>
+          ) : null}
         </div>
       )}
     </div>

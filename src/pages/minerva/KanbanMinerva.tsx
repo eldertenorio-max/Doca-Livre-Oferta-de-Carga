@@ -168,6 +168,7 @@ export function KanbanMinerva() {
     const draft = montarNovaCarga(
       {
         tipo_oferta: tipo,
+        seq_distribuicao: tipo === 'distribuicao' ? 'clientes' : undefined,
         clientes_distribuicao:
           tipo === 'distribuicao' ? [emptyClienteDistribuicao()] : [],
       },

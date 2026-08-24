@@ -20,6 +20,8 @@ type Props = {
   className?: string
   minChars?: number
   onBlur?: () => void
+  /** Chamado ao escolher uma sugestão remota (com lat/lng). */
+  onPick?: (sug: SugestaoEndereco) => void
 }
 
 /**
@@ -34,6 +36,7 @@ export function AddressSuggestInput({
   className,
   minChars = 2,
   onBlur,
+  onPick,
 }: Props) {
   const listId = useId()
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -108,6 +111,7 @@ export function AddressSuggestInput({
     const rem = remote[index]
     if (rem && options[index]?.key.startsWith('r-')) {
       onChange(aplicarNumeroDigitado(rem, value))
+      onPick?.(rem)
     } else {
       onChange(opt.label)
     }

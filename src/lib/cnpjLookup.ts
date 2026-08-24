@@ -16,6 +16,13 @@ export type DadosCnpjLookup = {
   email: string
 }
 
+/** Monta o endereço completo a partir da consulta CNPJ (Receita). */
+export function montarEnderecoCnpj(d: DadosCnpjLookup): string {
+  const rua = [d.endereco, d.numero].filter(Boolean).join(', ')
+  const cidadeUf = [d.cidade, d.uf].filter(Boolean).join(' - ')
+  return [rua, d.bairro, cidadeUf, d.cep].filter(Boolean).join(', ')
+}
+
 function formatCep(raw: string): string {
   const d = raw.replace(/\D/g, '').slice(0, 8)
   if (d.length <= 5) return d

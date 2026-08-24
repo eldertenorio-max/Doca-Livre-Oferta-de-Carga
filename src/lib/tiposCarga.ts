@@ -1,6 +1,8 @@
 /** Tipos oficiais de carga para publicação e sugestões. */
 export const TIPOS_CARGA = [
   'Carga seca',
+  'Resfriada',
+  'Congelada',
   'Carga refrigerada',
   'Carga congelada',
   'Granel sólido',

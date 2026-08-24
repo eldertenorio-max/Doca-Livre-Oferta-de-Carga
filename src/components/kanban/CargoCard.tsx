@@ -642,11 +642,9 @@ export function CargoCard({
                   <ol className="list-decimal space-y-0.5 pl-4 text-[11px] text-ink">
                     {pontosDist.slice(0, 5).map((p) => (
                       <li key={p.id}>
-                        <span className="font-semibold">{p.nome || p.endereco || 'Ponto'}</span>
-                        {' — '}
-                        {p.qtd_entregas || 1} ent. · {p.qtd_nfs || 1} NF
-                        {p.peso > 0 ? ` · ${formatNumber(p.peso)} kg` : ''}
-                        {p.valor > 0 ? ` · ${formatCurrency(p.valor)}` : ''}
+                        <span className="font-semibold">{p.nome || p.cidade || p.endereco || 'Ponto'}</span>
+                        {p.pedido ? ` · Pedido ${p.pedido}` : ''}
+                        {p.endereco && p.nome ? ` — ${p.endereco}` : ''}
                       </li>
                     ))}
                   </ol>
@@ -1031,6 +1029,11 @@ export function CargoCard({
                   <span className="font-bold">Rota:</span> {carga.nome_rota}
                 </p>
               ) : null}
+              {carga.seq_distribuicao === 'cidades' ? (
+                <p className="text-xs text-ink-muted">Sequência por cidades</p>
+              ) : (
+                <p className="text-xs text-ink-muted">Sequência por clientes</p>
+              )}
               <p className="text-xs text-ink-muted">
                 {distTotais.pontos} ponto{distTotais.pontos === 1 ? '' : 's'} ·{' '}
                 {distTotais.entregas} entrega{distTotais.entregas === 1 ? '' : 's'} ·{' '}
@@ -1041,7 +1044,7 @@ export function CargoCard({
                 {pontosDist.map((p, idx) => (
                   <li key={p.id || idx} className="pl-1">
                     <p className="font-semibold">
-                      {p.nome || p.endereco || `Ponto ${idx + 1}`}
+                      {p.nome || p.cidade || p.endereco || `Ponto ${idx + 1}`}
                     </p>
                     {p.endereco && p.nome ? (
                       <p className="text-xs text-ink-muted">{p.endereco}</p>
@@ -1049,11 +1052,9 @@ export function CargoCard({
                     {p.cnpj?.trim() ? (
                       <p className="text-xs text-ink-muted">CNPJ {p.cnpj}</p>
                     ) : null}
-                    <p className="text-xs text-ink-muted">
-                      {p.qtd_entregas || 1} entrega{(p.qtd_entregas || 1) === 1 ? '' : 's'} ·{' '}
-                      {p.qtd_nfs || 1} NF{(p.qtd_nfs || 1) === 1 ? '' : 's'} ·{' '}
-                      {formatNumber(p.peso || 0)} kg · {formatCurrency(p.valor || 0)}
-                    </p>
+                    {p.pedido?.trim() ? (
+                      <p className="text-xs text-ink-muted">Pedido {p.pedido}</p>
+                    ) : null}
                   </li>
                 ))}
               </ol>

@@ -38,6 +38,7 @@ import { CarroceriaSuggestInput } from "../ui/CarroceriaSuggestInput";
 import { VeiculoSuggestInput } from "../ui/VeiculoSuggestInput";
 import { AnttFretePanel } from "./AnttFretePanel";
 import { RotaMapPreview } from "./RotaMapPreview";
+import { CargaDistribuicaoDados } from "./CargaDistribuicaoDados";
 import { consumoPadraoKmL, eixosDoVeiculo, PRECO_DIESEL_SUGERIDO } from "../../lib/anttFrete";
 import {
   baixarPdfCarga,
@@ -258,7 +259,14 @@ const SUGESTOES_OBS = [
 
 const DESTINOS_ESPECIAIS = ["Distribuição"];
 
-export function CargaDadosForm({
+export function CargaDadosForm(props: Props) {
+  if (isOfertaDistribuicao(props.carga)) {
+    return <CargaDistribuicaoDados {...props} />;
+  }
+  return <CargaDadosFormLongoPercurso {...props} />;
+}
+
+function CargaDadosFormLongoPercurso({
   carga,
   canEdit,
   onSaved,

@@ -506,6 +506,8 @@ export function montarNovaCarga(
     observacao: undefined,
     tipo_oferta: 'longo_percurso',
     nome_rota: '',
+    seq_distribuicao: 'clientes',
+    qtd_nfs: 1,
     clientes_distribuicao: [],
     exige_ajudante: false,
     created_at: new Date().toISOString(),

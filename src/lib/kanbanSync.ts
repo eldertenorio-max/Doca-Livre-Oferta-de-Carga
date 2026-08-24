@@ -181,6 +181,8 @@ function mergeCargas(local: Carga[], remote: Carga[]): Carga[] {
       pontos_passagem: pontosRem.length > 0 ? pontosRem : pontosPrev,
       tipo_oferta: item.tipo_oferta ?? prev.tipo_oferta,
       nome_rota: item.nome_rota ?? prev.nome_rota,
+      seq_distribuicao: item.seq_distribuicao ?? prev.seq_distribuicao,
+      qtd_nfs: item.qtd_nfs ?? prev.qtd_nfs,
       clientes_distribuicao: Array.isArray(item.clientes_distribuicao)
         ? item.clientes_distribuicao
         : prev.clientes_distribuicao,

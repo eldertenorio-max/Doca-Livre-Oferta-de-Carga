@@ -5,6 +5,7 @@ import type {
   ClienteDistribuicao,
   HistoricoEvento,
   Profile,
+  SeqDistribuicao,
   TipoHistorico,
   TipoOfertaCarga,
 } from '../types'
@@ -36,8 +37,15 @@ export function labelTipoOferta(t?: TipoOfertaCarga | null): string {
   return t === 'distribuicao' ? 'Oferta Distribuição' : 'Oferta Longo Percurso'
 }
 
+export function asSeqDistribuicao(v: unknown): SeqDistribuicao {
+  return v === 'cidades' ? 'cidades' : 'clientes'
+}
+
 export function totaisDistribuicao(
-  c: Pick<Carga, 'clientes_distribuicao' | 'num_entregas' | 'peso' | 'valor_mercadorias'>,
+  c: Pick<
+    Carga,
+    'clientes_distribuicao' | 'num_entregas' | 'qtd_nfs' | 'peso' | 'valor_mercadorias'
+  >,
 ) {
   const pts = Array.isArray(c.clientes_distribuicao) ? c.clientes_distribuicao : []
   const entregas = pts.reduce((acc, p) => acc + (Number(p.qtd_entregas) || 0), 0)
@@ -46,10 +54,10 @@ export function totaisDistribuicao(
   const valor = pts.reduce((acc, p) => acc + (Number(p.valor) || 0), 0)
   return {
     pontos: pts.length,
-    entregas: entregas || c.num_entregas || 0,
-    nfs,
-    peso: peso || c.peso || 0,
-    valor: valor || c.valor_mercadorias || 0,
+    entregas: c.num_entregas || entregas || 0,
+    nfs: c.qtd_nfs || nfs || 0,
+    peso: c.peso || peso || 0,
+    valor: c.valor_mercadorias || valor || 0,
   }
 }
 
@@ -63,11 +71,21 @@ export function emptyClienteDistribuicao(): ClienteDistribuicao {
     nome: '',
     endereco: '',
     cnpj: '',
+    cidade: '',
+    lat: null,
+    lng: null,
+    pedido: '',
+    tipo: 'cliente',
     qtd_entregas: 1,
     qtd_nfs: 1,
     peso: 0,
     valor: 0,
   }
+}
+
+function numCoord(v: unknown): number | null {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
 }
 
 export function normalizeClientesDistribuicao(raw: unknown): ClienteDistribuicao[] {
@@ -78,15 +96,22 @@ export function normalizeClientesDistribuicao(raw: unknown): ClienteDistribuicao
     const o = item as Record<string, unknown>
     const nome = String(o.nome ?? '').trim()
     const endereco = String(o.endereco ?? '').trim()
+    const cidade = String(o.cidade ?? '').trim()
     const qtdNf = Math.max(0, Math.round(Number(o.qtd_nfs) || 0))
     const qtdEnt = Math.max(0, Math.round(Number(o.qtd_entregas) || 0))
     const valor = Number(o.valor)
     const peso = Number(o.peso)
+    const tipo = o.tipo === 'cidade' ? 'cidade' : 'cliente'
     out.push({
       id: String(o.id || newClienteDistribuicaoId()),
-      nome,
+      nome: nome || cidade || endereco,
       endereco: endereco || undefined,
       cnpj: String(o.cnpj ?? '').trim() || undefined,
+      cidade: cidade || undefined,
+      lat: numCoord(o.lat),
+      lng: numCoord(o.lng),
+      pedido: String(o.pedido ?? '').trim() || undefined,
+      tipo,
       qtd_entregas: qtdEnt > 0 ? qtdEnt : 1,
       qtd_nfs: qtdNf > 0 ? qtdNf : 1,
       peso: Number.isFinite(peso) && peso >= 0 ? peso : 0,
@@ -151,6 +176,11 @@ export function normalizeCarga(c: Carga): Carga {
     antt: c.antt ?? null,
     tipo_oferta: asTipoOferta(c.tipo_oferta),
     nome_rota: typeof c.nome_rota === 'string' ? c.nome_rota.trim() : c.nome_rota,
+    seq_distribuicao: asSeqDistribuicao(c.seq_distribuicao),
+    qtd_nfs:
+      c.qtd_nfs != null && Number.isFinite(Number(c.qtd_nfs))
+        ? Math.max(0, Math.round(Number(c.qtd_nfs)))
+        : c.qtd_nfs,
     clientes_distribuicao: normalizeClientesDistribuicao(c.clientes_distribuicao),
     frete_minimo: c.frete_minimo ?? null,
     frete_maximo: c.frete_maximo ?? null,
