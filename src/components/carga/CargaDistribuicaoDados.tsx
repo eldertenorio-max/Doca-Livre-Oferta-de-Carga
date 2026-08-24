@@ -15,6 +15,7 @@ import { buscarCidades, filtrarSugestoes } from '../../lib/cidadesBrasil'
 import { cnpjDigits, formatCnpj, isValidCnpj } from '../../lib/cnpj'
 import { buscarDadosPorCnpj, montarEnderecoCnpj } from '../../lib/cnpjLookup'
 import { TIPOS_CARGA } from '../../lib/tiposCarga'
+import { GRUPOS_VEICULO_DISTRIBUICAO, isVeiculoPesado } from '../../lib/tiposVeiculo'
 import type { Carga, PontoPassagemRota, SeqDistribuicao } from '../../types'
 import { Button, Field, inputClass } from '../ui/Modal'
 import { CargaExigenciasFields } from './CargaExigenciasFields'
@@ -110,7 +111,9 @@ export function CargaDistribuicaoDados({
   const editavel = canEdit && carga.status === 'nova_carga'
 
   const [numeroCarga, setNumeroCarga] = useState(carga.numero)
-  const [veiculo, setVeiculo] = useState(carga.veiculo)
+  const [veiculo, setVeiculo] = useState(
+    isVeiculoPesado(carga.veiculo) ? '' : carga.veiculo,
+  )
   const [numEntregas, setNumEntregas] = useState(String(carga.num_entregas || 1))
   const [qtdNfs, setQtdNfs] = useState(String(carga.qtd_nfs || 1))
   const [peso, setPeso] = useState(formatMoneyInput(carga.peso || 0))
@@ -175,7 +178,7 @@ export function CargaDistribuicaoDados({
     skipGeoOrigem.current = temO
     skipRevOrigem.current = temO
     setNumeroCarga(carga.numero)
-    setVeiculo(carga.veiculo)
+    setVeiculo(isVeiculoPesado(carga.veiculo) ? '' : carga.veiculo)
     setNumEntregas(String(carga.num_entregas || 1))
     setQtdNfs(String(carga.qtd_nfs || 1))
     setPeso(formatMoneyInput(carga.peso || 0))
@@ -626,6 +629,10 @@ export function CargaDistribuicaoDados({
       falhaSalvar('Selecione o perfil do veículo.')
       return
     }
+    if (isVeiculoPesado(veiculo)) {
+      falhaSalvar('Carga distribuição não usa perfil Pesados. Escolha Médios ou Leves.')
+      return
+    }
     const origemFinal = origem.trim()
     if (!origemFinal) {
       falhaSalvar('Informe o local de origem.')
@@ -880,7 +887,8 @@ export function CargaDistribuicaoDados({
           <VeiculoSuggestInput
             value={veiculo}
             onChange={setVeiculo}
-            placeholder="Carreta, Truck, Fiorino…"
+            grupos={GRUPOS_VEICULO_DISTRIBUICAO}
+            placeholder="Truck, Fiorino…"
           />
         </Field>
         <Field label="Tipo de carga">

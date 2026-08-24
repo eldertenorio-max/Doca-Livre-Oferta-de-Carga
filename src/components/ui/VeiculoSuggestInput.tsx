@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
-  GRUPOS_VEICULO,
   VEICULOS_POR_GRUPO,
+  gruposVeiculoLista,
   type GrupoVeiculo,
 } from '../../lib/tiposVeiculo'
 import { inputClass } from './Modal'
@@ -13,6 +13,8 @@ type Props = {
   disabled?: boolean
   className?: string
   onBlur?: () => void
+  /** Subconjunto do catálogo (ex.: sem Pesados na distribuição). */
+  grupos?: readonly GrupoVeiculo[]
 }
 
 type FlatOpt = { grupo: GrupoVeiculo; item: string }
@@ -27,20 +29,22 @@ export function VeiculoSuggestInput({
   disabled,
   className,
   onBlur,
+  grupos,
 }: Props) {
   const listId = useId()
   const wrapRef = useRef<HTMLDivElement>(null)
   const userIntentRef = useRef(false)
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
+  const gruposAtivos = useMemo(() => gruposVeiculoLista(grupos), [grupos])
 
   const flat = useMemo(() => {
     const q = value.trim().toLowerCase()
-    const exact = GRUPOS_VEICULO.some((g) =>
+    const exact = gruposAtivos.some((g) =>
       VEICULOS_POR_GRUPO[g].some((t) => t.toLowerCase() === q),
     )
     const out: FlatOpt[] = []
-    for (const grupo of GRUPOS_VEICULO) {
+    for (const grupo of gruposAtivos) {
       for (const item of VEICULOS_POR_GRUPO[grupo]) {
         if (!q || exact || item.toLowerCase().includes(q)) {
           out.push({ grupo, item })
@@ -48,14 +52,14 @@ export function VeiculoSuggestInput({
       }
     }
     if (out.length === 0) {
-      for (const grupo of GRUPOS_VEICULO) {
+      for (const grupo of gruposAtivos) {
         for (const item of VEICULOS_POR_GRUPO[grupo]) {
           out.push({ grupo, item })
         }
       }
     }
     return out
-  }, [value])
+  }, [value, gruposAtivos])
 
   const grouped = useMemo(() => {
     const map = new Map<GrupoVeiculo, string[]>()
@@ -64,10 +68,10 @@ export function VeiculoSuggestInput({
       list.push(item)
       map.set(grupo, list)
     }
-    return GRUPOS_VEICULO.map((g) => ({ grupo: g, items: map.get(g) ?? [] })).filter(
+    return gruposAtivos.map((g) => ({ grupo: g, items: map.get(g) ?? [] })).filter(
       (g) => g.items.length > 0,
     )
-  }, [flat])
+  }, [flat, gruposAtivos])
 
   const show = open && !disabled && flat.length > 0
 
