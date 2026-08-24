@@ -35,7 +35,7 @@ export function EscolhaTipoOferta({ onEscolher, onCancelar }: Props) {
               <MapPinned size={32} strokeWidth={2.2} />
             </span>
             <span className="font-display text-xl font-extrabold uppercase tracking-wide text-ink sm:text-2xl">
-              Oferta longo percurso
+              Carga longo percurso
             </span>
             <span className="max-w-[16rem] text-sm font-medium text-ink-muted">
               Carga ponto a ponto. Mesma tela de dados que você já usa.
@@ -50,7 +50,7 @@ export function EscolhaTipoOferta({ onEscolher, onCancelar }: Props) {
               <Store size={32} strokeWidth={2.2} />
             </span>
             <span className="font-display text-xl font-extrabold uppercase tracking-wide text-ink sm:text-2xl">
-              Oferta distribuição
+              Carga distribuição
             </span>
             <span className="max-w-[16rem] text-sm font-medium text-ink-muted">
               Mesmos dados da carga, com notas fiscais e valor por cliente.

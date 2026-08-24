@@ -854,7 +854,7 @@ export function CargaDistribuicaoDados({
     <div className="carga-dados-form space-y-2 text-sm font-medium text-black">
       <div className="border-b border-ink/15 pb-2">
         <p className="font-display text-base font-bold text-ink">
-          Oferta distribuição · Carga {numeroCarga || carga.numero}
+          Carga distribuição · Carga {numeroCarga || carga.numero}
         </p>
         <p className="text-[12px] font-semibold text-black">
           Número, veículo, entregas, NFs, peso, valor e volumes. Abaixo, origem e a

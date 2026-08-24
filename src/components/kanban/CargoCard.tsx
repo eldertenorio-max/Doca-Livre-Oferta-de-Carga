@@ -598,7 +598,7 @@ export function CargoCard({
       <div className="mb-1.5 flex items-start gap-2.5">
         <div className="min-w-0 flex-1 space-y-1">
           <p>
-            <span className="font-bold text-ink">Oferta:</span>{' '}
+            <span className="font-bold text-ink">Tipo:</span>{' '}
             <span className={isDist ? 'font-extrabold text-emerald-800' : 'font-extrabold text-ink'}>
               {labelTipoOferta(tipoOferta)}
             </span>

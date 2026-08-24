@@ -1516,7 +1516,7 @@ function CargaDadosFormLongoPercurso({
       <div className="flex flex-wrap items-end justify-between gap-2 border-b border-ink/15 pb-2">
         <div>
           <p className="font-display text-base font-bold text-ink">
-            {isDistribuicao ? "Oferta distribuição" : "Oferta longo percurso"} · Carga {numeroCarga || carga.numero}
+            {isDistribuicao ? "Carga distribuição" : "Carga longo percurso"} · Carga {numeroCarga || carga.numero}
           </p>
           <p className="text-[12px] font-semibold text-black">
             {isDistribuicao
