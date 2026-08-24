@@ -776,7 +776,7 @@ export function CargaDistribuicaoDados({
         <Row label="Veículo" value={carga.veiculo || '—'} />
         <Row label="Tipo de carga" value={carga.tipo_carga || '—'} />
         <Row label="Entregas" value={String(carga.num_entregas || 1)} />
-        <Row label="Qtd NFs" value={String(carga.qtd_nfs || 1)} />
+        <Row label="Quantidade de Notas Fiscais" value={String(carga.qtd_nfs || 1)} />
         <Row label="Peso" value={formatMoneyInput(carga.peso)} />
         <Row label="Volumes" value={String(carga.volumes)} />
         <Row label="Valor da carga" value={formatCurrency(carga.valor_mercadorias)} />
@@ -895,7 +895,7 @@ export function CargaDistribuicaoDados({
             inputMode="numeric"
           />
         </Field>
-        <Field label="Qtd NFs *">
+        <Field label="Quantidade de Notas Fiscais *">
           <SuggestInput
             value={qtdNfs}
             onChange={setQtdNfs}
