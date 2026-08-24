@@ -97,40 +97,42 @@ export function CargaExigenciasFields({
       ) : null}
       {somenteRisco ? null : (
         <>
-          <Field label="Temperatura mínima (°C)">
-            <input
-              className={inputClass}
-              type="number"
-              step={0.5}
-              min={-50}
-              max={40}
-              disabled={disabled}
-              placeholder="Ex.: -18"
-              value={tempMin ?? ''}
-              onChange={(e) =>
-                onChange({
-                  temp_min: e.target.value === '' ? undefined : parseTempC(e.target.value),
-                })
-              }
-            />
-          </Field>
-          <Field label="Temperatura máxima (°C)">
-            <input
-              className={inputClass}
-              type="number"
-              step={0.5}
-              min={-50}
-              max={40}
-              disabled={disabled}
-              placeholder="Ex.: 7"
-              value={tempMax ?? ''}
-              onChange={(e) =>
-                onChange({
-                  temp_max: e.target.value === '' ? undefined : parseTempC(e.target.value),
-                })
-              }
-            />
-          </Field>
+          <div className="col-span-full grid grid-cols-2 gap-1.5">
+            <Field label="Temperatura mínima (°C)">
+              <input
+                className={inputClass}
+                type="number"
+                step={0.5}
+                min={-50}
+                max={40}
+                disabled={disabled}
+                placeholder="Ex.: -18"
+                value={tempMin ?? ''}
+                onChange={(e) =>
+                  onChange({
+                    temp_min: e.target.value === '' ? undefined : parseTempC(e.target.value),
+                  })
+                }
+              />
+            </Field>
+            <Field label="Temperatura máxima (°C)">
+              <input
+                className={inputClass}
+                type="number"
+                step={0.5}
+                min={-50}
+                max={40}
+                disabled={disabled}
+                placeholder="Ex.: 7"
+                value={tempMax ?? ''}
+                onChange={(e) =>
+                  onChange({
+                    temp_max: e.target.value === '' ? undefined : parseTempC(e.target.value),
+                  })
+                }
+              />
+            </Field>
+          </div>
           <Field label="Exige ajudante">
             <select
               className={inputClass}
