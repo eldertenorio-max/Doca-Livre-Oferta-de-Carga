@@ -222,9 +222,13 @@ export interface Veiculo {
   gerenciamento_risco?: 'rastreador' | 'localizador' | 'nenhum'
   /** Marca do rastreador (quando gerenciamento_risco = rastreador). */
   marca_rastreador?: string
+  /** Modelo do rastreador. */
+  modelo_rastreador?: string
   /** Marca do localizador (quando gerenciamento_risco = localizador). */
   marca_localizador?: string
-  /** Dados do equipamento (IMEI, serial, fornecedor…) quando tem rastreador/localizador */
+  /** Modelo do localizador. */
+  modelo_localizador?: string
+  /** Texto composto marca + modelo (compatibilidade). */
   rastreador_dados?: string
   situacao: 'ativo' | 'inativo'
   /** Avaliação média do veículo (0–5). */

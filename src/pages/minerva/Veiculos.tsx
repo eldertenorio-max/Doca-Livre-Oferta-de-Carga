@@ -29,7 +29,6 @@ import {
 import {
   MARCAS_LOCALIZADOR,
   MARCAS_RASTREADOR,
-  MARCA_SEM_ESPECIFICA,
 } from '../../lib/cargaExigencias'
 import { ImportarVeiculosModal } from '../../components/veiculos/ImportarVeiculosModal'
 import { LocalizacaoVeiculoModal } from '../../components/veiculos/LocalizacaoVeiculoModal'
@@ -86,7 +85,9 @@ const emptyForm = (): Partial<Veiculo> => ({
   padiado: false,
   gerenciamento_risco: 'nenhum',
   marca_rastreador: undefined,
+  modelo_rastreador: undefined,
   marca_localizador: undefined,
+  modelo_localizador: undefined,
   rastreador_dados: '',
   situacao: 'ativo',
 })
@@ -360,15 +361,29 @@ export function VeiculosPage() {
       form.gerenciamento_risco === 'nenhum'
         ? form.gerenciamento_risco
         : 'nenhum'
-    const dadosRastreador = (form.rastreador_dados || '').trim()
-    if ((risco === 'rastreador' || risco === 'localizador') && !dadosRastreador) {
-      setError(
-        risco === 'localizador'
-          ? 'Cole os dados do localizador (serial, fornecedor…).'
-          : 'Cole os dados do rastreador (IMEI, serial, fornecedor…).',
-      )
-      return
+    const marcaRisco =
+      risco === 'localizador'
+        ? (form.marca_localizador || '').trim()
+        : risco === 'rastreador'
+          ? (form.marca_rastreador || '').trim()
+          : ''
+    const modeloRisco =
+      risco === 'localizador'
+        ? (form.modelo_localizador || '').trim()
+        : risco === 'rastreador'
+          ? (form.modelo_rastreador || '').trim()
+          : ''
+    if (risco === 'rastreador' || risco === 'localizador') {
+      if (!marcaRisco) {
+        setError(`Informe a marca do ${risco}.`)
+        return
+      }
+      if (!modeloRisco) {
+        setError(`Informe o modelo do ${risco}.`)
+        return
+      }
     }
+    const dadosRastreador = [marcaRisco, modeloRisco].filter(Boolean).join(' ')
     const locErro = validarLocalizacaoVeiculo(
       {
         origem_cep: form.origem_cep,
@@ -438,9 +453,11 @@ export function VeiculosPage() {
       padiado: Boolean(form.padiado),
       gerenciamento_risco: risco,
       marca_rastreador:
-        risco === 'rastreador' ? (form.marca_rastreador || undefined) : undefined,
+        risco === 'rastreador' ? (form.marca_rastreador || '').trim() || undefined : undefined,
+      modelo_rastreador: risco === 'rastreador' ? modeloRisco || undefined : undefined,
       marca_localizador:
-        risco === 'localizador' ? (form.marca_localizador || undefined) : undefined,
+        risco === 'localizador' ? (form.marca_localizador || '').trim() || undefined : undefined,
+      modelo_localizador: risco === 'localizador' ? modeloRisco || undefined : undefined,
       rastreador_dados:
         risco === 'rastreador' || risco === 'localizador' ? dadosRastreador : undefined,
       situacao: (form.situacao as 'ativo' | 'inativo') ?? 'ativo',
@@ -852,6 +869,11 @@ export function VeiculosPage() {
                       value === 'rastreador' || value === 'localizador'
                         ? prev.rastreador_dados ?? ''
                         : '',
+                    marca_rastreador: value === 'rastreador' ? prev.marca_rastreador : undefined,
+                    modelo_rastreador: value === 'rastreador' ? prev.modelo_rastreador : undefined,
+                    marca_localizador: value === 'localizador' ? prev.marca_localizador : undefined,
+                    modelo_localizador:
+                      value === 'localizador' ? prev.modelo_localizador : undefined,
                   }))
                 }}
               >
@@ -863,18 +885,17 @@ export function VeiculosPage() {
             {(form.gerenciamento_risco === 'rastreador' ||
               form.gerenciamento_risco === 'localizador') && (
               <>
-                <Field
-                  label={
-                    form.gerenciamento_risco === 'localizador'
-                      ? 'Marca do localizador'
-                      : 'Marca do rastreador'
-                  }
-                >
-                  <select
+                <Field label="Marca" required>
+                  <input
+                    list={
+                      form.gerenciamento_risco === 'localizador'
+                        ? 'marcas-localizador'
+                        : 'marcas-rastreador'
+                    }
                     value={
                       form.gerenciamento_risco === 'localizador'
-                        ? form.marca_localizador || MARCA_SEM_ESPECIFICA
-                        : form.marca_rastreador || MARCA_SEM_ESPECIFICA
+                        ? form.marca_localizador ?? ''
+                        : form.marca_rastreador ?? ''
                     }
                     onChange={(e) => {
                       if (form.gerenciamento_risco === 'localizador') {
@@ -883,35 +904,34 @@ export function VeiculosPage() {
                         set('marca_rastreador', e.target.value)
                       }
                     }}
-                  >
-                    {(form.gerenciamento_risco === 'localizador'
-                      ? MARCAS_LOCALIZADOR
-                      : MARCAS_RASTREADOR
-                    ).map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
+                    placeholder="Digite ou escolha a marca"
+                  />
+                  <datalist id="marcas-rastreador">
+                    {MARCAS_RASTREADOR.map((m) => (
+                      <option key={m} value={m} />
                     ))}
-                  </select>
+                  </datalist>
+                  <datalist id="marcas-localizador">
+                    {MARCAS_LOCALIZADOR.map((m) => (
+                      <option key={m} value={m} />
+                    ))}
+                  </datalist>
                 </Field>
-                <Field
-                  label={
-                    form.gerenciamento_risco === 'localizador'
-                      ? 'Dados do localizador'
-                      : 'Dados do rastreador'
-                  }
-                  required
-                >
-                  <textarea
-                    rows={3}
-                    value={form.rastreador_dados ?? ''}
-                    onChange={(e) => set('rastreador_dados', e.target.value)}
-                    placeholder={
+                <Field label="Modelo" required>
+                  <input
+                    value={
                       form.gerenciamento_risco === 'localizador'
-                        ? 'Cole aqui serial, fornecedor, link do portal…'
-                        : 'Cole aqui IMEI, serial, fornecedor, link do portal…'
+                        ? form.modelo_localizador ?? ''
+                        : form.modelo_rastreador ?? ''
                     }
-                    style={{ width: '100%', resize: 'vertical' }}
+                    onChange={(e) => {
+                      if (form.gerenciamento_risco === 'localizador') {
+                        set('modelo_localizador', e.target.value)
+                      } else {
+                        set('modelo_rastreador', e.target.value)
+                      }
+                    }}
+                    placeholder="Ex.: Pro 400, Smart, GT…"
                   />
                 </Field>
               </>

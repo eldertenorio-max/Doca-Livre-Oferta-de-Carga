@@ -21,7 +21,9 @@ export function normalizeVeiculo(v: Veiculo): Veiculo {
     disponivel_mapa: v.disponivel_mapa !== false,
     marca_termico: v.marca_termico?.trim() || undefined,
     marca_rastreador: v.marca_rastreador?.trim() || undefined,
+    modelo_rastreador: v.modelo_rastreador?.trim() || undefined,
     marca_localizador: v.marca_localizador?.trim() || undefined,
+    modelo_localizador: v.modelo_localizador?.trim() || undefined,
     temp_min:
       v.temp_min != null && Number.isFinite(Number(v.temp_min)) ? Number(v.temp_min) : undefined,
     temp_max:
