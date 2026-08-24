@@ -180,6 +180,7 @@ function mergeCargas(local: Carga[], remote: Carga[]): Carga[] {
         : flagSim(prev.retorna_origem),
       pontos_passagem: pontosRem.length > 0 ? pontosRem : pontosPrev,
       tipo_oferta: item.tipo_oferta ?? prev.tipo_oferta,
+      nome_rota: item.nome_rota ?? prev.nome_rota,
       clientes_distribuicao: Array.isArray(item.clientes_distribuicao)
         ? item.clientes_distribuicao
         : prev.clientes_distribuicao,

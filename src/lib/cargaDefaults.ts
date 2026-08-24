@@ -41,7 +41,16 @@ export function newClienteDistribuicaoId(): string {
 }
 
 export function emptyClienteDistribuicao(): ClienteDistribuicao {
-  return { id: newClienteDistribuicaoId(), nome: '', cnpj: '', qtd_nfs: 1, valor: 0 }
+  return {
+    id: newClienteDistribuicaoId(),
+    nome: '',
+    endereco: '',
+    cnpj: '',
+    qtd_entregas: 1,
+    qtd_nfs: 1,
+    peso: 0,
+    valor: 0,
+  }
 }
 
 export function normalizeClientesDistribuicao(raw: unknown): ClienteDistribuicao[] {
@@ -51,13 +60,19 @@ export function normalizeClientesDistribuicao(raw: unknown): ClienteDistribuicao
     if (!item || typeof item !== 'object') continue
     const o = item as Record<string, unknown>
     const nome = String(o.nome ?? '').trim()
-    const qtd = Math.max(0, Math.round(Number(o.qtd_nfs) || 0))
+    const endereco = String(o.endereco ?? '').trim()
+    const qtdNf = Math.max(0, Math.round(Number(o.qtd_nfs) || 0))
+    const qtdEnt = Math.max(0, Math.round(Number(o.qtd_entregas) || 0))
     const valor = Number(o.valor)
+    const peso = Number(o.peso)
     out.push({
       id: String(o.id || newClienteDistribuicaoId()),
       nome,
+      endereco: endereco || undefined,
       cnpj: String(o.cnpj ?? '').trim() || undefined,
-      qtd_nfs: qtd > 0 ? qtd : 1,
+      qtd_entregas: qtdEnt > 0 ? qtdEnt : 1,
+      qtd_nfs: qtdNf > 0 ? qtdNf : 1,
+      peso: Number.isFinite(peso) && peso >= 0 ? peso : 0,
       valor: Number.isFinite(valor) && valor >= 0 ? valor : 0,
     })
   }
@@ -110,6 +125,7 @@ export function normalizeCarga(c: Carga): Carga {
         : undefined,
     antt: c.antt ?? null,
     tipo_oferta: asTipoOferta(c.tipo_oferta),
+    nome_rota: typeof c.nome_rota === 'string' ? c.nome_rota.trim() : c.nome_rota,
     clientes_distribuicao: normalizeClientesDistribuicao(c.clientes_distribuicao),
     frete_minimo: c.frete_minimo ?? null,
     frete_maximo: c.frete_maximo ?? null,

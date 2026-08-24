@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, FileText, Plus, Share2, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, FileText, Plus, Share2, Trash2 } from "lucide-react";
 import { isCargaEphemeral, useData } from "../../context/DataContext";
 import {
   formatCurrency,
@@ -103,48 +103,72 @@ function parseGerenciamentoRisco(txt: string): GerenciamentoRisco | undefined {
 type ClienteDistForm = {
   id: string
   nome: string
+  endereco: string
   cnpj: string
+  qtdEntregas: string
   qtdNfs: string
+  pesoStr: string
   valorStr: string
+}
+
+function emptyClienteDistForm(): ClienteDistForm {
+  const vazio = emptyClienteDistribuicao()
+  return {
+    id: vazio.id,
+    nome: "",
+    endereco: "",
+    cnpj: "",
+    qtdEntregas: "1",
+    qtdNfs: "1",
+    pesoStr: "",
+    valorStr: "",
+  }
 }
 
 function clientesParaForm(list: ClienteDistribuicao[]): ClienteDistForm[] {
   const rows = list.map((c) => ({
     id: c.id || newClienteDistribuicaoId(),
     nome: c.nome || "",
+    endereco: c.endereco || "",
     cnpj: c.cnpj || "",
+    qtdEntregas: String(c.qtd_entregas || 1),
     qtdNfs: String(c.qtd_nfs || 1),
+    pesoStr: c.peso > 0 ? formatMoneyInput(c.peso) : "",
     valorStr: c.valor > 0 ? formatMoneyInput(c.valor) : "",
   }))
-  return rows.length > 0
-    ? rows
-    : [
-        {
-          id: emptyClienteDistribuicao().id,
-          nome: "",
-          cnpj: "",
-          qtdNfs: "1",
-          valorStr: "",
-        },
-      ]
+  return rows.length > 0 ? rows : [emptyClienteDistForm()]
 }
 
 function formParaClientes(rows: ClienteDistForm[]): ClienteDistribuicao[] {
   const out: ClienteDistribuicao[] = []
   for (const r of rows) {
-    const nome = r.nome.trim()
+    const nome = r.nome.trim() || r.endereco.trim()
     if (!nome) continue
-    const qtd = Math.round(Number(r.qtdNfs) || 0)
+    const qtdNf = Math.round(Number(r.qtdNfs) || 0)
+    const qtdEnt = Math.round(Number(r.qtdEntregas) || 0)
     const valor = parseMoneyInput(r.valorStr)
+    const peso = parseMoneyInput(r.pesoStr)
     out.push({
       id: r.id || newClienteDistribuicaoId(),
       nome,
+      endereco: r.endereco.trim() || undefined,
       cnpj: r.cnpj.trim() || undefined,
-      qtd_nfs: qtd > 0 ? qtd : 1,
+      qtd_entregas: qtdEnt > 0 ? qtdEnt : 1,
+      qtd_nfs: qtdNf > 0 ? qtdNf : 1,
+      peso: Number.isNaN(peso) || peso < 0 ? 0 : peso,
       valor: Number.isNaN(valor) || valor < 0 ? 0 : valor,
     })
   }
   return out
+}
+
+function reordenarPontos<T>(lista: T[], indice: number, direcao: -1 | 1): T[] {
+  const destino = indice + direcao
+  if (destino < 0 || destino >= lista.length) return lista
+  const next = [...lista]
+  const [item] = next.splice(indice, 1)
+  next.splice(destino, 0, item)
+  return next
 }
 
 type Props = {
@@ -329,6 +353,8 @@ export function CargaDadosForm({
   const [clientesDist, setClientesDist] = useState<ClienteDistForm[]>(() =>
     clientesParaForm(carga.clientes_distribuicao ?? []),
   );
+  const [numeroCarga, setNumeroCarga] = useState(carga.numero);
+  const [nomeRota, setNomeRota] = useState(carga.nome_rota ?? "");
   const isDistribuicao = isOfertaDistribuicao(carga);
   const [dataCarreg, setDataCarreg] = useState(
     toDateInput(carga.data_carregamento),
@@ -545,6 +571,8 @@ export function CargaDadosForm({
     setNumEntregas(String(carga.num_entregas || 1));
     setValorMerc(formatMoneyInput(carga.valor_mercadorias || 0));
     setClientesDist(clientesParaForm(carga.clientes_distribuicao ?? []));
+    setNumeroCarga(carga.numero);
+    setNomeRota(carga.nome_rota ?? "");
     setDataCarreg(toDateInput(carga.data_carregamento));
     setPrevisao(toDateInput(carga.previsao_entrega));
     setObservacao(carga.observacao ?? "");
@@ -557,17 +585,20 @@ export function CargaDadosForm({
   }, [carga.id, carga.updated_at]);
 
   const totaisDist = useMemo(() => {
-    const clientes = formParaClientes(clientesDist);
-    const nfs = clientes.reduce((acc, c) => acc + c.qtd_nfs, 0);
-    const valor = clientes.reduce((acc, c) => acc + c.valor, 0);
-    return { clientes: clientes.length, nfs, valor };
+    const pontos = formParaClientes(clientesDist);
+    const nfs = pontos.reduce((acc, c) => acc + c.qtd_nfs, 0);
+    const entregas = pontos.reduce((acc, c) => acc + c.qtd_entregas, 0);
+    const valor = pontos.reduce((acc, c) => acc + c.valor, 0);
+    const pesoKg = pontos.reduce((acc, c) => acc + c.peso, 0);
+    return { pontos: pontos.length, entregas, nfs, valor, peso: pesoKg };
   }, [clientesDist]);
 
   useEffect(() => {
     if (!isDistribuicao) return;
-    setNumEntregas(String(Math.max(1, totaisDist.clientes)));
+    setNumEntregas(String(Math.max(1, totaisDist.entregas)));
     setValorMerc(formatMoneyInput(totaisDist.valor));
-  }, [isDistribuicao, totaisDist.clientes, totaisDist.valor]);
+    setPeso(formatMoneyInput(totaisDist.peso));
+  }, [isDistribuicao, totaisDist.entregas, totaisDist.valor, totaisDist.peso]);
 
   // Se a rota cadastrada chega depois (sync), preenche pontos + classificação
   useEffect(() => {
@@ -704,6 +735,7 @@ export function CargaDadosForm({
     setClassificacao(classif);
     setSalvarFavorita(false);
     setRotaDescricaoSalvar("");
+    setNomeRota(r.descricao);
     const nVias = pts.length;
     setInfo(
       nVias > 0
@@ -1073,14 +1105,16 @@ export function CargaDadosForm({
     }
 
     if (salvarFavorita) {
-      const nomeRota = rotaDescricaoSalvar.trim();
-      if (nomeRota.length < 3) {
+      const nomeRotaSalvar = (
+        isDistribuicao ? nomeRota || rotaDescricaoSalvar : rotaDescricaoSalvar
+      ).trim();
+      if (nomeRotaSalvar.length < 3) {
         falhaSalvar("Informe a descrição da rota para salvá-la na aba Rotas.");
         return;
       }
       const novaRota: Rota = {
         id: newRotaId(),
-        descricao: nomeRota,
+        descricao: nomeRotaSalvar,
         origem: origemFinal,
         destino: destinoFinal,
         origem_lat: origemLat,
@@ -1096,7 +1130,7 @@ export function CargaDadosForm({
       salvarRota(novaRota);
       rotaIdFinal = novaRota.id;
       setRotaId(novaRota.id);
-      setInfo(`Rota “${nomeRota}” salva na aba Rotas (disponível para próximas cargas).`);
+      setInfo(`Rota “${nomeRotaSalvar}” salva na aba Rotas (disponível para próximas cargas).`);
     }
 
     if (!pedido.trim()) {
@@ -1105,29 +1139,36 @@ export function CargaDadosForm({
     }
     const clientesFinais = isDistribuicao ? formParaClientes(clientesDist) : [];
     if (isDistribuicao) {
-      if (clientesFinais.length === 0) {
-        falhaSalvar("Inclua ao menos um cliente com a quantidade de notas fiscais e o valor.");
+      if (!numeroCarga.trim()) {
+        falhaSalvar("Informe o número da carga.");
         return;
       }
-      const semNf = clientesFinais.find((c) => c.qtd_nfs < 1);
-      if (semNf) {
-        falhaSalvar(`Informe a quantidade de notas fiscais de ${semNf.nome}.`);
+      if (nomeRota.trim().length < 3) {
+        falhaSalvar("Informe o nome da rota.");
+        return;
+      }
+      if (clientesFinais.length === 0) {
+        falhaSalvar("Inclua ao menos um ponto de entrega com notas, peso e valor.");
         return;
       }
     } else if (!destinatario.trim()) {
       falhaSalvar("Informe o destinatário.");
       return;
     }
-    const pesoNum = parseMoneyInput(peso);
+    const pesoNum = isDistribuicao ? totaisDist.peso : parseMoneyInput(peso);
     const volumesNum = Number(volumes);
     const entregasNum = isDistribuicao
-      ? Math.max(1, totaisDist.clientes)
+      ? Math.max(1, totaisDist.entregas)
       : Number(numEntregas);
     const valorNum = isDistribuicao
       ? totaisDist.valor
       : parseMoneyInput(valorMerc);
     if (Number.isNaN(pesoNum) || pesoNum <= 0) {
-      falhaSalvar("Peso inválido.");
+      falhaSalvar(
+        isDistribuicao
+          ? "Informe o peso em pelo menos um ponto de entrega."
+          : "Peso inválido.",
+      );
       return;
     }
     if (Number.isNaN(volumesNum) || volumesNum < 0) {
@@ -1174,11 +1215,12 @@ export function CargaDadosForm({
       num_entregas: Math.round(entregasNum),
       valor_mercadorias: valorNum,
       tipo_oferta: isDistribuicao ? "distribuicao" : "longo_percurso",
+      nome_rota: isDistribuicao ? nomeRota.trim() : carga.nome_rota,
       clientes_distribuicao: isDistribuicao ? clientesFinais : [],
       data_carregamento: fromDateInput(dataCarreg),
       previsao_entrega: fromDateInput(previsao),
       observacao: observacao.trim() || undefined,
-      numero: carga.numero,
+      numero: isDistribuicao ? numeroCarga.trim() : carga.numero,
       created_at: carga.created_at,
     };
 
@@ -1213,6 +1255,9 @@ export function CargaDadosForm({
       <div className="space-y-0.5 text-[13px] leading-snug">
         <Row label="Número" value={carga.numero} />
         <Row label="Tipo de oferta" value={labelTipoOferta(carga.tipo_oferta)} />
+        {isOfertaDistribuicao(carga) && (
+          <Row label="Nome da rota" value={carga.nome_rota?.trim() || "—"} />
+        )}
         <Row label="Pedido" value={carga.pedido || "—"} />
         <Row label="Origem" value={carga.origem || "—"} />
         <Row label="Destino" value={carga.destino || "—"} />
@@ -1345,17 +1390,20 @@ export function CargaDadosForm({
           (carga.clientes_distribuicao?.length ?? 0) > 0 && (
             <div className="rounded-md border border-emerald-200 bg-emerald-50/70 px-2.5 py-2 my-1">
               <p className="text-[12px] font-bold text-emerald-900">
-                Clientes da distribuição ({carga.clientes_distribuicao?.length})
+                Pontos de entrega ({carga.clientes_distribuicao?.length}) — sequência
               </p>
-              <ul className="mt-1 space-y-1 text-[12px] text-emerald-950">
+              <ol className="mt-1 list-decimal space-y-1 pl-5 text-[12px] text-emerald-950">
                 {(carga.clientes_distribuicao ?? []).map((c) => (
                   <li key={c.id}>
                     <strong>{c.nome}</strong>
-                    {c.cnpj ? ` · ${c.cnpj}` : ""} — {c.qtd_nfs} NF
-                    {c.qtd_nfs === 1 ? "" : "s"} · {formatCurrency(c.valor)}
+                    {c.endereco ? ` · ${c.endereco}` : ""}
+                    {c.cnpj ? ` · ${c.cnpj}` : ""} — {c.qtd_entregas} entrega
+                    {c.qtd_entregas === 1 ? "" : "s"} · {c.qtd_nfs} NF
+                    {c.qtd_nfs === 1 ? "" : "s"} · {formatMoneyInput(c.peso)} kg ·{" "}
+                    {formatCurrency(c.valor)}
                   </li>
                 ))}
-              </ul>
+              </ol>
             </div>
           )}
         <Row
@@ -1384,11 +1432,11 @@ export function CargaDadosForm({
       <div className="flex flex-wrap items-end justify-between gap-2 border-b border-ink/15 pb-2">
         <div>
           <p className="font-display text-base font-bold text-ink">
-            {isDistribuicao ? "Oferta distribuição" : "Oferta longo percurso"} · Carga {carga.numero}
+            {isDistribuicao ? "Oferta distribuição" : "Oferta longo percurso"} · Carga {numeroCarga || carga.numero}
           </p>
           <p className="text-[12px] font-semibold text-black">
             {isDistribuicao
-              ? "Preencha a rota e, para cada cliente, a quantidade de notas fiscais e o valor."
+              ? "Número da carga, nome da rota e a sequência dos pontos de entrega (NFs, peso e valor)."
               : "Preencha por seção: rota, frete, veículo, pedido e destinatário."}
           </p>
         </div>
@@ -1398,6 +1446,28 @@ export function CargaDadosForm({
           </span>
         )}
       </div>
+
+      {isDistribuicao && (
+        <section className="grid gap-1.5 sm:grid-cols-2">
+          <Field label="Número da carga *">
+            <input
+              className={inputClass}
+              value={numeroCarga}
+              onChange={(e) => setNumeroCarga(e.target.value)}
+              placeholder="Ex.: 128688"
+            />
+          </Field>
+          <Field label="Nome da rota *">
+            <input
+              className={inputClass}
+              value={nomeRota}
+              onChange={(e) => setNomeRota(e.target.value)}
+              placeholder="Ex.: CD Guarulhos → lojas zona sul"
+              maxLength={120}
+            />
+          </Field>
+        </section>
+      )}
 
       {/* 1. Rota */}
       <section className="space-y-1.5">
@@ -1790,7 +1860,7 @@ export function CargaDadosForm({
             />
             {isDistribuicao && (
               <p className="mt-0.5 text-[11px] font-semibold text-black">
-                Soma automática dos valores por cliente.
+                Soma automática dos valores por ponto.
               </p>
             )}
           </Field>
@@ -1799,11 +1869,17 @@ export function CargaDadosForm({
               value={peso}
               onChange={setPeso}
               suggestions={sugPeso}
+              disabled={isDistribuicao}
               onBlur={() => {
                 const n = parseMoneyInput(peso);
                 if (!Number.isNaN(n)) setPeso(formatMoneyInput(n));
               }}
             />
+            {isDistribuicao && (
+              <p className="mt-0.5 text-[11px] font-semibold text-black">
+                Soma automática do peso por ponto.
+              </p>
+            )}
           </Field>
           <Field label="Volumes">
             <SuggestInput
@@ -1824,7 +1900,7 @@ export function CargaDadosForm({
             />
             {isDistribuicao && (
               <p className="mt-0.5 text-[11px] font-semibold text-black">
-                Igual à quantidade de clientes abaixo.
+                Soma das entregas em cada ponto.
               </p>
             )}
           </Field>
@@ -1900,14 +1976,18 @@ export function CargaDadosForm({
         <section className="space-y-1.5 border-t border-ink/15 pt-2">
           <div className="flex flex-wrap items-end justify-between gap-2">
             <h3 className="text-[13px] font-extrabold uppercase tracking-wide text-black">
-              6 · Clientes, notas fiscais e valor
+              6 · Pontos de entrega (sequência)
             </h3>
             <p className="text-[12px] font-semibold text-black">
-              {totaisDist.clientes} cliente{totaisDist.clientes === 1 ? "" : "s"} ·{" "}
+              {totaisDist.pontos} ponto{totaisDist.pontos === 1 ? "" : "s"} ·{" "}
+              {totaisDist.entregas} entrega{totaisDist.entregas === 1 ? "" : "s"} ·{" "}
               {totaisDist.nfs} NF{totaisDist.nfs === 1 ? "" : "s"} ·{" "}
-              {formatCurrency(totaisDist.valor)}
+              {formatMoneyInput(totaisDist.peso)} kg · {formatCurrency(totaisDist.valor)}
             </p>
           </div>
+          <p className="text-[11px] font-semibold text-black">
+            Use as setas para definir a ordem de entrega. O 1º ponto é a primeira parada.
+          </p>
           <div className="space-y-2">
             {clientesDist.map((cli, idx) => (
               <div
@@ -1916,23 +1996,47 @@ export function CargaDadosForm({
               >
                 <div className="mb-1.5 flex items-center justify-between gap-2">
                   <p className="text-[12px] font-extrabold uppercase tracking-wide text-black">
-                    Cliente {idx + 1}
+                    Ponto {idx + 1}
                   </p>
-                  {clientesDist.length > 1 && (
+                  <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-600 hover:underline"
+                      title="Subir na sequência"
+                      disabled={idx === 0}
+                      className="rounded-md border border-ink/15 bg-white p-1 text-ink disabled:opacity-30"
                       onClick={() =>
-                        setClientesDist((prev) => prev.filter((x) => x.id !== cli.id))
+                        setClientesDist((prev) => reordenarPontos(prev, idx, -1))
                       }
                     >
-                      <Trash2 size={12} />
-                      Remover
+                      <ChevronUp size={14} />
                     </button>
-                  )}
+                    <button
+                      type="button"
+                      title="Descer na sequência"
+                      disabled={idx === clientesDist.length - 1}
+                      className="rounded-md border border-ink/15 bg-white p-1 text-ink disabled:opacity-30"
+                      onClick={() =>
+                        setClientesDist((prev) => reordenarPontos(prev, idx, 1))
+                      }
+                    >
+                      <ChevronDown size={14} />
+                    </button>
+                    {clientesDist.length > 1 && (
+                      <button
+                        type="button"
+                        className="ml-1 inline-flex items-center gap-1 text-[11px] font-semibold text-red-600 hover:underline"
+                        onClick={() =>
+                          setClientesDist((prev) => prev.filter((x) => x.id !== cli.id))
+                        }
+                      >
+                        <Trash2 size={12} />
+                        Remover
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-4">
-                  <Field label="Cliente *" className="lg:col-span-2">
+                  <Field label="Cliente / ponto *" className="lg:col-span-2">
                     <input
                       className={inputClass}
                       value={cli.nome}
@@ -1943,7 +2047,21 @@ export function CargaDadosForm({
                           ),
                         )
                       }
-                      placeholder="Nome / empresa"
+                      placeholder="Nome do cliente ou do ponto"
+                    />
+                  </Field>
+                  <Field label="Endereço do ponto" className="lg:col-span-2">
+                    <AddressSuggestInput
+                      value={cli.endereco}
+                      onChange={(v) =>
+                        setClientesDist((prev) =>
+                          prev.map((x) =>
+                            x.id === cli.id ? { ...x, endereco: v } : x,
+                          ),
+                        )
+                      }
+                      minChars={2}
+                      placeholder={PLACEHOLDER_ENDERECO_EXEMPLO}
                     />
                   </Field>
                   <Field label="CNPJ">
@@ -1960,7 +2078,22 @@ export function CargaDadosForm({
                       placeholder="00.000.000/0000-00"
                     />
                   </Field>
-                  <Field label="Qtd. notas fiscais *">
+                  <Field label="Entregas neste ponto *">
+                    <input
+                      className={inputClass}
+                      value={cli.qtdEntregas}
+                      inputMode="numeric"
+                      onChange={(e) =>
+                        setClientesDist((prev) =>
+                          prev.map((x) =>
+                            x.id === cli.id ? { ...x, qtdEntregas: e.target.value } : x,
+                          ),
+                        )
+                      }
+                      placeholder="1"
+                    />
+                  </Field>
+                  <Field label="Notas fiscais *">
                     <input
                       className={inputClass}
                       value={cli.qtdNfs}
@@ -1975,7 +2108,33 @@ export function CargaDadosForm({
                       placeholder="1"
                     />
                   </Field>
-                  <Field label="Valor (R$) *" className="sm:col-span-2 lg:col-span-4">
+                  <Field label="Peso (kg) *">
+                    <input
+                      className={inputClass}
+                      value={cli.pesoStr}
+                      inputMode="decimal"
+                      onChange={(e) =>
+                        setClientesDist((prev) =>
+                          prev.map((x) =>
+                            x.id === cli.id ? { ...x, pesoStr: e.target.value } : x,
+                          ),
+                        )
+                      }
+                      onBlur={() => {
+                        const n = parseMoneyInput(cli.pesoStr);
+                        if (Number.isNaN(n)) return;
+                        setClientesDist((prev) =>
+                          prev.map((x) =>
+                            x.id === cli.id
+                              ? { ...x, pesoStr: formatMoneyInput(n) }
+                              : x,
+                          ),
+                        );
+                      }}
+                      placeholder="0,00"
+                    />
+                  </Field>
+                  <Field label="Valor da carga (R$) *" className="sm:col-span-2 lg:col-span-4">
                     <input
                       className={inputClass}
                       value={cli.valorStr}
@@ -2008,22 +2167,12 @@ export function CargaDadosForm({
           <button
             type="button"
             className="inline-flex items-center gap-1.5 rounded-md border border-[#2f9e6a]/40 bg-white px-3 py-1.5 text-xs font-bold text-[#2f9e6a] hover:bg-emerald-50"
-            onClick={() => {
-              const novo = emptyClienteDistribuicao();
-              setClientesDist((prev) => [
-                ...prev,
-                {
-                  id: novo.id,
-                  nome: "",
-                  cnpj: "",
-                  qtdNfs: "1",
-                  valorStr: "",
-                },
-              ]);
-            }}
+            onClick={() =>
+              setClientesDist((prev) => [...prev, emptyClienteDistForm()])
+            }
           >
             <Plus size={14} />
-            Adicionar cliente
+            Adicionar ponto de entrega
           </button>
         </section>
       )}

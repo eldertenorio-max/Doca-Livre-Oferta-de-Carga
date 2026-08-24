@@ -8,12 +8,15 @@ export type ModoPublicacao = 'leilao' | 'oferta' | 'negociacao_direta'
 /** Tipo da oferta ao criar Nova carga. */
 export type TipoOfertaCarga = 'longo_percurso' | 'distribuicao'
 
-/** Cliente da oferta de distribuição (NFs e valor da mercadoria). */
+/** Ponto/cliente da oferta de distribuição (sequência de entrega). */
 export interface ClienteDistribuicao {
   id: string
   nome: string
+  endereco?: string
   cnpj?: string
+  qtd_entregas: number
   qtd_nfs: number
+  peso: number
   valor: number
 }
 
@@ -418,7 +421,9 @@ export interface Carga {
   observacao?: string
   /** Longo percurso (padrão) ou distribuição urbana com NFs por cliente. */
   tipo_oferta?: TipoOfertaCarga
-  /** Clientes da oferta de distribuição (quantidade de NFs e valor). */
+  /** Nome da rota na oferta de distribuição. */
+  nome_rota?: string
+  /** Pontos/clientes da oferta de distribuição (ordem = sequência de entrega). */
   clientes_distribuicao?: ClienteDistribuicao[]
   motivo_cancelamento?: string | null
   created_at: string

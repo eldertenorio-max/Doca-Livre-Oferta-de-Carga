@@ -504,6 +504,7 @@ export function montarNovaCarga(
     recusas: 0,
     observacao: undefined,
     tipo_oferta: 'longo_percurso',
+    nome_rota: '',
     clientes_distribuicao: [],
     created_at: new Date().toISOString(),
     ...partial,

@@ -584,6 +584,32 @@ export function CargoCard({
             <span className="font-bold text-ink">Destino:</span>{' '}
             <span className="text-ink/90">{carga.destino || '—'}</span>
           </p>
+          {carga.tipo_oferta === 'distribuicao' ? (
+            <>
+              {carga.nome_rota?.trim() ? (
+                <p>
+                  <span className="font-bold text-ink">Rota:</span>{' '}
+                  <span className="text-ink/90">{carga.nome_rota}</span>
+                </p>
+              ) : null}
+              <p>
+                <span className="font-bold text-ink">Entregas:</span>{' '}
+                <span className="text-ink/90">
+                  {carga.clientes_distribuicao?.length ?? 0} ponto
+                  {(carga.clientes_distribuicao?.length ?? 0) === 1 ? '' : 's'}
+                  {' · '}
+                  {carga.num_entregas || 0} entrega
+                  {(carga.num_entregas || 0) === 1 ? '' : 's'}
+                  {' · '}
+                  {(carga.clientes_distribuicao ?? []).reduce(
+                    (acc, p) => acc + (p.qtd_nfs || 0),
+                    0,
+                  )}{' '}
+                  NF
+                </span>
+              </p>
+            </>
+          ) : null}
           {qtdPontos > 0 ? (
             <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
               <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[11px] font-bold text-sky-800">
