@@ -377,6 +377,12 @@ export function regiaoDaUf(uf: string): RegiaoBr | null {
   return UF_PARA_REGIAO[key] ?? null
 }
 
+export function ufsDaRegiao(regiao: RegiaoBr): string[] {
+  return Object.entries(UF_PARA_REGIAO)
+    .filter(([, r]) => r === regiao)
+    .map(([uf]) => uf)
+}
+
 /** Distância em km (Haversine). */
 export function distanciaKm(
   lat1: number,

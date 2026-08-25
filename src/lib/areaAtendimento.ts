@@ -2,7 +2,7 @@ import { appStoreGet, appStoreGetCached, appStoreSet } from './appStore'
 import { ORG_EMBARCADOR_ULTRAFRIO_ID } from './orgHierarchy'
 import type { UfBr } from './mapaLogisticaIntel'
 
-export type ModoMarcacaoArea = 'cidade'
+export type ModoMarcacaoArea = 'estado' | 'cidade' | 'regiao'
 
 export type CidadeAtendida = {
   id: string
@@ -17,6 +17,10 @@ export type AreaAtendimento = {
   ownerKind: 'embarcador' | 'transportadora'
   modo: ModoMarcacaoArea
   cidades: CidadeAtendida[]
+  /** UFs marcadas no modo Estado. */
+  estados: string[]
+  /** Norte, Nordeste, Centro-Oeste, Sudeste, Sul. */
+  regioes: string[]
   updatedAt: string
 }
 
@@ -39,6 +43,8 @@ export function areaVazia(
     ownerKind: kind,
     modo: 'cidade',
     cidades: [],
+    estados: [],
+    regioes: [],
     updatedAt: new Date().toISOString(),
   }
 }
@@ -62,7 +68,18 @@ export function getArea(
   kind: AreaAtendimento['ownerKind'],
   ownerId: string,
 ): AreaAtendimento {
-  return db.areas[chaveArea(kind, ownerId)] ?? areaVazia(kind, ownerId)
+  const raw = db.areas[chaveArea(kind, ownerId)]
+  if (!raw) return areaVazia(kind, ownerId)
+  const modo: ModoMarcacaoArea =
+    raw.modo === 'estado' || raw.modo === 'regiao' || raw.modo === 'cidade' ? raw.modo : 'cidade'
+  return {
+    ...areaVazia(kind, ownerId),
+    ...raw,
+    modo,
+    cidades: Array.isArray(raw.cidades) ? raw.cidades : [],
+    estados: Array.isArray(raw.estados) ? raw.estados : [],
+    regioes: Array.isArray(raw.regioes) ? raw.regioes : [],
+  }
 }
 
 export function setArea(db: AreaAtendimentoDB, area: AreaAtendimento): AreaAtendimentoDB {
@@ -81,9 +98,32 @@ export function toggleCidade(area: AreaAtendimento, cidade: CidadeAtendida): Are
   const existe = area.cidades.some((c) => c.id === cidade.id)
   return {
     ...area,
+    modo: 'cidade',
     cidades: existe
       ? area.cidades.filter((c) => c.id !== cidade.id)
       : [...area.cidades, cidade],
+  }
+}
+
+export function toggleEstado(area: AreaAtendimento, uf: string): AreaAtendimento {
+  const sigla = uf.trim().toUpperCase()
+  const existe = area.estados.some((e) => e.toUpperCase() === sigla)
+  return {
+    ...area,
+    modo: 'estado',
+    estados: existe
+      ? area.estados.filter((e) => e.toUpperCase() !== sigla)
+      : [...area.estados, sigla],
+  }
+}
+
+export function toggleRegiao(area: AreaAtendimento, nome: string): AreaAtendimento {
+  const key = nome.trim()
+  const existe = area.regioes.some((r) => r === key)
+  return {
+    ...area,
+    modo: 'regiao',
+    regioes: existe ? area.regioes.filter((r) => r !== key) : [...area.regioes, key],
   }
 }
 

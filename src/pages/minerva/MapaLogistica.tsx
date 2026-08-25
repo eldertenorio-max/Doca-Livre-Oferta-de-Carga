@@ -157,7 +157,7 @@ export function MapaLogisticaPage() {
           </h1>
           <p className="mapa-log__sub">
             {aba === 'area'
-              ? 'Marque no mapa as cidades que o embarcador atende. Primeiro escolha Cidade, depois clique no estado e nas cidades.'
+              ? 'Marque a área de atendimento no mapa. Escolha a divisão: Estado, Cidade ou Região.'
               : 'Radar do mercado com os dados da sua plataforma: onde há cargas, onde faltam caminhões, regiões aquecidas e frete médio por UF.'}
           </p>
           <div className="mapa-log__tabs" role="tablist">

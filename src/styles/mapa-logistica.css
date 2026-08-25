@@ -465,13 +465,15 @@
 }
 
 .area-att-modo {
+  flex: 1;
+  min-width: 0;
   border: 1px solid rgba(15, 23, 42, 0.12);
   background: #fff;
   color: #334155;
   font: inherit;
   font-size: 0.82rem;
   font-weight: 800;
-  padding: 8px 14px;
+  padding: 8px 10px;
   border-radius: 10px;
   cursor: pointer;
 }

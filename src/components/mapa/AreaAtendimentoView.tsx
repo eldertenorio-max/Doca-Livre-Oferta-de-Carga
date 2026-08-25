@@ -7,6 +7,7 @@ import {
   buscarMunicipiosCatalogo,
   carregarCatalogoMunicipios,
   carregarMalhaMunicipios,
+  carregarMalhaRegioes,
   carregarMalhaUfs,
   type GeoProps,
   type MunicipioCat,
@@ -17,7 +18,11 @@ import {
   ownerEmbarcadorId,
   saveAreaDb,
   setArea,
+  chaveArea,
   toggleCidade,
+  toggleEstado,
+  toggleRegiao,
+  type AreaAtendimento,
   type AreaAtendimentoDB,
   type CidadeAtendida,
   type ModoMarcacaoArea,
@@ -28,11 +33,34 @@ import {
   loadOrgTree,
   type OrgNo,
 } from '../../lib/orgHierarchy'
+import { REGIOES_BR, regiaoDaUf, type RegiaoBr } from '../../lib/mapaFrota'
 import { isLocalSuperUser } from '../../lib/superUsers'
-import type { UfBr } from '../../lib/mapaLogisticaIntel'
+import { UF_CENTRO, UFS_BR, type UfBr } from '../../lib/mapaLogisticaIntel'
 import type { Transportador } from '../../types'
 
 type Feat = GeoJSON.Feature<GeoJSON.Geometry, GeoProps>
+
+const REGIAO_COR: Record<string, string> = {
+  Norte: '#0d9488',
+  Nordeste: '#ea580c',
+  'Centro-Oeste': '#ca8a04',
+  Sudeste: '#1d4ed8',
+  Sul: '#7c3aed',
+}
+
+const MODOS: { id: ModoMarcacaoArea; label: string; hint: string }[] = [
+  { id: 'estado', label: 'Estado', hint: 'Clique no estado para incluir ou tirar da área.' },
+  {
+    id: 'cidade',
+    label: 'Cidade',
+    hint: 'Clique no estado e depois nas cidades. Laranja = atendida.',
+  },
+  {
+    id: 'regiao',
+    label: 'Região',
+    hint: 'Clique na região (Norte, Nordeste, Centro-Oeste, Sudeste ou Sul).',
+  },
+]
 
 function escapeHtml(s: string) {
   return s
@@ -65,18 +93,33 @@ function styleMun(selecionada: boolean): L.PathOptions {
   }
 }
 
+function styleRegiao(nome: string, ativa: boolean): L.PathOptions {
+  const cor = REGIAO_COR[nome] ?? '#64748b'
+  return {
+    color: ativa ? '#0f172a' : cor,
+    weight: ativa ? 2.4 : 1.4,
+    fillColor: cor,
+    fillOpacity: ativa ? 0.5 : 0.22,
+  }
+}
+
 export function AreaAtendimentoView() {
   const { user, transportadores } = useData()
   const mapEl = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const ufsLayerRef = useRef<L.GeoJSON | null>(null)
   const munLayerRef = useRef<L.GeoJSON | null>(null)
+  const regLayerRef = useRef<L.GeoJSON | null>(null)
   const labelsRef = useRef<L.LayerGroup | null>(null)
   const saveTimer = useRef<number | null>(null)
   const idsRef = useRef<Set<string>>(new Set())
+  const estadosRef = useRef<Set<string>>(new Set())
+  const regioesRef = useRef<Set<string>>(new Set())
   const modoRef = useRef<ModoMarcacaoArea | null>(null)
   const ownerIdRef = useRef('')
   const abrirUfRef = useRef<(uf: UfBr) => Promise<void>>(async () => {})
+  const persistPatchRef = useRef<(fn: (a: AreaAtendimento) => AreaAtendimento) => void>(() => {})
+  const mostrarRegioesRef = useRef<() => Promise<void>>(async () => {})
 
   const [tree, setTree] = useState<OrgNo[]>(() => loadOrgTree())
   const [db, setDb] = useState<AreaAtendimentoDB>(() => ({ areas: {} }))
@@ -105,23 +148,58 @@ export function AreaAtendimentoView() {
     [db, ownerId],
   )
   const selecionadas = area.cidades
+  const estadosSel = area.estados
+  const regioesSel = area.regioes
   const idsSel = useMemo(() => new Set(selecionadas.map((c) => c.id)), [selecionadas])
   idsRef.current = idsSel
+  estadosRef.current = new Set(estadosSel.map((e) => e.toUpperCase()))
+  regioesRef.current = new Set(regioesSel)
 
   useEffect(() => {
-    if (area.cidades.length > 0) setModo('cidade')
-  }, [ownerId, area.cidades.length])
+    if (!ownerId) return
+    const raw = db.areas[chaveArea('embarcador', ownerId)]
+    if (!raw) return
+    if (raw.modo === 'estado' || raw.modo === 'cidade' || raw.modo === 'regiao') {
+      setModo(raw.modo)
+    }
+  }, [ownerId, db])
 
-  const sugestoes = useMemo(
+  const sugestoesCidade = useMemo(
     () => buscarMunicipiosCatalogo(catalogo, busca, 10),
     [catalogo, busca],
   )
+  const sugestoesEstado = useMemo(() => {
+    const q = busca.trim().toLowerCase()
+    if (q.length < 1) return []
+    return UFS_BR.filter(
+      (uf) =>
+        uf.toLowerCase().includes(q) || UF_CENTRO[uf].nome.toLowerCase().includes(q),
+    ).slice(0, 10)
+  }, [busca])
+  const sugestoesRegiao = useMemo(() => {
+    const q = busca.trim().toLowerCase()
+    if (q.length < 1) return [...REGIOES_BR]
+    return REGIOES_BR.filter((r) => r.toLowerCase().includes(q))
+  }, [busca])
 
   function persist(nextDb: AreaAtendimentoDB) {
     setDb(nextDb)
     if (saveTimer.current) window.clearTimeout(saveTimer.current)
     saveTimer.current = window.setTimeout(() => saveAreaDb(nextDb), 400)
   }
+
+  function persistPatch(fn: (a: AreaAtendimento) => AreaAtendimento) {
+    setDb((cur) => {
+      const oid = ownerIdRef.current
+      if (!oid) return cur
+      const atual = getArea(cur, 'embarcador', oid)
+      const next = setArea(cur, { ...fn(atual), ownerId: oid, ownerKind: 'embarcador' })
+      if (saveTimer.current) window.clearTimeout(saveTimer.current)
+      saveTimer.current = window.setTimeout(() => saveAreaDb(next), 400)
+      return next
+    })
+  }
+  persistPatchRef.current = persistPatch
 
   function aplicarCidades(cidades: CidadeAtendida[]) {
     if (!ownerId) return
@@ -157,17 +235,28 @@ export function AreaAtendimentoView() {
       try {
         const fc = await carregarMalhaUfs()
         const layer = L.geoJSON(fc as GeoJSON.GeoJsonObject, {
-          style: () => styleUf(false),
+          style: (feat) => {
+            const uf = (feat as Feat | undefined)?.properties?.uf
+            return styleUf(Boolean(uf && estadosRef.current.has(uf)))
+          },
           onEachFeature: (feature, lyr) => {
             const p = (feature as Feat).properties
-            lyr.bindTooltip(`${p.nome} (${p.uf})`, { sticky: true })
+            const uf = p.uf
+            lyr.bindTooltip(`${p.nome}${uf ? ` (${uf})` : ''}`, { sticky: true })
             lyr.on('click', () => {
-              if (!modoRef.current) {
-                setErro('Escolha “Cidade” antes de marcar no mapa.')
+              const m = modoRef.current
+              if (!m) {
+                setErro('Escolha Estado, Cidade ou Região antes de marcar no mapa.')
                 return
               }
+              if (!uf) return
               setErro('')
-              void abrirUfRef.current(p.uf)
+              if (m === 'cidade') void abrirUfRef.current(uf)
+              else if (m === 'estado') persistPatchRef.current((a) => toggleEstado(a, uf))
+              else {
+                const r = regiaoDaUf(uf)
+                if (r) persistPatchRef.current((a) => toggleRegiao(a, r))
+              }
             })
           },
         }).addTo(map)
@@ -184,6 +273,7 @@ export function AreaAtendimentoView() {
       mapRef.current = null
       ufsLayerRef.current = null
       munLayerRef.current = null
+      regLayerRef.current = null
       labelsRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -207,10 +297,11 @@ export function AreaAtendimentoView() {
         },
         onEachFeature: (feature, lyr) => {
           const p = (feature as Feat).properties
-          lyr.bindTooltip(`${p.nome} — ${p.uf}`, { sticky: true })
+          lyr.bindTooltip(`${p.nome} — ${p.uf ?? ''}`, { sticky: true })
           lyr.on('click', () => {
-            if (!modoRef.current) return
+            if (modoRef.current !== 'cidade') return
             const center = (lyr as L.Polygon).getBounds?.().getCenter?.()
+            if (!p.uf) return
             const cidade: CidadeAtendida = {
               id: p.id,
               nome: p.nome,
@@ -218,19 +309,7 @@ export function AreaAtendimentoView() {
               lat: center?.lat,
               lng: center?.lng,
             }
-            setDb((cur) => {
-              const atual = getArea(cur, 'embarcador', ownerIdRef.current)
-              const nextArea = toggleCidade(atual, cidade)
-              const next = setArea(cur, {
-                ...nextArea,
-                ownerId: ownerIdRef.current,
-                ownerKind: 'embarcador',
-                modo: 'cidade',
-              })
-              if (saveTimer.current) window.clearTimeout(saveTimer.current)
-              saveTimer.current = window.setTimeout(() => saveAreaDb(next), 400)
-              return next
-            })
+            persistPatchRef.current((a) => toggleCidade(a, cidade))
           })
         },
       }).addTo(map)
@@ -244,6 +323,71 @@ export function AreaAtendimentoView() {
     }
   }
   abrirUfRef.current = abrirUf
+
+  async function mostrarRegioes() {
+    const map = mapRef.current
+    if (!map) return
+    if (regLayerRef.current) {
+      if (!map.hasLayer(regLayerRef.current)) regLayerRef.current.addTo(map)
+      return
+    }
+    setCarregando('Carregando regiões do Brasil…')
+    try {
+      const fc = await carregarMalhaRegioes()
+      const layer = L.geoJSON(fc as GeoJSON.GeoJsonObject, {
+        style: (feat) => {
+          const nome = (feat as Feat | undefined)?.properties?.nome ?? ''
+          return styleRegiao(nome, regioesRef.current.has(nome))
+        },
+        onEachFeature: (feature, lyr) => {
+          const p = (feature as Feat).properties
+          lyr.bindTooltip(p.nome, { sticky: true })
+          lyr.on('click', () => {
+            if (modoRef.current !== 'regiao') return
+            setErro('')
+            persistPatchRef.current((a) => toggleRegiao(a, p.nome))
+          })
+        },
+      }).addTo(map)
+      regLayerRef.current = layer
+      setCarregando('')
+    } catch {
+      setCarregando('')
+      setErro('Não foi possível carregar as regiões. Clique no estado para marcar a região.')
+    }
+  }
+  mostrarRegioesRef.current = mostrarRegioes
+
+  function voltarEstados() {
+    munLayerRef.current?.remove()
+    munLayerRef.current = null
+    setUfAtiva(null)
+    mapRef.current?.setView([-14.2, -51.9], 4)
+  }
+
+  function escolherModo(m: ModoMarcacaoArea) {
+    setModo(m)
+    setErro('')
+    setBusca('')
+    voltarEstados()
+    if (ownerId) {
+      persist(setArea(db, { ...area, ownerId, ownerKind: 'embarcador', modo: m }))
+    }
+  }
+
+  useEffect(() => {
+    const map = mapRef.current
+    const ufs = ufsLayerRef.current
+    const regs = regLayerRef.current
+    if (!map) return
+    if (modo === 'regiao') {
+      if (ufs && map.hasLayer(ufs)) map.removeLayer(ufs)
+      void mostrarRegioesRef.current()
+    } else {
+      if (regs && map.hasLayer(regs)) map.removeLayer(regs)
+      if (ufs && !map.hasLayer(ufs)) ufs.addTo(map)
+    }
+  }, [modo])
 
   useEffect(() => {
     const layer = munLayerRef.current
@@ -262,9 +406,28 @@ export function AreaAtendimentoView() {
     layer.eachLayer((lyr) => {
       const feat = (lyr as L.GeoJSON & { feature?: Feat }).feature
       const uf = feat?.properties?.uf
-      ;(lyr as L.Path).setStyle(styleUf(uf === ufAtiva))
+      if (modo === 'estado') {
+        ;(lyr as L.Path).setStyle(styleUf(Boolean(uf && estadosRef.current.has(uf))))
+      } else if (modo === 'cidade') {
+        ;(lyr as L.Path).setStyle(styleUf(uf === ufAtiva))
+      } else if (modo === 'regiao') {
+        const r = uf ? regiaoDaUf(uf) : null
+        ;(lyr as L.Path).setStyle(styleUf(Boolean(r && regioesRef.current.has(r))))
+      } else {
+        ;(lyr as L.Path).setStyle(styleUf(false))
+      }
     })
-  }, [ufAtiva])
+  }, [ufAtiva, modo, estadosSel, regioesSel])
+
+  useEffect(() => {
+    const layer = regLayerRef.current
+    if (!layer) return
+    layer.eachLayer((lyr) => {
+      const feat = (lyr as L.GeoJSON & { feature?: Feat }).feature
+      const nome = feat?.properties?.nome ?? ''
+      ;(lyr as L.Path).setStyle(styleRegiao(nome, regioesRef.current.has(nome)))
+    })
+  }, [regioesSel])
 
   useEffect(() => {
     const group = labelsRef.current
@@ -318,24 +481,17 @@ export function AreaAtendimentoView() {
     }
   }, [mostrarTudo, superView, transportadores, catalogo])
 
-  async function escolherSugestao(m: MunicipioCat) {
-    if (!modo) {
-      setErro('Escolha “Cidade” antes de marcar.')
+  async function escolherSugestaoCidade(m: MunicipioCat) {
+    if (modo !== 'cidade') {
+      setErro('Escolha “Cidade” para marcar município.')
       return
     }
     setBusca('')
     setErro('')
-    const cidade: CidadeAtendida = {
-      id: m.id,
-      nome: m.nome,
-      uf: m.uf,
-      lat: m.lat,
-      lng: m.lng,
-    }
-    aplicarCidades(
-      selecionadas.some((c) => c.id === m.id)
-        ? selecionadas
-        : [...selecionadas, cidade],
+    persistPatch((a) =>
+      a.cidades.some((c) => c.id === m.id)
+        ? a
+        : toggleCidade(a, { id: m.id, nome: m.nome, uf: m.uf, lat: m.lat, lng: m.lng }),
     )
     await abrirUf(m.uf)
     const map = mapRef.current
@@ -344,14 +500,10 @@ export function AreaAtendimentoView() {
     }
   }
 
-  function voltarEstados() {
-    munLayerRef.current?.remove()
-    munLayerRef.current = null
-    setUfAtiva(null)
-    mapRef.current?.setView([-14.2, -51.9], 4)
-  }
-
   const embarcadorNome = embarcadores.find((e) => e.id === ownerId)?.nome || 'Embarcador'
+  const hint = MODOS.find((x) => x.id === modo)?.hint
+  const qtdLista =
+    modo === 'estado' ? estadosSel.length : modo === 'regiao' ? regioesSel.length : selecionadas.length
 
   return (
     <div className="mapa-log__body">
@@ -359,32 +511,26 @@ export function AreaAtendimentoView() {
         <section className="mapa-log__panel">
           <h2>Como marcar</h2>
           <p className="mapa-log__empty" style={{ marginBottom: 10 }}>
-            Escolha o tipo e depois clique no mapa.
+            Escolha a divisão do mapa e clique para marcar a área.
           </p>
           <div className="area-att-modos">
-            <button
-              type="button"
-              className={`area-att-modo${modo === 'cidade' ? ' is-on' : ''}`}
-              onClick={() => {
-                setModo('cidade')
-                setErro('')
-                if (ownerId) {
-                  persist(setArea(db, { ...area, ownerId, ownerKind: 'embarcador', modo: 'cidade' }))
-                }
-              }}
-            >
-              Cidade
-            </button>
+            {MODOS.map((op) => (
+              <button
+                key={op.id}
+                type="button"
+                className={`area-att-modo${modo === op.id ? ' is-on' : ''}`}
+                onClick={() => escolherModo(op.id)}
+              >
+                {op.label}
+              </button>
+            ))}
           </div>
           {!modo ? (
             <p className="mapa-log__empty" style={{ marginTop: 8 }}>
-              Selecione <strong>Cidade</strong> para começar a marcar.
+              Selecione <strong>Estado</strong>, <strong>Cidade</strong> ou <strong>Região</strong>.
             </p>
           ) : (
-            <p className="area-att-hint">
-              Clique no estado e nas cidades que o embarcador atende. Cidade pintada de laranja
-              está na área.
-            </p>
+            <p className="area-att-hint">{hint}</p>
           )}
         </section>
 
@@ -406,22 +552,64 @@ export function AreaAtendimentoView() {
         ) : null}
 
         <section className="mapa-log__panel">
-          <h2>Buscar cidade</h2>
+          <h2>
+            {modo === 'estado' ? 'Buscar estado' : modo === 'regiao' ? 'Buscar região' : 'Buscar cidade'}
+          </h2>
           <label className="area-att-search">
             <Search size={15} />
             <input
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
-              placeholder="Ex.: Guarulhos"
+              placeholder={
+                modo === 'estado'
+                  ? 'Ex.: São Paulo'
+                  : modo === 'regiao'
+                    ? 'Ex.: Sudeste'
+                    : 'Ex.: Guarulhos'
+              }
               disabled={!modo}
             />
           </label>
-          {sugestoes.length > 0 ? (
+          {modo === 'cidade' && sugestoesCidade.length > 0 ? (
             <ul className="area-att-sug">
-              {sugestoes.map((m) => (
+              {sugestoesCidade.map((m) => (
                 <li key={m.id}>
-                  <button type="button" onClick={() => void escolherSugestao(m)}>
+                  <button type="button" onClick={() => void escolherSugestaoCidade(m)}>
                     {m.nome} — {m.uf}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {modo === 'estado' && sugestoesEstado.length > 0 ? (
+            <ul className="area-att-sug">
+              {sugestoesEstado.map((uf) => (
+                <li key={uf}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBusca('')
+                      persistPatch((a) => toggleEstado(a, uf))
+                    }}
+                  >
+                    {UF_CENTRO[uf].nome} — {uf}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {modo === 'regiao' && sugestoesRegiao.length > 0 ? (
+            <ul className="area-att-sug">
+              {sugestoesRegiao.map((r) => (
+                <li key={r}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBusca('')
+                      persistPatch((a) => toggleRegiao(a, r))
+                    }}
+                  >
+                    {r}
                   </button>
                 </li>
               ))}
@@ -431,13 +619,53 @@ export function AreaAtendimentoView() {
 
         <section className="mapa-log__panel">
           <h2>
-            <MapPin size={14} /> Cidades na área
-            <span className="area-att-count">{selecionadas.length}</span>
+            <MapPin size={14} />{' '}
+            {modo === 'estado' ? 'Estados na área' : modo === 'regiao' ? 'Regiões na área' : 'Cidades na área'}
+            <span className="area-att-count">{qtdLista}</span>
           </h2>
           <p className="mapa-log__empty" style={{ marginBottom: 8 }}>
             {embarcadorNome}
           </p>
-          {selecionadas.length === 0 ? (
+          {modo === 'estado' ? (
+            estadosSel.length === 0 ? (
+              <p className="mapa-log__empty">Nenhum estado marcado.</p>
+            ) : (
+              <ul className="area-att-chips">
+                {estadosSel
+                  .slice()
+                  .sort((a, b) => a.localeCompare(b, 'pt-BR'))
+                  .map((uf) => (
+                    <li key={uf}>
+                      <button
+                        type="button"
+                        onClick={() => persistPatch((a) => toggleEstado(a, uf))}
+                        title="Remover"
+                      >
+                        {UF_CENTRO[uf as UfBr]?.nome ?? uf} — {uf} ×
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            )
+          ) : modo === 'regiao' ? (
+            regioesSel.length === 0 ? (
+              <p className="mapa-log__empty">Nenhuma região marcada.</p>
+            ) : (
+              <ul className="area-att-chips">
+                {regioesSel.map((r) => (
+                  <li key={r}>
+                    <button
+                      type="button"
+                      onClick={() => persistPatch((a) => toggleRegiao(a, r))}
+                      title="Remover"
+                    >
+                      {r} ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )
+          ) : selecionadas.length === 0 ? (
             <p className="mapa-log__empty">Nenhuma cidade marcada.</p>
           ) : (
             <ul className="area-att-chips">
@@ -457,11 +685,15 @@ export function AreaAtendimentoView() {
                 ))}
             </ul>
           )}
-          {selecionadas.length > 0 ? (
+          {qtdLista > 0 ? (
             <button
               type="button"
               className="area-att-clear"
-              onClick={() => aplicarCidades([])}
+              onClick={() => {
+                if (modo === 'estado') persistPatch((a) => ({ ...a, estados: [] }))
+                else if (modo === 'regiao') persistPatch((a) => ({ ...a, regioes: [] }))
+                else aplicarCidades([])
+              }}
             >
               Limpar área
             </button>
@@ -495,7 +727,10 @@ export function AreaAtendimentoView() {
             <i style={{ background: '#22d3ee' }} /> Estado
           </span>
           <span>
-            <i style={{ background: '#f59e0b' }} /> Cidade atendida
+            <i style={{ background: '#f59e0b' }} /> Cidade
+          </span>
+          <span>
+            <i style={{ background: '#1d4ed8' }} /> Região
           </span>
           {superView ? (
             <span>
@@ -504,12 +739,20 @@ export function AreaAtendimentoView() {
           ) : null}
         </div>
         <div className="area-att-mapbar">
-          {ufAtiva ? (
+          {modo === 'cidade' && ufAtiva ? (
             <button type="button" onClick={voltarEstados}>
               ← Voltar aos estados
             </button>
           ) : (
-            <span>Brasil · clique no estado para ver as cidades</span>
+            <span>
+              {modo === 'estado'
+                ? 'Brasil · clique no estado'
+                : modo === 'regiao'
+                  ? 'Brasil · clique na região'
+                  : modo === 'cidade'
+                    ? 'Brasil · clique no estado para ver as cidades'
+                    : 'Brasil · escolha Estado, Cidade ou Região'}
+            </span>
           )}
           {carregando ? <em>{carregando}</em> : null}
           {erro ? <strong>{erro}</strong> : null}

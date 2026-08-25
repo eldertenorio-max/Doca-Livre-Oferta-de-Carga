@@ -46,13 +46,24 @@ export type MunicipioCat = {
 export type GeoProps = {
   id: string
   nome: string
-  uf: UfBr
+  uf?: UfBr
+  regiao?: string
+}
+
+/** Códigos IBGE das 5 grandes regiões. */
+export const IBGE_REGIAO: Record<string, string> = {
+  '1': 'Norte',
+  '2': 'Nordeste',
+  '3': 'Sudeste',
+  '4': 'Sul',
+  '5': 'Centro-Oeste',
 }
 
 export type GeoFc = GeoJSON.FeatureCollection<GeoJSON.Geometry, GeoProps>
 
 const cacheUfs = new Map<string, GeoFc>()
 const cacheMun = new Map<string, GeoFc>()
+const cacheRegioes = new Map<string, GeoFc>()
 let catalogo: MunicipioCat[] | null = null
 let catalogoPendente: Promise<MunicipioCat[]> | null = null
 
@@ -102,6 +113,34 @@ export async function carregarMalhaUfs(): Promise<GeoFc> {
     }),
   }
   cacheUfs.set('BR', fc)
+  return fc
+}
+
+/** Malha das 5 grandes regiões (IBGE). */
+export async function carregarMalhaRegioes(): Promise<GeoFc> {
+  const hit = cacheRegioes.get('BR')
+  if (hit) return hit
+  const raw = asFc(
+    await fetchJson(
+      'https://servicodados.ibge.gov.br/api/v3/malhas/paises/BR?formato=application/vnd.geo+json&qualidade=minima&intrarregiao=regiao',
+    ),
+  )
+  const fc: GeoFc = {
+    type: 'FeatureCollection',
+    features: raw.features.map((f) => {
+      const cod = propsCodarea(f.properties)
+      const nome = IBGE_REGIAO[cod] || `Região ${cod}`
+      return {
+        ...f,
+        properties: {
+          id: cod,
+          nome,
+          regiao: nome,
+        },
+      }
+    }),
+  }
+  cacheRegioes.set('BR', fc)
   return fc
 }
 
