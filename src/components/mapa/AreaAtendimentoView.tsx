@@ -216,6 +216,7 @@ export function AreaAtendimentoView() {
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [msgSalva, setMsgSalva] = useState('')
   const [showFontes, setShowFontes] = useState(false)
+  const [showModoHint, setShowModoHint] = useState(false)
 
   const superView = isDiegoElder(user)
   const embarcadores = useMemo(() => listarEmbarcadores(tree), [tree])
@@ -920,15 +921,31 @@ export function AreaAtendimentoView() {
               <strong>Bairro</strong>.
             </p>
           ) : (
-            <p className="area-att-hint">
-              {hint}
-              {fonteAtiva ? (
-                <>
-                  <br />
-                  <em>Fonte: {fonteAtiva}</em>
-                </>
+            <div className="area-att-modo-help">
+              <button
+                type="button"
+                className={`area-att-info${showModoHint ? ' is-on' : ''}`}
+                aria-label="Como usar este modo"
+                aria-expanded={showModoHint}
+                title="Como usar este modo"
+                onClick={() => setShowModoHint((v) => !v)}
+              >
+                <Info size={16} />
+              </button>
+              {showModoHint ? (
+                <div className="area-att-info-pop">
+                  <p className="area-att-hint">
+                    {hint}
+                    {fonteAtiva ? (
+                      <>
+                        <br />
+                        <em>Fonte: {fonteAtiva}</em>
+                      </>
+                    ) : null}
+                  </p>
+                </div>
               ) : null}
-            </p>
+            </div>
           )}
         </section>
 

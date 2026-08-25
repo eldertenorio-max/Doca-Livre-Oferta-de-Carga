@@ -555,6 +555,23 @@
   border: 1px solid rgba(15, 23, 42, 0.08);
 }
 
+.area-att-modo-help {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.area-att-modo-help .area-att-info-pop {
+  flex: 1 1 100%;
+  margin-bottom: 0;
+}
+
+.area-att-modo-help .area-att-hint {
+  margin: 0;
+}
+
 .area-att-hint {
   margin: 10px 0 0;
   font-size: 0.75rem;
