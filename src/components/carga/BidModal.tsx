@@ -39,6 +39,7 @@ export function BidModal({
     cargas,
     enviarLance,
     registrarVisualizacao,
+    recusarCargaTransportador,
     lancesDaCarga,
     historicoPropostasDaCarga,
     effectiveTransportadorId,
@@ -213,6 +214,31 @@ export function BidModal({
     submitValor(aceito, { aceitarOferta: true })
   }
 
+  function handleRecusar() {
+    if (!tid) {
+      setError('Selecione uma transportadora (Ver como) ou entre com conta de transportador.')
+      return
+    }
+    const ok = window.confirm(
+      temContraProposta
+        ? `Recusar a contra-proposta da carga ${live.numero}? Ela sairá do seu Kanban.`
+        : `Recusar a carga ${live.numero}? Ela sairá do seu Kanban.`,
+    )
+    if (!ok) return
+    const res = recusarCargaTransportador(live.id)
+    if (!res.ok) {
+      setError(res.error ?? 'Não foi possível recusar.')
+      return
+    }
+    showActionFlash({
+      titulo: temContraProposta ? 'Contra-proposta recusada' : 'Carga recusada',
+      mensagem: temContraProposta
+        ? `Você recusou a contra-proposta da carga ${live.numero}.`
+        : `Você recusou a carga ${live.numero}.`,
+    })
+    onClose()
+  }
+
   return (
     <Modal
       open={open}
@@ -310,7 +336,15 @@ export function BidModal({
               >
                 {temContraProposta ? 'Responder contra-proposta' : 'Enviar lance'}
               </Button>
-              <Button variant="danger" className="min-w-[100px] flex-1" onClick={onClose}>
+              <Button
+                variant="danger"
+                className="min-w-[140px] flex-1"
+                onClick={handleRecusar}
+                disabled={bloqueado || !tid}
+              >
+                {temContraProposta ? 'Recusar contra-proposta' : 'Recusar carga'}
+              </Button>
+              <Button variant="ghost" className="min-w-[100px] flex-1" onClick={onClose}>
                 Fechar
               </Button>
             </div>

@@ -17,6 +17,7 @@ import {
 } from '../../lib/kanbanColumns'
 import { isKanbanSyncReady } from '../../lib/kanbanSync'
 import { rankingNoCardTransportador } from '../../lib/desempate'
+import { roundMoney } from '../../lib/businessRules'
 import type { Carga } from '../../types'
 
 const VIEW_AS_STORAGE_KEY = 'doca-livre-kanban-transportador-view-as'
@@ -333,8 +334,15 @@ export function KanbanTransportador() {
                         col.key === 'nova_carga' || col.key === 'propostas'
                           ? () => {
                               if (!tid) return
+                              const temContra =
+                                Boolean(meuLance) &&
+                                c.frete_oferta != null &&
+                                Math.abs(roundMoney(c.frete_oferta) - roundMoney(meuLance.valor)) >
+                                  0.009
                               const ok = window.confirm(
-                                `Recusar a carga ${c.numero}? Ela sairá do seu Kanban.`,
+                                temContra
+                                  ? `Recusar a contra-proposta da carga ${c.numero}? Ela sairá do seu Kanban.`
+                                  : `Recusar a carga ${c.numero}? Ela sairá do seu Kanban.`,
                               )
                               if (!ok) return
                               const res = recusarCargaTransportador(c.id)

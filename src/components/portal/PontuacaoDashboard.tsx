@@ -407,7 +407,8 @@ export function PontuacaoDashboard({
     visualizacoes: number
     lances: number
     aceitaram: number
-    recusaram: number
+    recusaramCarga: number
+    recusaramContra: number
   }
   onOpenTransportador?: (id: string) => void
 }) {
@@ -416,7 +417,8 @@ export function PontuacaoDashboard({
       { label: 'Visualizações', value: totais.visualizacoes, color: '#0f172a' },
       { label: 'Deram lance', value: totais.lances, color: '#f9db00' },
       { label: 'Aceitaram', value: totais.aceitaram, color: '#16a34a' },
-      { label: 'Recusaram', value: totais.recusaram, color: '#dc2626' },
+      { label: 'Recusou a carga', value: totais.recusaramCarga, color: '#dc2626' },
+      { label: 'Recusou a contra-proposta', value: totais.recusaramContra, color: '#b45309' },
     ],
     [totais],
   )

@@ -919,15 +919,28 @@ function unificarTransportadoresDuplicados(state: DataState): DataState {
       const mudouRecusados =
         recusados.length !== (c.recusado_por_ids ?? []).length ||
         recusados.some((id, i) => id !== (c.recusado_por_ids ?? [])[i])
+      const recusadosContra = (c.recusado_contra_proposta_por_ids ?? []).map((id) => remapId(id))
+      const mudouRecusadosContra =
+        recusadosContra.length !== (c.recusado_contra_proposta_por_ids ?? []).length ||
+        recusadosContra.some((id, i) => id !== (c.recusado_contra_proposta_por_ids ?? [])[i])
       const vistos = (c.visualizado_por_ids ?? []).map((id) => remapId(id))
       const mudouVistos =
         vistos.length !== (c.visualizado_por_ids ?? []).length ||
         vistos.some((id, i) => id !== (c.visualizado_por_ids ?? [])[i])
-      if (novoVencedor === c.transportador_vencedor_id && !mudouRecusados && !mudouVistos) return c
+      if (
+        novoVencedor === c.transportador_vencedor_id &&
+        !mudouRecusados &&
+        !mudouRecusadosContra &&
+        !mudouVistos
+      )
+        return c
       return {
         ...c,
         transportador_vencedor_id: novoVencedor,
         recusado_por_ids: mudouRecusados ? recusados : c.recusado_por_ids,
+        recusado_contra_proposta_por_ids: mudouRecusadosContra
+          ? recusadosContra
+          : c.recusado_contra_proposta_por_ids,
         visualizado_por_ids: mudouVistos ? vistos : c.visualizado_por_ids,
       }
     }),
@@ -3384,6 +3397,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 expira_em: new Date(now + prazo * 60_000).toISOString(),
                 grupos_notificados: [...grupoIds],
                 recusado_por_ids: [],
+                recusado_contra_proposta_por_ids: [],
                 updated_at: nowIso,
               }
             : c,
@@ -3632,6 +3646,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const jaRecusou = (carga.recusado_por_ids ?? []).includes(tid)
       if (jaRecusou) return { ok: true as const }
 
+      const meuLance = prev.lances.find(
+        (l) =>
+          l.carga_id === cargaId &&
+          sameTransportadorId(l.transportador_id, tid) &&
+          l.status === 'ativo',
+      )
+      const recusouContra =
+        Boolean(meuLance) &&
+        carga.frete_oferta != null &&
+        Math.abs(roundMoney(carga.frete_oferta) - roundMoney(meuLance!.valor)) > 0.009
+
       const agora = new Date().toISOString()
       const userNow = userRef.current
       const next: DataState = {
@@ -3640,9 +3665,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
           if (c.id !== cargaId) return c
           const ids = [...(c.recusado_por_ids ?? [])]
           if (!ids.includes(tid)) ids.push(tid)
+          const contraIds = [...(c.recusado_contra_proposta_por_ids ?? [])]
+          if (recusouContra && !contraIds.includes(tid)) contraIds.push(tid)
           return {
             ...c,
             recusado_por_ids: ids,
+            recusado_contra_proposta_por_ids: contraIds,
             recusas: (c.recusas ?? 0) + 1,
             updated_at: agora,
           }
@@ -3670,7 +3698,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         historico: [
           makeHistorico(
             'frete_recusado',
-            `Oferta recusada pelo transportador — ${carga.numero}`,
+            recusouContra
+              ? `Contra-proposta recusada pelo transportador — ${carga.numero}`
+              : `Carga recusada pelo transportador — ${carga.numero}`,
             {
               carga_id: cargaId,
               transportador_id: tid,
@@ -3681,8 +3711,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         ].slice(0, 2000),
         notificacoes: pushNotif(prev.notificacoes, {
           role: 'minerva',
-          titulo: 'Oferta recusada',
-          mensagem: `Um transportador recusou a carga ${carga.numero}.`,
+          titulo: recusouContra ? 'Contra-proposta recusada' : 'Carga recusada',
+          mensagem: recusouContra
+            ? `Um transportador recusou a contra-proposta da carga ${carga.numero}.`
+            : `Um transportador recusou a carga ${carga.numero}.`,
           carga_id: cargaId,
         }),
       }

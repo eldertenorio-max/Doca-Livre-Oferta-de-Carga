@@ -463,6 +463,8 @@ export interface Carga {
   recusas: number
   /** Transportadores que recusaram esta oferta (some do Kanban deles). */
   recusado_por_ids?: string[]
+  /** Subconjunto que recusou uma contra-proposta do embarcador (não a carga em si). */
+  recusado_contra_proposta_por_ids?: string[]
   observacao?: string
   /** Longo percurso (padrão) ou distribuição urbana com NFs por cliente. */
   tipo_oferta?: TipoOfertaCarga

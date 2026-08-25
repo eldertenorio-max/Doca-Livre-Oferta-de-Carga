@@ -132,6 +132,9 @@ export function normalizeCarga(c: Carga): Carga {
       ? c.transportador_direto_ids
       : [],
     recusado_por_ids: Array.isArray(c.recusado_por_ids) ? c.recusado_por_ids : [],
+    recusado_contra_proposta_por_ids: Array.isArray(c.recusado_contra_proposta_por_ids)
+      ? c.recusado_contra_proposta_por_ids
+      : [],
     carrocerias: Array.isArray(c.carrocerias)
       ? c.carrocerias
       : parseCarrocerias(
@@ -262,6 +265,7 @@ export function resetNegociacaoFields(_c?: Carga): Partial<Carga> {
     visualizacoes: 0,
     recusas: 0,
     recusado_por_ids: [],
+    recusado_contra_proposta_por_ids: [],
   }
 }
 

@@ -245,8 +245,10 @@ export type StatsAnuncioPontuacao = {
   visualizaram: number
   lances: number
   aceitaram: number
-  recusaram: number
-  recusaramIds: string[]
+  recusaramCarga: number
+  recusaramCargaIds: string[]
+  recusaramContra: number
+  recusaramContraIds: string[]
   publicadoEm: string | null
 }
 
@@ -260,7 +262,11 @@ export function statsAnunciosPontuacao(
       const tids = new Set(
         lances.filter((l) => l.carga_id === c.id).map((l) => l.transportador_id),
       )
+      const contraIds = [...new Set(c.recusado_contra_proposta_por_ids ?? [])]
       const recusaramIds = [...new Set(c.recusado_por_ids ?? [])]
+      const recusaramCargaIds = recusaramIds.filter(
+        (id) => !contraIds.some((x) => sameTransportadorId(x, id)),
+      )
       return {
         cargaId: c.id,
         numero: c.numero,
@@ -271,8 +277,10 @@ export function statsAnunciosPontuacao(
         visualizaram: (c.visualizado_por_ids ?? []).length,
         lances: tids.size,
         aceitaram: c.transportador_vencedor_id ? 1 : 0,
-        recusaram: recusaramIds.length,
-        recusaramIds,
+        recusaramCarga: recusaramCargaIds.length,
+        recusaramCargaIds,
+        recusaramContra: contraIds.length,
+        recusaramContraIds: contraIds,
         publicadoEm: c.publicado_em ?? c.created_at ?? null,
       }
     })
