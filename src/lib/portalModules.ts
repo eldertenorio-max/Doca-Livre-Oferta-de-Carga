@@ -23,6 +23,7 @@ export type OfertaModuloId =
   | 'configuracoes_transportador'
   | 'tarefas'
   | 'tabelas_frete'
+  | 'pontuacao'
 
 export type OfertaPermissao = {
   pode_acessar: boolean
@@ -122,6 +123,7 @@ export function moduloFromPath(pathname: string): OfertaModuloId | null {
   if (p.startsWith('/embarcador/tarefas') || p.startsWith('/transportador/tarefas')) return 'tarefas'
   if (p.startsWith('/embarcador/rotas')) return 'rotas'
   if (p.startsWith('/embarcador/tabelas-frete')) return 'tabelas_frete'
+  if (p.startsWith('/embarcador/pontuacao')) return 'pontuacao'
   if (p.startsWith('/embarcador/transportadores')) return 'transportadoras'
   if (p.startsWith('/embarcador/veiculos') || p.startsWith('/transportador/veiculos'))
     return 'veiculos'

@@ -455,6 +455,8 @@ export interface Carga {
   criado_por?: string | null
   publicado_por?: string | null
   visualizacoes: number
+  /** Transportadoras que abriram o anúncio (únicas). */
+  visualizado_por_ids?: string[]
   recusas: number
   /** Transportadores que recusaram esta oferta (some do Kanban deles). */
   recusado_por_ids?: string[]

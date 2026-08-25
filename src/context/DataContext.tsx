@@ -25,6 +25,10 @@ import {
   roundMoney,
 } from '../lib/businessRules'
 import {
+  aplicarPenalidadesEncerramento,
+  novaInteracao,
+} from '../lib/pontuacaoAderencia'
+import {
   hydrateConfigNegocio,
   limitesLance,
   loadConfigNegocio,
@@ -262,7 +266,7 @@ interface DataContextValue extends DataState, AuthState {
     cargaId: string,
     opts: { notaMotorista: number; notaVeiculo: number; comentario?: string },
   ) => Promise<{ ok: boolean; error?: string }>
-  registrarVisualizacao: (cargaId: string) => void
+  registrarVisualizacao: (cargaId: string, transportadorId?: string | null) => void
   notificarTodosGrupos: (cargaId: string) => void
   salvarGrupo: (grupo: GrupoTransportador) => void
   salvarTransportador: (t: Transportador) => void
@@ -901,11 +905,16 @@ function unificarTransportadoresDuplicados(state: DataState): DataState {
       const mudouRecusados =
         recusados.length !== (c.recusado_por_ids ?? []).length ||
         recusados.some((id, i) => id !== (c.recusado_por_ids ?? [])[i])
-      if (novoVencedor === c.transportador_vencedor_id && !mudouRecusados) return c
+      const vistos = (c.visualizado_por_ids ?? []).map((id) => remapId(id))
+      const mudouVistos =
+        vistos.length !== (c.visualizado_por_ids ?? []).length ||
+        vistos.some((id, i) => id !== (c.visualizado_por_ids ?? [])[i])
+      if (novoVencedor === c.transportador_vencedor_id && !mudouRecusados && !mudouVistos) return c
       return {
         ...c,
         transportador_vencedor_id: novoVencedor,
         recusado_por_ids: mudouRecusados ? recusados : c.recusado_por_ids,
+        visualizado_por_ids: mudouVistos ? vistos : c.visualizado_por_ids,
       }
     }),
   }
@@ -1831,37 +1840,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
           if (ativos.length === 0) {
             changed = true
             cargas[idx] = { ...cargas[idx], status: 'recusadas' }
-            // Penaliza quem viu e não ofertou / não visualizou
-            const gruposOk =
-              c.grupos_notificados.length > 0 ? c.grupos_notificados : c.grupo_ids
-            const idsNotificados = new Set<string>()
-            for (const g of prev.grupos) {
-              if (!gruposOk.includes(g.id)) continue
-              for (const tid of g.transportador_ids) idsNotificados.add(tid)
-            }
-            for (const tid of idsNotificados) {
-              const jaInteragiu = interacoes.some(
-                (i) => i.carga_id === c.id && i.transportador_id === tid,
-              )
-              if (jaInteragiu) continue
-              const pontos = PONTOS_ADERENCIA.nao_visualizada
-              interacoes = [
-                ...interacoes,
-                {
-                  id: uid('int'),
-                  transportador_id: tid,
-                  carga_id: c.id,
-                  tipo: 'nao_visualizada',
-                  pontos,
-                  created_at: new Date().toISOString(),
-                },
-              ]
-              transportadores = transportadores.map((t) => {
-                if (t.id !== tid) return t
-                const pontuacao = t.pontuacao + pontos
-                return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
-              })
-            }
+            const penal = aplicarPenalidadesEncerramento({
+              carga: cargas[idx],
+              grupos: prev.grupos,
+              lances,
+              transportadores,
+              interacoes,
+              nowIso: new Date(now).toISOString(),
+              newId: () => uid('int'),
+            })
+            transportadores = penal.transportadores
+            interacoes = penal.interacoes
             historico = [
               makeHistorico('negociacao_finalizada', `Oferta encerrada sem lances — ${c.numero}`, {
                 carga_id: c.id,
@@ -1891,7 +1880,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             updated_at: new Date(now).toISOString(),
           }
           transportadores = transportadores.map((t) => {
-            if (t.id !== best.transportador_id) return t
+            if (!sameTransportadorId(t.id, best.transportador_id)) return t
             const pontuacao = t.pontuacao + PONTOS_ADERENCIA.frete_fechado
             return {
               ...t,
@@ -1907,6 +1896,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
             }),
             ...historico,
           ]
+          const penalAuto = aplicarPenalidadesEncerramento({
+            carga: cargas[idx],
+            grupos: prev.grupos,
+            lances,
+            transportadores,
+            interacoes: [
+              ...interacoes,
+              novaInteracao({
+                transportadorId: best.transportador_id,
+                cargaId: c.id,
+                tipo: 'frete_fechado',
+                nowIso: new Date(now).toISOString(),
+                newId: () => uid('int'),
+              }),
+            ],
+            nowIso: new Date(now).toISOString(),
+            newId: () => uid('int'),
+          })
+          transportadores = penalAuto.transportadores
+          interacoes = penalAuto.interacoes
         }
 
         // Prazo de alocação expirado → recusa automática
@@ -1934,10 +1943,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 : l,
             )
             transportadores = transportadores.map((t) => {
-              if (t.id !== tid) return t
+              if (!sameTransportadorId(t.id, tid)) return t
               const pontuacao = t.pontuacao + PONTOS_ADERENCIA.recusada
               return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
             })
+            interacoes = [
+              ...interacoes,
+              novaInteracao({
+                transportadorId: tid,
+                cargaId: c.id,
+                tipo: 'recusada',
+                nowIso: new Date(now).toISOString(),
+                newId: () => uid('int'),
+              }),
+            ]
             historico = [
               makeHistorico('alocacao_expirada', `Prazo de alocação expirado — ${c.numero}`, {
                 carga_id: c.id,
@@ -2572,8 +2591,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           ],
           transportadores: base.transportadores.map((t) => {
             if (!sameTransportadorId(t.id, tid)) return t
-            const pontuacao =
-              t.pontuacao + PONTOS_ADERENCIA.com_proposta + PONTOS_ADERENCIA.frete_fechado
+            const pontuacao = t.pontuacao + PONTOS_ADERENCIA.frete_fechado
             return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
           }),
           historico: [
@@ -2591,9 +2609,36 @@ export function DataProvider({ children }: { children: ReactNode }) {
           ].slice(0, 2000),
           notificacoes: notifs,
         }
-        stateRef.current = next
-        setState(next)
-        flushKanbanPush(next)
+        const cargaFechada = next.cargas.find((c) => c.id === cargaId) ?? {
+          ...cargaOk,
+          transportador_vencedor_id: tid,
+        }
+        const penalAceite = aplicarPenalidadesEncerramento({
+          carga: cargaFechada,
+          grupos: base.grupos,
+          lances: next.lances,
+          transportadores: next.transportadores,
+          interacoes: [
+            ...base.interacoes,
+            novaInteracao({
+              transportadorId: tid,
+              cargaId,
+              tipo: 'frete_fechado',
+              nowIso: agora,
+              newId: () => uid('int'),
+            }),
+          ],
+          nowIso: agora,
+          newId: () => uid('int'),
+        })
+        const nextPts: DataState = {
+          ...next,
+          transportadores: penalAceite.transportadores,
+          interacoes: penalAceite.interacoes,
+        }
+        stateRef.current = nextPts
+        setState(nextPts)
+        flushKanbanPush(nextPts)
         return { ok: true }
       }
 
@@ -2773,7 +2818,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           : c,
       )
       const transportadores = prev.transportadores.map((t) => {
-        if (t.id !== current.transportador_id) return t
+        if (!sameTransportadorId(t.id, current.transportador_id)) return t
         const pontuacao = t.pontuacao + PONTOS_ADERENCIA.frete_fechado
         return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
       })
@@ -2816,11 +2861,33 @@ export function DataProvider({ children }: { children: ReactNode }) {
           carga_id: current.carga_id,
         })
       }
+      const penalLance = aplicarPenalidadesEncerramento({
+        carga: cargas.find((c) => c.id === current.carga_id) ?? {
+          ...cargaAtual,
+          transportador_vencedor_id: current.transportador_id,
+        },
+        grupos: prev.grupos,
+        lances,
+        transportadores,
+        interacoes: [
+          ...prev.interacoes,
+          novaInteracao({
+            transportadorId: current.transportador_id,
+            cargaId: current.carga_id,
+            tipo: 'frete_fechado',
+            nowIso: agora,
+            newId: () => uid('int'),
+          }),
+        ],
+        nowIso: agora,
+        newId: () => uid('int'),
+      })
       const next: DataState = {
         ...prev,
         cargas,
         lances,
-        transportadores,
+        transportadores: penalLance.transportadores,
+        interacoes: penalLance.interacoes,
         historico: [hist, ...prev.historico].slice(0, 2000),
         notificacoes: notifs,
       }
@@ -3042,24 +3109,46 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
       const ativos = state.lances.filter((l) => l.carga_id === cargaId && l.status === 'ativo')
       if (ativos.length > 0) return encerrarComMelhorLance(cargaId)
-      setState((prev) => {
-        const hist = makeHistorico(
-          'negociacao_finalizada',
-          `Negociação finalizada sem vencedor — ${carga.numero}`,
-          { carga_id: cargaId },
-          user,
-        )
-        return {
-          ...prev,
-          cargas: prev.cargas.map((c) =>
-            c.id === cargaId ? { ...c, status: 'recusadas' as const, expira_em: c.expira_em } : c,
-          ),
-          historico: [hist, ...prev.historico].slice(0, 2000),
-        }
+      const agora = new Date().toISOString()
+      const prev = stateRef.current
+      const cargaAtual = prev.cargas.find((c) => c.id === cargaId) ?? carga
+      const cargas = prev.cargas.map((c) =>
+        c.id === cargaId ? { ...c, status: 'recusadas' as const, updated_at: agora } : c,
+      )
+      const cargaFechada = cargas.find((c) => c.id === cargaId) ?? {
+        ...cargaAtual,
+        status: 'recusadas' as const,
+      }
+      const penal = aplicarPenalidadesEncerramento({
+        carga: cargaFechada,
+        grupos: prev.grupos,
+        lances: prev.lances,
+        transportadores: prev.transportadores,
+        interacoes: prev.interacoes,
+        nowIso: agora,
+        newId: () => uid('int'),
       })
+      const next: DataState = {
+        ...prev,
+        cargas,
+        transportadores: penal.transportadores,
+        interacoes: penal.interacoes,
+        historico: [
+          makeHistorico(
+            'negociacao_finalizada',
+            `Negociação finalizada sem vencedor — ${carga.numero}`,
+            { carga_id: cargaId },
+            userRef.current,
+          ),
+          ...prev.historico,
+        ].slice(0, 2000),
+      }
+      stateRef.current = next
+      setState(next)
+      flushKanbanPush(next)
       return { ok: true }
     },
-    [state.cargas, state.lances, encerrarComMelhorLance, user],
+    [state.cargas, state.lances, encerrarComMelhorLance, flushKanbanPush],
   )
 
   const cancelarPublicacao = useCallback(
@@ -3542,10 +3631,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
             : l,
         ),
         transportadores: prev.transportadores.map((t) => {
-          if (t.id !== tid) return t
+          if (!sameTransportadorId(t.id, tid)) return t
           const pontuacao = t.pontuacao + PONTOS_ADERENCIA.recusada
           return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
         }),
+        interacoes: [
+          ...prev.interacoes,
+          novaInteracao({
+            transportadorId: tid,
+            cargaId,
+            tipo: 'recusada',
+            nowIso: agora,
+            newId: () => uid('int'),
+          }),
+        ],
         historico: [
           makeHistorico(
             'frete_recusado',
@@ -3942,15 +4041,33 @@ export function DataProvider({ children }: { children: ReactNode }) {
   )
 
   const registrarVisualizacao = useCallback(
-    (cargaId: string) => {
-      setState((prev) => ({
-        ...prev,
-        cargas: prev.cargas.map((c) =>
-          c.id === cargaId ? { ...c, visualizacoes: c.visualizacoes + 1 } : c,
-        ),
-      }))
+    (cargaId: string, transportadorId?: string | null) => {
+      setState((prev) => {
+        const next = {
+          ...prev,
+          cargas: prev.cargas.map((c) => {
+            if (c.id !== cargaId) return c
+            const ids = [...(c.visualizado_por_ids ?? [])]
+            if (
+              transportadorId &&
+              !ids.some((id) => sameTransportadorId(id, transportadorId))
+            ) {
+              ids.push(transportadorId)
+            }
+            return {
+              ...c,
+              visualizacoes: (c.visualizacoes || 0) + 1,
+              visualizado_por_ids: ids,
+              updated_at: new Date().toISOString(),
+            }
+          }),
+        }
+        stateRef.current = next
+        queueMicrotask(() => flushKanbanPush(next))
+        return next
+      })
     },
-    [],
+    [flushKanbanPush],
   )
 
   const salvarGrupo = useCallback((grupo: GrupoTransportador) => {

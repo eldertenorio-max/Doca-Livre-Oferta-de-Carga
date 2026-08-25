@@ -80,7 +80,7 @@ export function BidModal({
     if (editingRef.current) return
     initKeyRef.current = key
 
-    registrarVisualizacao(carga.id)
+    if (tid) registrarVisualizacao(carga.id, tid)
     const meu = lancesRef.current(carga.id).find(
       (l) => sameTransportadorId(l.transportador_id, tid) && l.status === 'ativo',
     )

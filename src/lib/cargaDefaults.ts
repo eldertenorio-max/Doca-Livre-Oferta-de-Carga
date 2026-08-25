@@ -194,6 +194,9 @@ export function normalizeCarga(c: Carga): Carga {
     veiculo_id: c.veiculo_id ?? null,
     motorista_id: c.motorista_id ?? null,
     motivo_cancelamento: c.motivo_cancelamento ?? null,
+    visualizado_por_ids: Array.isArray(c.visualizado_por_ids)
+      ? c.visualizado_por_ids.filter((id): id is string => typeof id === 'string')
+      : [],
   }
 }
 

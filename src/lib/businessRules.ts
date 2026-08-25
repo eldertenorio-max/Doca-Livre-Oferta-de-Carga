@@ -28,7 +28,7 @@ export const PONTOS_ADERENCIA = {
   visualizada_sem_acao: -1,
   nao_visualizada: -1,
   recusada: -1,
-  com_proposta: 2,
+  com_proposta: 0,
   frete_fechado: 2,
 } as const
 

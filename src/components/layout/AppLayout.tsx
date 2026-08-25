@@ -101,6 +101,19 @@ function IconShield() {
   )
 }
 
+function IconStar() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 3.5 14.4 9l6.1.6-4.6 4 1.4 6-5.3-3.2L6.7 19.6l1.4-6-4.6-4L9.6 9 12 3.5z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 function IconWallet() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -141,6 +154,7 @@ const minervaLinks: NavItem[] = [
   },
   { to: '/embarcador/rotas', label: 'Rotas', icon: <IconLocation /> },
   { to: '/embarcador/tabelas-frete', label: 'Tabelas de Frete', icon: <IconWallet /> },
+  { to: '/embarcador/pontuacao', label: 'Pontuação', icon: <IconStar /> },
   { to: '/embarcador/transportadores', label: 'Transportadoras', icon: <IconUsers /> },
   { to: '/embarcador/veiculos', label: 'Veículos', icon: <IconTruck /> },
   { to: '/embarcador/motoristas', label: 'Motoristas', icon: <IconUsers /> },
