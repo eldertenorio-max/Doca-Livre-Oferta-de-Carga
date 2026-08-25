@@ -158,7 +158,7 @@ export function MapaLogisticaPage() {
           <p className="mapa-log__sub">
             {aba === 'area'
               ? 'Marque a área no mapa do Brasil. Divisão: Região, Estado, Cidade ou Bairro.'
-              : 'Radar do mercado com os dados da sua plataforma: onde há cargas, onde faltam caminhões, regiões aquecidas e frete médio por UF.'}
+              : 'Mapa de calor do mercado com os dados da sua plataforma: onde há cargas, onde faltam caminhões, regiões aquecidas e frete médio por UF.'}
           </p>
           <div className="mapa-log__tabs" role="tablist">
             <button
@@ -168,7 +168,7 @@ export function MapaLogisticaPage() {
               className={`mapa-log__tab${aba === 'radar' ? ' is-on' : ''}`}
               onClick={() => setAba('radar')}
             >
-              Radar
+              Mapa de Calor
             </button>
             <button
               type="button"
@@ -192,7 +192,7 @@ export function MapaLogisticaPage() {
               <strong>{snap.totais.veiculosDisponiveis}</strong>
             </div>
             <div className="mapa-log__kpi">
-              <span>Motoristas no radar</span>
+              <span>Motoristas no mapa de calor</span>
               <strong>{snap.totais.motoristas}</strong>
             </div>
             <div className="mapa-log__kpi">
@@ -433,7 +433,7 @@ export function MapaLogisticaPage() {
               ) : null}
               {selecionada.tiposVeiculoTop.length > 0 ? (
                 <div className="mapa-log__rotas">
-                  <h4>Tipos pedidos / no radar</h4>
+                  <h4>Tipos pedidos / no mapa de calor</h4>
                   <ul>
                     {selecionada.tiposVeiculoTop.map((t) => (
                       <li key={t.tipo}>
