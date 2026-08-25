@@ -17,6 +17,7 @@ import {
 import type { FaixaKmValor, FaixaPesoValor, TabelaFrete, TipoTabelaFrete } from '../../types'
 import { Button, Field, inputClass } from '../../components/ui/Modal'
 import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
+import '../../styles/cadastro.css'
 
 function MoneyInput({
   value,
@@ -268,7 +269,7 @@ export function TabelasFretePage() {
   if (!user) return <Navigate to="/login" replace />
   if (!isSuper) {
     return (
-      <div className="p-4">
+      <div className="cadastro-page">
         <h1 className="cadastro-page-title">Tabelas de frete</h1>
         <p className="cadastro-empty">Apenas Super Usuários podem cadastrar tabelas de frete.</p>
       </div>
@@ -276,10 +277,10 @@ export function TabelasFretePage() {
   }
 
   return (
-    <div className="animate-fade-up mx-auto max-w-6xl space-y-3 p-4">
+    <div className="cadastro-page animate-fade-up space-y-4">
       <header>
-        <h1 className="font-display text-xl font-bold text-ink">Tabelas de frete</h1>
-        <p className="text-sm font-semibold text-ink-muted">
+        <h1 className="cadastro-page-title">Tabelas de frete</h1>
+        <p className="text-sm text-ink-muted">
           Cadastre tabelas separadas. O cabeçalho (nome, código, perfil e capacidade) vale para
           todas. Frete tabela = diária + franquia de km + km excedente.
         </p>
@@ -302,7 +303,7 @@ export function TabelasFretePage() {
         ))}
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[260px_1fr]">
+      <div className="grid min-h-[calc(100vh-12rem)] gap-3 lg:grid-cols-[minmax(280px,22%)_1fr]">
         <aside className="rounded-xl border border-ink/10 bg-white p-3">
           <div className="mb-2 flex items-center justify-between gap-2">
             <p className="text-[11px] font-extrabold uppercase tracking-wide text-ink">
@@ -362,7 +363,7 @@ export function TabelasFretePage() {
             <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-ink">
               Cabeçalho
             </h2>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               <Field label="Nome *">
                 <input
                   className={inputClass}
@@ -425,7 +426,7 @@ export function TabelasFretePage() {
                 <p className="mb-2 text-[11px] font-semibold text-ink-muted">
                   Frete tabela = diária + franquia de km + km excedente.
                 </p>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                   <Field label="Diária">
                     <MoneyInput value={form.diaria} onChange={(diaria) => patch({ diaria })} />
                   </Field>
@@ -554,7 +555,7 @@ export function TabelasFretePage() {
                 <h2 className="mb-2 text-[13px] font-extrabold uppercase tracking-wide text-sky-950">
                   Adicionais
                 </h2>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                   <Field label="Valor por kg">
                     <MoneyInput value={form.valor_kg} onChange={(valor_kg) => patch({ valor_kg })} />
                   </Field>

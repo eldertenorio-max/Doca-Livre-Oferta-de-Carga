@@ -12,6 +12,7 @@ import {
 import { isSuperSession } from '../../lib/superUsers'
 import { sameTransportadorId } from '../../lib/transportadorIds'
 import type { Transportador } from '../../types'
+import '../../styles/cadastro.css'
 
 const STATUS_LABEL: Record<string, string> = {
   nova_carga: 'Nova',
@@ -95,9 +96,9 @@ export function PontuacaoTransportadoresPage() {
   if (!user) return <Navigate to="/login" replace />
   if (!isSuper) {
     return (
-      <div className="p-4">
-        <h1 className="font-display text-xl font-bold text-ink">Pontuação do transportador</h1>
-        <p className="mt-2 text-sm text-ink-muted">
+      <div className="cadastro-page">
+        <h1 className="cadastro-page-title">Pontuação do transportador</h1>
+        <p className="cadastro-empty">
           Apenas Super Usuários podem acessar a pontuação dos transportadores.
         </p>
       </div>
@@ -109,10 +110,10 @@ export function PontuacaoTransportadoresPage() {
     : undefined
 
   return (
-    <div className="animate-fade-up mx-auto max-w-6xl space-y-3 p-4">
+    <div className="cadastro-page animate-fade-up space-y-4">
       <header>
-        <h1 className="font-display text-xl font-bold text-ink">Pontuação do transportador</h1>
-        <p className="text-sm font-semibold text-ink-muted">
+        <h1 className="cadastro-page-title">Pontuação do transportador</h1>
+        <p className="text-sm text-ink-muted">
           Visualizações de cada anúncio e histórico de aderência. Só Super Usuário.
         </p>
       </header>
@@ -167,8 +168,8 @@ export function PontuacaoTransportadoresPage() {
             <Kpi label="Deram lance" value={totaisAnuncios.lances} hint="Por anúncio, somado" />
             <Kpi label="Aceitaram / fecharam" value={totaisAnuncios.aceitaram} hint="Fretes fechados" />
           </div>
-          <div className="overflow-x-auto rounded-xl border border-ink/10 bg-white">
-            <table className="w-full text-left text-[13px]">
+          <div className="cadastro-table-wrap">
+            <table className="cadastro-table">
               <thead className="bg-sand-light/80 text-[10px] font-extrabold uppercase tracking-wide text-ink">
                 <tr>
                   <th className="px-3 py-2">Carga</th>
@@ -207,7 +208,7 @@ export function PontuacaoTransportadoresPage() {
           </div>
         </>
       ) : (
-        <div className="grid gap-3 lg:grid-cols-[280px_1fr]">
+        <div className="grid min-h-[calc(100vh-16rem)] gap-3 lg:grid-cols-[minmax(320px,28%)_1fr]">
           <aside className="rounded-xl border border-ink/10 bg-white p-3">
             <p className="mb-2 text-[11px] font-extrabold uppercase tracking-wide text-ink">
               Ranking ({rankingFiltrado.length})
@@ -259,8 +260,8 @@ export function PontuacaoTransportadoresPage() {
                     </p>
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-[13px]">
+                <div className="cadastro-table-wrap">
+                  <table className="cadastro-table">
                     <thead className="bg-sand-light/80 text-[10px] font-extrabold uppercase tracking-wide text-ink">
                       <tr>
                         <th className="px-3 py-2">Quando</th>
