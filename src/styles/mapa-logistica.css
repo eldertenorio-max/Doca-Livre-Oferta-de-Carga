@@ -247,6 +247,14 @@
   font-weight: 500;
 }
 
+.mapa-log__fontes a {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #0e7490;
+  word-break: break-all;
+  margin-top: 2px;
+}
+
 .mapa-log__fontes em {
   font-style: normal;
   font-size: 0.65rem;
@@ -477,6 +485,10 @@
 .area-att-modo {
   flex: none;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
   border: 1px solid rgba(15, 23, 42, 0.12);
   background: #fff;
   color: #334155;
@@ -486,6 +498,15 @@
   padding: 8px 6px;
   border-radius: 10px;
   cursor: pointer;
+}
+
+.area-att-modo small {
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 0.75;
+  line-height: 1.2;
 }
 
 .area-att-modo.is-on {

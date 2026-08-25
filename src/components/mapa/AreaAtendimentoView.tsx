@@ -56,26 +56,50 @@ const UF_COR: Record<string, string> = Object.fromEntries(
   UFS_BR.map((uf, i) => [uf, `hsl(${Math.round((i * 137.508) % 360)} 62% 46%)`]),
 ) as Record<string, string>
 
-const MODOS: { id: ModoMarcacaoArea; label: string; hint: string }[] = [
+const MODOS: { id: ModoMarcacaoArea; label: string; hint: string; fonte: string }[] = [
   {
     id: 'regiao',
     label: 'Região',
     hint: 'Brasil inteiro por região. Clique para marcar Norte, Nordeste, Centro-Oeste, Sudeste ou Sul.',
+    fonte: 'IBGE · Malhas territoriais',
   },
   {
     id: 'estado',
     label: 'Estado',
     hint: 'Brasil inteiro por estado. Cada UF tem uma cor — clique para marcar.',
+    fonte: 'IBGE · Malhas territoriais',
   },
   {
     id: 'cidade',
     label: 'Cidade',
     hint: 'Brasil inteiro por município. Cada cidade tem uma cor — clique para marcar.',
+    fonte: 'IBGE · Malhas + Localidades',
   },
   {
     id: 'bairro',
     label: 'Bairro',
     hint: 'Clique na cidade para abrir os bairros (OpenStreetMap). Cada bairro tem uma cor.',
+    fonte: 'OpenStreetMap · Overpass',
+  },
+]
+
+const FONTES_DIVISAO: { titulo: string; detalhe: string; href: string }[] = [
+  {
+    titulo: 'Região, Estado e Cidade',
+    detalhe:
+      'Contornos oficiais do IBGE (API de Malhas v3, qualidade mínima). Nomes dos municípios: API de Localidades do IBGE e catálogo público de sedes municipais.',
+    href: 'https://servicodados.ibge.gov.br/api/docs/malhas?versao=3',
+  },
+  {
+    titulo: 'Bairro',
+    detalhe:
+      'Limites de bairro/subúrbio do OpenStreetMap (admin_level 10 e place=suburb/neighbourhood), consultados via Overpass API. Nem toda cidade tem malha de bairro cadastrada.',
+    href: 'https://www.openstreetmap.org/copyright',
+  },
+  {
+    titulo: 'Fundo do mapa',
+    detalhe: 'Tiles © OpenStreetMap contributors.',
+    href: 'https://www.openstreetmap.org/copyright',
   },
 ]
 
@@ -673,7 +697,8 @@ export function AreaAtendimentoView() {
                 className={`area-att-modo${modo === op.id ? ' is-on' : ''}`}
                 onClick={() => escolherModo(op.id)}
               >
-                {op.label}
+                <span>{op.label}</span>
+                <small>{op.fonte}</small>
               </button>
             ))}
           </div>
@@ -685,6 +710,21 @@ export function AreaAtendimentoView() {
           ) : (
             <p className="area-att-hint">{hint}</p>
           )}
+        </section>
+
+        <section className="mapa-log__panel mapa-log__panel--fontes">
+          <h2>Fontes das divisões</h2>
+          <ul className="mapa-log__fontes">
+            {FONTES_DIVISAO.map((f) => (
+              <li key={f.titulo}>
+                <strong>{f.titulo}</strong>
+                <span>{f.detalhe}</span>
+                <a href={f.href} target="_blank" rel="noreferrer">
+                  {f.href.replace(/^https:\/\//, '')}
+                </a>
+              </li>
+            ))}
+          </ul>
         </section>
 
         {embarcadores.length > 1 ? (
