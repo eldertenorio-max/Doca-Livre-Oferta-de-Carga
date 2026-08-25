@@ -1,4 +1,5 @@
 import { appStoreGet, appStoreGetCached, appStoreSet, migrateLocalKeyToAppStore } from './appStore'
+import { canonicalTransportadorId, sameTransportadorId } from './transportadorIds'
 import type { GrupoTransportador } from '../types'
 
 /** Hierarquia organizacional do Oferta de Carga.
@@ -218,6 +219,168 @@ export function gruposDaHierarquia(tree: OrgNo[]): GrupoTransportador[] {
     }))
 }
 
+function normCnpj(s?: string | null) {
+  return (s || '').replace(/\D/g, '')
+}
+
+function mesmoNomeOrg(a?: string | null, b?: string | null) {
+  return (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase() && Boolean((a || '').trim())
+}
+
+function acharNoTransportadora(
+  tree: OrgNo[],
+  t: { id?: string | null; nome_fantasia?: string | null; cnpj?: string | null },
+): OrgNo | null {
+  const flat = flattenOrg(tree).filter((n) => n.tipo === 'transportadora')
+  const byId = flat.find((n) => sameTransportadorId(n.transportador_id, t.id))
+  if (byId) return byId
+  const cnpj = normCnpj(t.cnpj)
+  if (cnpj.length >= 8) {
+    const byCnpj = flat.find((n) => normCnpj(n.cnpj) === cnpj)
+    if (byCnpj) return byCnpj
+  }
+  const nome = (t.nome_fantasia || '').trim()
+  if (nome) {
+    const byNome = flat.find((n) => mesmoNomeOrg(n.nome, nome))
+    if (byNome) return byNome
+  }
+  return null
+}
+
+function chaveDedupeTransportadora(n: OrgNo): string {
+  const tid = canonicalTransportadorId(n.transportador_id)
+  if (tid) return `id:${tid}`
+  const cnpj = normCnpj(n.cnpj)
+  if (cnpj.length >= 8) return `cnpj:${cnpj}`
+  const nome = (n.nome || '').trim().toLowerCase()
+  if (nome) return `nome:${nome}`
+  return `node:${n.id}`
+}
+
+function melhorNoTransportadora(a: OrgNo, b: OrgNo): OrgNo {
+  const aCan = canonicalTransportadorId(a.transportador_id)
+  const bCan = canonicalTransportadorId(b.transportador_id)
+  const aUuid = Boolean(aCan && aCan.includes('-') && aCan.length > 8)
+  const bUuid = Boolean(bCan && bCan.includes('-') && bCan.length > 8)
+  if (aUuid !== bUuid) return aUuid ? a : b
+  if (Boolean(a.transportador_id) !== Boolean(b.transportador_id)) {
+    return a.transportador_id ? a : b
+  }
+  if (Boolean(normCnpj(a.cnpj)) !== Boolean(normCnpj(b.cnpj))) {
+    return normCnpj(a.cnpj) ? a : b
+  }
+  return a
+}
+
+/** Junta nós repetidos (mesmo UUID/legado, CNPJ ou nome). */
+export function dedupeTransportadorasNaArvore(
+  tree: OrgNo[],
+  transportadores: { id: string; nome_fantasia: string; cnpj?: string | null }[] = [],
+): OrgNo[] {
+  const nodes = flattenOrg(tree).filter((x) => x.tipo === 'transportadora')
+  if (nodes.length < 2 && transportadores.length === 0) return tree
+
+  const parent = new Map<string, string>()
+  const find = (id: string): string => {
+    const p = parent.get(id) ?? id
+    if (p !== id) {
+      const r = find(p)
+      parent.set(id, r)
+      return r
+    }
+    return p
+  }
+  const union = (a: string, b: string) => {
+    const ra = find(a)
+    const rb = find(b)
+    if (ra !== rb) parent.set(ra, rb)
+  }
+  for (const n of nodes) parent.set(n.id, n.id)
+
+  const byTid = new Map<string, string>()
+  const byCnpj = new Map<string, string>()
+  const byNome = new Map<string, string>()
+  for (const n of nodes) {
+    const tid = canonicalTransportadorId(n.transportador_id)
+    if (tid) {
+      const prev = byTid.get(tid)
+      if (prev) union(prev, n.id)
+      byTid.set(tid, n.id)
+    }
+    const cnpj = normCnpj(n.cnpj)
+    if (cnpj.length >= 8) {
+      const prev = byCnpj.get(cnpj)
+      if (prev) union(prev, n.id)
+      byCnpj.set(cnpj, n.id)
+    }
+    const nome = (n.nome || '').trim().toLowerCase()
+    if (nome) {
+      const prev = byNome.get(nome)
+      if (prev) union(prev, n.id)
+      byNome.set(nome, n.id)
+    }
+  }
+  for (const t of transportadores) {
+    const cnpj = normCnpj(t.cnpj)
+    const nome = (t.nome_fantasia || '').trim().toLowerCase()
+    const ligados = nodes.filter(
+      (n) =>
+        sameTransportadorId(n.transportador_id, t.id) ||
+        (cnpj.length >= 8 && normCnpj(n.cnpj) === cnpj) ||
+        (nome && (n.nome || '').trim().toLowerCase() === nome),
+    )
+    for (let i = 1; i < ligados.length; i++) union(ligados[0].id, ligados[i].id)
+  }
+
+  const grupos = new Map<string, OrgNo[]>()
+  for (const n of nodes) {
+    const r = find(n.id)
+    const arr = grupos.get(r) ?? []
+    arr.push(n)
+    grupos.set(r, arr)
+  }
+
+  const drop = new Set<string>()
+  const patch = new Map<string, Partial<OrgNo>>()
+
+  for (const nos of grupos.values()) {
+    let keeper = nos[0]
+    for (const n of nos.slice(1)) keeper = melhorNoTransportadora(keeper, n)
+    const t = transportadores.find(
+      (x) =>
+        sameTransportadorId(x.id, keeper.transportador_id) ||
+        nos.some(
+          (n) =>
+            sameTransportadorId(x.id, n.transportador_id) ||
+            (normCnpj(x.cnpj) && normCnpj(x.cnpj) === normCnpj(n.cnpj)) ||
+            mesmoNomeOrg(x.nome_fantasia, n.nome),
+        ),
+    )
+    patch.set(keeper.id, {
+      transportador_id: t?.id ?? keeper.transportador_id,
+      nome: t?.nome_fantasia ?? keeper.nome,
+      cnpj: t?.cnpj ?? keeper.cnpj,
+    })
+    for (const n of nos) {
+      if (n.id !== keeper.id) drop.add(n.id)
+    }
+  }
+
+  if (drop.size === 0 && patch.size === 0) return tree
+
+  function walk(list: OrgNo[]): OrgNo[] {
+    return list
+      .filter((n) => !drop.has(n.id))
+      .map((n) => {
+        const extra = patch.get(n.id)
+        const merged = extra ? { ...n, ...extra } : n
+        return { ...merged, children: merged.children ? walk(merged.children) : [] }
+      })
+  }
+
+  return walk(structuredClone(tree))
+}
+
 function precisaMigrar(tree: OrgNo[]): boolean {
   if (!tree.length) return true
   const flat = flattenOrg(tree)
@@ -233,30 +396,50 @@ function coletarTransportadoras(
   tree: OrgNo[],
   transportadores: { id: string; nome_fantasia: string; cnpj?: string | null; situacao?: string }[],
 ): OrgNo[] {
-  const byTid = new Map<string, OrgNo>()
+  const byKey = new Map<string, OrgNo>()
+  function keyOf(n: OrgNo) {
+    return chaveDedupeTransportadora(n)
+  }
   for (const n of flattenOrg(tree)) {
-    if (n.tipo !== 'transportadora' || !n.transportador_id) continue
-    byTid.set(n.transportador_id, {
-      ...n,
+    if (n.tipo !== 'transportadora') continue
+    const k = keyOf(n)
+    const prev = byKey.get(k)
+    byKey.set(k, {
+      ...(prev ? melhorNoTransportadora(prev, n) : n),
       parent_id: ORG_UNIDADE_CD_GUARULHOS_ID,
       children: [],
     })
   }
   for (const t of transportadores) {
     if (t.situacao === 'inativo' || t.situacao === 'recusado') continue
-    const prev = byTid.get(t.id)
-    byTid.set(t.id, {
+    const k = `id:${canonicalTransportadorId(t.id) || t.id}`
+    const prev =
+      byKey.get(k) ||
+      acharNoTransportadora([...byKey.values()].map((n) => n), t) ||
+      [...byKey.values()].find(
+        (n) =>
+          sameTransportadorId(n.transportador_id, t.id) ||
+          (normCnpj(t.cnpj) && normCnpj(n.cnpj) === normCnpj(t.cnpj)) ||
+          mesmoNomeOrg(n.nome, t.nome_fantasia),
+      )
+    const no: OrgNo = {
       id: prev?.id ?? `org-${t.id}`,
       parent_id: ORG_UNIDADE_CD_GUARULHOS_ID,
       tipo: 'transportadora',
       nome: t.nome_fantasia || prev?.nome || t.id,
       cnpj: t.cnpj ?? prev?.cnpj ?? null,
       transportador_id: t.id,
-      ordem: prev?.ordem ?? byTid.size,
+      ordem: prev?.ordem ?? byKey.size,
       children: [],
-    })
+    }
+    if (prev) {
+      for (const [oldK, val] of byKey) {
+        if (val.id === prev.id) byKey.delete(oldK)
+      }
+    }
+    byKey.set(k, no)
   }
-  return [...byTid.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+  return [...byKey.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
 }
 
 function montarArvoreUltrafrio(
@@ -294,12 +477,39 @@ export function ensureHierarquiaPadrao(
   transportadores: { id: string; nome_fantasia: string; cnpj?: string | null; situacao?: string }[],
 ): OrgNo[] {
   let tree = loadOrgTree()
+  tree = dedupeTransportadorasNaArvore(tree, transportadores)
   if (precisaMigrar(tree)) {
     tree = montarArvoreUltrafrio(tree, transportadores)
+    tree = dedupeTransportadorasNaArvore(tree, transportadores)
     saveOrgTree(tree)
     return tree
   }
   return syncTodasTransportadorasNaHierarquia(transportadores)
+}
+
+function aplicarTransportadoraNaArvore(
+  tree: OrgNo[],
+  t: { id: string; nome_fantasia: string; cnpj?: string | null },
+): OrgNo[] {
+  const existing = acharNoTransportadora(tree, t)
+  const parentId = existing?.parent_id ?? findDefaultTransportadoraParentId(tree)
+  if (!parentId) {
+    return montarArvoreUltrafrio(tree, [t])
+  }
+
+  const flat = flattenOrg(tree)
+  const siblings = flat.filter((n) => n.parent_id === parentId)
+  const no: OrgNo = {
+    id: existing?.id ?? `org-${t.id}`,
+    parent_id: parentId,
+    tipo: 'transportadora',
+    nome: t.nome_fantasia || existing?.nome || t.id,
+    cnpj: t.cnpj ?? existing?.cnpj ?? null,
+    transportador_id: t.id,
+    ordem: existing?.ordem ?? siblings.length + 1,
+    children: existing?.children ?? [],
+  }
+  return upsertOrgNo(tree, no)
 }
 
 /**
@@ -311,36 +521,17 @@ export function syncTransportadoraNaHierarquia(t: {
   nome_fantasia: string
   cnpj?: string | null
 }): OrgNo[] {
-  const tree = loadOrgTree()
-  const flat = flattenOrg(tree)
-  const existing = flat.find((n) => n.transportador_id === t.id)
-  const parentId =
-    existing?.parent_id ?? findDefaultTransportadoraParentId(tree)
-  if (!parentId) {
-    const seed = montarArvoreUltrafrio([], [t])
-    saveOrgTree(seed)
-    return seed
-  }
-
-  const siblings = flat.filter((n) => n.parent_id === parentId)
-  const no: OrgNo = {
-    id: existing?.id ?? `org-${t.id}`,
-    parent_id: parentId,
-    tipo: 'transportadora',
-    nome: t.nome_fantasia,
-    cnpj: t.cnpj ?? null,
-    transportador_id: t.id,
-    ordem: existing?.ordem ?? siblings.length + 1,
-    children: existing?.children ?? [],
-  }
-  const next = upsertOrgNo(tree, no)
+  const next = aplicarTransportadoraNaArvore(
+    dedupeTransportadorasNaArvore(loadOrgTree(), [t]),
+    t,
+  )
   saveOrgTree(next)
   return next
 }
 
 export function removeTransportadoraDaHierarquia(transportadorId: string): OrgNo[] {
   const tree = loadOrgTree()
-  const node = flattenOrg(tree).find((n) => n.transportador_id === transportadorId)
+  const node = flattenOrg(tree).find((n) => sameTransportadorId(n.transportador_id, transportadorId))
   if (!node) return tree
   const next = deleteOrgNo(tree, node.id)
   saveOrgTree(next)
@@ -351,10 +542,12 @@ export function removeTransportadoraDaHierarquia(transportadorId: string): OrgNo
 export function syncTodasTransportadorasNaHierarquia(
   transportadores: { id: string; nome_fantasia: string; cnpj?: string | null; situacao?: string }[],
 ): OrgNo[] {
-  let tree = loadOrgTree()
+  let tree = dedupeTransportadorasNaArvore(loadOrgTree(), transportadores)
   for (const t of transportadores) {
     if (t.situacao === 'inativo' || t.situacao === 'recusado') continue
-    tree = syncTransportadoraNaHierarquia(t)
+    tree = aplicarTransportadoraNaArvore(tree, t)
   }
+  tree = dedupeTransportadorasNaArvore(tree, transportadores)
+  saveOrgTree(tree)
   return tree
 }
