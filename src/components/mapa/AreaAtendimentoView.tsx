@@ -78,8 +78,8 @@ const MODOS: { id: ModoMarcacaoArea; label: string; hint: string; fonte: string 
   {
     id: 'bairro',
     label: 'Bairro',
-    hint: 'Clique na cidade para abrir os bairros (OpenStreetMap). Cada bairro tem uma cor.',
-    fonte: 'OpenStreetMap · Overpass',
+    hint: 'Clique na cidade para abrir os bairros oficiais do IBGE. Se não houver bairro, mostra os distritos.',
+    fonte: 'IBGE · Censo 2022 (bairros/distritos)',
   },
 ]
 
@@ -99,8 +99,8 @@ const FONTES_DIVISAO: { titulo: string; detalhe: string; href: string }[] = [
   {
     titulo: 'Bairro',
     detalhe:
-      'Limites de bairro/subúrbio do OpenStreetMap (admin_level 10 e place=suburb/neighbourhood), via Overpass API. Nem toda cidade tem bairro cadastrado.',
-    href: 'https://www.openstreetmap.org/copyright',
+      'Polígonos oficiais de bairro do IBGE (Censo 2022), recortados no município clicado. Se a cidade não tiver bairro na malha, usamos os distritos do IBGE.',
+    href: 'https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais/26565-malhas-de-setores-censitarios-divisoes-intramunicipais.html',
   },
   {
     titulo: 'Fundo do mapa',
@@ -171,7 +171,7 @@ export function AreaAtendimentoView() {
   const persistPatchRef = useRef<(fn: (a: AreaAtendimento) => AreaAtendimento) => void>(() => {})
   const mostrarRegioesRef = useRef<() => Promise<void>>(async () => {})
   const mostrarCidadesRef = useRef<() => Promise<void>>(async () => {})
-  const abrirBairrosRef = useRef<(p: GeoProps, bounds: L.LatLngBounds) => Promise<void>>(async () => {})
+  const abrirBairrosRef = useRef<(p: GeoProps, bounds?: L.LatLngBounds) => Promise<void>>(async () => {})
 
   const [tree, setTree] = useState<OrgNo[]>(() => loadOrgTree())
   const [db, setDb] = useState<AreaAtendimentoDB>(() => ({ areas: {} }))
@@ -394,30 +394,29 @@ export function AreaAtendimentoView() {
   }
   mostrarCidadesRef.current = mostrarCidadesBrasil
 
-  async function abrirBairros(p: GeoProps, bounds: L.LatLngBounds) {
+  async function abrirBairros(p: GeoProps, bounds?: L.LatLngBounds) {
     const map = mapRef.current
     if (!map) return
     setMunAtiva({ id: p.id, nome: p.nome, uf: p.uf })
-    setCarregando(`Carregando bairros de ${p.nome}…`)
+    setCarregando(`Carregando bairros de ${p.nome} (IBGE)…`)
     try {
       const fc = await carregarMalhaBairros({
         municipioId: p.id,
         uf: p.uf,
-        south: bounds.getSouth(),
-        west: bounds.getWest(),
-        north: bounds.getNorth(),
-        east: bounds.getEast(),
       })
       bairroLayerRef.current?.remove()
       munLayerRef.current && map.hasLayer(munLayerRef.current) && map.removeLayer(munLayerRef.current)
+      const canvas = L.canvas({ padding: 0.5 })
       const layer = L.geoJSON(fc as GeoJSON.GeoJsonObject, {
+        renderer: canvas,
         style: (feat) => {
           const id = (feat as Feat | undefined)?.properties?.id ?? ''
           return styleMun(id, bairroIdsRef.current.has(id))
         },
         onEachFeature: (feature, lyr) => {
           const bp = (feature as Feat).properties
-          lyr.bindTooltip(`${bp.nome} · ${p.nome}`, { sticky: true })
+          const tipo = bp.tipo === 'distrito' ? 'distrito' : 'bairro'
+          lyr.bindTooltip(`${bp.nome} (${tipo}) · ${p.nome}`, { sticky: true })
           lyr.on('click', () => {
             if (modoRef.current !== 'bairro') return
             const center = (lyr as L.Polygon).getBounds?.().getCenter?.()
@@ -435,11 +434,15 @@ export function AreaAtendimentoView() {
         },
       }).addTo(map)
       bairroLayerRef.current = layer
-      if (bounds.isValid()) map.fitBounds(bounds.pad(0.06), { maxZoom: 13 })
+      const camada = layer.getBounds()
+      if (camada.isValid()) map.fitBounds(camada.pad(0.06), { maxZoom: 13 })
+      else if (bounds?.isValid()) map.fitBounds(bounds.pad(0.06), { maxZoom: 13 })
       setCarregando('')
     } catch {
       setCarregando('')
-      setErro(`Não há malha de bairros para ${p.nome}. Tente outra cidade ou marque o município em Cidade.`)
+      setErro(
+        `Não há divisão de bairro/distrito do IBGE para ${p.nome}. Tente outra cidade ou marque o município em Cidade.`,
+      )
     }
   }
   abrirBairrosRef.current = abrirBairros
@@ -653,12 +656,7 @@ export function AreaAtendimentoView() {
     setBusca('')
     setErro('')
     if (modo === 'bairro') {
-      const pad = 0.2
-      const bounds = L.latLngBounds(
-        [m.lat - pad, m.lng - pad],
-        [m.lat + pad, m.lng + pad],
-      )
-      await abrirBairros({ id: m.id, nome: m.nome, uf: m.uf }, bounds)
+      await abrirBairros({ id: m.id, nome: m.nome, uf: m.uf })
       return
     }
     if (modo !== 'cidade') {

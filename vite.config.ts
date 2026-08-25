@@ -92,6 +92,15 @@ export default defineConfig({
               expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
             },
           },
+          {
+            urlPattern:
+              /^https:\/\/geoftp\.ibge\.gov\.br\/.*censo_2022\/(bairros|distritos)\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'ibge-bairros-shp',
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
         ],
       },
       devOptions: {
