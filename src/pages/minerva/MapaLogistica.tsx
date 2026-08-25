@@ -12,10 +12,14 @@ import {
   type CamadasMapaLogistica,
   type RegiaoLogistica,
 } from '../../lib/mapaLogisticaIntel'
+import { AreaAtendimentoView } from '../../components/mapa/AreaAtendimentoView'
 import '../../styles/mapa-logistica.css'
+
+type AbaLogistica = 'radar' | 'area'
 
 export function MapaLogisticaPage() {
   const { cargas, veiculos, motoristas, transportadores } = useData()
+  const [aba, setAba] = useState<AbaLogistica>('radar')
   const mapEl = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const layerRef = useRef<L.LayerGroup | null>(null)
@@ -39,6 +43,7 @@ export function MapaLogisticaPage() {
   }
 
   useEffect(() => {
+    if (aba !== 'radar') return
     if (!mapEl.current || mapRef.current) return
     const map = L.map(mapEl.current, {
       center: [-14.2, -51.9],
@@ -58,9 +63,10 @@ export function MapaLogisticaPage() {
       mapRef.current = null
       layerRef.current = null
     }
-  }, [])
+  }, [aba])
 
   useEffect(() => {
+    if (aba !== 'radar') return
     const map = mapRef.current
     const layer = layerRef.current
     if (!map || !layer) return
@@ -136,7 +142,7 @@ export function MapaLogisticaPage() {
           .addTo(layer)
       }
     }
-  }, [snap, camadas])
+  }, [snap, camadas, aba])
 
   return (
     <div className="mapa-log animate-fade-up">
@@ -150,36 +156,60 @@ export function MapaLogisticaPage() {
             </span>
           </h1>
           <p className="mapa-log__sub">
-            Radar do mercado com os dados da sua plataforma: onde há cargas, onde faltam
-            caminhões, regiões aquecidas e frete médio por UF.
+            {aba === 'area'
+              ? 'Marque no mapa as cidades que o embarcador atende. Primeiro escolha Cidade, depois clique no estado e nas cidades.'
+              : 'Radar do mercado com os dados da sua plataforma: onde há cargas, onde faltam caminhões, regiões aquecidas e frete médio por UF.'}
           </p>
-        </div>
-        <div className="mapa-log__kpis">
-          <div className="mapa-log__kpi">
-            <span>Cargas ativas</span>
-            <strong>{snap.totais.cargasAtivas}</strong>
-          </div>
-          <div className="mapa-log__kpi">
-            <span>Placas livres</span>
-            <strong>{snap.totais.veiculosDisponiveis}</strong>
-          </div>
-          <div className="mapa-log__kpi">
-            <span>Motoristas no radar</span>
-            <strong>{snap.totais.motoristas}</strong>
-          </div>
-          <div className="mapa-log__kpi">
-            <span>Frete médio</span>
-            <strong>
-              {snap.totais.freteMedio > 0 ? formatCurrency(snap.totais.freteMedio) : '—'}
-            </strong>
-          </div>
-          <div className="mapa-log__kpi">
-            <span>UFs com atividade</span>
-            <strong>{snap.totais.ufsComAtividade}</strong>
+          <div className="mapa-log__tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={aba === 'radar'}
+              className={`mapa-log__tab${aba === 'radar' ? ' is-on' : ''}`}
+              onClick={() => setAba('radar')}
+            >
+              Radar
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={aba === 'area'}
+              className={`mapa-log__tab${aba === 'area' ? ' is-on' : ''}`}
+              onClick={() => setAba('area')}
+            >
+              Área de atendimento
+            </button>
           </div>
         </div>
+        {aba === 'radar' ? (
+          <div className="mapa-log__kpis">
+            <div className="mapa-log__kpi">
+              <span>Cargas ativas</span>
+              <strong>{snap.totais.cargasAtivas}</strong>
+            </div>
+            <div className="mapa-log__kpi">
+              <span>Placas livres</span>
+              <strong>{snap.totais.veiculosDisponiveis}</strong>
+            </div>
+            <div className="mapa-log__kpi">
+              <span>Motoristas no radar</span>
+              <strong>{snap.totais.motoristas}</strong>
+            </div>
+            <div className="mapa-log__kpi">
+              <span>Frete médio</span>
+              <strong>
+                {snap.totais.freteMedio > 0 ? formatCurrency(snap.totais.freteMedio) : '—'}
+              </strong>
+            </div>
+            <div className="mapa-log__kpi">
+              <span>UFs com atividade</span>
+              <strong>{snap.totais.ufsComAtividade}</strong>
+            </div>
+          </div>
+        ) : null}
       </header>
 
+      {aba === 'area' ? <AreaAtendimentoView /> : (
       <div className="mapa-log__body">
         <aside className="mapa-log__side">
           <section className="mapa-log__panel">
@@ -418,6 +448,7 @@ export function MapaLogisticaPage() {
           ) : null}
         </div>
       </div>
+      )}
     </div>
   )
 }
