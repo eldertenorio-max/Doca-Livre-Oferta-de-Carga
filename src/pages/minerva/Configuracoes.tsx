@@ -1,7 +1,21 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useData } from '../../context/DataContext'
 import { formatPrazoLabel } from '../../lib/businessRules'
+import {
+  configPontuacaoDe,
+  normalizeConfigPontuacao,
+  type ConfigPontuacao,
+} from '../../lib/configPontuacao'
+import { ownerEmbarcadorId } from '../../lib/areaAtendimento'
+import {
+  hydrateOrgTree,
+  listarEmbarcadores,
+  loadOrgTree,
+  type OrgNo,
+} from '../../lib/orgHierarchy'
+import { regrasPontuacao } from '../../lib/pontuacaoAderencia'
 import { canEditModulo } from '../../lib/portalModules'
+import { isSuperSession } from '../../lib/superUsers'
 import { Button, Field, inputClass } from '../../components/ui/Modal'
 import '../../styles/cadastro.css'
 
@@ -9,15 +23,58 @@ function Hint({ children }: { children: ReactNode }) {
   return <p className="text-[12px] leading-relaxed text-ink-muted">{children}</p>
 }
 
+function parsePtsInput(raw: string, fallback: number): number {
+  if (raw.trim() === '' || raw === '-' || raw === '+') return fallback
+  const n = Number(raw.replace(',', '.'))
+  if (!Number.isFinite(n)) return fallback
+  return Math.trunc(n)
+}
+
 export function ConfiguracoesPage() {
-  const { config, salvarConfig, user } = useData()
+  const { config, salvarConfig, configPontuacaoDb, salvarConfigPontuacao, user } = useData()
   const canEdit =
     canEditModulo(user?.permissoes_modulos, 'configuracoes') || Boolean(user?.is_superuser)
+  const isSuper = isSuperSession(user)
   const [form, setForm] = useState(config)
   const [msg, setMsg] = useState('')
   const [avancado, setAvancado] = useState(false)
+  const [orgTree, setOrgTree] = useState<OrgNo[]>(() => loadOrgTree())
+  const embarcadores = useMemo(() => listarEmbarcadores(orgTree), [orgTree])
+  const [embarcadorId, setEmbarcadorId] = useState(() =>
+    ownerEmbarcadorId({
+      empresaOrgId: null,
+      embarcadores: listarEmbarcadores(loadOrgTree()),
+    }),
+  )
+  const [ptsForm, setPtsForm] = useState<ConfigPontuacao>(() =>
+    configPontuacaoDe(configPontuacaoDb, embarcadorId),
+  )
 
   useEffect(() => setForm(config), [config])
+
+  useEffect(() => {
+    void hydrateOrgTree().then(setOrgTree)
+  }, [])
+
+  useEffect(() => {
+    const id = ownerEmbarcadorId({
+      empresaOrgId: user?.empresa_org_id,
+      embarcadores,
+    })
+    setEmbarcadorId((prev) => {
+      if (!isSuper) return id
+      if (prev && embarcadores.some((e) => e.id === prev)) return prev
+      return id
+    })
+  }, [user?.empresa_org_id, embarcadores, isSuper])
+
+  useEffect(() => {
+    if (!embarcadorId) return
+    setPtsForm(configPontuacaoDe(configPontuacaoDb, embarcadorId))
+  }, [configPontuacaoDb, embarcadorId])
+
+  const podeTrocarEmbarcador = isSuper && embarcadores.length > 1
+  const regrasPts = useMemo(() => regrasPontuacao(ptsForm), [ptsForm])
 
   const resumoPrioridade = useMemo(() => {
     const lim = form.limite_urgencia_minutos
@@ -47,6 +104,9 @@ export function ConfiguracoesPage() {
       return
     }
     salvarConfig(form)
+    if (embarcadorId) {
+      salvarConfigPontuacao(embarcadorId, normalizeConfigPontuacao(ptsForm))
+    }
     setMsg('Configurações salvas.')
   }
 
@@ -55,7 +115,8 @@ export function ConfiguracoesPage() {
       <header className="mb-5">
         <h1 className="cadastro-page-title">Configurações</h1>
         <p className="text-sm text-ink-muted">
-          Defina os padrões usados ao publicar e negociar cargas.
+          Defina os padrões usados ao publicar e negociar cargas, e a pontuação das
+          transportadoras desta conta.
         </p>
       </header>
 
@@ -66,6 +127,77 @@ export function ConfiguracoesPage() {
       )}
 
       <div className="space-y-4">
+        <section className="rounded-xl border border-ink/10 bg-white p-4 space-y-3">
+          <div>
+            <h2 className="font-display text-base font-semibold">Pontuação das transportadoras</h2>
+            <Hint>
+              Cada embarcador define quantos pontos vale cada comportamento. Pode ser positivo,
+              negativo ou zero — sem teto.
+            </Hint>
+          </div>
+          {podeTrocarEmbarcador ? (
+            <Field label="Conta do embarcador">
+              <select
+                className={inputClass}
+                disabled={!canEdit}
+                value={embarcadorId}
+                onChange={(e) => setEmbarcadorId(e.target.value)}
+              >
+                {embarcadores.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.nome}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : (
+            <p className="text-[12px] text-ink-muted">
+              Conta:{' '}
+              <span className="font-semibold text-ink">
+                {embarcadores.find((e) => e.id === embarcadorId)?.nome || 'Embarcador'}
+              </span>
+            </p>
+          )}
+          <Field label="Pontuação inicial (saldo de partida de cada transportadora)">
+            <input
+              type="number"
+              step={1}
+              className={inputClass}
+              disabled={!canEdit}
+              value={ptsForm.inicial}
+              onChange={(e) =>
+                setPtsForm({
+                  ...ptsForm,
+                  inicial: parsePtsInput(e.target.value, ptsForm.inicial),
+                })
+              }
+            />
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {regrasPts.map((r) => (
+              <Field key={r.id} label={r.titulo}>
+                <Hint>{r.detalhe}</Hint>
+                <input
+                  type="number"
+                  step={1}
+                  className={inputClass}
+                  disabled={!canEdit}
+                  value={ptsForm.pontos[r.id]}
+                  onChange={(e) =>
+                    setPtsForm({
+                      ...ptsForm,
+                      pontos: {
+                        ...ptsForm.pontos,
+                        [r.id]: parsePtsInput(e.target.value, ptsForm.pontos[r.id]),
+                      },
+                    })
+                  }
+                />
+              </Field>
+            ))}
+          </div>
+        </section>
+
         {/* 1. Tempos simples */}
         <section className="rounded-xl border border-ink/10 bg-white p-4 space-y-3">
           <div>

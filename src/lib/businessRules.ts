@@ -23,11 +23,12 @@ export const MOTIVOS_PRIORIDADE_ALTA = [
   'Outros',
 ] as const
 
-/** Pontuação de aderência (PPT) */
+/** Pontuação de aderência (PPT) — defaults; cada embarcador pode sobrescrever. */
 export const PONTOS_ADERENCIA = {
   visualizada_sem_acao: -1,
   nao_visualizada: -1,
   recusada: -1,
+  recusada_contra: -1,
   com_proposta: 0,
   frete_fechado: 2,
 } as const

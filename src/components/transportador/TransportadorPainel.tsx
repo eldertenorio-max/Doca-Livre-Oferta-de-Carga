@@ -196,7 +196,9 @@ export function TransportadorPainel({ transportadorId, compact }: Props) {
     const ptsPorTipo = {
       frete_fechado: meusPts.filter((i) => i.tipo === 'frete_fechado').reduce((s, i) => s + i.pontos, 0),
       com_proposta: meusPts.filter((i) => i.tipo === 'com_proposta').reduce((s, i) => s + i.pontos, 0),
-      recusada: meusPts.filter((i) => i.tipo === 'recusada').reduce((s, i) => s + i.pontos, 0),
+      recusada: meusPts
+        .filter((i) => i.tipo === 'recusada' || i.tipo === 'recusada_contra')
+        .reduce((s, i) => s + i.pontos, 0),
       visualizada_sem_acao: meusPts
         .filter((i) => i.tipo === 'visualizada_sem_acao')
         .reduce((s, i) => s + i.pontos, 0),

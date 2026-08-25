@@ -1,10 +1,11 @@
 import { useMemo, type ReactNode } from 'react'
 import {
-  REGRAS_PONTUACAO,
+  regrasPontuacao,
   pontosDaRegra,
   type LinhaHistoricoPts,
   type StatsAnuncioPontuacao,
 } from '../../lib/pontuacaoAderencia'
+import type { ConfigPontuacao } from '../../lib/configPontuacao'
 import type { ClassificacaoTransportador, Transportador } from '../../types'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -39,6 +40,7 @@ const REGRA_COR: Record<string, string> = {
   com_proposta: '#1d4ed8',
   frete_fechado: '#16a34a',
   recusada: '#dc2626',
+  recusada_contra: '#b45309',
 }
 
 type Slice = { label: string; value: number; color: string }
@@ -396,6 +398,7 @@ export function PontuacaoDashboard({
   ranking,
   historico,
   totais,
+  cfg,
   onOpenTransportador,
 }: {
   anuncios: StatsAnuncioPontuacao[]
@@ -410,8 +413,10 @@ export function PontuacaoDashboard({
     recusaramCarga: number
     recusaramContra: number
   }
+  cfg?: ConfigPontuacao
   onOpenTransportador?: (id: string) => void
 }) {
+  const regras = useMemo(() => regrasPontuacao(cfg), [cfg])
   const funil = useMemo(
     () => [
       { label: 'Visualizações', value: totais.visualizacoes, color: '#0f172a' },
@@ -445,23 +450,23 @@ export function PontuacaoDashboard({
 
   const eventosPorTipo = useMemo(() => {
     const map = new Map<string, number>()
-    for (const r of REGRAS_PONTUACAO) map.set(r.id, 0)
+    for (const r of regras) map.set(r.id, 0)
     for (const h of historico) map.set(h.tipo, (map.get(h.tipo) ?? 0) + 1)
-    return REGRAS_PONTUACAO.map((r) => ({
+    return regras.map((r) => ({
       id: r.id,
       label: r.titulo,
       value: map.get(r.id) ?? 0,
       color: REGRA_COR[r.id] ?? '#64748b',
     }))
-  }, [historico])
+  }, [historico, regras])
 
   const pontosPorTipo = useMemo(
     () =>
       eventosPorTipo.map((e) => ({
         ...e,
-        value: e.value * pontosDaRegra(e.id as LinhaHistoricoPts['tipo']),
+        value: e.value * pontosDaRegra(e.id as LinhaHistoricoPts['tipo'], 0, cfg),
       })),
-    [eventosPorTipo],
+    [eventosPorTipo, cfg],
   )
 
   const rankingBars = useMemo(
@@ -492,7 +497,7 @@ export function PontuacaoDashboard({
       if (!k) continue
       const cur = map.get(k) ?? { eventos: 0, pontos: 0 }
       cur.eventos += 1
-      cur.pontos += pontosDaRegra(h.tipo, h.pontos)
+      cur.pontos += pontosDaRegra(h.tipo, h.pontos, cfg)
       map.set(k, cur)
     }
     const keys = [...map.keys()].sort()
@@ -501,14 +506,14 @@ export function PontuacaoDashboard({
       const row = map.get(k)!
       return { label: diaLabel(k), eventos: row.eventos, pontos: row.pontos }
     })
-  }, [historico])
+  }, [historico, cfg])
 
   const ganhosPerdas = useMemo(() => {
     let ganho = 0
     let perda = 0
     let zero = 0
     for (const h of historico) {
-      const p = pontosDaRegra(h.tipo, h.pontos)
+      const p = pontosDaRegra(h.tipo, h.pontos, cfg)
       if (p > 0) ganho += p
       else if (p < 0) perda += Math.abs(p)
       else zero += 1
@@ -518,7 +523,7 @@ export function PontuacaoDashboard({
       { label: 'Pontos perdidos', value: perda, color: '#dc2626' },
       { label: 'Zero a zero', value: zero, color: '#94a3b8' },
     ]
-  }, [historico])
+  }, [historico, cfg])
 
   return (
     <div className="space-y-3">
@@ -551,7 +556,7 @@ export function PontuacaoDashboard({
         >
           <BarrasHorizontais items={rankingBars} onClick={onOpenTransportador} />
         </ChartCard>
-        <ChartCard title="Ganhos x perdas x zero a zero" hint="Barras — saldo das regras (+2 / −1 / 0)">
+        <ChartCard title="Ganhos x perdas x zero a zero" hint="Barras — saldo das regras configuradas">
           <BarrasVerticais items={ganhosPerdas} />
         </ChartCard>
         <ChartCard

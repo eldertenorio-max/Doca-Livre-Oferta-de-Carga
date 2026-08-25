@@ -509,7 +509,13 @@ export interface InteracaoPontuacao {
   id: string
   transportador_id: string
   carga_id: string
-  tipo: 'visualizada_sem_acao' | 'nao_visualizada' | 'recusada' | 'com_proposta' | 'frete_fechado'
+  tipo:
+    | 'visualizada_sem_acao'
+    | 'nao_visualizada'
+    | 'recusada'
+    | 'recusada_contra'
+    | 'com_proposta'
+    | 'frete_fechado'
   pontos: number
   created_at: string
 }

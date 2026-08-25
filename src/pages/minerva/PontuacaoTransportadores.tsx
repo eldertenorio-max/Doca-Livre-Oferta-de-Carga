@@ -1,17 +1,26 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { PontuacaoDashboard } from '../../components/portal/PontuacaoDashboard'
 import { useData } from '../../context/DataContext'
-import { formatDateTime } from '../../lib/businessRules'
+import { ownerEmbarcadorId } from '../../lib/areaAtendimento'
+import { classificacaoPorPontuacao, formatDateTime } from '../../lib/businessRules'
 import {
-  PONTUACAO_INICIAL,
-  REGRAS_PONTUACAO,
-  classificacaoPorPontuacao,
+  configPontuacaoDe,
+  embarcadorIdDaCarga,
+} from '../../lib/configPontuacao'
+import {
+  hydrateOrgTree,
+  listarEmbarcadores,
+  loadOrgTree,
+  type OrgNo,
+} from '../../lib/orgHierarchy'
+import {
   labelPontos,
   labelTipoPontuacao,
   linhasHistoricoPontuacao,
   pontosDaRegra,
   pontuacaoDoHistorico,
+  regrasPontuacao,
   statsAnunciosPontuacao,
 } from '../../lib/pontuacaoAderencia'
 import { isSuperSession } from '../../lib/superUsers'
@@ -43,16 +52,59 @@ function corPontos(n: number) {
 type Aba = 'dashboard' | 'anuncios' | 'transportadores'
 
 export function PontuacaoTransportadoresPage() {
-  const { user, cargas, lances, transportadores, grupos, interacoes } = useData()
+  const { user, cargas, lances, transportadores, grupos, interacoes, configPontuacaoDb } = useData()
   const isSuper = isSuperSession(user)
   const [aba, setAba] = useState<Aba>('dashboard')
   const [q, setQ] = useState('')
   const [tidSel, setTidSel] = useState<string | null>(null)
+  const [orgTree, setOrgTree] = useState<OrgNo[]>(() => loadOrgTree())
+  const embarcadores = useMemo(() => listarEmbarcadores(orgTree), [orgTree])
+  const [embarcadorId, setEmbarcadorId] = useState(() =>
+    ownerEmbarcadorId({
+      empresaOrgId: null,
+      embarcadores: listarEmbarcadores(loadOrgTree()),
+    }),
+  )
 
-  const anuncios = useMemo(() => statsAnunciosPontuacao(cargas, lances), [cargas, lances])
+  useEffect(() => {
+    void hydrateOrgTree().then(setOrgTree)
+  }, [])
+
+  useEffect(() => {
+    const id = ownerEmbarcadorId({
+      empresaOrgId: user?.empresa_org_id,
+      embarcadores,
+    })
+    setEmbarcadorId((prev) => {
+      if (prev && embarcadores.some((e) => e.id === prev)) return prev
+      return id
+    })
+  }, [user?.empresa_org_id, embarcadores])
+
+  const cfgPts = useMemo(
+    () => configPontuacaoDe(configPontuacaoDb, embarcadorId),
+    [configPontuacaoDb, embarcadorId],
+  )
+  const regras = useMemo(() => regrasPontuacao(cfgPts), [cfgPts])
+  const cargasEmb = useMemo(
+    () => cargas.filter((c) => embarcadorIdDaCarga(c) === embarcadorId),
+    [cargas, embarcadorId],
+  )
+
+  const anuncios = useMemo(
+    () => statsAnunciosPontuacao(cargasEmb, lances),
+    [cargasEmb, lances],
+  )
   const historico = useMemo(
-    () => linhasHistoricoPontuacao({ cargas, lances, grupos, interacoes }),
-    [cargas, lances, grupos, interacoes],
+    () =>
+      linhasHistoricoPontuacao({
+        cargas: cargasEmb,
+        lances,
+        grupos,
+        interacoes,
+        cfg: cfgPts,
+      }),
+    [cargasEmb, lances, grupos, interacoes, cfgPts],
   )
 
   const ranking = useMemo(
@@ -61,7 +113,7 @@ export function PontuacaoTransportadoresPage() {
         .filter((t) => t.situacao !== 'inativo')
         .map((t) => {
           const linhas = historico.filter((h) => sameTransportadorId(h.transportador_id, t.id))
-          const pontos = pontuacaoDoHistorico(linhas)
+          const pontos = pontuacaoDoHistorico(linhas, cfgPts)
           return {
             ...t,
             pontuacao: pontos,
@@ -72,7 +124,7 @@ export function PontuacaoTransportadoresPage() {
           (a, b) =>
             b.pontuacao - a.pontuacao || nomeTransportador(a).localeCompare(nomeTransportador(b), 'pt-BR'),
         ),
-    [transportadores, historico],
+    [transportadores, historico, cfgPts],
   )
 
   const anunciosFiltrados = useMemo(() => {
@@ -126,19 +178,37 @@ export function PontuacaoTransportadoresPage() {
   const transportadorSel = tidSel
     ? ranking.find((t) => sameTransportadorId(t.id, tidSel))
     : undefined
-  const somaEventosSel = histSel.reduce((s, h) => s + pontosDaRegra(h.tipo, h.pontos), 0)
+  const somaEventosSel = histSel.reduce((s, h) => s + pontosDaRegra(h.tipo, h.pontos, cfgPts), 0)
 
   return (
     <div className="cadastro-page animate-fade-up space-y-4">
       <header>
         <h1 className="cadastro-page-title">Pontuação do transportador</h1>
         <p className="text-sm text-ink-muted">
-          Ranking = {PONTUACAO_INICIAL} pts iniciais + os eventos dos cartões acima. Só Super Usuário.
+          Ranking = {cfgPts.inicial} pts iniciais + os eventos dos cartões acima. Só Super Usuário.
+          Os valores vêm da configuração do embarcador.
         </p>
       </header>
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-        {REGRAS_PONTUACAO.map((r) => (
+      {embarcadores.length > 1 ? (
+        <label className="flex max-w-md flex-col gap-1 text-[12px] font-semibold text-ink">
+          Embarcador
+          <select
+            className="rounded-lg border border-ink/15 bg-white px-3 py-2 text-sm font-normal"
+            value={embarcadorId}
+            onChange={(e) => setEmbarcadorId(e.target.value)}
+          >
+            {embarcadores.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.nome}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {regras.map((r) => (
           <div key={r.id} className="rounded-xl border border-ink/10 bg-white p-3">
             <p className="text-[11px] font-extrabold uppercase tracking-wide text-ink">{r.titulo}</p>
             <p className="mt-0.5 text-[12px] text-ink-muted">{r.detalhe}</p>
@@ -190,6 +260,7 @@ export function PontuacaoTransportadoresPage() {
           ranking={ranking}
           historico={historico}
           totais={totaisAnuncios}
+          cfg={cfgPts}
           onOpenTransportador={(id) => {
             setTidSel(id)
             setAba('transportadores')
@@ -322,7 +393,7 @@ export function PontuacaoTransportadoresPage() {
                       {nomeTransportador(transportadorSel)}
                     </h2>
                     <p className="text-[12px] text-ink-muted">
-                      {transportadorSel.classificacao} · saldo inicial {PONTUACAO_INICIAL} pts
+                      {transportadorSel.classificacao} · saldo inicial {cfgPts.inicial} pts
                       {histSel.length > 0
                         ? ` · eventos ${labelPontos(somaEventosSel)} · total ${transportadorSel.pontuacao} pts`
                         : ` · ${transportadorSel.pontuacao} pts`}
@@ -349,7 +420,7 @@ export function PontuacaoTransportadoresPage() {
                       ) : (
                         histSel.map((h) => {
                           const carga = cargas.find((c) => c.id === h.carga_id)
-                          const pts = pontosDaRegra(h.tipo, h.pontos)
+                          const pts = pontosDaRegra(h.tipo, h.pontos, cfgPts)
                           return (
                             <tr key={h.id} className="border-t border-ink/10">
                               <td className="px-3 py-2 whitespace-nowrap text-ink-muted">
@@ -369,7 +440,7 @@ export function PontuacaoTransportadoresPage() {
                       <tfoot>
                         <tr className="border-t-2 border-ink/20 bg-sand-light/50">
                           <td className="px-3 py-2 text-ink-muted" colSpan={2}>
-                            Saldo inicial {PONTUACAO_INICIAL} pts
+                            Saldo inicial {cfgPts.inicial} pts
                           </td>
                           <td className="px-3 py-2 font-bold">Total</td>
                           <td className="px-3 py-2 text-right font-extrabold">

@@ -3,6 +3,11 @@ import {
   PONTUACAO_INICIAL,
   classificacaoPorPontuacao,
 } from './businessRules'
+import {
+  defaultConfigPontuacao,
+  pontosDoTipo,
+  type ConfigPontuacao,
+} from './configPontuacao'
 import { sameTransportadorId } from './transportadorIds'
 import type {
   Carga,
@@ -41,11 +46,22 @@ export const REGRAS_PONTUACAO = [
   },
   {
     id: 'recusada' as const,
-    titulo: 'Recusou a oferta',
-    detalhe: 'Entrou e recusou a carga (ou o prazo de alocação expirou).',
+    titulo: 'Recusou a carga',
+    detalhe: 'Entrou e recusou a oferta (ou o prazo de alocação expirou).',
     pontos: PONTOS_ADERENCIA.recusada,
   },
+  {
+    id: 'recusada_contra' as const,
+    titulo: 'Recusou a contra-proposta',
+    detalhe: 'Tinha lance e recusou a contra do embarcador.',
+    pontos: PONTOS_ADERENCIA.recusada_contra,
+  },
 ] as const
+
+export function regrasPontuacao(cfg?: ConfigPontuacao) {
+  const c = cfg ?? defaultConfigPontuacao()
+  return REGRAS_PONTUACAO.map((r) => ({ ...r, pontos: c.pontos[r.id] }))
+}
 
 export function labelPontos(n: number): string {
   if (n === 0) return '0 (zero a zero)'
@@ -95,6 +111,24 @@ function recusouCarga(c: Pick<Carga, 'recusado_por_ids'>, tid: string): boolean 
   return (c.recusado_por_ids ?? []).some((id) => sameTransportadorId(id, tid))
 }
 
+function recusouContraCarga(
+  c: Pick<Carga, 'recusado_contra_proposta_por_ids'>,
+  tid: string,
+): boolean {
+  return (c.recusado_contra_proposta_por_ids ?? []).some((id) =>
+    sameTransportadorId(id, tid),
+  )
+}
+
+const TIPOS_PONTUACAO_JA_CONTADOS: InteracaoPontuacao['tipo'][] = [
+  'visualizada_sem_acao',
+  'nao_visualizada',
+  'com_proposta',
+  'frete_fechado',
+  'recusada',
+  'recusada_contra',
+]
+
 function deuLance(lances: Lance[], cargaId: string, tid: string): boolean {
   return lances.some(
     (l) => l.carga_id === cargaId && sameTransportadorId(l.transportador_id, tid),
@@ -111,9 +145,13 @@ function registrarInteracao(
     nowIso: string
     newId: () => string
     aplicarPontos: boolean
+    cfg?: ConfigPontuacao
+    pontos?: number
   },
 ): { transportadores: Transportador[]; interacoes: InteracaoPontuacao[] } {
-  const pontos = PONTOS_ADERENCIA[opts.tipo]
+  const pontos =
+    opts.pontos ??
+    pontosDoTipo(opts.cfg ?? defaultConfigPontuacao(), opts.tipo)
   const nextInteracoes = [
     ...interacoes,
     {
@@ -147,8 +185,10 @@ export function aplicarPenalidadesEncerramento(opts: {
   interacoes: InteracaoPontuacao[]
   nowIso: string
   newId: () => string
+  cfg?: ConfigPontuacao
 }): { transportadores: Transportador[]; interacoes: InteracaoPontuacao[] } {
   const { carga, grupos, lances, nowIso, newId } = opts
+  const cfg = opts.cfg ?? defaultConfigPontuacao()
   let { transportadores, interacoes } = opts
   const vencedor = carga.transportador_vencedor_id
   const envolvidos = new Set([
@@ -158,15 +198,7 @@ export function aplicarPenalidadesEncerramento(opts: {
 
   for (const tid of envolvidos) {
     if (vencedor && sameTransportadorId(tid, vencedor)) continue
-    if (
-      jaTemInteracao(interacoes, carga.id, tid, [
-        'visualizada_sem_acao',
-        'nao_visualizada',
-        'com_proposta',
-        'frete_fechado',
-        'recusada',
-      ])
-    ) {
+    if (jaTemInteracao(interacoes, carga.id, tid, TIPOS_PONTUACAO_JA_CONTADOS)) {
       continue
     }
     if (deuLance(lances, carga.id, tid)) {
@@ -177,6 +209,7 @@ export function aplicarPenalidadesEncerramento(opts: {
         nowIso,
         newId,
         aplicarPontos: false,
+        cfg,
       })
       interacoes = next.interacoes
       transportadores = next.transportadores
@@ -192,6 +225,7 @@ export function aplicarPenalidadesEncerramento(opts: {
       nowIso,
       newId,
       aplicarPontos: true,
+      cfg,
     })
     interacoes = next.interacoes
     transportadores = next.transportadores
@@ -206,6 +240,8 @@ export function novaInteracao(
     tipo: InteracaoPontuacao['tipo']
     nowIso: string
     newId: () => string
+    pontos?: number
+    cfg?: ConfigPontuacao
   },
 ): InteracaoPontuacao {
   return {
@@ -213,7 +249,9 @@ export function novaInteracao(
     transportador_id: opts.transportadorId,
     carga_id: opts.cargaId,
     tipo: opts.tipo,
-    pontos: PONTOS_ADERENCIA[opts.tipo],
+    pontos:
+      opts.pontos ??
+      pontosDoTipo(opts.cfg ?? defaultConfigPontuacao(), opts.tipo),
     created_at: opts.nowIso,
   }
 }
@@ -229,7 +267,9 @@ export function labelTipoPontuacao(tipo: InteracaoPontuacao['tipo']): string {
     case 'frete_fechado':
       return 'Aceitou e fechou a carga'
     case 'recusada':
-      return 'Recusou a oferta'
+      return 'Recusou a carga'
+    case 'recusada_contra':
+      return 'Recusou a contra-proposta'
     default:
       return tipo
   }
@@ -299,14 +339,24 @@ function ofertaEncerradaParaPontos(c: Carga): boolean {
 
 export type LinhaHistoricoPts = InteracaoPontuacao & { sintetico?: boolean }
 
-/** Sempre o valor da regra atual, para bater com os cartões de exemplo. */
-export function pontosDaRegra(tipo: InteracaoPontuacao['tipo'], fallback = 0): number {
-  return PONTOS_ADERENCIA[tipo] ?? fallback
+/** Sempre o valor da regra atual do embarcador, para bater com os cartões. */
+export function pontosDaRegra(
+  tipo: InteracaoPontuacao['tipo'],
+  fallback = 0,
+  cfg?: ConfigPontuacao,
+): number {
+  const tabela = cfg ?? defaultConfigPontuacao()
+  const v = tabela.pontos[tipo as keyof ConfigPontuacao['pontos']]
+  return typeof v === 'number' ? v : fallback
 }
 
-export function pontuacaoDoHistorico(linhas: Pick<InteracaoPontuacao, 'tipo' | 'pontos'>[]): number {
-  const eventos = linhas.reduce((s, h) => s + pontosDaRegra(h.tipo, h.pontos), 0)
-  return PONTUACAO_INICIAL + eventos
+export function pontuacaoDoHistorico(
+  linhas: Pick<InteracaoPontuacao, 'tipo' | 'pontos'>[],
+  cfg?: ConfigPontuacao,
+): number {
+  const c = cfg ?? defaultConfigPontuacao()
+  const eventos = linhas.reduce((s, h) => s + pontosDaRegra(h.tipo, h.pontos, c), 0)
+  return c.inicial + eventos
 }
 
 /** Histórico gravado + linhas derivadas de cargas já encerradas (quando a interação não persistiu). */
@@ -315,7 +365,9 @@ export function linhasHistoricoPontuacao(opts: {
   lances: Lance[]
   grupos: GrupoTransportador[]
   interacoes: InteracaoPontuacao[]
+  cfg?: ConfigPontuacao
 }): LinhaHistoricoPts[] {
+  const cfg = opts.cfg ?? defaultConfigPontuacao()
   const rows: LinhaHistoricoPts[] = [...opts.interacoes]
   const jaTem = (cargaId: string, tid: string) =>
     rows.some(
@@ -327,12 +379,15 @@ export function linhasHistoricoPontuacao(opts: {
     const whenRecusa = c.updated_at ?? c.publicado_em ?? c.created_at
     for (const tid of recusados) {
       if (jaTem(c.id, tid)) continue
+      const tipo: InteracaoPontuacao['tipo'] = recusouContraCarga(c, tid)
+        ? 'recusada_contra'
+        : 'recusada'
       rows.push({
         id: `syn-recusa-${c.id}-${tid}`,
         transportador_id: tid,
         carga_id: c.id,
-        tipo: 'recusada',
-        pontos: PONTOS_ADERENCIA.recusada,
+        tipo,
+        pontos: pontosDoTipo(cfg, tipo),
         created_at: whenRecusa,
         sintetico: true,
       })
@@ -351,7 +406,7 @@ export function linhasHistoricoPontuacao(opts: {
       if (jaTem(c.id, tid)) continue
       let tipo: InteracaoPontuacao['tipo']
       if (recusouCarga(c, tid)) {
-        tipo = 'recusada'
+        tipo = recusouContraCarga(c, tid) ? 'recusada_contra' : 'recusada'
       } else if (c.transportador_vencedor_id && sameTransportadorId(tid, c.transportador_vencedor_id)) {
         tipo = 'frete_fechado'
       } else if (deuLance(opts.lances, c.id, tid)) {
@@ -366,7 +421,7 @@ export function linhasHistoricoPontuacao(opts: {
         transportador_id: tid,
         carga_id: c.id,
         tipo,
-        pontos: PONTOS_ADERENCIA[tipo],
+        pontos: pontosDoTipo(cfg, tipo),
         created_at: when,
         sintetico: true,
       })

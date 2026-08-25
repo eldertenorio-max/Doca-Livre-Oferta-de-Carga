@@ -21,13 +21,22 @@ import {
   calcularFreteOferta,
   calcularPrioridadeEModo,
   classificacaoPorPontuacao,
-  PONTOS_ADERENCIA,
   roundMoney,
 } from '../lib/businessRules'
 import {
   aplicarPenalidadesEncerramento,
   novaInteracao,
 } from '../lib/pontuacaoAderencia'
+import {
+  configPontuacaoDe,
+  embarcadorIdDaCarga,
+  hydrateConfigPontuacao,
+  loadConfigPontuacaoDb,
+  saveConfigPontuacaoDb,
+  upsertConfigPontuacao,
+  type ConfigPontuacao,
+  type ConfigPontuacaoDB,
+} from '../lib/configPontuacao'
 import {
   hydrateConfigNegocio,
   limitesLance,
@@ -226,6 +235,9 @@ interface DataContextValue extends DataState, AuthState {
   tick: number
   config: ConfigNegocio
   salvarConfig: (cfg: ConfigNegocio) => void
+  /** Pontos de aderência por embarcador (cada conta define os valores). */
+  configPontuacaoDb: ConfigPontuacaoDB
+  salvarConfigPontuacao: (embarcadorId: string, cfg: ConfigPontuacao) => void
   /** Preferências da transportadora logada (ou “ver como”). */
   configTransportador: ConfigTransportador
   salvarConfigTransportador: (cfg: ConfigTransportador) => void
@@ -1237,11 +1249,21 @@ function loadAuth(): Profile | null {
   return null
 }
 
+function ptsCfg(
+  db: ConfigPontuacaoDB,
+  carga?: Pick<Carga, 'org_embarcador_id'> | null,
+) {
+  return configPontuacaoDe(db, embarcadorIdDaCarga(carga))
+}
+
 export function DataProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DataState>(loadState)
   const [user, setUser] = useState<Profile | null>(loadAuth)
   const [tick, setTick] = useState(0)
   const [config, setConfig] = useState<ConfigNegocio>(loadConfigNegocio)
+  const [configPontuacaoDb, setConfigPontuacaoDb] = useState<ConfigPontuacaoDB>(loadConfigPontuacaoDb)
+  const configPontuacaoRef = useRef(configPontuacaoDb)
+  configPontuacaoRef.current = configPontuacaoDb
   const [configTransportador, setConfigTransportador] = useState<ConfigTransportador>(
     () => loadConfigTransportador(null),
   )
@@ -1731,6 +1753,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setConfig(cfg)
   }, [])
 
+  const salvarConfigPontuacao = useCallback((embarcadorId: string, cfg: ConfigPontuacao) => {
+    setConfigPontuacaoDb((prev) => {
+      const next = upsertConfigPontuacao(prev, embarcadorId, cfg)
+      saveConfigPontuacaoDb(next)
+      return next
+    })
+  }, [])
+
   const salvarConfigTransportador = useCallback(
     (cfg: ConfigTransportador) => {
       setConfigTransportador(cfg)
@@ -1875,6 +1905,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
               interacoes,
               nowIso: new Date(now).toISOString(),
               newId: () => uid('int'),
+              cfg: ptsCfg(configPontuacaoRef.current, cargas[idx]),
             })
             transportadores = penal.transportadores
             interacoes = penal.interacoes
@@ -1908,7 +1939,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
           }
           transportadores = transportadores.map((t) => {
             if (!sameTransportadorId(t.id, best.transportador_id)) return t
-            const pontuacao = t.pontuacao + PONTOS_ADERENCIA.frete_fechado
+            const pontuacao =
+              t.pontuacao + ptsCfg(configPontuacaoRef.current, c).pontos.frete_fechado
             return {
               ...t,
               pontuacao,
@@ -1936,10 +1968,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 tipo: 'frete_fechado',
                 nowIso: new Date(now).toISOString(),
                 newId: () => uid('int'),
+                cfg: ptsCfg(configPontuacaoRef.current, c),
               }),
             ],
             nowIso: new Date(now).toISOString(),
             newId: () => uid('int'),
+            cfg: ptsCfg(configPontuacaoRef.current, cargas[idx]),
           })
           transportadores = penalAuto.transportadores
           interacoes = penalAuto.interacoes
@@ -1971,7 +2005,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
             )
             transportadores = transportadores.map((t) => {
               if (!sameTransportadorId(t.id, tid)) return t
-              const pontuacao = t.pontuacao + PONTOS_ADERENCIA.recusada
+              const pontuacao =
+                t.pontuacao + ptsCfg(configPontuacaoRef.current, c).pontos.recusada
               return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
             })
             interacoes = [
@@ -1982,6 +2017,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                 tipo: 'recusada',
                 nowIso: new Date(now).toISOString(),
                 newId: () => uid('int'),
+                cfg: ptsCfg(configPontuacaoRef.current, c),
               }),
             ]
             historico = [
@@ -2161,6 +2197,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     void (async () => {
       const cfg = await hydrateConfigNegocio()
       setConfig(cfg)
+      const pts = await hydrateConfigPontuacao()
+      setConfigPontuacaoDb(pts)
       await hydrateOrgTree()
       const tree = ensureHierarquiaPadrao(stateRef.current.transportadores ?? [])
       setState((prev) => {
@@ -2626,7 +2664,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
           ],
           transportadores: base.transportadores.map((t) => {
             if (!sameTransportadorId(t.id, tid)) return t
-            const pontuacao = t.pontuacao + PONTOS_ADERENCIA.frete_fechado
+            const pontuacao =
+              t.pontuacao + ptsCfg(configPontuacaoRef.current, cargaOk).pontos.frete_fechado
             return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
           }),
           historico: [
@@ -2661,10 +2700,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
               tipo: 'frete_fechado',
               nowIso: agora,
               newId: () => uid('int'),
+              cfg: ptsCfg(configPontuacaoRef.current, cargaOk),
             }),
           ],
           nowIso: agora,
           newId: () => uid('int'),
+          cfg: ptsCfg(configPontuacaoRef.current, cargaFechada),
         })
         const nextPts: DataState = {
           ...next,
@@ -2761,7 +2802,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const transportadores = isNew
         ? base.transportadores.map((t) => {
             if (!sameTransportadorId(t.id, tid)) return t
-            const pontuacao = t.pontuacao + PONTOS_ADERENCIA.com_proposta
+            const pontuacao =
+              t.pontuacao + ptsCfg(configPontuacaoRef.current, cargaOk).pontos.com_proposta
             return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
           })
         : base.transportadores
@@ -2854,7 +2896,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       )
       const transportadores = prev.transportadores.map((t) => {
         if (!sameTransportadorId(t.id, current.transportador_id)) return t
-        const pontuacao = t.pontuacao + PONTOS_ADERENCIA.frete_fechado
+        const pontuacao =
+          t.pontuacao + ptsCfg(configPontuacaoRef.current, cargaAtual).pontos.frete_fechado
         return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
       })
       const hist = makeHistorico(
@@ -2912,10 +2955,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
             tipo: 'frete_fechado',
             nowIso: agora,
             newId: () => uid('int'),
+            cfg: ptsCfg(configPontuacaoRef.current, cargaAtual),
           }),
         ],
         nowIso: agora,
         newId: () => uid('int'),
+        cfg: ptsCfg(configPontuacaoRef.current, cargaAtual),
       })
       const next: DataState = {
         ...prev,
@@ -3162,6 +3207,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         interacoes: prev.interacoes,
         nowIso: agora,
         newId: () => uid('int'),
+        cfg: ptsCfg(configPontuacaoRef.current, cargaFechada),
       })
       const next: DataState = {
         ...prev,
@@ -3682,7 +3728,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         ),
         transportadores: prev.transportadores.map((t) => {
           if (!sameTransportadorId(t.id, tid)) return t
-          const pontuacao = t.pontuacao + PONTOS_ADERENCIA.recusada
+          const tipoPts = recusouContra ? 'recusada_contra' : 'recusada'
+          const pontuacao =
+            t.pontuacao + ptsCfg(configPontuacaoRef.current, carga).pontos[tipoPts]
           return { ...t, pontuacao, classificacao: classificacaoPorPontuacao(pontuacao) }
         }),
         interacoes: [
@@ -3690,9 +3738,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
           novaInteracao({
             transportadorId: tid,
             cargaId,
-            tipo: 'recusada',
+            tipo: recusouContra ? 'recusada_contra' : 'recusada',
             nowIso: agora,
             newId: () => uid('int'),
+            cfg: ptsCfg(configPontuacaoRef.current, carga),
           }),
         ],
         historico: [
@@ -5543,6 +5592,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       tick,
       config,
       salvarConfig,
+      configPontuacaoDb,
+      salvarConfigPontuacao,
       configTransportador,
       salvarConfigTransportador,
       user,
@@ -5621,6 +5672,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       tick,
       config,
       salvarConfig,
+      configPontuacaoDb,
+      salvarConfigPontuacao,
       configTransportador,
       salvarConfigTransportador,
       user,
