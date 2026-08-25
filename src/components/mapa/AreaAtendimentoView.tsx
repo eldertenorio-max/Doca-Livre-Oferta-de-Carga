@@ -85,15 +85,21 @@ const MODOS: { id: ModoMarcacaoArea; label: string; hint: string; fonte: string 
 
 const FONTES_DIVISAO: { titulo: string; detalhe: string; href: string }[] = [
   {
-    titulo: 'Região, Estado e Cidade',
+    titulo: 'Região e Estado',
     detalhe:
-      'Contornos oficiais do IBGE (API de Malhas v3, qualidade mínima). Nomes dos municípios: API de Localidades do IBGE e catálogo público de sedes municipais.',
+      'Contornos oficiais do IBGE — API de Malhas v3 (intrarregião região e UF, qualidade mínima).',
     href: 'https://servicodados.ibge.gov.br/api/docs/malhas?versao=3',
+  },
+  {
+    titulo: 'Cidade (município)',
+    detalhe:
+      'Malha de municípios do IBGE (API de Malhas v3). Nomes e códigos: API de Localidades do IBGE.',
+    href: 'https://servicodados.ibge.gov.br/api/docs/localidades',
   },
   {
     titulo: 'Bairro',
     detalhe:
-      'Limites de bairro/subúrbio do OpenStreetMap (admin_level 10 e place=suburb/neighbourhood), consultados via Overpass API. Nem toda cidade tem malha de bairro cadastrada.',
+      'Limites de bairro/subúrbio do OpenStreetMap (admin_level 10 e place=suburb/neighbourhood), via Overpass API. Nem toda cidade tem bairro cadastrado.',
     href: 'https://www.openstreetmap.org/copyright',
   },
   {
@@ -671,7 +677,9 @@ export function AreaAtendimentoView() {
   }
 
   const embarcadorNome = embarcadores.find((e) => e.id === ownerId)?.nome || 'Embarcador'
-  const hint = MODOS.find((x) => x.id === modo)?.hint
+  const modoMeta = MODOS.find((x) => x.id === modo)
+  const hint = modoMeta?.hint
+  const fonteAtiva = modoMeta?.fonte
   const qtdLista =
     modo === 'estado'
       ? estadosSel.length
@@ -708,19 +716,30 @@ export function AreaAtendimentoView() {
               <strong>Bairro</strong>.
             </p>
           ) : (
-            <p className="area-att-hint">{hint}</p>
+            <p className="area-att-hint">
+              {hint}
+              {fonteAtiva ? (
+                <>
+                  <br />
+                  <em>Fonte: {fonteAtiva}</em>
+                </>
+              ) : null}
+            </p>
           )}
         </section>
 
         <section className="mapa-log__panel mapa-log__panel--fontes">
           <h2>Fontes das divisões</h2>
+          <p className="mapa-log__empty" style={{ marginBottom: 8 }}>
+            De onde vêm Região, Estado, Cidade e Bairro neste mapa.
+          </p>
           <ul className="mapa-log__fontes">
             {FONTES_DIVISAO.map((f) => (
               <li key={f.titulo}>
                 <strong>{f.titulo}</strong>
                 <span>{f.detalhe}</span>
                 <a href={f.href} target="_blank" rel="noreferrer">
-                  {f.href.replace(/^https:\/\//, '')}
+                  Abrir documentação →
                 </a>
               </li>
             ))}
@@ -997,6 +1016,7 @@ export function AreaAtendimentoView() {
                     : modo === 'bairro'
                       ? 'Brasil inteiro · clique na cidade para ver os bairros'
                       : 'Brasil · escolha Região, Estado, Cidade ou Bairro'}
+              {fonteAtiva ? ` · Fonte: ${fonteAtiva}` : ''}
             </span>
           )}
           {carregando ? <em>{carregando}</em> : null}

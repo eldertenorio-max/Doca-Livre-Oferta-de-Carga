@@ -523,6 +523,14 @@
   color: #475569;
 }
 
+.area-att-hint em {
+  display: inline-block;
+  margin-top: 4px;
+  font-style: normal;
+  font-weight: 800;
+  color: #0e7490;
+}
+
 .area-att-select {
   width: 100%;
   border: 1px solid #e2e8f0;
