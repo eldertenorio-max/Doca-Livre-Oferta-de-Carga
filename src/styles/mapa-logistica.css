@@ -298,13 +298,23 @@
   box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
 }
 
+.mapa-log__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
 .mapa-log__legend i {
   display: inline-block;
   width: 9px;
   height: 9px;
   border-radius: 999px;
-  margin-right: 4px;
+  margin-right: 0;
   vertical-align: middle;
+}
+
+.mapa-log__legend span i:last-of-type {
+  margin-right: 4px;
 }
 
 .mapa-log__detail {

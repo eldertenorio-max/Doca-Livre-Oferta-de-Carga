@@ -33,7 +33,7 @@ import {
   loadOrgTree,
   type OrgNo,
 } from '../../lib/orgHierarchy'
-import { REGIOES_BR, regiaoDaUf, type RegiaoBr } from '../../lib/mapaFrota'
+import { REGIOES_BR, regiaoDaUf } from '../../lib/mapaFrota'
 import { isLocalSuperUser } from '../../lib/superUsers'
 import { UF_CENTRO, UFS_BR, type UfBr } from '../../lib/mapaLogisticaIntel'
 import type { Transportador } from '../../types'
@@ -48,17 +48,26 @@ const REGIAO_COR: Record<string, string> = {
   Sul: '#7c3aed',
 }
 
+/** Uma cor estável por UF (ângulo de ouro), no mesmo estilo das regiões. */
+const UF_COR: Record<string, string> = Object.fromEntries(
+  UFS_BR.map((uf, i) => [uf, `hsl(${Math.round((i * 137.508) % 360)} 62% 46%)`]),
+) as Record<string, string>
+
 const MODOS: { id: ModoMarcacaoArea; label: string; hint: string }[] = [
-  { id: 'estado', label: 'Estado', hint: 'Clique no estado para incluir ou tirar da área.' },
+  {
+    id: 'estado',
+    label: 'Estado',
+    hint: 'Cada estado tem uma cor. Clique para marcar — a cor fica mais forte.',
+  },
   {
     id: 'cidade',
     label: 'Cidade',
-    hint: 'Clique no estado e depois nas cidades. Laranja = atendida.',
+    hint: 'Cada cidade tem uma cor. Clique no estado e depois no município para marcar.',
   },
   {
     id: 'regiao',
     label: 'Região',
-    hint: 'Clique na região (Norte, Nordeste, Centro-Oeste, Sudeste ou Sul).',
+    hint: 'Cada região tem uma cor. Clique para marcar Norte, Nordeste, Centro-Oeste, Sudeste ou Sul.',
   },
 ]
 
@@ -75,32 +84,34 @@ function isDiegoElder(user: { usuario?: string | null; email?: string | null } |
   return isLocalSuperUser(user.usuario ?? '') || isLocalSuperUser(user.email ?? '')
 }
 
-function styleUf(ativa: boolean): L.PathOptions {
+function corCidade(id: string): string {
+  let h = 2166136261
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return `hsl(${(h >>> 0) % 360} 58% 48%)`
+}
+
+function styleDivisao(cor: string, ativa: boolean): L.PathOptions {
   return {
-    color: ativa ? '#0e7490' : '#64748b',
-    weight: ativa ? 2 : 1,
-    fillColor: ativa ? '#22d3ee' : '#cbd5e1',
-    fillOpacity: ativa ? 0.35 : 0.18,
+    color: ativa ? '#0f172a' : cor,
+    weight: ativa ? 2.4 : 1.3,
+    fillColor: cor,
+    fillOpacity: ativa ? 0.52 : 0.28,
   }
 }
 
-function styleMun(selecionada: boolean): L.PathOptions {
-  return {
-    color: selecionada ? '#b45309' : '#64748b',
-    weight: selecionada ? 2 : 0.6,
-    fillColor: selecionada ? '#f59e0b' : '#e2e8f0',
-    fillOpacity: selecionada ? 0.55 : 0.12,
-  }
+function styleEstado(uf: string | undefined, ativa: boolean): L.PathOptions {
+  return styleDivisao((uf && UF_COR[uf]) || '#94a3b8', ativa)
+}
+
+function styleMun(id: string, selecionada: boolean): L.PathOptions {
+  return styleDivisao(corCidade(id), selecionada)
 }
 
 function styleRegiao(nome: string, ativa: boolean): L.PathOptions {
-  const cor = REGIAO_COR[nome] ?? '#64748b'
-  return {
-    color: ativa ? '#0f172a' : cor,
-    weight: ativa ? 2.4 : 1.4,
-    fillColor: cor,
-    fillOpacity: ativa ? 0.5 : 0.22,
-  }
+  return styleDivisao(REGIAO_COR[nome] ?? '#64748b', ativa)
 }
 
 export function AreaAtendimentoView() {
@@ -237,7 +248,7 @@ export function AreaAtendimentoView() {
         const layer = L.geoJSON(fc as GeoJSON.GeoJsonObject, {
           style: (feat) => {
             const uf = (feat as Feat | undefined)?.properties?.uf
-            return styleUf(Boolean(uf && estadosRef.current.has(uf)))
+            return styleEstado(uf, Boolean(uf && estadosRef.current.has(uf)))
           },
           onEachFeature: (feature, lyr) => {
             const p = (feature as Feat).properties
@@ -293,7 +304,7 @@ export function AreaAtendimentoView() {
       const layer = L.geoJSON(fc as GeoJSON.GeoJsonObject, {
         style: (feat) => {
           const id = (feat as Feat | undefined)?.properties?.id
-          return styleMun(Boolean(id && idsRef.current.has(id)))
+          return id ? styleMun(id, idsRef.current.has(id)) : styleMun('', false)
         },
         onEachFeature: (feature, lyr) => {
           const p = (feature as Feat).properties
@@ -396,7 +407,7 @@ export function AreaAtendimentoView() {
       const feat = (lyr as L.GeoJSON & { feature?: Feat }).feature
       const id = feat?.properties?.id
       if (!id) return
-      ;(lyr as L.Path).setStyle(styleMun(idsSel.has(id)))
+      ;(lyr as L.Path).setStyle(styleMun(id, idsSel.has(id)))
     })
   }, [idsSel])
 
@@ -407,14 +418,19 @@ export function AreaAtendimentoView() {
       const feat = (lyr as L.GeoJSON & { feature?: Feat }).feature
       const uf = feat?.properties?.uf
       if (modo === 'estado') {
-        ;(lyr as L.Path).setStyle(styleUf(Boolean(uf && estadosRef.current.has(uf))))
+        ;(lyr as L.Path).setStyle(styleEstado(uf, Boolean(uf && estadosRef.current.has(uf))))
       } else if (modo === 'cidade') {
-        ;(lyr as L.Path).setStyle(styleUf(uf === ufAtiva))
+        ;(lyr as L.Path).setStyle(styleEstado(uf, uf === ufAtiva))
       } else if (modo === 'regiao') {
         const r = uf ? regiaoDaUf(uf) : null
-        ;(lyr as L.Path).setStyle(styleUf(Boolean(r && regioesRef.current.has(r))))
+        ;(lyr as L.Path).setStyle(
+          styleDivisao(
+            (r && REGIAO_COR[r]) || '#94a3b8',
+            Boolean(r && regioesRef.current.has(r)),
+          ),
+        )
       } else {
-        ;(lyr as L.Path).setStyle(styleUf(false))
+        ;(lyr as L.Path).setStyle(styleEstado(uf, false))
       }
     })
   }, [ufAtiva, modo, estadosSel, regioesSel])
@@ -724,13 +740,21 @@ export function AreaAtendimentoView() {
         <div ref={mapEl} className="mapa-log__map" role="application" aria-label="Área de atendimento" />
         <div className="mapa-log__legend">
           <span>
-            <i style={{ background: '#22d3ee' }} /> Estado
+            {UFS_BR.slice(0, 6).map((uf) => (
+              <i key={uf} style={{ background: UF_COR[uf] }} />
+            ))}{' '}
+            Estado
           </span>
           <span>
-            <i style={{ background: '#f59e0b' }} /> Cidade
+            <i style={{ background: 'hsl(28 58% 48%)' }} />
+            <i style={{ background: 'hsl(168 58% 48%)' }} />
+            <i style={{ background: 'hsl(262 58% 48%)' }} /> Cidade
           </span>
           <span>
-            <i style={{ background: '#1d4ed8' }} /> Região
+            {REGIOES_BR.map((r) => (
+              <i key={r} style={{ background: REGIAO_COR[r] }} />
+            ))}{' '}
+            Região
           </span>
           {superView ? (
             <span>
