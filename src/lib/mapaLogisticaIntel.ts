@@ -236,12 +236,6 @@ export function montarSnapshotMapaLogistica(
 
   for (const c of cargas) {
     if (!CARGAS_ATIVAS.has(c.status)) continue
-    const uf =
-      extrairUf(c.origem) ||
-      (c.origem_lat != null && c.origem_lng != null
-        ? null
-        : extrairUf(c.remetente))
-    // Prefer UF from origem text
     const ufOrig = extrairUf(c.origem)
     const keyUf = ufOrig
     if (keyUf) {
