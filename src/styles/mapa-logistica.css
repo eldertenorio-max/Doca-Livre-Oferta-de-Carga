@@ -712,3 +712,40 @@
 .leaflet-tooltip.area-zona-label::before {
   display: none;
 }
+
+.leaflet-tooltip.area-bairro-label {
+  background: rgb(15 23 42 / 0.78);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 9px;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+  padding: 1px 4px;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 0.25);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.leaflet-tooltip.area-bairro-label::before {
+  display: none;
+}
+
+.area-zona-pin {
+  background: none !important;
+  border: none !important;
+  pointer-events: none;
+}
+.area-zona-pin span {
+  display: inline-block;
+  transform: translate(-50%, -50%);
+  background: rgb(15 23 42 / 0.86);
+  color: #fff;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  padding: 5px 9px;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 0.28);
+  white-space: nowrap;
+}

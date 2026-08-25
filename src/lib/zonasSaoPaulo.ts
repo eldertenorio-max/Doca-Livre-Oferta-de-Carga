@@ -145,44 +145,61 @@ function aneisDeGeom(g: GeoJSON.Geometry): number[][][][] {
   return []
 }
 
-/** Une os distritos de São Paulo em Centro, Norte, Sul, Leste e Oeste. */
+/** Mantém os 96 distritos e pinta cada um na zona da Prefeitura. */
 export function agruparDistritosEmZonasSp(fc: GeoFc): GeoFc | null {
-  const porZona = new Map<ZonaSpId, GeoJSON.Feature<GeoJSON.Geometry, GeoProps>[]>()
-  for (const z of ZONAS_SP) porZona.set(z.id, [])
+  const features: GeoFc['features'] = []
+  const municipioId = fc.features[0]?.properties.municipioId || MUN_SAO_PAULO_ID
 
   for (const f of fc.features) {
     const zonaId = ZONA_POR_DISTRITO.get(normalizarTexto(f.properties.nome || ''))
     if (!zonaId || !f.geometry) continue
-    porZona.get(zonaId)?.push(f)
-  }
-
-  const features: GeoFc['features'] = []
-  const uf = fc.features[0]?.properties.uf
-  const municipioId = fc.features[0]?.properties.municipioId || MUN_SAO_PAULO_ID
-
-  for (const z of ZONAS_SP) {
-    const partes = porZona.get(z.id) ?? []
-    if (!partes.length) continue
-    const coordinates: number[][][][] = []
-    for (const f of partes) {
-      if (f.geometry) coordinates.push(...aneisDeGeom(f.geometry))
-    }
-    if (!coordinates.length) continue
+    const zona = ZONAS_SP.find((z) => z.id === zonaId)
+    if (!zona) continue
     features.push({
-      type: 'Feature',
-      geometry:
-        coordinates.length === 1
-          ? { type: 'Polygon', coordinates: coordinates[0] }
-          : { type: 'MultiPolygon', coordinates },
+      ...f,
       properties: {
-        id: `b-${municipioId}-zona-${z.id}`,
-        nome: z.nome,
-        uf,
-        municipioId,
-        tipo: 'zona',
+        ...f.properties,
+        tipo: 'distrito',
+        zona: zona.nome,
+        zonaId: `b-${municipioId}-zona-${zona.id}`,
       },
     })
   }
 
   return features.length >= 2 ? { type: 'FeatureCollection', features } : null
+}
+
+/** Centroides das 5 zonas (para o rótulo grande). */
+export function centrosZonasSp(
+  fc: GeoFc,
+): Array<{ nome: string; lat: number; lng: number }> {
+  const acc = new Map<string, { lat: number; lng: number; n: number }>()
+  for (const f of fc.features) {
+    const nome = f.properties.zona
+    if (!nome || !f.geometry) continue
+    const aneis = aneisDeGeom(f.geometry)
+    let lat = 0
+    let lng = 0
+    let n = 0
+    for (const poly of aneis) {
+      const ring = poly[0]
+      if (!ring?.length) continue
+      for (const [x, y] of ring) {
+        lng += x
+        lat += y
+        n += 1
+      }
+    }
+    if (!n) continue
+    const cur = acc.get(nome) ?? { lat: 0, lng: 0, n: 0 }
+    cur.lat += lat
+    cur.lng += lng
+    cur.n += n
+    acc.set(nome, cur)
+  }
+  return [...acc.entries()].map(([nome, c]) => ({
+    nome,
+    lat: c.lat / c.n,
+    lng: c.lng / c.n,
+  }))
 }

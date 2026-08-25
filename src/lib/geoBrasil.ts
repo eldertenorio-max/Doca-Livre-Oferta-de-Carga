@@ -51,6 +51,10 @@ export type GeoProps = {
   regiao?: string
   municipioId?: string
   tipo?: 'bairro' | 'distrito' | 'zona'
+  /** Nome da zona (São Paulo capital). */
+  zona?: string
+  /** Id legado da zona, se a área foi marcada no agrupamento antigo. */
+  zonaId?: string
 }
 
 /** Códigos IBGE das 5 grandes regiões. */

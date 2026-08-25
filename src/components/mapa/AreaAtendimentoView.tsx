@@ -13,7 +13,7 @@ import {
   type GeoProps,
   type MunicipioCat,
 } from '../../lib/geoBrasil'
-import { ZONA_SP_COR, MUN_SAO_PAULO_ID } from '../../lib/zonasSaoPaulo'
+import { ZONA_SP_COR, MUN_SAO_PAULO_ID, centrosZonasSp } from '../../lib/zonasSaoPaulo'
 import {
   getArea,
   hydrateAreaDb,
@@ -100,7 +100,7 @@ const FONTES_DIVISAO: { titulo: string; detalhe: string; href: string }[] = [
   {
     titulo: 'Bairro / zona',
     detalhe:
-      'Bairros e distritos oficiais do IBGE (Censo 2022). Na capital paulista, os 96 distritos são agrupados em Centro, Zona Norte, Zona Sul, Zona Leste e Zona Oeste (regiões da Prefeitura).',
+      'Bairros e distritos oficiais do IBGE (Censo 2022). Na capital paulista, os 96 distritos aparecem com nome e são pintados em Centro, Zona Norte, Zona Sul, Zona Leste e Zona Oeste (regiões da Prefeitura).',
     href: 'https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais/26565-malhas-de-setores-censitarios-divisoes-intramunicipais.html',
   },
   {
@@ -145,12 +145,25 @@ function styleEstado(uf: string | undefined, ativa: boolean): L.PathOptions {
   return styleDivisao((uf && UF_COR[uf]) || '#94a3b8', ativa)
 }
 
-function styleMun(id: string, selecionada: boolean, nome?: string, tipo?: GeoProps['tipo']): L.PathOptions {
-  if (tipo === 'zona' && nome && ZONA_SP_COR[nome]) {
-    const base = styleDivisao(ZONA_SP_COR[nome], selecionada)
-    return { ...base, weight: selecionada ? 3 : 1.8, fillOpacity: selecionada ? 0.55 : 0.4 }
+function styleMun(
+  id: string,
+  selecionada: boolean,
+  nome?: string,
+  tipo?: GeoProps['tipo'],
+  zona?: string,
+): L.PathOptions {
+  const zonaNome = tipo === 'zona' ? nome : zona
+  if (zonaNome && ZONA_SP_COR[zonaNome]) {
+    const base = styleDivisao(ZONA_SP_COR[zonaNome], selecionada)
+    return { ...base, weight: selecionada ? 2.4 : 1.15, fillOpacity: selecionada ? 0.55 : 0.38 }
   }
   return styleDivisao(corCidade(id), selecionada)
+}
+
+function bairroEstaSel(bp: GeoProps, ids: Set<string>): boolean {
+  if (ids.has(bp.id)) return true
+  if (bp.zonaId && ids.has(bp.zonaId)) return true
+  return false
 }
 
 function styleRegiao(nome: string, ativa: boolean): L.PathOptions {
@@ -165,6 +178,7 @@ export function AreaAtendimentoView() {
   const munLayerRef = useRef<L.GeoJSON | null>(null)
   const regLayerRef = useRef<L.GeoJSON | null>(null)
   const bairroLayerRef = useRef<L.GeoJSON | null>(null)
+  const zonaLabelsRef = useRef<L.LayerGroup | null>(null)
   const labelsRef = useRef<L.LayerGroup | null>(null)
   const saveTimer = useRef<number | null>(null)
   const idsRef = useRef<Set<string>>(new Set())
@@ -336,6 +350,7 @@ export function AreaAtendimentoView() {
       munLayerRef.current = null
       regLayerRef.current = null
       bairroLayerRef.current = null
+      zonaLabelsRef.current = null
       labelsRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -399,6 +414,11 @@ export function AreaAtendimentoView() {
   }
   mostrarCidadesRef.current = mostrarCidadesBrasil
 
+  function limparRotulosZona() {
+    zonaLabelsRef.current?.remove()
+    zonaLabelsRef.current = null
+  }
+
   async function abrirBairros(p: GeoProps, bounds?: L.LatLngBounds) {
     const map = mapRef.current
     if (!map) return
@@ -413,27 +433,29 @@ export function AreaAtendimentoView() {
         municipioId: p.id,
         uf: p.uf,
       })
+      limparRotulosZona()
       bairroLayerRef.current?.remove()
       munLayerRef.current && map.hasLayer(munLayerRef.current) && map.removeLayer(munLayerRef.current)
-      const soZonas = fc.features.some((f) => f.properties?.tipo === 'zona')
       const layer = L.geoJSON(fc as GeoJSON.GeoJsonObject, {
-        ...(soZonas ? {} : { renderer: L.canvas({ padding: 0.5 }) }),
+        renderer: L.svg({ padding: 0.5 }),
         style: (feat) => {
           const props = (feat as Feat | undefined)?.properties
           const id = props?.id ?? ''
-          return styleMun(id, bairroIdsRef.current.has(id), props?.nome, props?.tipo)
+          return styleMun(
+            id,
+            props ? bairroEstaSel(props, bairroIdsRef.current) : false,
+            props?.nome,
+            props?.tipo,
+            props?.zona,
+          )
         },
         onEachFeature: (feature, lyr) => {
           const bp = (feature as Feat).properties
-          const rotulo =
-            bp.tipo === 'zona'
-              ? bp.nome
-              : `${bp.nome} (${bp.tipo === 'distrito' ? 'distrito' : 'bairro'}) · ${p.nome}`
-          lyr.bindTooltip(rotulo, {
-            sticky: bp.tipo !== 'zona',
-            permanent: bp.tipo === 'zona',
-            direction: bp.tipo === 'zona' ? 'center' : undefined,
-            className: bp.tipo === 'zona' ? 'area-zona-label' : undefined,
+          lyr.bindTooltip(bp.nome, {
+            permanent: true,
+            direction: 'center',
+            className: bp.tipo === 'zona' ? 'area-zona-label' : 'area-bairro-label',
+            opacity: 0.95,
           })
           lyr.on('click', () => {
             if (modoRef.current !== 'bairro') return
@@ -452,6 +474,24 @@ export function AreaAtendimentoView() {
         },
       }).addTo(map)
       bairroLayerRef.current = layer
+      const zonas = centrosZonasSp(fc)
+      if (zonas.length >= 2) {
+        const group = L.layerGroup().addTo(map)
+        zonaLabelsRef.current = group
+        for (const z of zonas) {
+          L.marker([z.lat, z.lng], {
+            interactive: false,
+            keyboard: false,
+            zIndexOffset: 900,
+            icon: L.divIcon({
+              className: 'area-zona-pin',
+              html: `<span>${escapeHtml(z.nome)}</span>`,
+              iconSize: [0, 0],
+              iconAnchor: [0, 0],
+            }),
+          }).addTo(group)
+        }
+      }
       const camada = layer.getBounds()
       if (camada.isValid()) map.fitBounds(camada.pad(0.06), { maxZoom: 13 })
       else if (bounds?.isValid()) map.fitBounds(bounds.pad(0.06), { maxZoom: 13 })
@@ -500,6 +540,7 @@ export function AreaAtendimentoView() {
   mostrarRegioesRef.current = mostrarRegioes
 
   function voltarBrasil() {
+    limparRotulosZona()
     bairroLayerRef.current?.remove()
     bairroLayerRef.current = null
     setMunAtiva(null)
@@ -581,7 +622,13 @@ export function AreaAtendimentoView() {
       const id = feat?.properties?.id
       if (!id) return
       ;(lyr as L.Path).setStyle(
-        styleMun(id, idsBairro.has(id), feat?.properties?.nome, feat?.properties?.tipo),
+        styleMun(
+          id,
+          feat?.properties ? bairroEstaSel(feat.properties, idsBairro) : idsBairro.has(id),
+          feat?.properties?.nome,
+          feat?.properties?.tipo,
+          feat?.properties?.zona,
+        ),
       )
     })
   }, [idsBairro])
