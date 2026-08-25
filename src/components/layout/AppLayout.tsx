@@ -149,7 +149,7 @@ const minervaLinks: NavItem[] = [
   { to: '/embarcador/mapa-frota', label: 'Mapa da Frota', icon: <IconMap /> },
   {
     to: '/embarcador/mapa-logistica',
-    label: 'Maps da Logística ★',
+    label: 'Malha Logística ★',
     icon: <IconRadar />,
   },
   { to: '/embarcador/rotas', label: 'Rotas', icon: <IconLocation /> },

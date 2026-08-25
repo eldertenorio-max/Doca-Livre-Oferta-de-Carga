@@ -150,7 +150,7 @@ export function MapaLogisticaPage() {
         <div>
           <p className="mapa-log__eyebrow">Embarcador · Inteligência de frete</p>
           <h1 className="mapa-log__title">
-            Google Maps da Logística{' '}
+            Malha Logística{' '}
             <span className="mapa-log__stars" aria-hidden>
               ★★★★★
             </span>

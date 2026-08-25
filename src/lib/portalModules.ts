@@ -40,7 +40,7 @@ export const OFERTA_MODULOS_CATALOGO: { id: OfertaModuloId; label: string; role?
   { id: 'veiculos', label: 'Veículos', role: 'ambos' },
   { id: 'motoristas', label: 'Motoristas', role: 'ambos' },
   { id: 'mapa_frota', label: 'Mapa da Frota', role: 'minerva' },
-  { id: 'mapa_logistica', label: 'Google Maps da Logística', role: 'minerva' },
+  { id: 'mapa_logistica', label: 'Malha Logística', role: 'minerva' },
   { id: 'grupos', label: 'Grupos', role: 'minerva' },
   { id: 'indicadores', label: 'Indicadores', role: 'minerva' },
   { id: 'pontuacao', label: 'Pontuação do transportador', role: 'minerva' },
