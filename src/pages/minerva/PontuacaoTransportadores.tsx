@@ -3,10 +3,14 @@ import { Navigate } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
 import { formatDateTime } from '../../lib/businessRules'
 import {
+  PONTUACAO_INICIAL,
   REGRAS_PONTUACAO,
+  classificacaoPorPontuacao,
   labelPontos,
   labelTipoPontuacao,
   linhasHistoricoPontuacao,
+  pontosDaRegra,
+  pontuacaoDoHistorico,
   statsAnunciosPontuacao,
 } from '../../lib/pontuacaoAderencia'
 import { isSuperSession } from '../../lib/superUsers'
@@ -54,8 +58,20 @@ export function PontuacaoTransportadoresPage() {
     () =>
       [...transportadores]
         .filter((t) => t.situacao !== 'inativo')
-        .sort((a, b) => b.pontuacao - a.pontuacao || nomeTransportador(a).localeCompare(nomeTransportador(b), 'pt-BR')),
-    [transportadores],
+        .map((t) => {
+          const linhas = historico.filter((h) => sameTransportadorId(h.transportador_id, t.id))
+          const pontos = pontuacaoDoHistorico(linhas)
+          return {
+            ...t,
+            pontuacao: pontos,
+            classificacao: classificacaoPorPontuacao(pontos),
+          }
+        })
+        .sort(
+          (a, b) =>
+            b.pontuacao - a.pontuacao || nomeTransportador(a).localeCompare(nomeTransportador(b), 'pt-BR'),
+        ),
+    [transportadores, historico],
   )
 
   const anunciosFiltrados = useMemo(() => {
@@ -107,15 +123,16 @@ export function PontuacaoTransportadoresPage() {
   }
 
   const transportadorSel = tidSel
-    ? transportadores.find((t) => sameTransportadorId(t.id, tidSel))
+    ? ranking.find((t) => sameTransportadorId(t.id, tidSel))
     : undefined
+  const somaEventosSel = histSel.reduce((s, h) => s + pontosDaRegra(h.tipo, h.pontos), 0)
 
   return (
     <div className="cadastro-page animate-fade-up space-y-4">
       <header>
         <h1 className="cadastro-page-title">Pontuação do transportador</h1>
         <p className="text-sm text-ink-muted">
-          Visualizações de cada anúncio e histórico de aderência. Só Super Usuário.
+          Ranking = {PONTUACAO_INICIAL} pts iniciais + os eventos dos cartões acima. Só Super Usuário.
         </p>
       </header>
 
@@ -276,7 +293,10 @@ export function PontuacaoTransportadoresPage() {
                       {nomeTransportador(transportadorSel)}
                     </h2>
                     <p className="text-[12px] text-ink-muted">
-                      {transportadorSel.classificacao} · {transportadorSel.pontuacao} pts
+                      {transportadorSel.classificacao} · saldo inicial {PONTUACAO_INICIAL} pts
+                      {histSel.length > 0
+                        ? ` · eventos ${labelPontos(somaEventosSel)} · total ${transportadorSel.pontuacao} pts`
+                        : ` · ${transportadorSel.pontuacao} pts`}
                     </p>
                   </div>
                 </div>
@@ -300,6 +320,7 @@ export function PontuacaoTransportadoresPage() {
                       ) : (
                         histSel.map((h) => {
                           const carga = cargas.find((c) => c.id === h.carga_id)
+                          const pts = pontosDaRegra(h.tipo, h.pontos)
                           return (
                             <tr key={h.id} className="border-t border-ink/10">
                               <td className="px-3 py-2 whitespace-nowrap text-ink-muted">
@@ -307,14 +328,27 @@ export function PontuacaoTransportadoresPage() {
                               </td>
                               <td className="px-3 py-2 font-bold">{carga?.numero ?? h.carga_id}</td>
                               <td className="px-3 py-2">{labelTipoPontuacao(h.tipo)}</td>
-                              <td className={`px-3 py-2 text-right font-extrabold ${corPontos(h.pontos)}`}>
-                                {labelPontos(h.pontos)}
+                              <td className={`px-3 py-2 text-right font-extrabold ${corPontos(pts)}`}>
+                                {labelPontos(pts)}
                               </td>
                             </tr>
                           )
                         })
                       )}
                     </tbody>
+                    {histSel.length > 0 ? (
+                      <tfoot>
+                        <tr className="border-t-2 border-ink/20 bg-sand-light/50">
+                          <td className="px-3 py-2 text-ink-muted" colSpan={2}>
+                            Saldo inicial {PONTUACAO_INICIAL} pts
+                          </td>
+                          <td className="px-3 py-2 font-bold">Total</td>
+                          <td className="px-3 py-2 text-right font-extrabold">
+                            {transportadorSel.pontuacao} pts
+                          </td>
+                        </tr>
+                      </tfoot>
+                    ) : null}
                   </table>
                 </div>
               </>

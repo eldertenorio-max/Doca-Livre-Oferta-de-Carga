@@ -32,6 +32,9 @@ export const PONTOS_ADERENCIA = {
   frete_fechado: 2,
 } as const
 
+/** Todo transportador começa aqui; o ranking é 50 + soma dos eventos das regras acima. */
+export const PONTUACAO_INICIAL = 50
+
 export function calcularPrioridadeEModo(
   prazoMinutos: number,
   limiteUrgenciaMinutos = 30,

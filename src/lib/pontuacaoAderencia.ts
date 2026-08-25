@@ -1,4 +1,8 @@
-import { PONTOS_ADERENCIA, classificacaoPorPontuacao } from './businessRules'
+import {
+  PONTOS_ADERENCIA,
+  PONTUACAO_INICIAL,
+  classificacaoPorPontuacao,
+} from './businessRules'
 import { sameTransportadorId } from './transportadorIds'
 import type {
   Carga,
@@ -7,6 +11,8 @@ import type {
   Lance,
   Transportador,
 } from '../types'
+
+export { PONTOS_ADERENCIA, PONTUACAO_INICIAL, classificacaoPorPontuacao }
 
 export const REGRAS_PONTUACAO = [
   {
@@ -278,11 +284,22 @@ export function statsAnunciosPontuacao(
 }
 
 function ofertaEncerradaParaPontos(c: Carga): boolean {
+  if (c.status === 'canceladas' || c.status === 'suspensas') return false
   if (c.transportador_vencedor_id) return true
-  return ['recusadas', 'canceladas', 'alocadas'].includes(c.status)
+  return ['recusadas', 'alocadas'].includes(c.status)
 }
 
 export type LinhaHistoricoPts = InteracaoPontuacao & { sintetico?: boolean }
+
+/** Sempre o valor da regra atual, para bater com os cartões de exemplo. */
+export function pontosDaRegra(tipo: InteracaoPontuacao['tipo'], fallback = 0): number {
+  return PONTOS_ADERENCIA[tipo] ?? fallback
+}
+
+export function pontuacaoDoHistorico(linhas: Pick<InteracaoPontuacao, 'tipo' | 'pontos'>[]): number {
+  const eventos = linhas.reduce((s, h) => s + pontosDaRegra(h.tipo, h.pontos), 0)
+  return PONTUACAO_INICIAL + eventos
+}
 
 /** Histórico gravado + linhas derivadas de cargas já encerradas (quando a interação não persistiu). */
 export function linhasHistoricoPontuacao(opts: {
