@@ -217,6 +217,7 @@ export function AreaAtendimentoView() {
   const [msgSalva, setMsgSalva] = useState('')
   const [showFontes, setShowFontes] = useState(false)
   const [showModoHint, setShowModoHint] = useState(false)
+  const [showSalvarHint, setShowSalvarHint] = useState(false)
 
   const superView = isDiegoElder(user)
   const embarcadores = useMemo(() => listarEmbarcadores(tree), [tree])
@@ -872,9 +873,9 @@ export function AreaAtendimentoView() {
             <button
               type="button"
               className={`area-att-info${showFontes ? ' is-on' : ''}`}
-              aria-label="Fontes das divisões do mapa"
+              aria-label="Como marcar a área"
               aria-expanded={showFontes}
-              title="Fontes das divisões"
+              title="Como marcar a área"
               onClick={() => setShowFontes((v) => !v)}
             >
               <Info size={16} />
@@ -882,6 +883,10 @@ export function AreaAtendimentoView() {
           </div>
           {showFontes ? (
             <div className="area-att-info-pop">
+              <p className="mapa-log__empty" style={{ marginBottom: 8 }}>
+                Escolha Região, Estado, Cidade ou Bairro, clique no mapa, dê um nome e salve. Depois
+                abra a área salva para editar do seu jeito.
+              </p>
               <p className="mapa-log__empty" style={{ marginBottom: 8 }}>
                 De onde vêm Região, Estado, Cidade e Bairro neste mapa.
               </p>
@@ -898,10 +903,6 @@ export function AreaAtendimentoView() {
               </ul>
             </div>
           ) : null}
-          <p className="mapa-log__empty" style={{ marginBottom: 10, marginTop: showFontes ? 10 : 0 }}>
-            Escolha Região, Estado, Cidade ou Bairro, clique no mapa, dê um nome e salve. Depois
-            abra a área salva para editar do seu jeito.
-          </p>
           <div className="area-att-modos">
             {MODOS.map((op) => (
               <button
@@ -950,11 +951,27 @@ export function AreaAtendimentoView() {
         </section>
 
         <section className="mapa-log__panel">
-          <h2>Salvar área de trabalho</h2>
-          <p className="mapa-log__empty" style={{ marginBottom: 8 }}>
-            O recorte é o que você escolheu acima (região, estado, cidade ou bairro). Dê um nome
-            para reabrir e editar depois.
-          </p>
+          <div className="area-att-info-head">
+            <h2>Salvar área de trabalho</h2>
+            <button
+              type="button"
+              className={`area-att-info${showSalvarHint ? ' is-on' : ''}`}
+              aria-label="Como salvar a área"
+              aria-expanded={showSalvarHint}
+              title="Como salvar a área"
+              onClick={() => setShowSalvarHint((v) => !v)}
+            >
+              <Info size={16} />
+            </button>
+          </div>
+          {showSalvarHint ? (
+            <div className="area-att-info-pop">
+              <p className="mapa-log__empty" style={{ marginBottom: 0 }}>
+                O recorte é o que você escolheu acima (região, estado, cidade ou bairro). Dê um nome
+                para reabrir e editar depois.
+              </p>
+            </div>
+          ) : null}
           {editandoId ? (
             <p className="area-att-editando">Editando área salva</p>
           ) : null}
