@@ -33,6 +33,12 @@ export const REGRAS_PONTUACAO = [
     detalhe: 'Frete fechado com esta transportadora.',
     pontos: PONTOS_ADERENCIA.frete_fechado,
   },
+  {
+    id: 'recusada' as const,
+    titulo: 'Recusou a oferta',
+    detalhe: 'Entrou e recusou a carga (ou o prazo de alocação expirou).',
+    pontos: PONTOS_ADERENCIA.recusada,
+  },
 ] as const
 
 export function labelPontos(n: number): string {
@@ -77,6 +83,10 @@ function jaTemInteracao(
 
 function viuCarga(c: Pick<Carga, 'visualizado_por_ids'>, tid: string): boolean {
   return (c.visualizado_por_ids ?? []).some((id) => sameTransportadorId(id, tid))
+}
+
+function recusouCarga(c: Pick<Carga, 'recusado_por_ids'>, tid: string): boolean {
+  return (c.recusado_por_ids ?? []).some((id) => sameTransportadorId(id, tid))
 }
 
 function deuLance(lances: Lance[], cargaId: string, tid: string): boolean {
@@ -229,6 +239,8 @@ export type StatsAnuncioPontuacao = {
   visualizaram: number
   lances: number
   aceitaram: number
+  recusaram: number
+  recusaramIds: string[]
   publicadoEm: string | null
 }
 
@@ -242,6 +254,7 @@ export function statsAnunciosPontuacao(
       const tids = new Set(
         lances.filter((l) => l.carga_id === c.id).map((l) => l.transportador_id),
       )
+      const recusaramIds = [...new Set(c.recusado_por_ids ?? [])]
       return {
         cargaId: c.id,
         numero: c.numero,
@@ -252,6 +265,8 @@ export function statsAnunciosPontuacao(
         visualizaram: (c.visualizado_por_ids ?? []).length,
         lances: tids.size,
         aceitaram: c.transportador_vencedor_id ? 1 : 0,
+        recusaram: recusaramIds.length,
+        recusaramIds,
         publicadoEm: c.publicado_em ?? c.created_at ?? null,
       }
     })
@@ -283,16 +298,36 @@ export function linhasHistoricoPontuacao(opts: {
     )
 
   for (const c of opts.cargas) {
+    const recusados = c.recusado_por_ids ?? []
+    const whenRecusa = c.updated_at ?? c.publicado_em ?? c.created_at
+    for (const tid of recusados) {
+      if (jaTem(c.id, tid)) continue
+      rows.push({
+        id: `syn-recusa-${c.id}-${tid}`,
+        transportador_id: tid,
+        carga_id: c.id,
+        tipo: 'recusada',
+        pontos: PONTOS_ADERENCIA.recusada,
+        created_at: whenRecusa,
+        sintetico: true,
+      })
+    }
+  }
+
+  for (const c of opts.cargas) {
     if (!ofertaEncerradaParaPontos(c)) continue
     const envolvidos = new Set([
       ...tidsNotificadosDaCarga(c, opts.grupos),
       ...opts.lances.filter((l) => l.carga_id === c.id).map((l) => l.transportador_id),
+      ...(c.recusado_por_ids ?? []),
     ])
     const when = c.updated_at ?? c.alocacao_expira_em ?? c.publicado_em ?? c.created_at
     for (const tid of envolvidos) {
       if (jaTem(c.id, tid)) continue
       let tipo: InteracaoPontuacao['tipo']
-      if (c.transportador_vencedor_id && sameTransportadorId(tid, c.transportador_vencedor_id)) {
+      if (recusouCarga(c, tid)) {
+        tipo = 'recusada'
+      } else if (c.transportador_vencedor_id && sameTransportadorId(tid, c.transportador_vencedor_id)) {
         tipo = 'frete_fechado'
       } else if (deuLance(opts.lances, c.id, tid)) {
         tipo = 'com_proposta'
