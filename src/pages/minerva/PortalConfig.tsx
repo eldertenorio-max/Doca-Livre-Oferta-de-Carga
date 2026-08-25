@@ -24,7 +24,6 @@ import {
 } from '../../lib/portalModules'
 import {
   ORG_TIPO_LABEL,
-  SUPER_HIERARQUIA,
   allowedOrgChildTypes,
   deleteOrgNo,
   ensureHierarquiaPadrao,
@@ -34,8 +33,8 @@ import {
   saveOrgTree,
   upsertOrgNo,
   type OrgNo,
-  type OrgTipo,
 } from '../../lib/orgHierarchy'
+import { OrgHierarchyTree } from '../../components/portal/OrgHierarchyTree'
 import { isLocalSuperUser, isSuperSession } from '../../lib/superUsers'
 import { CadastroStatsCards } from '../../components/cadastro/CadastroStatsCards'
 import '../../styles/cadastro.css'
@@ -80,6 +79,9 @@ export function PortalConfigPage() {
       const next = ensureHierarquiaPadrao(transportadoresRef.current ?? [])
       setTree(next)
       for (const g of gruposDaHierarquia(next)) salvarGrupo(g)
+    })
+    void ensureContasTransportadores(transportadoresRef.current ?? []).then((list) => {
+      if (!editingIdRef.current) setAccounts(list)
     })
   }, [tab, salvarGrupo])
 
@@ -166,6 +168,27 @@ export function PortalConfigPage() {
   function removeNode(id: string) {
     if (!window.confirm('Remover este nó e seus filhos?')) return
     persistTree(deleteOrgNo(tree, id))
+  }
+
+  function editNode(n: OrgNo) {
+    const nome = window.prompt(`Nome do ${ORG_TIPO_LABEL[n.tipo]}:`, n.nome)
+    if (nome == null) return
+    if (!nome.trim()) {
+      setMsg('Nome inválido.')
+      return
+    }
+    const cnpj = window.prompt('CNPJ (opcional):', n.cnpj || '')
+    if (cnpj == null) return
+    const patchNome = nome.trim()
+    const patchCnpj = cnpj.trim() || null
+    function walk(nodes: OrgNo[]): OrgNo[] {
+      return nodes.map((x) =>
+        x.id === n.id
+          ? { ...x, nome: patchNome, cnpj: patchCnpj }
+          : { ...x, children: x.children ? walk(x.children) : [] },
+      )
+    }
+    persistTree(walk(tree))
   }
 
   function selectPermUser(usuario: string) {
@@ -517,28 +540,14 @@ export function PortalConfigPage() {
               transportadoras. A publicação da carga da unidade ou do embarcador só chega a quem
               está nessa ramificação.
             </p>
-            <div
-              style={{
-                marginBottom: 14,
-                padding: '10px 12px',
-                borderRadius: 12,
-                border: '1px solid #e9d5ff',
-                background: '#faf5ff',
-              }}
-            >
-              <p style={{ margin: 0, fontSize: 11, fontWeight: 800, letterSpacing: '0.04em', color: '#6b21a8' }}>
-                SUPER USUÁRIOS — ACIMA DE TUDO
-              </p>
-              <p style={{ margin: '6px 0 0', fontWeight: 700, color: '#1a1d21' }}>
-                {SUPER_HIERARQUIA.map((s) => s.nome).join(' · ')}
-              </p>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <button type="button" className="cadastro-btn cadastro-btn--ghost" onClick={() => addChild(null)}>
-                + Embarcador
-              </button>
-            </div>
-            <OrgTreeView nodes={tree} onAdd={addChild} onRemove={removeNode} />
+            <OrgHierarchyTree
+              nodes={tree}
+              accounts={accounts}
+              transportadores={transportadores}
+              onAdd={addChild}
+              onEdit={editNode}
+              onRemove={removeNode}
+            />
           </div>
         </section>
       )}
@@ -879,98 +888,5 @@ export function PortalConfigPage() {
         </section>
       )}
     </div>
-  )
-}
-
-function badgeTipo(tipo: OrgTipo) {
-  const bg =
-    tipo === 'embarcador'
-      ? '#dbeafe'
-      : tipo === 'unidade'
-        ? '#dcfce7'
-        : tipo === 'transportadora'
-          ? '#fef9c3'
-          : '#f1f5f9'
-  const fg =
-    tipo === 'embarcador'
-      ? '#1e40af'
-      : tipo === 'unidade'
-        ? '#166534'
-        : tipo === 'transportadora'
-          ? '#854d0e'
-          : '#334155'
-  return (
-    <span
-      style={{
-        fontSize: 11,
-        fontWeight: 800,
-        padding: '2px 8px',
-        borderRadius: 999,
-        background: bg,
-        color: fg,
-      }}
-    >
-      {ORG_TIPO_LABEL[tipo]}
-    </span>
-  )
-}
-
-function OrgTreeView({
-  nodes,
-  onAdd,
-  onRemove,
-  depth = 0,
-}: {
-  nodes: OrgNo[]
-  onAdd: (parent: OrgNo | null) => void
-  onRemove: (id: string) => void
-  depth?: number
-}) {
-  if (!nodes.length) {
-    return <p className="cadastro-empty">Árvore vazia.</p>
-  }
-  return (
-    <ul style={{ listStyle: 'none', margin: 0, paddingLeft: depth ? 18 : 0 }}>
-      {nodes.map((n) => (
-        <li key={n.id} style={{ marginBottom: 8 }}>
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 8,
-              alignItems: 'center',
-              padding: '10px 12px',
-              background: '#fff',
-              border: '1px solid #e2e8f0',
-              borderRadius: 12,
-            }}
-          >
-            <div style={{ flex: 1, minWidth: 180 }}>
-              <strong>{n.nome}</strong>
-              {n.cnpj ? (
-                <div style={{ fontSize: 12, color: '#64748b' }}>{n.cnpj}</div>
-              ) : null}
-            </div>
-            {badgeTipo(n.tipo)}
-            {allowedOrgChildTypes(n.tipo).length > 0 ? (
-              <button type="button" className="cadastro-link" onClick={() => onAdd(n)}>
-                + Filho
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="cadastro-link"
-              style={{ color: '#dc2626' }}
-              onClick={() => onRemove(n.id)}
-            >
-              Remover
-            </button>
-          </div>
-          {n.children && n.children.length > 0 && (
-            <OrgTreeView nodes={n.children} onAdd={onAdd} onRemove={onRemove} depth={depth + 1} />
-          )}
-        </li>
-      ))}
-    </ul>
   )
 }
