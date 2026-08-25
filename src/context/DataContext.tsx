@@ -103,9 +103,12 @@ import { atualizarAvatarUsuarioRemoto, buscarAvatarUsuarioRemoto } from '../lib/
 import { canonicalTransportadorId, sameTransportadorId } from '../lib/transportadorIds'
 import { portalEmailRecusaCadastro } from '../lib/portalApi'
 import {
+  ensureHierarquiaPadrao,
+  gruposDaHierarquia,
   hydrateOrgTree,
   removeTransportadoraDaHierarquia,
   syncTransportadoraNaHierarquia,
+  type OrgNo,
 } from '../lib/orgHierarchy'
 import { hydratePagamentos } from '../lib/financeiroPagamentos'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
@@ -167,6 +170,8 @@ interface PublishPayload {
   escalonarGrupos?: boolean
   /** Destinatários no modo Negociação Direta. */
   transportadorDiretoIds?: string[]
+  orgEmbarcadorId?: string | null
+  orgUnidadeId?: string | null
 }
 
 interface DataState {
@@ -196,6 +201,13 @@ interface DataState {
   motoristas_excluidos: string[]
   /** Rotas excluídas (tombstones p/ sync e seeds) */
   rotas_excluidos: string[]
+}
+
+function mergeOrgGruposNoState(prev: DataState, tree: OrgNo[]): DataState {
+  const orgGs = gruposDaHierarquia(tree)
+  const byId = new Map(prev.grupos.map((g) => [g.id, g]))
+  for (const g of orgGs) byId.set(g.id, { ...(byId.get(g.id) ?? g), ...g, situacao: 'ativo' })
+  return { ...prev, grupos: [...byId.values()] }
 }
 
 interface AuthState {
@@ -497,6 +509,8 @@ export function montarNovaCarga(
     justificativa_obs: null,
     grupo_ids: [],
     grupos_notificados: [],
+    org_embarcador_id: null,
+    org_unidade_id: null,
     transportador_direto_ids: [],
     transportador_vencedor_id: null,
     frete_fechado: null,
@@ -2135,6 +2149,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const cfg = await hydrateConfigNegocio()
       setConfig(cfg)
       await hydrateOrgTree()
+      const tree = ensureHierarquiaPadrao(stateRef.current.transportadores ?? [])
+      setState((prev) => {
+        const next = mergeOrgGruposNoState(prev, tree)
+        stateRef.current = next
+        return next
+      })
       await hydratePermissoesMap()
       await hydratePagamentos()
       await syncPortalAccounts()
@@ -2222,6 +2242,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
           frete_maximo: lim.max,
           grupo_ids: grupoIdsPub,
           grupos_notificados: gruposNotif,
+          org_embarcador_id: payload.orgEmbarcadorId ?? c.org_embarcador_id ?? null,
+          org_unidade_id: payload.orgUnidadeId ?? c.org_unidade_id ?? null,
           transportador_direto_ids: isDireta ? [...diretoIds] : [],
           prazo_leilao_minutos: payload.prazoLeilaoMinutos,
           prazo_alocacao_minutos: payload.prazoAlocacaoMinutos,
@@ -4132,10 +4154,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (salvo.situacao === 'inativo' || salvo.situacao === 'recusado') {
       removeTransportadoraDaHierarquia(salvo.id)
     } else {
-      syncTransportadoraNaHierarquia({
+      const tree = syncTransportadoraNaHierarquia({
         id: salvo.id,
         nome_fantasia: salvo.nome_fantasia,
         cnpj: salvo.cnpj,
+      })
+      setState((prev) => {
+        const next = mergeOrgGruposNoState(prev, tree)
+        stateRef.current = next
+        return next
       })
     }
     if (salvo.perfil_publico) {
@@ -4570,12 +4597,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
         stateRef.current = next
         return next
       })
-      syncTransportadoraNaHierarquia({
+      const tree = syncTransportadoraNaHierarquia({
         id: result.transportador.id,
         nome_fantasia: result.transportador.nome_fantasia,
         cnpj: result.transportador.cnpj,
       })
-      flushKanbanPush(stateRef.current)
+      setState((prev) => {
+        const next = mergeOrgGruposNoState(prev, tree)
+        stateRef.current = next
+        flushKanbanPush(next)
+        return next
+      })
       return { ok: true, mensagem: result.mensagem }
     },
     [flushKanbanPush],
@@ -4712,11 +4744,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const prev = stateRef.current
     const atual = prev.transportadores.find((t) => t.id === id)
     if (atual) {
-      syncTransportadoraNaHierarquia({
+      const tree = syncTransportadoraNaHierarquia({
         id: atual.id,
         nome_fantasia: atual.nome_fantasia,
         cnpj: atual.cnpj,
       })
+      Object.assign(prev, mergeOrgGruposNoState(prev, tree))
     }
     const next = {
       ...prev,

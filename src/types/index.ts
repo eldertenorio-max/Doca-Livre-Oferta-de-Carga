@@ -433,6 +433,9 @@ export interface Carga {
   justificativa_obs: string | null
   grupo_ids: string[]
   grupos_notificados: string[]
+  /** Publicação filtrada pela hierarquia (embarcador → unidade → transportadoras). */
+  org_embarcador_id?: string | null
+  org_unidade_id?: string | null
   /** Destinatários quando modo_publicacao === 'negociacao_direta'. */
   transportador_direto_ids?: string[]
   transportador_vencedor_id: string | null

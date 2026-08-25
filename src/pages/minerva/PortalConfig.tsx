@@ -24,14 +24,17 @@ import {
 } from '../../lib/portalModules'
 import {
   ORG_TIPO_LABEL,
+  SUPER_HIERARQUIA,
   allowedOrgChildTypes,
   deleteOrgNo,
+  ensureHierarquiaPadrao,
+  gruposDaHierarquia,
   hydrateOrgTree,
   loadOrgTree,
   saveOrgTree,
-  syncTodasTransportadorasNaHierarquia,
   upsertOrgNo,
   type OrgNo,
+  type OrgTipo,
 } from '../../lib/orgHierarchy'
 import { isLocalSuperUser, isSuperSession } from '../../lib/superUsers'
 import { CadastroStatsCards } from '../../components/cadastro/CadastroStatsCards'
@@ -40,7 +43,7 @@ import '../../styles/cadastro.css'
 type Tab = 'hierarquia' | 'permissoes' | 'usuarios'
 
 export function PortalConfigPage() {
-  const { user, refreshPermissoes, transportadores } = useData()
+  const { user, refreshPermissoes, transportadores, salvarGrupo } = useData()
   const [tab, setTab] = useState<Tab>('hierarquia')
   const [tree, setTree] = useState<OrgNo[]>(() => loadOrgTree())
   const [accounts, setAccounts] = useState<PortalAccount[]>(() => loadPortalAccounts())
@@ -73,11 +76,12 @@ export function PortalConfigPage() {
 
   useEffect(() => {
     if (tab !== 'hierarquia') return
-    void hydrateOrgTree().then((remote) => {
-      const next = syncTodasTransportadorasNaHierarquia(transportadoresRef.current ?? [])
-      setTree(next.length ? next : remote)
+    void hydrateOrgTree().then(() => {
+      const next = ensureHierarquiaPadrao(transportadoresRef.current ?? [])
+      setTree(next)
+      for (const g of gruposDaHierarquia(next)) salvarGrupo(g)
     })
-  }, [tab])
+  }, [tab, salvarGrupo])
 
   useEffect(() => {
     function onFocus() {
@@ -120,7 +124,8 @@ export function PortalConfigPage() {
   function persistTree(next: OrgNo[]) {
     setTree(next)
     saveOrgTree(next)
-    setMsg('Hierarquia salva.')
+    for (const g of gruposDaHierarquia(next)) salvarGrupo(g)
+    setMsg('Hierarquia salva. Publicações da unidade/embarcador usam quem está abaixo na árvore.')
   }
 
   function addChild(parent: OrgNo | null) {
@@ -145,11 +150,13 @@ export function PortalConfigPage() {
 
     const nome = window.prompt(`Nome do ${ORG_TIPO_LABEL[tipo]}:`)
     if (!nome?.trim()) return
+    const cnpj = window.prompt('CNPJ (opcional):')
     const no: OrgNo = {
       id: `org-${Math.random().toString(36).slice(2, 8)}`,
       parent_id: parent?.id ?? null,
       tipo,
       nome: nome.trim(),
+      cnpj: cnpj?.trim() || null,
       ordem: (parent?.children?.length ?? 0) + 1,
       children: [],
     }
@@ -505,9 +512,30 @@ export function PortalConfigPage() {
             <h2 className="form-card__title">Árvore organizacional</h2>
           </header>
           <div className="form-card__body">
+            <p className="portal-login__hint" style={{ marginBottom: 12 }}>
+              Super Usuários (Diego e Elder) ficam acima de tudo. Abaixo: embarcador → unidade →
+              transportadoras. A publicação da carga da unidade ou do embarcador só chega a quem
+              está nessa ramificação.
+            </p>
+            <div
+              style={{
+                marginBottom: 14,
+                padding: '10px 12px',
+                borderRadius: 12,
+                border: '1px solid #e9d5ff',
+                background: '#faf5ff',
+              }}
+            >
+              <p style={{ margin: 0, fontSize: 11, fontWeight: 800, letterSpacing: '0.04em', color: '#6b21a8' }}>
+                SUPER USUÁRIOS — ACIMA DE TUDO
+              </p>
+              <p style={{ margin: '6px 0 0', fontWeight: 700, color: '#1a1d21' }}>
+                {SUPER_HIERARQUIA.map((s) => s.nome).join(' · ')}
+              </p>
+            </div>
             <div style={{ marginBottom: 12 }}>
               <button type="button" className="cadastro-btn cadastro-btn--ghost" onClick={() => addChild(null)}>
-                + Operador Logístico (raiz)
+                + Embarcador
               </button>
             </div>
             <OrgTreeView nodes={tree} onAdd={addChild} onRemove={removeNode} />
@@ -854,6 +882,39 @@ export function PortalConfigPage() {
   )
 }
 
+function badgeTipo(tipo: OrgTipo) {
+  const bg =
+    tipo === 'embarcador'
+      ? '#dbeafe'
+      : tipo === 'unidade'
+        ? '#dcfce7'
+        : tipo === 'transportadora'
+          ? '#fef9c3'
+          : '#f1f5f9'
+  const fg =
+    tipo === 'embarcador'
+      ? '#1e40af'
+      : tipo === 'unidade'
+        ? '#166534'
+        : tipo === 'transportadora'
+          ? '#854d0e'
+          : '#334155'
+  return (
+    <span
+      style={{
+        fontSize: 11,
+        fontWeight: 800,
+        padding: '2px 8px',
+        borderRadius: 999,
+        background: bg,
+        color: fg,
+      }}
+    >
+      {ORG_TIPO_LABEL[tipo]}
+    </span>
+  )
+}
+
 function OrgTreeView({
   nodes,
   onAdd,
@@ -878,17 +939,24 @@ function OrgTreeView({
               flexWrap: 'wrap',
               gap: 8,
               alignItems: 'center',
-              padding: '8px 10px',
-              background: '#f8fafc',
+              padding: '10px 12px',
+              background: '#fff',
               border: '1px solid #e2e8f0',
-              borderRadius: 10,
+              borderRadius: 12,
             }}
           >
-            <strong>{n.nome}</strong>
-            <span style={{ fontSize: '0.75rem', color: '#1a1d21' }}>{ORG_TIPO_LABEL[n.tipo]}</span>
-            <button type="button" className="cadastro-link" onClick={() => onAdd(n)}>
-              + Filho
-            </button>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <strong>{n.nome}</strong>
+              {n.cnpj ? (
+                <div style={{ fontSize: 12, color: '#64748b' }}>{n.cnpj}</div>
+              ) : null}
+            </div>
+            {badgeTipo(n.tipo)}
+            {allowedOrgChildTypes(n.tipo).length > 0 ? (
+              <button type="button" className="cadastro-link" onClick={() => onAdd(n)}>
+                + Filho
+              </button>
+            ) : null}
             <button
               type="button"
               className="cadastro-link"

@@ -1,6 +1,10 @@
 import { appStoreGet, appStoreGetCached, appStoreSet, migrateLocalKeyToAppStore } from './appStore'
+import type { GrupoTransportador } from '../types'
 
-/** Hierarquia organizacional do Oferta de Carga. */
+/** Hierarquia organizacional do Oferta de Carga.
+ * Super Usuários (Diego / Elder) ficam acima de tudo.
+ * Abaixo: Embarcador → Unidade → Transportadoras.
+ */
 
 export type OrgTipo =
   | 'operador_logistico'
@@ -29,76 +33,53 @@ export const ORG_TIPO_LABEL: Record<OrgTipo, string> = {
   transportadora: 'Transportadora',
 }
 
-/** Tipos ainda existentes em dados antigos, mas sem opção de criar novos. */
-const ORG_TIPOS_OCULTOS_NO_CADASTRO: OrgTipo[] = ['filial_operador', 'unidade']
+export const ORG_EMBARCADOR_ULTRAFRIO_ID = 'org-embarcador-ultrafrio'
+export const ORG_UNIDADE_CD_GUARULHOS_ID = 'org-unidade-cd-guarulhos'
+
+export const SUPER_HIERARQUIA = [
+  { nome: 'Diego', usuario: 'diego' },
+  { nome: 'Elder', usuario: 'elder' },
+] as const
+
+/** Tipos antigos: não criar mais (a árvore nova começa no embarcador). */
+const ORG_TIPOS_OCULTOS_NO_CADASTRO: OrgTipo[] = ['operador_logistico', 'filial_operador']
 
 export function allowedOrgChildTypes(tipoPai: string | null | undefined): OrgTipo[] {
   const map: Record<string, OrgTipo[]> = {
-    '': ['operador_logistico'],
-    operador_logistico: ['embarcador', 'transportadora'],
-    filial_operador: ['embarcador', 'transportadora'],
-    embarcador: ['transportadora'],
+    '': ['embarcador'],
+    embarcador: ['unidade'],
     unidade: ['transportadora'],
     transportadora: [],
+    operador_logistico: ['embarcador'],
+    filial_operador: ['embarcador', 'unidade'],
   }
-  if (!tipoPai) return ['operador_logistico']
+  if (!tipoPai) return ['embarcador']
   return (map[tipoPai] ?? []).filter((t) => !ORG_TIPOS_OCULTOS_NO_CADASTRO.includes(t))
+}
+
+export function grupoIdDaHierarquia(orgId: string) {
+  return `g-org-${orgId}`
 }
 
 export const SEED_ORG_TREE: OrgNo[] = [
   {
-    id: 'org-root',
+    id: ORG_EMBARCADOR_ULTRAFRIO_ID,
     parent_id: null,
-    tipo: 'operador_logistico',
-    nome: 'Doca Livre',
-    codigo: 'DL',
+    tipo: 'embarcador',
+    nome: 'Ultrafrio LOG',
+    cnpj: '29.288.134/0001-31',
+    codigo: 'UFR',
     ordem: 0,
     children: [
       {
-        id: 'org-filial-sp',
-        parent_id: 'org-root',
-        tipo: 'filial_operador',
-        nome: 'Filial São Paulo',
-        codigo: 'SP',
+        id: ORG_UNIDADE_CD_GUARULHOS_ID,
+        parent_id: ORG_EMBARCADOR_ULTRAFRIO_ID,
+        tipo: 'unidade',
+        nome: 'Ultrafrio Log - CD Guarulhos',
+        cnpj: '29.288.134/0001-32',
+        codigo: 'CD-GRU',
         ordem: 1,
-        children: [
-          {
-            id: 'org-embarcador-doca',
-            parent_id: 'org-filial-sp',
-            tipo: 'embarcador',
-            nome: 'Doca Livre Oferta de Carga',
-            codigo: 'DLOC',
-            ordem: 1,
-            children: [
-              {
-                id: 'org-unidade-jb',
-                parent_id: 'org-embarcador-doca',
-                tipo: 'unidade',
-                nome: 'Unidade José Bonifácio',
-                codigo: 'JB',
-                ordem: 1,
-                children: [
-                  {
-                    id: 'org-t1',
-                    parent_id: 'org-unidade-jb',
-                    tipo: 'transportadora',
-                    nome: 'Santos Transportes',
-                    transportador_id: '11111111-1111-1111-1111-111111111111',
-                    ordem: 1,
-                  },
-                  {
-                    id: 'org-t2',
-                    parent_id: 'org-unidade-jb',
-                    tipo: 'transportadora',
-                    nome: 'Log Nova Era',
-                    transportador_id: '22222222-2222-2222-2222-222222222222',
-                    ordem: 2,
-                  },
-                ],
-              },
-            ],
-          },
-        ],
+        children: [],
       },
     ],
   },
@@ -182,16 +163,143 @@ export function deleteOrgNo(tree: OrgNo[], id: string): OrgNo[] {
   return walk(structuredClone(tree))
 }
 
-/** Pai padrão para transportadoras: 1º embarcador, senão operador (sem exigir filial/unidade). */
+/** Pai padrão: unidade CD Guarulhos, senão a 1ª unidade, senão o 1º embarcador. */
 export function findDefaultTransportadoraParentId(tree: OrgNo[]): string | null {
   const flat = flattenOrg(tree)
+  if (flat.some((n) => n.id === ORG_UNIDADE_CD_GUARULHOS_ID)) {
+    return ORG_UNIDADE_CD_GUARULHOS_ID
+  }
   return (
-    flat.find((n) => n.tipo === 'embarcador')?.id ??
     flat.find((n) => n.tipo === 'unidade')?.id ??
-    flat.find((n) => n.tipo === 'filial_operador')?.id ??
-    flat.find((n) => n.tipo === 'operador_logistico')?.id ??
+    flat.find((n) => n.tipo === 'embarcador')?.id ??
     null
   )
+}
+
+export function findOrgNo(tree: OrgNo[], id: string | null | undefined): OrgNo | null {
+  if (!id) return null
+  return flattenOrg(tree).find((n) => n.id === id) ?? null
+}
+
+export function listarEmbarcadores(tree: OrgNo[]): OrgNo[] {
+  return flattenOrg(tree).filter((n) => n.tipo === 'embarcador')
+}
+
+export function listarUnidades(tree: OrgNo[], embarcadorId?: string | null): OrgNo[] {
+  const all = flattenOrg(tree).filter((n) => n.tipo === 'unidade')
+  if (!embarcadorId) return all
+  return all.filter((n) => n.parent_id === embarcadorId)
+}
+
+/** IDs de transportadoras abaixo deste nó (unidade ou embarcador). */
+export function tidsSobNo(tree: OrgNo[], orgId: string | null | undefined): string[] {
+  const no = findOrgNo(tree, orgId)
+  if (!no) return []
+  const ids = new Set<string>()
+  function walk(n: OrgNo) {
+    if (n.tipo === 'transportadora' && n.transportador_id) ids.add(n.transportador_id)
+    for (const c of n.children ?? []) walk(c)
+  }
+  walk(no)
+  return [...ids]
+}
+
+export function gruposDaHierarquia(tree: OrgNo[]): GrupoTransportador[] {
+  const agora = new Date().toISOString()
+  return flattenOrg(tree)
+    .filter((n) => n.tipo === 'embarcador' || n.tipo === 'unidade')
+    .map((n) => ({
+      id: grupoIdDaHierarquia(n.id),
+      descricao: n.tipo === 'embarcador' ? `Embarcador: ${n.nome}` : `Unidade: ${n.nome}`,
+      situacao: 'ativo' as const,
+      observacao: 'Sincronizado da hierarquia (quem vê as publicações)',
+      transportador_ids: tidsSobNo(tree, n.id),
+      updated_at: agora,
+    }))
+}
+
+function precisaMigrar(tree: OrgNo[]): boolean {
+  if (!tree.length) return true
+  const flat = flattenOrg(tree)
+  if (flat.some((n) => n.tipo === 'operador_logistico' || n.tipo === 'filial_operador')) {
+    return true
+  }
+  if (!flat.some((n) => n.id === ORG_EMBARCADOR_ULTRAFRIO_ID)) return true
+  if (!flat.some((n) => n.id === ORG_UNIDADE_CD_GUARULHOS_ID)) return true
+  return false
+}
+
+function coletarTransportadoras(
+  tree: OrgNo[],
+  transportadores: { id: string; nome_fantasia: string; cnpj?: string | null; situacao?: string }[],
+): OrgNo[] {
+  const byTid = new Map<string, OrgNo>()
+  for (const n of flattenOrg(tree)) {
+    if (n.tipo !== 'transportadora' || !n.transportador_id) continue
+    byTid.set(n.transportador_id, {
+      ...n,
+      parent_id: ORG_UNIDADE_CD_GUARULHOS_ID,
+      children: [],
+    })
+  }
+  for (const t of transportadores) {
+    if (t.situacao === 'inativo' || t.situacao === 'recusado') continue
+    const prev = byTid.get(t.id)
+    byTid.set(t.id, {
+      id: prev?.id ?? `org-${t.id}`,
+      parent_id: ORG_UNIDADE_CD_GUARULHOS_ID,
+      tipo: 'transportadora',
+      nome: t.nome_fantasia || prev?.nome || t.id,
+      cnpj: t.cnpj ?? prev?.cnpj ?? null,
+      transportador_id: t.id,
+      ordem: prev?.ordem ?? byTid.size,
+      children: [],
+    })
+  }
+  return [...byTid.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+}
+
+function montarArvoreUltrafrio(
+  treeAntiga: OrgNo[],
+  transportadores: { id: string; nome_fantasia: string; cnpj?: string | null; situacao?: string }[],
+): OrgNo[] {
+  const filhos = coletarTransportadoras(treeAntiga, transportadores)
+  return [
+    {
+      id: ORG_EMBARCADOR_ULTRAFRIO_ID,
+      parent_id: null,
+      tipo: 'embarcador',
+      nome: 'Ultrafrio LOG',
+      cnpj: '29.288.134/0001-31',
+      codigo: 'UFR',
+      ordem: 0,
+      children: [
+        {
+          id: ORG_UNIDADE_CD_GUARULHOS_ID,
+          parent_id: ORG_EMBARCADOR_ULTRAFRIO_ID,
+          tipo: 'unidade',
+          nome: 'Ultrafrio Log - CD Guarulhos',
+          cnpj: '29.288.134/0001-32',
+          codigo: 'CD-GRU',
+          ordem: 1,
+          children: filhos,
+        },
+      ],
+    },
+  ]
+}
+
+/** Garante Super → Ultrafrio LOG (embarcador) → CD Guarulhos (unidade) → transportadoras. */
+export function ensureHierarquiaPadrao(
+  transportadores: { id: string; nome_fantasia: string; cnpj?: string | null; situacao?: string }[],
+): OrgNo[] {
+  let tree = loadOrgTree()
+  if (precisaMigrar(tree)) {
+    tree = montarArvoreUltrafrio(tree, transportadores)
+    saveOrgTree(tree)
+    return tree
+  }
+  return syncTodasTransportadorasNaHierarquia(transportadores)
 }
 
 /**
@@ -209,30 +317,9 @@ export function syncTransportadoraNaHierarquia(t: {
   const parentId =
     existing?.parent_id ?? findDefaultTransportadoraParentId(tree)
   if (!parentId) {
-    // Árvore vazia: cria raiz mínima + transportadora
-    const root: OrgNo = {
-      id: 'org-root',
-      parent_id: null,
-      tipo: 'operador_logistico',
-      nome: 'Doca Livre',
-      codigo: 'DL',
-      ordem: 0,
-      children: [
-        {
-          id: `org-${t.id}`,
-          parent_id: 'org-root',
-          tipo: 'transportadora',
-          nome: t.nome_fantasia,
-          cnpj: t.cnpj ?? null,
-          transportador_id: t.id,
-          ordem: 1,
-          children: [],
-        },
-      ],
-    }
-    const next = [root]
-    saveOrgTree(next)
-    return next
+    const seed = montarArvoreUltrafrio([], [t])
+    saveOrgTree(seed)
+    return seed
   }
 
   const siblings = flat.filter((n) => n.parent_id === parentId)

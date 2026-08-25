@@ -53,6 +53,16 @@ import { limparPontosPassagemRota } from '../../lib/rotasSync'
 import { prazosAlocacaoPermitidos, prazosOfertaPermitidos } from '../../lib/configNegocio'
 import { canEditModulo } from '../../lib/portalModules'
 import { showActionFlash } from '../../lib/actionFlash'
+import {
+  ORG_EMBARCADOR_ULTRAFRIO_ID,
+  ORG_UNIDADE_CD_GUARULHOS_ID,
+  grupoIdDaHierarquia,
+  hydrateOrgTree,
+  listarEmbarcadores,
+  listarUnidades,
+  loadOrgTree,
+  type OrgNo,
+} from '../../lib/orgHierarchy'
 import type {
   Carga,
   ClassificacaoTransportador,
@@ -168,6 +178,9 @@ export function PublishPanel({
   const [buscaFavoritas, setBuscaFavoritas] = useState('')
   const [margem, setMargem] = useState(margens[1])
   const [grupoIds, setGrupoIds] = useState<string[]>([])
+  const [orgTree, setOrgTree] = useState<OrgNo[]>(() => loadOrgTree())
+  const [orgEmbarcadorId, setOrgEmbarcadorId] = useState(ORG_EMBARCADOR_ULTRAFRIO_ID)
+  const [orgUnidadeId, setOrgUnidadeId] = useState(ORG_UNIDADE_CD_GUARULHOS_ID)
   const [gruposSelectAberto, setGruposSelectAberto] = useState(false)
   const [buscaGrupos, setBuscaGrupos] = useState('')
   const gruposSelectRef = useRef<HTMLDivElement>(null)
@@ -200,6 +213,16 @@ export function PublishPanel({
 
   const usarRegra = config.usar_regra_prioridade_modo !== false
 
+  useEffect(() => {
+    void hydrateOrgTree().then(setOrgTree)
+  }, [])
+
+  const embarcadoresOrg = useMemo(() => listarEmbarcadores(orgTree), [orgTree])
+  const unidadesOrg = useMemo(
+    () => listarUnidades(orgTree, orgEmbarcadorId),
+    [orgTree, orgEmbarcadorId],
+  )
+
   // Reset do formulário só ao trocar de carga (sync de grupos não pode resetar a aba)
   const cargaIdAnterior = useRef(carga?.id)
   useEffect(() => {
@@ -212,8 +235,15 @@ export function PublishPanel({
 
     const m = config.margens[carga.classificacao_rota ?? 'B']
     setMargem(m[1] ?? m[0])
-    const ativos = grupos.filter((g) => g.situacao === 'ativo').map((g) => g.id)
-    setGrupoIds(carga.grupo_ids.length ? carga.grupo_ids : ativos)
+    const emb = carga.org_embarcador_id || ORG_EMBARCADOR_ULTRAFRIO_ID
+    const uni =
+      carga.org_unidade_id === null
+        ? ''
+        : carga.org_unidade_id || ORG_UNIDADE_CD_GUARULHOS_ID
+    setOrgEmbarcadorId(emb)
+    setOrgUnidadeId(uni)
+    const gidOrg = grupoIdDaHierarquia(uni || emb)
+    setGrupoIds(carga.grupo_ids.length ? carga.grupo_ids : [gidOrg])
     const prefillDireta =
       carga.status === 'nova_carga' &&
       prefillPublicacao?.modo === 'negociacao_direta'
@@ -638,6 +668,8 @@ export function PublishPanel({
       cargaId: carga!.id,
       margemPercentual: margem,
       grupoIds: isDireta ? [] : grupoIds,
+      orgEmbarcadorId: isDireta ? null : orgEmbarcadorId,
+      orgUnidadeId: isDireta ? null : orgUnidadeId || null,
       prazoLeilaoMinutos: prazoLeilao,
       prazoAlocacaoMinutos: prazoAlocacao,
       modoPublicacao: modo,
@@ -1706,7 +1738,53 @@ export function PublishPanel({
                 </>
               ) : (
                 <>
-                  <Field label="Quem vai negociar? (grupos)">
+                  <Field label="Embarcador (hierarquia)">
+                    <select
+                      className={inputClass}
+                      value={orgEmbarcadorId}
+                      onChange={(e) => {
+                        const emb = e.target.value
+                        setOrgEmbarcadorId(emb)
+                        const unis = listarUnidades(orgTree, emb)
+                        const uni = unis[0]?.id ?? ''
+                        setOrgUnidadeId(uni)
+                        setGrupoIds([grupoIdDaHierarquia(uni || emb)])
+                      }}
+                    >
+                      {embarcadoresOrg.length === 0 ? (
+                        <option value={ORG_EMBARCADOR_ULTRAFRIO_ID}>Ultrafrio LOG</option>
+                      ) : (
+                        embarcadoresOrg.map((n) => (
+                          <option key={n.id} value={n.id}>
+                            {n.nome}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </Field>
+                  <Field label="Unidade (quem vê a publicação)">
+                    <select
+                      className={inputClass}
+                      value={orgUnidadeId}
+                      onChange={(e) => {
+                        const uni = e.target.value
+                        setOrgUnidadeId(uni)
+                        setGrupoIds([grupoIdDaHierarquia(uni || orgEmbarcadorId)])
+                      }}
+                    >
+                      <option value="">Todas as unidades deste embarcador</option>
+                      {unidadesOrg.map((n) => (
+                        <option key={n.id} value={n.id}>
+                          {n.nome}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-[11px] font-semibold text-ink-muted">
+                      Só as transportadoras abaixo desta unidade (ou de todas as unidades do
+                      embarcador) recebem o anúncio.
+                    </p>
+                  </Field>
+                  <Field label="Grupos extras (opcional)">
                     {gruposAtivos.length === 0 ? (
                       <p className="text-xs text-brand">Cadastre grupos em Menu → Grupos.</p>
                     ) : (
