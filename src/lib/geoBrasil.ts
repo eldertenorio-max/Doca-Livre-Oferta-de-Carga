@@ -48,6 +48,7 @@ export type GeoProps = {
   nome: string
   uf?: UfBr
   regiao?: string
+  municipioId?: string
 }
 
 /** Códigos IBGE das 5 grandes regiões. */
@@ -64,6 +65,7 @@ export type GeoFc = GeoJSON.FeatureCollection<GeoJSON.Geometry, GeoProps>
 const cacheUfs = new Map<string, GeoFc>()
 const cacheMun = new Map<string, GeoFc>()
 const cacheRegioes = new Map<string, GeoFc>()
+const cacheBairros = new Map<string, GeoFc>()
 let catalogo: MunicipioCat[] | null = null
 let catalogoPendente: Promise<MunicipioCat[]> | null = null
 
@@ -180,6 +182,152 @@ export async function carregarMalhaMunicipios(uf: UfBr): Promise<GeoFc> {
     }),
   }
   cacheMun.set(uf, fc)
+  return fc
+}
+
+/** Brasil inteiro dividido por município (IBGE, qualidade mínima). */
+export async function carregarMalhaMunicipiosBrasil(): Promise<GeoFc> {
+  const hit = cacheMun.get('BR')
+  if (hit) return hit
+  const [malhaRaw, cats] = await Promise.all([
+    fetchJson(
+      'https://servicodados.ibge.gov.br/api/v3/malhas/paises/BR?formato=application/vnd.geo+json&qualidade=minima&intrarregiao=municipio',
+    ),
+    carregarCatalogoMunicipios().catch(() => [] as MunicipioCat[]),
+  ])
+  const malha = asFc(malhaRaw)
+  const nomes = new Map(cats.map((c) => [c.id, c]))
+  const fc: GeoFc = {
+    type: 'FeatureCollection',
+    features: malha.features.map((f) => {
+      const id = propsCodarea(f.properties)
+      const hitCat = nomes.get(id)
+      const uf = hitCat?.uf ?? IBGE_PARA_UF[id.slice(0, 2)]
+      return {
+        ...f,
+        properties: {
+          id,
+          nome: hitCat?.nome || id,
+          uf,
+        },
+      }
+    }),
+  }
+  cacheMun.set('BR', fc)
+  return fc
+}
+
+type OsmPt = { lat: number; lon: number }
+type OsmEl = {
+  type: 'way' | 'relation' | 'node'
+  id: number
+  tags?: Record<string, string>
+  geometry?: OsmPt[]
+  members?: Array<{ role?: string; geometry?: OsmPt[] }>
+}
+
+function fecharAnel(coords: number[][]): number[][] {
+  if (coords.length < 3) return coords
+  const a = coords[0]
+  const b = coords[coords.length - 1]
+  if (a[0] !== b[0] || a[1] !== b[1]) return [...coords, a]
+  return coords
+}
+
+function anelDePts(pts: OsmPt[] | undefined): number[][] | null {
+  if (!pts || pts.length < 3) return null
+  const ring = fecharAnel(pts.map((p) => [p.lon, p.lat]))
+  return ring.length >= 4 ? ring : null
+}
+
+function osmParaMalha(elements: OsmEl[], municipioId: string, uf?: UfBr): GeoFc {
+  const seen = new Set<string>()
+  const features: GeoFc['features'] = []
+  for (const el of elements) {
+    const nome = (el.tags?.name || el.tags?.['name:pt'] || '').trim()
+    if (!nome) continue
+    const key = nome.toLowerCase()
+    if (seen.has(key)) continue
+    let rings: number[][][] = []
+    if (el.type === 'way') {
+      const ring = anelDePts(el.geometry)
+      if (ring) rings = [ring]
+    } else if (el.type === 'relation') {
+      rings = (el.members ?? [])
+        .filter((m) => m.role === 'outer' || !m.role)
+        .map((m) => anelDePts(m.geometry))
+        .filter((r): r is number[][] => Boolean(r))
+    }
+    if (!rings.length) continue
+    seen.add(key)
+    const geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon =
+      rings.length === 1
+        ? { type: 'Polygon', coordinates: rings }
+        : { type: 'MultiPolygon', coordinates: rings.map((r) => [r]) }
+    features.push({
+      type: 'Feature',
+      geometry,
+      properties: {
+        id: `b-${municipioId}-${el.type}-${el.id}`,
+        nome,
+        uf,
+        municipioId,
+      },
+    })
+  }
+  return { type: 'FeatureCollection', features }
+}
+
+/** Bairros / subúrbios (OpenStreetMap) dentro do retângulo da cidade. */
+export async function carregarMalhaBairros(opts: {
+  municipioId: string
+  uf?: UfBr
+  south: number
+  west: number
+  north: number
+  east: number
+}): Promise<GeoFc> {
+  const hit = cacheBairros.get(opts.municipioId)
+  if (hit) return hit
+  const { south, west, north, east } = opts
+  const bbox = `${south},${west},${north},${east}`
+  const query = `[out:json][timeout:40];(
+  rel["admin_level"="10"]["boundary"="administrative"](${bbox});
+  rel["place"~"suburb|neighbourhood|quarter"](${bbox});
+  way["place"~"suburb|neighbourhood|quarter"](${bbox});
+);out geom;`
+  const endpoints = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+  ]
+  let elements: OsmEl[] = []
+  let lastErr: Error | null = null
+  for (const url of endpoints) {
+    try {
+      const getUrl = `${url}?data=${encodeURIComponent(query)}`
+      let res = await fetch(getUrl)
+      if (!res.ok) {
+        res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+          body: `data=${encodeURIComponent(query)}`,
+        })
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const json = (await res.json()) as { elements?: OsmEl[] }
+      elements = json.elements ?? []
+      lastErr = null
+      break
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error('Overpass falhou')
+    }
+  }
+  if (lastErr && elements.length === 0) throw lastErr
+  const fc = osmParaMalha(elements, opts.municipioId, opts.uf)
+  if (fc.features.length === 0) {
+    throw new Error('Sem malha de bairros nesta cidade')
+  }
+  cacheBairros.set(opts.municipioId, fc)
   return fc
 }
 

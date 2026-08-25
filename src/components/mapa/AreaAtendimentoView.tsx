@@ -6,7 +6,8 @@ import {
   acharMunicipio,
   buscarMunicipiosCatalogo,
   carregarCatalogoMunicipios,
-  carregarMalhaMunicipios,
+  carregarMalhaBairros,
+  carregarMalhaMunicipiosBrasil,
   carregarMalhaRegioes,
   carregarMalhaUfs,
   type GeoProps,
@@ -19,11 +20,13 @@ import {
   saveAreaDb,
   setArea,
   chaveArea,
+  toggleBairro,
   toggleCidade,
   toggleEstado,
   toggleRegiao,
   type AreaAtendimento,
   type AreaAtendimentoDB,
+  type BairroAtendido,
   type CidadeAtendida,
   type ModoMarcacaoArea,
 } from '../../lib/areaAtendimento'
@@ -55,19 +58,24 @@ const UF_COR: Record<string, string> = Object.fromEntries(
 
 const MODOS: { id: ModoMarcacaoArea; label: string; hint: string }[] = [
   {
+    id: 'regiao',
+    label: 'Região',
+    hint: 'Brasil inteiro por região. Clique para marcar Norte, Nordeste, Centro-Oeste, Sudeste ou Sul.',
+  },
+  {
     id: 'estado',
     label: 'Estado',
-    hint: 'Cada estado tem uma cor. Clique para marcar — a cor fica mais forte.',
+    hint: 'Brasil inteiro por estado. Cada UF tem uma cor — clique para marcar.',
   },
   {
     id: 'cidade',
     label: 'Cidade',
-    hint: 'Cada cidade tem uma cor. Clique no estado e depois no município para marcar.',
+    hint: 'Brasil inteiro por município. Cada cidade tem uma cor — clique para marcar.',
   },
   {
-    id: 'regiao',
-    label: 'Região',
-    hint: 'Cada região tem uma cor. Clique para marcar Norte, Nordeste, Centro-Oeste, Sudeste ou Sul.',
+    id: 'bairro',
+    label: 'Bairro',
+    hint: 'Clique na cidade para abrir os bairros (OpenStreetMap). Cada bairro tem uma cor.',
   },
 ]
 
@@ -121,21 +129,25 @@ export function AreaAtendimentoView() {
   const ufsLayerRef = useRef<L.GeoJSON | null>(null)
   const munLayerRef = useRef<L.GeoJSON | null>(null)
   const regLayerRef = useRef<L.GeoJSON | null>(null)
+  const bairroLayerRef = useRef<L.GeoJSON | null>(null)
   const labelsRef = useRef<L.LayerGroup | null>(null)
   const saveTimer = useRef<number | null>(null)
   const idsRef = useRef<Set<string>>(new Set())
+  const bairroIdsRef = useRef<Set<string>>(new Set())
   const estadosRef = useRef<Set<string>>(new Set())
   const regioesRef = useRef<Set<string>>(new Set())
   const modoRef = useRef<ModoMarcacaoArea | null>(null)
   const ownerIdRef = useRef('')
-  const abrirUfRef = useRef<(uf: UfBr) => Promise<void>>(async () => {})
   const persistPatchRef = useRef<(fn: (a: AreaAtendimento) => AreaAtendimento) => void>(() => {})
   const mostrarRegioesRef = useRef<() => Promise<void>>(async () => {})
+  const mostrarCidadesRef = useRef<() => Promise<void>>(async () => {})
+  const abrirBairrosRef = useRef<(p: GeoProps, bounds: L.LatLngBounds) => Promise<void>>(async () => {})
 
   const [tree, setTree] = useState<OrgNo[]>(() => loadOrgTree())
   const [db, setDb] = useState<AreaAtendimentoDB>(() => ({ areas: {} }))
   const [modo, setModo] = useState<ModoMarcacaoArea | null>(null)
   const [ufAtiva, setUfAtiva] = useState<UfBr | null>(null)
+  const [munAtiva, setMunAtiva] = useState<{ id: string; nome: string; uf?: UfBr } | null>(null)
   const [carregando, setCarregando] = useState('Carregando mapa do Brasil…')
   const [erro, setErro] = useState('')
   const [busca, setBusca] = useState('')
@@ -161,8 +173,11 @@ export function AreaAtendimentoView() {
   const selecionadas = area.cidades
   const estadosSel = area.estados
   const regioesSel = area.regioes
+  const bairrosSel = area.bairros
   const idsSel = useMemo(() => new Set(selecionadas.map((c) => c.id)), [selecionadas])
+  const idsBairro = useMemo(() => new Set(bairrosSel.map((b) => b.id)), [bairrosSel])
   idsRef.current = idsSel
+  bairroIdsRef.current = idsBairro
   estadosRef.current = new Set(estadosSel.map((e) => e.toUpperCase()))
   regioesRef.current = new Set(regioesSel)
 
@@ -170,7 +185,7 @@ export function AreaAtendimentoView() {
     if (!ownerId) return
     const raw = db.areas[chaveArea('embarcador', ownerId)]
     if (!raw) return
-    if (raw.modo === 'estado' || raw.modo === 'cidade' || raw.modo === 'regiao') {
+    if (raw.modo === 'estado' || raw.modo === 'cidade' || raw.modo === 'regiao' || raw.modo === 'bairro') {
       setModo(raw.modo)
     }
   }, [ownerId, db])
@@ -231,8 +246,9 @@ export function AreaAtendimentoView() {
       center: [-14.2, -51.9],
       zoom: 4,
       minZoom: 4,
-      maxZoom: 12,
+      maxZoom: 14,
       zoomControl: true,
+      preferCanvas: true,
     })
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap',
@@ -257,14 +273,13 @@ export function AreaAtendimentoView() {
             lyr.on('click', () => {
               const m = modoRef.current
               if (!m) {
-                setErro('Escolha Estado, Cidade ou Região antes de marcar no mapa.')
+                setErro('Escolha Região, Estado, Cidade ou Bairro.')
                 return
               }
               if (!uf) return
               setErro('')
-              if (m === 'cidade') void abrirUfRef.current(uf)
-              else if (m === 'estado') persistPatchRef.current((a) => toggleEstado(a, uf))
-              else {
+              if (m === 'estado') persistPatchRef.current((a) => toggleEstado(a, uf))
+              else if (m === 'regiao') {
                 const r = regiaoDaUf(uf)
                 if (r) persistPatchRef.current((a) => toggleRegiao(a, r))
               }
@@ -285,6 +300,7 @@ export function AreaAtendimentoView() {
       ufsLayerRef.current = null
       munLayerRef.current = null
       regLayerRef.current = null
+      bairroLayerRef.current = null
       labelsRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -293,47 +309,110 @@ export function AreaAtendimentoView() {
   modoRef.current = modo
   ownerIdRef.current = ownerId
 
-  async function abrirUf(uf: UfBr) {
+  async function mostrarCidadesBrasil() {
     const map = mapRef.current
     if (!map) return
-    setUfAtiva(uf)
-    setCarregando(`Carregando cidades de ${uf}…`)
+    if (munLayerRef.current) {
+      if (!map.hasLayer(munLayerRef.current)) munLayerRef.current.addTo(map)
+      map.setView([-14.2, -51.9], 4)
+      return
+    }
+    setCarregando('Carregando municípios do Brasil…')
     try {
-      const fc = await carregarMalhaMunicipios(uf)
-      munLayerRef.current?.remove()
+      const fc = await carregarMalhaMunicipiosBrasil()
+      const canvas = L.canvas({ padding: 0.5 })
       const layer = L.geoJSON(fc as GeoJSON.GeoJsonObject, {
+        renderer: canvas,
         style: (feat) => {
           const id = (feat as Feat | undefined)?.properties?.id
           return id ? styleMun(id, idsRef.current.has(id)) : styleMun('', false)
         },
         onEachFeature: (feature, lyr) => {
           const p = (feature as Feat).properties
-          lyr.bindTooltip(`${p.nome} — ${p.uf ?? ''}`, { sticky: true })
+          lyr.bindTooltip(`${p.nome}${p.uf ? ` — ${p.uf}` : ''}`, { sticky: true })
           lyr.on('click', () => {
-            if (modoRef.current !== 'cidade') return
-            const center = (lyr as L.Polygon).getBounds?.().getCenter?.()
-            if (!p.uf) return
-            const cidade: CidadeAtendida = {
-              id: p.id,
-              nome: p.nome,
-              uf: p.uf,
-              lat: center?.lat,
-              lng: center?.lng,
+            const m = modoRef.current
+            if (!m) return
+            setErro('')
+            if (m === 'cidade') {
+              const center = (lyr as L.Polygon).getBounds?.().getCenter?.()
+              persistPatchRef.current((a) =>
+                toggleCidade(a, {
+                  id: p.id,
+                  nome: p.nome,
+                  uf: p.uf || '',
+                  lat: center?.lat,
+                  lng: center?.lng,
+                }),
+              )
+              return
             }
-            persistPatchRef.current((a) => toggleCidade(a, cidade))
+            if (m === 'bairro') {
+              const b = (lyr as L.Polygon).getBounds?.()
+              if (b?.isValid()) void abrirBairrosRef.current(p, b)
+            }
           })
         },
       }).addTo(map)
       munLayerRef.current = layer
-      const b = layer.getBounds()
-      if (b.isValid()) map.fitBounds(b.pad(0.04), { maxZoom: 8 })
+      map.setView([-14.2, -51.9], 4)
       setCarregando('')
     } catch {
       setCarregando('')
-      setErro(`Não foi possível carregar as cidades de ${uf}.`)
+      setErro('Não foi possível carregar as cidades do Brasil. Verifique a internet.')
     }
   }
-  abrirUfRef.current = abrirUf
+  mostrarCidadesRef.current = mostrarCidadesBrasil
+
+  async function abrirBairros(p: GeoProps, bounds: L.LatLngBounds) {
+    const map = mapRef.current
+    if (!map) return
+    setMunAtiva({ id: p.id, nome: p.nome, uf: p.uf })
+    setCarregando(`Carregando bairros de ${p.nome}…`)
+    try {
+      const fc = await carregarMalhaBairros({
+        municipioId: p.id,
+        uf: p.uf,
+        south: bounds.getSouth(),
+        west: bounds.getWest(),
+        north: bounds.getNorth(),
+        east: bounds.getEast(),
+      })
+      bairroLayerRef.current?.remove()
+      munLayerRef.current && map.hasLayer(munLayerRef.current) && map.removeLayer(munLayerRef.current)
+      const layer = L.geoJSON(fc as GeoJSON.GeoJsonObject, {
+        style: (feat) => {
+          const id = (feat as Feat | undefined)?.properties?.id ?? ''
+          return styleMun(id, bairroIdsRef.current.has(id))
+        },
+        onEachFeature: (feature, lyr) => {
+          const bp = (feature as Feat).properties
+          lyr.bindTooltip(`${bp.nome} · ${p.nome}`, { sticky: true })
+          lyr.on('click', () => {
+            if (modoRef.current !== 'bairro') return
+            const center = (lyr as L.Polygon).getBounds?.().getCenter?.()
+            const item: BairroAtendido = {
+              id: bp.id,
+              nome: bp.nome,
+              municipioId: p.id,
+              municipioNome: p.nome,
+              uf: bp.uf || p.uf || '',
+              lat: center?.lat,
+              lng: center?.lng,
+            }
+            persistPatchRef.current((a) => toggleBairro(a, item))
+          })
+        },
+      }).addTo(map)
+      bairroLayerRef.current = layer
+      if (bounds.isValid()) map.fitBounds(bounds.pad(0.06), { maxZoom: 13 })
+      setCarregando('')
+    } catch {
+      setCarregando('')
+      setErro(`Não há malha de bairros para ${p.nome}. Tente outra cidade ou marque o município em Cidade.`)
+    }
+  }
+  abrirBairrosRef.current = abrirBairros
 
   async function mostrarRegioes() {
     const map = mapRef.current
@@ -369,9 +448,10 @@ export function AreaAtendimentoView() {
   }
   mostrarRegioesRef.current = mostrarRegioes
 
-  function voltarEstados() {
-    munLayerRef.current?.remove()
-    munLayerRef.current = null
+  function voltarBrasil() {
+    bairroLayerRef.current?.remove()
+    bairroLayerRef.current = null
+    setMunAtiva(null)
     setUfAtiva(null)
     mapRef.current?.setView([-14.2, -51.9], 4)
   }
@@ -380,7 +460,7 @@ export function AreaAtendimentoView() {
     setModo(m)
     setErro('')
     setBusca('')
-    voltarEstados()
+    voltarBrasil()
     if (ownerId) {
       persist(setArea(db, { ...area, ownerId, ownerKind: 'embarcador', modo: m }))
     }
@@ -388,17 +468,48 @@ export function AreaAtendimentoView() {
 
   useEffect(() => {
     const map = mapRef.current
+    if (!map) return
     const ufs = ufsLayerRef.current
     const regs = regLayerRef.current
-    if (!map) return
-    if (modo === 'regiao') {
-      if (ufs && map.hasLayer(ufs)) map.removeLayer(ufs)
-      void mostrarRegioesRef.current()
-    } else {
-      if (regs && map.hasLayer(regs)) map.removeLayer(regs)
-      if (ufs && !map.hasLayer(ufs)) ufs.addTo(map)
+    const muns = munLayerRef.current
+    const bairros = bairroLayerRef.current
+    const hide = (lyr: L.GeoJSON | null) => {
+      if (lyr && map.hasLayer(lyr)) map.removeLayer(lyr)
     }
-  }, [modo])
+    const show = (lyr: L.GeoJSON | null) => {
+      if (lyr && !map.hasLayer(lyr)) lyr.addTo(map)
+    }
+    if (modo === 'regiao') {
+      hide(ufs)
+      hide(muns)
+      hide(bairros)
+      void mostrarRegioesRef.current()
+      map.setView([-14.2, -51.9], 4)
+    } else if (modo === 'estado') {
+      hide(regs)
+      hide(muns)
+      hide(bairros)
+      show(ufs)
+      map.setView([-14.2, -51.9], 4)
+    } else if (modo === 'cidade') {
+      hide(ufs)
+      hide(regs)
+      hide(bairros)
+      void mostrarCidadesRef.current()
+    } else if (modo === 'bairro') {
+      hide(ufs)
+      hide(regs)
+      if (!munAtiva) {
+        hide(bairros)
+        void mostrarCidadesRef.current()
+      }
+    } else {
+      hide(regs)
+      hide(muns)
+      hide(bairros)
+      show(ufs)
+    }
+  }, [modo, munAtiva])
 
   useEffect(() => {
     const layer = munLayerRef.current
@@ -410,6 +521,17 @@ export function AreaAtendimentoView() {
       ;(lyr as L.Path).setStyle(styleMun(id, idsSel.has(id)))
     })
   }, [idsSel])
+
+  useEffect(() => {
+    const layer = bairroLayerRef.current
+    if (!layer) return
+    layer.eachLayer((lyr) => {
+      const feat = (lyr as L.GeoJSON & { feature?: Feat }).feature
+      const id = feat?.properties?.id
+      if (!id) return
+      ;(lyr as L.Path).setStyle(styleMun(id, idsBairro.has(id)))
+    })
+  }, [idsBairro])
 
   useEffect(() => {
     const layer = ufsLayerRef.current
@@ -498,28 +620,42 @@ export function AreaAtendimentoView() {
   }, [mostrarTudo, superView, transportadores, catalogo])
 
   async function escolherSugestaoCidade(m: MunicipioCat) {
+    setBusca('')
+    setErro('')
+    if (modo === 'bairro') {
+      const pad = 0.2
+      const bounds = L.latLngBounds(
+        [m.lat - pad, m.lng - pad],
+        [m.lat + pad, m.lng + pad],
+      )
+      await abrirBairros({ id: m.id, nome: m.nome, uf: m.uf }, bounds)
+      return
+    }
     if (modo !== 'cidade') {
       setErro('Escolha “Cidade” para marcar município.')
       return
     }
-    setBusca('')
-    setErro('')
     persistPatch((a) =>
       a.cidades.some((c) => c.id === m.id)
         ? a
         : toggleCidade(a, { id: m.id, nome: m.nome, uf: m.uf, lat: m.lat, lng: m.lng }),
     )
-    await abrirUf(m.uf)
     const map = mapRef.current
     if (map && Number.isFinite(m.lat) && Number.isFinite(m.lng)) {
-      map.setView([m.lat, m.lng], 9)
+      map.setView([m.lat, m.lng], 8)
     }
   }
 
   const embarcadorNome = embarcadores.find((e) => e.id === ownerId)?.nome || 'Embarcador'
   const hint = MODOS.find((x) => x.id === modo)?.hint
   const qtdLista =
-    modo === 'estado' ? estadosSel.length : modo === 'regiao' ? regioesSel.length : selecionadas.length
+    modo === 'estado'
+      ? estadosSel.length
+      : modo === 'regiao'
+        ? regioesSel.length
+        : modo === 'bairro'
+          ? bairrosSel.length
+          : selecionadas.length
 
   return (
     <div className="mapa-log__body">
@@ -543,7 +679,8 @@ export function AreaAtendimentoView() {
           </div>
           {!modo ? (
             <p className="mapa-log__empty" style={{ marginTop: 8 }}>
-              Selecione <strong>Estado</strong>, <strong>Cidade</strong> ou <strong>Região</strong>.
+              Selecione <strong>Região</strong>, <strong>Estado</strong>, <strong>Cidade</strong> ou{' '}
+              <strong>Bairro</strong>.
             </p>
           ) : (
             <p className="area-att-hint">{hint}</p>
@@ -569,7 +706,13 @@ export function AreaAtendimentoView() {
 
         <section className="mapa-log__panel">
           <h2>
-            {modo === 'estado' ? 'Buscar estado' : modo === 'regiao' ? 'Buscar região' : 'Buscar cidade'}
+            {modo === 'estado'
+              ? 'Buscar estado'
+              : modo === 'regiao'
+                ? 'Buscar região'
+                : modo === 'bairro'
+                  ? 'Buscar cidade (para ver bairros)'
+                  : 'Buscar cidade'}
           </h2>
           <label className="area-att-search">
             <Search size={15} />
@@ -581,12 +724,14 @@ export function AreaAtendimentoView() {
                   ? 'Ex.: São Paulo'
                   : modo === 'regiao'
                     ? 'Ex.: Sudeste'
-                    : 'Ex.: Guarulhos'
+                    : modo === 'bairro'
+                      ? 'Ex.: Guarulhos'
+                      : 'Ex.: Guarulhos'
               }
               disabled={!modo}
             />
           </label>
-          {modo === 'cidade' && sugestoesCidade.length > 0 ? (
+          {(modo === 'cidade' || modo === 'bairro') && sugestoesCidade.length > 0 ? (
             <ul className="area-att-sug">
               {sugestoesCidade.map((m) => (
                 <li key={m.id}>
@@ -636,7 +781,13 @@ export function AreaAtendimentoView() {
         <section className="mapa-log__panel">
           <h2>
             <MapPin size={14} />{' '}
-            {modo === 'estado' ? 'Estados na área' : modo === 'regiao' ? 'Regiões na área' : 'Cidades na área'}
+            {modo === 'estado'
+              ? 'Estados na área'
+              : modo === 'regiao'
+                ? 'Regiões na área'
+                : modo === 'bairro'
+                  ? 'Bairros na área'
+                  : 'Cidades na área'}
             <span className="area-att-count">{qtdLista}</span>
           </h2>
           <p className="mapa-log__empty" style={{ marginBottom: 8 }}>
@@ -681,6 +832,28 @@ export function AreaAtendimentoView() {
                 ))}
               </ul>
             )
+          ) : modo === 'bairro' ? (
+            bairrosSel.length === 0 ? (
+              <p className="mapa-log__empty">Nenhum bairro marcado.</p>
+            ) : (
+              <ul className="area-att-chips">
+                {bairrosSel
+                  .slice()
+                  .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+                  .map((b) => (
+                    <li key={b.id}>
+                      <button
+                        type="button"
+                        onClick={() => persistPatch((a) => toggleBairro(a, b))}
+                        title="Remover"
+                      >
+                        {b.nome}
+                        {b.municipioNome ? ` · ${b.municipioNome}` : ''} ×
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            )
           ) : selecionadas.length === 0 ? (
             <p className="mapa-log__empty">Nenhuma cidade marcada.</p>
           ) : (
@@ -708,6 +881,7 @@ export function AreaAtendimentoView() {
               onClick={() => {
                 if (modo === 'estado') persistPatch((a) => ({ ...a, estados: [] }))
                 else if (modo === 'regiao') persistPatch((a) => ({ ...a, regioes: [] }))
+                else if (modo === 'bairro') persistPatch((a) => ({ ...a, bairros: [] }))
                 else aplicarCidades([])
               }}
             >
@@ -740,6 +914,12 @@ export function AreaAtendimentoView() {
         <div ref={mapEl} className="mapa-log__map" role="application" aria-label="Área de atendimento" />
         <div className="mapa-log__legend">
           <span>
+            {REGIOES_BR.map((r) => (
+              <i key={r} style={{ background: REGIAO_COR[r] }} />
+            ))}{' '}
+            Região
+          </span>
+          <span>
             {UFS_BR.slice(0, 6).map((uf) => (
               <i key={uf} style={{ background: UF_COR[uf] }} />
             ))}{' '}
@@ -751,10 +931,9 @@ export function AreaAtendimentoView() {
             <i style={{ background: 'hsl(262 58% 48%)' }} /> Cidade
           </span>
           <span>
-            {REGIOES_BR.map((r) => (
-              <i key={r} style={{ background: REGIAO_COR[r] }} />
-            ))}{' '}
-            Região
+            <i style={{ background: 'hsl(12 58% 48%)' }} />
+            <i style={{ background: 'hsl(200 58% 48%)' }} />
+            <i style={{ background: 'hsl(320 58% 48%)' }} /> Bairro
           </span>
           {superView ? (
             <span>
@@ -763,19 +942,21 @@ export function AreaAtendimentoView() {
           ) : null}
         </div>
         <div className="area-att-mapbar">
-          {modo === 'cidade' && ufAtiva ? (
-            <button type="button" onClick={voltarEstados}>
-              ← Voltar aos estados
+          {modo === 'bairro' && munAtiva ? (
+            <button type="button" onClick={voltarBrasil}>
+              ← Voltar às cidades do Brasil
             </button>
           ) : (
             <span>
-              {modo === 'estado'
-                ? 'Brasil · clique no estado'
-                : modo === 'regiao'
-                  ? 'Brasil · clique na região'
+              {modo === 'regiao'
+                ? 'Brasil inteiro · dividido por região'
+                : modo === 'estado'
+                  ? 'Brasil inteiro · dividido por estado'
                   : modo === 'cidade'
-                    ? 'Brasil · clique no estado para ver as cidades'
-                    : 'Brasil · escolha Estado, Cidade ou Região'}
+                    ? 'Brasil inteiro · dividido por cidade'
+                    : modo === 'bairro'
+                      ? 'Brasil inteiro · clique na cidade para ver os bairros'
+                      : 'Brasil · escolha Região, Estado, Cidade ou Bairro'}
             </span>
           )}
           {carregando ? <em>{carregando}</em> : null}

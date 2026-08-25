@@ -2,11 +2,21 @@ import { appStoreGet, appStoreGetCached, appStoreSet } from './appStore'
 import { ORG_EMBARCADOR_ULTRAFRIO_ID } from './orgHierarchy'
 import type { UfBr } from './mapaLogisticaIntel'
 
-export type ModoMarcacaoArea = 'estado' | 'cidade' | 'regiao'
+export type ModoMarcacaoArea = 'regiao' | 'estado' | 'cidade' | 'bairro'
 
 export type CidadeAtendida = {
   id: string
   nome: string
+  uf: UfBr | string
+  lat?: number
+  lng?: number
+}
+
+export type BairroAtendido = {
+  id: string
+  nome: string
+  municipioId: string
+  municipioNome?: string
   uf: UfBr | string
   lat?: number
   lng?: number
@@ -17,10 +27,9 @@ export type AreaAtendimento = {
   ownerKind: 'embarcador' | 'transportadora'
   modo: ModoMarcacaoArea
   cidades: CidadeAtendida[]
-  /** UFs marcadas no modo Estado. */
   estados: string[]
-  /** Norte, Nordeste, Centro-Oeste, Sudeste, Sul. */
   regioes: string[]
+  bairros: BairroAtendido[]
   updatedAt: string
 }
 
@@ -41,10 +50,11 @@ export function areaVazia(
   return {
     ownerId,
     ownerKind: kind,
-    modo: 'cidade',
+    modo: 'regiao',
     cidades: [],
     estados: [],
     regioes: [],
+    bairros: [],
     updatedAt: new Date().toISOString(),
   }
 }
@@ -71,7 +81,12 @@ export function getArea(
   const raw = db.areas[chaveArea(kind, ownerId)]
   if (!raw) return areaVazia(kind, ownerId)
   const modo: ModoMarcacaoArea =
-    raw.modo === 'estado' || raw.modo === 'regiao' || raw.modo === 'cidade' ? raw.modo : 'cidade'
+    raw.modo === 'estado' ||
+    raw.modo === 'regiao' ||
+    raw.modo === 'cidade' ||
+    raw.modo === 'bairro'
+      ? raw.modo
+      : 'regiao'
   return {
     ...areaVazia(kind, ownerId),
     ...raw,
@@ -79,6 +94,7 @@ export function getArea(
     cidades: Array.isArray(raw.cidades) ? raw.cidades : [],
     estados: Array.isArray(raw.estados) ? raw.estados : [],
     regioes: Array.isArray(raw.regioes) ? raw.regioes : [],
+    bairros: Array.isArray(raw.bairros) ? raw.bairros : [],
   }
 }
 
@@ -124,6 +140,15 @@ export function toggleRegiao(area: AreaAtendimento, nome: string): AreaAtendimen
     ...area,
     modo: 'regiao',
     regioes: existe ? area.regioes.filter((r) => r !== key) : [...area.regioes, key],
+  }
+}
+
+export function toggleBairro(area: AreaAtendimento, bairro: BairroAtendido): AreaAtendimento {
+  const existe = area.bairros.some((b) => b.id === bairro.id)
+  return {
+    ...area,
+    modo: 'bairro',
+    bairros: existe ? area.bairros.filter((b) => b.id !== bairro.id) : [...area.bairros, bairro],
   }
 }
 
