@@ -103,7 +103,6 @@ export function PontuacaoTransportadoresPage() {
   const totaisAnuncios = useMemo(
     () => ({
       visualizacoes: anuncios.reduce((s, a) => s + a.visualizacoes, 0),
-      visualizaram: anuncios.reduce((s, a) => s + a.visualizaram, 0),
       lances: anuncios.reduce((s, a) => s + a.lances, 0),
       aceitaram: anuncios.reduce((s, a) => s + a.aceitaram, 0),
       recusaram: anuncios.reduce((s, a) => s + a.recusaram, 0),
@@ -197,9 +196,8 @@ export function PontuacaoTransportadoresPage() {
         />
       ) : aba === 'anuncios' ? (
         <>
-          <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
             <Kpi label="Visualizações" value={totaisAnuncios.visualizacoes} hint="Aberturas do anúncio" />
-            <Kpi label="Visualizaram" value={totaisAnuncios.visualizaram} hint="Transportadoras únicas" />
             <Kpi label="Deram lance" value={totaisAnuncios.lances} hint="Por anúncio, somado" />
             <Kpi label="Aceitaram / fecharam" value={totaisAnuncios.aceitaram} hint="Fretes fechados" />
             <Kpi label="Recusaram" value={totaisAnuncios.recusaram} hint="Quem recusou a oferta" />
@@ -212,7 +210,6 @@ export function PontuacaoTransportadoresPage() {
                   <th className="px-3 py-2">Rota</th>
                   <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2 text-right">Visualizações</th>
-                  <th className="px-3 py-2 text-right">Visualizaram</th>
                   <th className="px-3 py-2 text-right">Deram lance</th>
                   <th className="px-3 py-2 text-right">Aceitaram</th>
                   <th className="px-3 py-2">Quem recusou</th>
@@ -221,7 +218,7 @@ export function PontuacaoTransportadoresPage() {
               <tbody>
                 {anunciosFiltrados.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-3 py-6 text-center text-ink-muted">
+                    <td colSpan={7} className="px-3 py-6 text-center text-ink-muted">
                       Nenhum anúncio publicado.
                     </td>
                   </tr>
@@ -234,7 +231,6 @@ export function PontuacaoTransportadoresPage() {
                       </td>
                       <td className="px-3 py-2">{STATUS_LABEL[a.status] ?? a.status}</td>
                       <td className="px-3 py-2 text-right font-bold">{a.visualizacoes}</td>
-                      <td className="px-3 py-2 text-right font-bold">{a.visualizaram}</td>
                       <td className="px-3 py-2 text-right font-bold">{a.lances}</td>
                       <td className="px-3 py-2 text-right font-bold">{a.aceitaram}</td>
                       <td className="px-3 py-2 text-right font-bold">

@@ -405,7 +405,6 @@ export function PontuacaoDashboard({
   historico: LinhaHistoricoPts[]
   totais: {
     visualizacoes: number
-    visualizaram: number
     lances: number
     aceitaram: number
     recusaram: number
@@ -415,7 +414,6 @@ export function PontuacaoDashboard({
   const funil = useMemo(
     () => [
       { label: 'Visualizações', value: totais.visualizacoes, color: '#0f172a' },
-      { label: 'Visualizaram', value: totais.visualizaram, color: '#1d4ed8' },
       { label: 'Deram lance', value: totais.lances, color: '#f9db00' },
       { label: 'Aceitaram', value: totais.aceitaram, color: '#16a34a' },
       { label: 'Recusaram', value: totais.recusaram, color: '#dc2626' },
