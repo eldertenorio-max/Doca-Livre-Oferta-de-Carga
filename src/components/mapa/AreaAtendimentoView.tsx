@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
-import { MapPin, Search, Users } from 'lucide-react'
+import { Info, MapPin, Search, Users } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import {
   acharMunicipio,
@@ -215,6 +215,7 @@ export function AreaAtendimentoView() {
   const [nomeMalha, setNomeMalha] = useState('')
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [msgSalva, setMsgSalva] = useState('')
+  const [showFontes, setShowFontes] = useState(false)
 
   const superView = isDiegoElder(user)
   const embarcadores = useMemo(() => listarEmbarcadores(tree), [tree])
@@ -865,8 +866,38 @@ export function AreaAtendimentoView() {
     <div className="mapa-log__body">
       <aside className="mapa-log__side">
         <section className="mapa-log__panel">
-          <h2>Como marcar</h2>
-          <p className="mapa-log__empty" style={{ marginBottom: 10 }}>
+          <div className="area-att-info-head">
+            <h2>Como marcar</h2>
+            <button
+              type="button"
+              className={`area-att-info${showFontes ? ' is-on' : ''}`}
+              aria-label="Fontes das divisões do mapa"
+              aria-expanded={showFontes}
+              title="Fontes das divisões"
+              onClick={() => setShowFontes((v) => !v)}
+            >
+              <Info size={16} />
+            </button>
+          </div>
+          {showFontes ? (
+            <div className="area-att-info-pop">
+              <p className="mapa-log__empty" style={{ marginBottom: 8 }}>
+                De onde vêm Região, Estado, Cidade e Bairro neste mapa.
+              </p>
+              <ul className="mapa-log__fontes">
+                {FONTES_DIVISAO.map((f) => (
+                  <li key={f.titulo}>
+                    <strong>{f.titulo}</strong>
+                    <span>{f.detalhe}</span>
+                    <a href={f.href} target="_blank" rel="noreferrer">
+                      Abrir documentação →
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          <p className="mapa-log__empty" style={{ marginBottom: 10, marginTop: showFontes ? 10 : 0 }}>
             Escolha Região, Estado, Cidade ou Bairro, clique no mapa, dê um nome e salve. Depois
             abra a área salva para editar do seu jeito.
           </p>
@@ -958,24 +989,6 @@ export function AreaAtendimentoView() {
               ))}
             </ul>
           )}
-        </section>
-
-        <section className="mapa-log__panel mapa-log__panel--fontes">
-          <h2>Fontes das divisões</h2>
-          <p className="mapa-log__empty" style={{ marginBottom: 8 }}>
-            De onde vêm Região, Estado, Cidade e Bairro neste mapa.
-          </p>
-          <ul className="mapa-log__fontes">
-            {FONTES_DIVISAO.map((f) => (
-              <li key={f.titulo}>
-                <strong>{f.titulo}</strong>
-                <span>{f.detalhe}</span>
-                <a href={f.href} target="_blank" rel="noreferrer">
-                  Abrir documentação →
-                </a>
-              </li>
-            ))}
-          </ul>
         </section>
 
         {embarcadores.length > 1 ? (
