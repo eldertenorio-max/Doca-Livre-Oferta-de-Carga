@@ -1710,8 +1710,14 @@
   display: none;
 }
 
+.org-tree__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
 .org-tree__empty {
-  margin: 10px 0 0 40px;
+  margin: 10px 0 0;
   font-size: 0.85rem;
   color: #64748b;
 }

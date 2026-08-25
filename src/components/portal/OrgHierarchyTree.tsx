@@ -8,14 +8,12 @@ import {
   Minus,
   Pencil,
   Plus,
-  Shield,
   Truck,
   Users,
   Warehouse,
 } from 'lucide-react'
 import {
   ORG_TIPO_LABEL,
-  SUPER_HIERARQUIA,
   allowedOrgChildTypes,
   type OrgNo,
   type OrgTipo,
@@ -25,12 +23,8 @@ import { isLocalSuperUser } from '../../lib/superUsers'
 import { canonicalTransportadorId, sameTransportadorId } from '../../lib/transportadorIds'
 import type { Transportador } from '../../types'
 
-const SUPER_ID = 'super-root'
-
-type TipoVisual = OrgTipo | 'super'
-
 const TIPO_META: Record<
-  TipoVisual,
+  OrgTipo,
   {
     card: string
     badge: string
@@ -38,12 +32,6 @@ const TIPO_META: Record<
     Icon: typeof Building2
   }
 > = {
-  super: {
-    card: 'org-tree__card--super',
-    badge: 'org-tree__badge--super',
-    logo: 'org-tree__logo--super',
-    Icon: Shield,
-  },
   operador_logistico: {
     card: 'org-tree__card--operador',
     badge: 'org-tree__badge--operador',
@@ -90,26 +78,6 @@ function normCnpj(s: string | null | undefined) {
 function isContaSuper(a: PortalAccount) {
   if (a.role === 'super') return true
   return isLocalSuperUser(a.usuario) || isLocalSuperUser(a.email)
-}
-
-/** Diego/Elder (e outros Super) sem duplicar logins da mesma pessoa. */
-function countContasSuper(accounts: PortalAccount[]): number {
-  const seen = new Set<string>()
-  for (const a of accounts) {
-    if (!isContaSuper(a)) continue
-    seen.add(chaveSuper(a.usuario, a.email) || a.id)
-  }
-  return seen.size || SUPER_HIERARQUIA.length
-}
-
-function chaveSuper(usuario: string, email: string) {
-  const blob = `${usuario} ${email}`
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-  if (blob.includes('elder')) return 'elder'
-  if (blob.includes('diego')) return 'diego'
-  return (email || usuario).trim().toLowerCase()
 }
 
 function tidDaConta(a: PortalAccount): string | null {
@@ -216,44 +184,30 @@ export function OrgHierarchyTree({
     })
   }
 
-  const superOpen = !collapsed.has(SUPER_ID)
-  const superUsers = countContasSuper(accounts)
-
   return (
-    <ul className="org-tree">
-      <li className="org-tree__node">
-        <OrgCard
-          tipo="super"
-          nome="Super Usuários"
-          subtitulo={SUPER_HIERARQUIA.map((s) => s.nome).join(' · ')}
-          hasChildren={nodes.length > 0}
-          open={superOpen}
-          users={superUsers}
-          canAdd
-          canEdit={false}
-          canRemove={false}
-          addTitle="Adicionar embarcador"
-          onToggle={() => toggle(SUPER_ID)}
-          onAdd={() => onAdd(null)}
+    <div>
+      <div className="org-tree__toolbar">
+        <button type="button" className="cadastro-btn cadastro-btn--ghost" onClick={() => onAdd(null)}>
+          + Embarcador
+        </button>
+      </div>
+      {nodes.length === 0 ? (
+        <p className="org-tree__empty">Nenhum embarcador. Use + Embarcador para cadastrar.</p>
+      ) : (
+        <OrgNodes
+          nodes={nodes}
+          accounts={accounts}
+          transportadores={transportadores}
+          logos={logos}
+          collapsed={collapsed}
+          onToggle={toggle}
+          onAdd={onAdd}
+          onEdit={onEdit}
+          onRemove={onRemove}
+          nested={false}
         />
-        {superOpen && nodes.length > 0 && (
-          <OrgNodes
-            nodes={nodes}
-            accounts={accounts}
-            transportadores={transportadores}
-            logos={logos}
-            collapsed={collapsed}
-            onToggle={toggle}
-            onAdd={onAdd}
-            onEdit={onEdit}
-            onRemove={onRemove}
-          />
-        )}
-        {superOpen && nodes.length === 0 && (
-          <p className="org-tree__empty">Nenhum embarcador. Use + para cadastrar.</p>
-        )}
-      </li>
-    </ul>
+      )}
+    </div>
   )
 }
 
@@ -267,6 +221,7 @@ function OrgNodes({
   onAdd,
   onEdit,
   onRemove,
+  nested = true,
 }: {
   nodes: OrgNo[]
   accounts: PortalAccount[]
@@ -277,9 +232,10 @@ function OrgNodes({
   onAdd: (parent: OrgNo | null) => void
   onEdit: (node: OrgNo) => void
   onRemove: (id: string) => void
+  nested?: boolean
 }) {
   return (
-    <ul className="org-tree org-tree--nested">
+    <ul className={`org-tree${nested ? ' org-tree--nested' : ''}`}>
       {nodes.map((n) => {
         const children = n.children ?? []
         const open = !collapsed.has(n.id)
@@ -346,7 +302,7 @@ function OrgCard({
   onEdit,
   onRemove,
 }: {
-  tipo: TipoVisual
+  tipo: OrgTipo
   nome: string
   cnpj?: string | null
   subtitulo?: string
@@ -365,7 +321,7 @@ function OrgCard({
 }) {
   const meta = TIPO_META[tipo]
   const BadgeIcon = meta.Icon
-  const label = tipo === 'super' ? 'Super' : ORG_TIPO_LABEL[tipo]
+  const label = ORG_TIPO_LABEL[tipo]
   const doc = (cnpj || '').trim()
   const extra = (subtitulo || '').trim()
 

@@ -536,9 +536,8 @@ export function PortalConfigPage() {
           </header>
           <div className="form-card__body">
             <p className="portal-login__hint" style={{ marginBottom: 12 }}>
-              Super Usuários (Diego e Elder) ficam acima de tudo. Abaixo: embarcador → unidade →
-              transportadoras. A publicação da carga da unidade ou do embarcador só chega a quem
-              está nessa ramificação.
+              Embarcador → unidade → transportadoras. A publicação da carga da unidade ou do
+              embarcador só chega a quem está nessa ramificação.
             </p>
             <OrgHierarchyTree
               nodes={tree}
