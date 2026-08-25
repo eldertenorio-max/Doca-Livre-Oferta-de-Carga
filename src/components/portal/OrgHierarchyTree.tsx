@@ -21,6 +21,8 @@ import {
   type OrgTipo,
 } from '../../lib/orgHierarchy'
 import type { PortalAccount } from '../../lib/portalAuth'
+import { isLocalSuperUser } from '../../lib/superUsers'
+import { canonicalTransportadorId, sameTransportadorId } from '../../lib/transportadorIds'
 import type { Transportador } from '../../types'
 
 const SUPER_ID = 'super-root'
@@ -81,11 +83,103 @@ function iniciais(nome: string) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-function countUsers(n: OrgNo, accounts: PortalAccount[]): number {
-  if (n.tipo === 'transportadora' && n.transportador_id) {
-    return accounts.filter((a) => a.transportador_id === n.transportador_id).length
+function normCnpj(s: string | null | undefined) {
+  return (s || '').replace(/\D/g, '')
+}
+
+function isContaSuper(a: PortalAccount) {
+  if (a.role === 'super') return true
+  return isLocalSuperUser(a.usuario) || isLocalSuperUser(a.email)
+}
+
+/** Diego/Elder (e outros Super) sem duplicar logins da mesma pessoa. */
+function countContasSuper(accounts: PortalAccount[]): number {
+  const seen = new Set<string>()
+  for (const a of accounts) {
+    if (!isContaSuper(a)) continue
+    seen.add(chaveSuper(a.usuario, a.email) || a.id)
   }
-  return (n.children ?? []).reduce((sum, c) => sum + countUsers(c, accounts), 0)
+  return seen.size || SUPER_HIERARQUIA.length
+}
+
+function chaveSuper(usuario: string, email: string) {
+  const blob = `${usuario} ${email}`
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+  if (blob.includes('elder')) return 'elder'
+  if (blob.includes('diego')) return 'diego'
+  return (email || usuario).trim().toLowerCase()
+}
+
+function tidDaConta(a: PortalAccount): string | null {
+  const direto = canonicalTransportadorId(a.transportador_id)
+  if (direto) return direto
+  const org = (a.empresa_org_id || '').trim()
+  if (org.startsWith('transportador:')) {
+    return canonicalTransportadorId(org.slice('transportador:'.length))
+  }
+  return canonicalTransportadorId(org)
+}
+
+/** IDs de transportadora cobertos por este nó (folha ou ramificação). */
+function tidsDoNo(n: OrgNo, transportadores: Transportador[]): string[] {
+  if (n.tipo === 'transportadora') {
+    const ids = new Set<string>()
+    const proprio = canonicalTransportadorId(n.transportador_id)
+    if (proprio) ids.add(proprio)
+    const cnpj = normCnpj(n.cnpj)
+    const nome = (n.nome || '').trim().toLowerCase()
+    for (const t of transportadores) {
+      const tid = canonicalTransportadorId(t.id)
+      if (!tid) continue
+      if (proprio && sameTransportadorId(t.id, proprio)) ids.add(tid)
+      else if (cnpj && normCnpj(t.cnpj) === cnpj) ids.add(tid)
+      else if (nome && (t.nome_fantasia || '').trim().toLowerCase() === nome) ids.add(tid)
+    }
+    return [...ids]
+  }
+  return (n.children ?? []).flatMap((c) => tidsDoNo(c, transportadores))
+}
+
+function contaDaTransportadora(
+  a: PortalAccount,
+  tids: Set<string>,
+  transportadores: Transportador[],
+): boolean {
+  if (isContaSuper(a) || a.role === 'super') return false
+  const atid = tidDaConta(a)
+  if (atid && [...tids].some((id) => sameTransportadorId(id, atid))) return true
+  if (!atid) {
+    const nome = (a.nome || a.usuario || '').trim().toLowerCase()
+    if (!nome) return false
+    return transportadores.some((t) => {
+      const tid = canonicalTransportadorId(t.id)
+      if (!tid || ![...tids].some((id) => sameTransportadorId(id, tid))) return false
+      return (
+        (t.nome_fantasia || '').trim().toLowerCase() === nome ||
+        (t.razao_social || '').trim().toLowerCase() === nome
+      )
+    })
+  }
+  return false
+}
+
+function countUsers(
+  n: OrgNo,
+  accounts: PortalAccount[],
+  transportadores: Transportador[],
+): number {
+  const tids = new Set(tidsDoNo(n, transportadores))
+  if (tids.size === 0) return 0
+  const seen = new Set<string>()
+  for (const a of accounts) {
+    if (!contaDaTransportadora(a, tids, transportadores)) continue
+    const key = (a.id || a.email || a.usuario).toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+  }
+  return seen.size
 }
 
 export function OrgHierarchyTree({
@@ -107,7 +201,8 @@ export function OrgHierarchyTree({
   const logos = useMemo(() => {
     const map = new Map<string, string>()
     for (const t of transportadores) {
-      if (t.logo_url) map.set(t.id, t.logo_url)
+      const tid = canonicalTransportadorId(t.id)
+      if (t.logo_url && tid) map.set(tid, t.logo_url)
     }
     return map
   }, [transportadores])
@@ -122,7 +217,7 @@ export function OrgHierarchyTree({
   }
 
   const superOpen = !collapsed.has(SUPER_ID)
-  const superUsers = accounts.length
+  const superUsers = countContasSuper(accounts)
 
   return (
     <ul className="org-tree">
@@ -145,6 +240,7 @@ export function OrgHierarchyTree({
           <OrgNodes
             nodes={nodes}
             accounts={accounts}
+            transportadores={transportadores}
             logos={logos}
             collapsed={collapsed}
             onToggle={toggle}
@@ -164,6 +260,7 @@ export function OrgHierarchyTree({
 function OrgNodes({
   nodes,
   accounts,
+  transportadores,
   logos,
   collapsed,
   onToggle,
@@ -173,6 +270,7 @@ function OrgNodes({
 }: {
   nodes: OrgNo[]
   accounts: PortalAccount[]
+  transportadores: Transportador[]
   logos: Map<string, string>
   collapsed: Set<string>
   onToggle: (id: string) => void
@@ -186,7 +284,11 @@ function OrgNodes({
         const children = n.children ?? []
         const open = !collapsed.has(n.id)
         const canAdd = allowedOrgChildTypes(n.tipo).length > 0
-        const logoUrl = n.transportador_id ? logos.get(n.transportador_id) : undefined
+        const tidLogo = canonicalTransportadorId(n.transportador_id)
+        const logoUrl = tidLogo
+          ? logos.get(tidLogo) ||
+            [...logos.entries()].find(([id]) => sameTransportadorId(id, tidLogo))?.[1]
+          : undefined
         return (
           <li key={n.id} className="org-tree__node">
             <OrgCard
@@ -196,7 +298,7 @@ function OrgNodes({
               logoUrl={logoUrl}
               hasChildren={children.length > 0}
               open={open}
-              users={countUsers(n, accounts)}
+              users={countUsers(n, accounts, transportadores)}
               canAdd={canAdd}
               canEdit
               canRemove
@@ -210,6 +312,7 @@ function OrgNodes({
               <OrgNodes
                 nodes={children}
                 accounts={accounts}
+                transportadores={transportadores}
                 logos={logos}
                 collapsed={collapsed}
                 onToggle={onToggle}
@@ -304,7 +407,7 @@ function OrgCard({
           <BadgeIcon size={13} strokeWidth={2.4} />
           {label}
         </span>
-        <span className="org-tree__users" title="Usuários na ramificação">
+        <span className="org-tree__users" title="Contas de usuário neste nível">
           <Users size={15} strokeWidth={2.2} />
           {users}
         </span>
