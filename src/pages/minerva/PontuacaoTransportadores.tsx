@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import { PontuacaoDashboard } from '../../components/portal/PontuacaoDashboard'
 import { useData } from '../../context/DataContext'
 import { formatDateTime } from '../../lib/businessRules'
 import {
@@ -39,12 +40,12 @@ function corPontos(n: number) {
   return 'text-ink-muted'
 }
 
-type Aba = 'anuncios' | 'transportadores'
+type Aba = 'dashboard' | 'anuncios' | 'transportadores'
 
 export function PontuacaoTransportadoresPage() {
   const { user, cargas, lances, transportadores, grupos, interacoes } = useData()
   const isSuper = isSuperSession(user)
-  const [aba, setAba] = useState<Aba>('anuncios')
+  const [aba, setAba] = useState<Aba>('dashboard')
   const [q, setQ] = useState('')
   const [tidSel, setTidSel] = useState<string | null>(null)
 
@@ -149,6 +150,7 @@ export function PontuacaoTransportadoresPage() {
       <div className="flex flex-wrap gap-1 rounded-lg border border-ink/10 bg-white p-1">
         {(
           [
+            { id: 'dashboard', label: 'Dashboard' },
             { id: 'anuncios', label: 'Anúncios' },
             { id: 'transportadores', label: 'Transportadores' },
           ] as const
@@ -169,16 +171,31 @@ export function PontuacaoTransportadoresPage() {
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          className="min-w-[220px] flex-1 rounded-lg border border-ink/15 bg-white px-3 py-2 text-sm"
-          placeholder={aba === 'anuncios' ? 'Buscar carga, origem ou destino' : 'Buscar transportadora ou CNPJ'}
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-      </div>
+      {aba !== 'dashboard' ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            className="min-w-[220px] flex-1 rounded-lg border border-ink/15 bg-white px-3 py-2 text-sm"
+            placeholder={
+              aba === 'anuncios' ? 'Buscar carga, origem ou destino' : 'Buscar transportadora ou CNPJ'
+            }
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </div>
+      ) : null}
 
-      {aba === 'anuncios' ? (
+      {aba === 'dashboard' ? (
+        <PontuacaoDashboard
+          anuncios={anuncios}
+          ranking={ranking}
+          historico={historico}
+          totais={totaisAnuncios}
+          onOpenTransportador={(id) => {
+            setTidSel(id)
+            setAba('transportadores')
+          }}
+        />
+      ) : aba === 'anuncios' ? (
         <>
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
             <Kpi label="Visualizações" value={totaisAnuncios.visualizacoes} hint="Aberturas do anúncio" />
