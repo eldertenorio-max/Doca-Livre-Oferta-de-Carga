@@ -203,12 +203,12 @@ export function PontuacaoTransportadoresPage() {
                       <td className="px-3 py-2 text-right font-bold">{a.visualizaram}</td>
                       <td className="px-3 py-2 text-right font-bold">{a.lances}</td>
                       <td className="px-3 py-2 text-right font-bold">{a.aceitaram}</td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2 text-right font-bold">
                         {a.recusaram === 0 ? (
-                          <span className="text-ink-muted">—</span>
+                          0
                         ) : (
-                          <span>
-                            <span className="font-bold">{a.recusaram}</span>
+                          <>
+                            {a.recusaram}
                             {' · '}
                             {a.recusaramIds
                               .map((id) =>
@@ -217,7 +217,7 @@ export function PontuacaoTransportadoresPage() {
                                 ),
                               )
                               .join(', ')}
-                          </span>
+                          </>
                         )}
                       </td>
                     </tr>
