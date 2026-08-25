@@ -697,3 +697,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.leaflet-tooltip.area-zona-label {
+  background: rgb(15 23 42 / 0.86);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  padding: 5px 9px;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 0.28);
+}
+.leaflet-tooltip.area-zona-label::before {
+  display: none;
+}

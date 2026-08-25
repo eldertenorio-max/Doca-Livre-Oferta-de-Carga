@@ -1,5 +1,6 @@
 import { UF_CENTRO, type UfBr } from './mapaLogisticaIntel'
 import { normalizarTexto } from './cidadesBrasil'
+import { agruparDistritosEmZonasSp, MUN_SAO_PAULO_ID } from './zonasSaoPaulo'
 
 export const UF_IBGE: Record<UfBr, string> = {
   RO: '11',
@@ -49,7 +50,7 @@ export type GeoProps = {
   uf?: UfBr
   regiao?: string
   municipioId?: string
-  tipo?: 'bairro' | 'distrito'
+  tipo?: 'bairro' | 'distrito' | 'zona'
 }
 
 /** Códigos IBGE das 5 grandes regiões. */
@@ -536,7 +537,12 @@ export async function carregarMalhaBairros(opts: {
     tentarMalhaIbge('bairros', opts.municipioId, uf),
     tentarMalhaIbge('distritos', opts.municipioId, uf),
   ])
-  const escolhida = ibgeBairros ?? ibgeDistritos ?? (await malhaBairrosOsm({ municipioId: opts.municipioId, uf }))
+  const zonasSp =
+    opts.municipioId === MUN_SAO_PAULO_ID && ibgeDistritos
+      ? agruparDistritosEmZonasSp(ibgeDistritos)
+      : null
+  const escolhida =
+    zonasSp ?? ibgeBairros ?? ibgeDistritos ?? (await malhaBairrosOsm({ municipioId: opts.municipioId, uf }))
   if (!escolhida || escolhida.features.length === 0) {
     throw new Error('Sem malha de bairros nesta cidade')
   }

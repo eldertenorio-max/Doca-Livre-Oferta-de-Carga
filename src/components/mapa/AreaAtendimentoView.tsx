@@ -13,6 +13,7 @@ import {
   type GeoProps,
   type MunicipioCat,
 } from '../../lib/geoBrasil'
+import { ZONA_SP_COR, MUN_SAO_PAULO_ID } from '../../lib/zonasSaoPaulo'
 import {
   getArea,
   hydrateAreaDb,
@@ -78,8 +79,8 @@ const MODOS: { id: ModoMarcacaoArea; label: string; hint: string; fonte: string 
   {
     id: 'bairro',
     label: 'Bairro',
-    hint: 'Clique na cidade para abrir os bairros oficiais do IBGE. Se não houver bairro, mostra os distritos.',
-    fonte: 'IBGE · Censo 2022 (bairros/distritos)',
+    hint: 'Clique na cidade. Em São Paulo a divisão é por zona (Sul, Leste, Norte, Oeste e Centro).',
+    fonte: 'IBGE · Censo 2022 + zonas da Prefeitura (SP)',
   },
 ]
 
@@ -97,9 +98,9 @@ const FONTES_DIVISAO: { titulo: string; detalhe: string; href: string }[] = [
     href: 'https://servicodados.ibge.gov.br/api/docs/localidades',
   },
   {
-    titulo: 'Bairro',
+    titulo: 'Bairro / zona',
     detalhe:
-      'Polígonos oficiais de bairro do IBGE (Censo 2022), recortados no município clicado. Se a cidade não tiver bairro na malha, usamos os distritos do IBGE.',
+      'Bairros e distritos oficiais do IBGE (Censo 2022). Na capital paulista, os 96 distritos são agrupados em Centro, Zona Norte, Zona Sul, Zona Leste e Zona Oeste (regiões da Prefeitura).',
     href: 'https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais/26565-malhas-de-setores-censitarios-divisoes-intramunicipais.html',
   },
   {
@@ -144,7 +145,11 @@ function styleEstado(uf: string | undefined, ativa: boolean): L.PathOptions {
   return styleDivisao((uf && UF_COR[uf]) || '#94a3b8', ativa)
 }
 
-function styleMun(id: string, selecionada: boolean): L.PathOptions {
+function styleMun(id: string, selecionada: boolean, nome?: string, tipo?: GeoProps['tipo']): L.PathOptions {
+  if (tipo === 'zona' && nome && ZONA_SP_COR[nome]) {
+    const base = styleDivisao(ZONA_SP_COR[nome], selecionada)
+    return { ...base, weight: selecionada ? 3 : 1.8, fillOpacity: selecionada ? 0.55 : 0.4 }
+  }
   return styleDivisao(corCidade(id), selecionada)
 }
 
@@ -398,7 +403,11 @@ export function AreaAtendimentoView() {
     const map = mapRef.current
     if (!map) return
     setMunAtiva({ id: p.id, nome: p.nome, uf: p.uf })
-    setCarregando(`Carregando bairros de ${p.nome} (IBGE)…`)
+    setCarregando(
+      p.id === MUN_SAO_PAULO_ID
+        ? `Carregando zonas de ${p.nome}…`
+        : `Carregando bairros de ${p.nome} (IBGE)…`,
+    )
     try {
       const fc = await carregarMalhaBairros({
         municipioId: p.id,
@@ -406,17 +415,26 @@ export function AreaAtendimentoView() {
       })
       bairroLayerRef.current?.remove()
       munLayerRef.current && map.hasLayer(munLayerRef.current) && map.removeLayer(munLayerRef.current)
-      const canvas = L.canvas({ padding: 0.5 })
+      const soZonas = fc.features.some((f) => f.properties?.tipo === 'zona')
       const layer = L.geoJSON(fc as GeoJSON.GeoJsonObject, {
-        renderer: canvas,
+        ...(soZonas ? {} : { renderer: L.canvas({ padding: 0.5 }) }),
         style: (feat) => {
-          const id = (feat as Feat | undefined)?.properties?.id ?? ''
-          return styleMun(id, bairroIdsRef.current.has(id))
+          const props = (feat as Feat | undefined)?.properties
+          const id = props?.id ?? ''
+          return styleMun(id, bairroIdsRef.current.has(id), props?.nome, props?.tipo)
         },
         onEachFeature: (feature, lyr) => {
           const bp = (feature as Feat).properties
-          const tipo = bp.tipo === 'distrito' ? 'distrito' : 'bairro'
-          lyr.bindTooltip(`${bp.nome} (${tipo}) · ${p.nome}`, { sticky: true })
+          const rotulo =
+            bp.tipo === 'zona'
+              ? bp.nome
+              : `${bp.nome} (${bp.tipo === 'distrito' ? 'distrito' : 'bairro'}) · ${p.nome}`
+          lyr.bindTooltip(rotulo, {
+            sticky: bp.tipo !== 'zona',
+            permanent: bp.tipo === 'zona',
+            direction: bp.tipo === 'zona' ? 'center' : undefined,
+            className: bp.tipo === 'zona' ? 'area-zona-label' : undefined,
+          })
           lyr.on('click', () => {
             if (modoRef.current !== 'bairro') return
             const center = (lyr as L.Polygon).getBounds?.().getCenter?.()
@@ -562,7 +580,9 @@ export function AreaAtendimentoView() {
       const feat = (lyr as L.GeoJSON & { feature?: Feat }).feature
       const id = feat?.properties?.id
       if (!id) return
-      ;(lyr as L.Path).setStyle(styleMun(id, idsBairro.has(id)))
+      ;(lyr as L.Path).setStyle(
+        styleMun(id, idsBairro.has(id), feat?.properties?.nome, feat?.properties?.tipo),
+      )
     })
   }, [idsBairro])
 
@@ -768,7 +788,7 @@ export function AreaAtendimentoView() {
               : modo === 'regiao'
                 ? 'Buscar região'
                 : modo === 'bairro'
-                  ? 'Buscar cidade (para ver bairros)'
+                  ? 'Buscar cidade (São Paulo: zonas)'
                   : 'Buscar cidade'}
           </h2>
           <label className="area-att-search">
@@ -891,7 +911,7 @@ export function AreaAtendimentoView() {
             )
           ) : modo === 'bairro' ? (
             bairrosSel.length === 0 ? (
-              <p className="mapa-log__empty">Nenhum bairro marcado.</p>
+              <p className="mapa-log__empty">Nenhum bairro ou zona marcado.</p>
             ) : (
               <ul className="area-att-chips">
                 {bairrosSel
@@ -988,9 +1008,9 @@ export function AreaAtendimentoView() {
             <i style={{ background: 'hsl(262 58% 48%)' }} /> Cidade
           </span>
           <span>
-            <i style={{ background: 'hsl(12 58% 48%)' }} />
-            <i style={{ background: 'hsl(200 58% 48%)' }} />
-            <i style={{ background: 'hsl(320 58% 48%)' }} /> Bairro
+            <i style={{ background: '#16a34a' }} />
+            <i style={{ background: '#dc2626' }} />
+            <i style={{ background: '#2563eb' }} /> Bairro / zona
           </span>
           {superView ? (
             <span>
@@ -1012,7 +1032,7 @@ export function AreaAtendimentoView() {
                   : modo === 'cidade'
                     ? 'Brasil inteiro · dividido por cidade'
                     : modo === 'bairro'
-                      ? 'Brasil inteiro · clique na cidade para ver os bairros'
+                      ? 'Brasil inteiro · clique na cidade (em São Paulo: zonas)'
                       : 'Brasil · escolha Região, Estado, Cidade ou Bairro'}
               {fonteAtiva ? ` · Fonte: ${fonteAtiva}` : ''}
             </span>
