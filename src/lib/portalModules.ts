@@ -22,6 +22,7 @@ export type OfertaModuloId =
   | 'viagens_transportador'
   | 'configuracoes_transportador'
   | 'tarefas'
+  | 'tabelas_frete'
 
 export type OfertaPermissao = {
   pode_acessar: boolean
@@ -33,6 +34,7 @@ export const OFERTA_MODULOS_CATALOGO: { id: OfertaModuloId; label: string; role?
   { id: 'kanban', label: 'Cargas', role: 'minerva' },
   { id: 'viagens', label: 'Viagens', role: 'minerva' },
   { id: 'rotas', label: 'Rotas', role: 'minerva' },
+  { id: 'tabelas_frete', label: 'Tabelas de Frete', role: 'minerva' },
   { id: 'transportadoras', label: 'Transportadoras', role: 'minerva' },
   { id: 'veiculos', label: 'Veículos', role: 'ambos' },
   { id: 'motoristas', label: 'Motoristas', role: 'ambos' },
@@ -57,6 +59,7 @@ export const DEFAULT_PERMISSAO_MINERVA: OfertaPermissao = {
     tarefas: 'editar',
     viagens: 'editar',
     rotas: 'editar',
+    tabelas_frete: 'editar',
     transportadoras: 'editar',
     veiculos: 'editar',
     motoristas: 'editar',
@@ -118,6 +121,7 @@ export function moduloFromPath(pathname: string): OfertaModuloId | null {
   if (p.startsWith('/transportador/viagens')) return 'viagens_transportador'
   if (p.startsWith('/embarcador/tarefas') || p.startsWith('/transportador/tarefas')) return 'tarefas'
   if (p.startsWith('/embarcador/rotas')) return 'rotas'
+  if (p.startsWith('/embarcador/tabelas-frete')) return 'tabelas_frete'
   if (p.startsWith('/embarcador/transportadores')) return 'transportadoras'
   if (p.startsWith('/embarcador/veiculos') || p.startsWith('/transportador/veiculos'))
     return 'veiculos'

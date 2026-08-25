@@ -8,6 +8,7 @@ import { CadastroTransportadorPage } from './pages/CadastroTransportador'
 import { KanbanMinerva } from './pages/minerva/KanbanMinerva'
 import { ViagensEmbarcadorPage } from './pages/minerva/Viagens'
 import { RotasPage } from './pages/minerva/Rotas'
+import { TabelasFretePage } from './pages/minerva/TabelasFrete'
 import { TransportadoresPage } from './pages/minerva/Transportadores'
 import { GruposPage } from './pages/minerva/Grupos'
 import { IndicadoresPage } from './pages/minerva/Indicadores'
@@ -113,6 +114,14 @@ export default function App() {
           element={
             <Protected role={['super']}>
               <RotasPage />
+            </Protected>
+          }
+        />
+        <Route
+          path="/embarcador/tabelas-frete"
+          element={
+            <Protected role={['super']}>
+              <TabelasFretePage />
             </Protected>
           }
         />

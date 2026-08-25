@@ -140,6 +140,7 @@ const minervaLinks: NavItem[] = [
     icon: <IconRadar />,
   },
   { to: '/embarcador/rotas', label: 'Rotas', icon: <IconLocation /> },
+  { to: '/embarcador/tabelas-frete', label: 'Tabelas de Frete', icon: <IconWallet /> },
   { to: '/embarcador/transportadores', label: 'Transportadoras', icon: <IconUsers /> },
   { to: '/embarcador/veiculos', label: 'Veículos', icon: <IconTruck /> },
   { to: '/embarcador/motoristas', label: 'Motoristas', icon: <IconUsers /> },

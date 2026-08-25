@@ -404,6 +404,9 @@ export interface Carga {
   pallets: number
   valor_mercadorias: number
   frete_tabela: number
+  /** Tabela de frete aplicada (Super Usuário). */
+  tabela_frete_id?: string | null
+  tabela_frete_nome?: string | null
   frete_oferta: number | null
   /** Limites opcionais de lance (R$) */
   frete_minimo: number | null
@@ -615,4 +618,56 @@ export interface Tarefa {
   prazo_entrega?: string | null
   created_at: string
   updated_at?: string
+}
+
+/** Tipo da tabela de frete (cadastro Super Usuário). */
+export type TipoTabelaFrete = 'basica' | 'raio' | 'peso' | 'complementos'
+
+export type FaixaKmValor = { id: string; km_max: number; valor: number }
+export type FaixaPesoValor = { id: string; peso_max: number; valor: number }
+
+export interface TabelaFrete {
+  id: string
+  tipo: TipoTabelaFrete
+  nome: string
+  codigo: string
+  perfil_veiculo: string
+  capacidade_kg: number
+  faixa_peso?: boolean
+  tipologia?: string
+  ano_veiculo?: number
+  situacao: 'ativo' | 'inativo'
+  updated_at: string
+  /** Básica — diária + franquia + km excedente */
+  diaria?: number
+  qtd_diaria?: number
+  valor_saida?: number
+  pernoite?: number
+  valor_km?: number
+  franquia_km?: number
+  km_excedente?: number
+  valor_por_km?: 'max_roteirizado' | 'maior_distancia'
+  pagamento_por?: 'planejado' | 'rodado'
+  diaria_dinamica?: FaixaKmValor[]
+  diaria_dinamica_peso?: FaixaPesoValor[]
+  /** Por raio — faixas de km */
+  faixas_km?: FaixaKmValor[]
+  /** Por peso — faixas de peso */
+  faixas_peso?: FaixaPesoValor[]
+  /** Complementos */
+  valor_kg?: number
+  ajudante?: number
+  diesel?: number
+  chapa?: number
+  pedagio?: number
+  adicional_entrega?: number
+  descarga?: number
+  imposto?: number
+  incentivo?: number
+  adicional_escada?: number
+  adicional_cidade?: number
+  contar_cidade_origem?: boolean
+  adicional_sobre_frete_base_pct?: number
+  saida_dinamica?: FaixaKmValor[]
+  adicional_por_km?: FaixaKmValor[]
 }

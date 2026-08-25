@@ -185,6 +185,8 @@ export function normalizeCarga(c: Carga): Carga {
         ? Math.max(0, Math.round(Number(c.qtd_nfs)))
         : c.qtd_nfs,
     clientes_distribuicao: normalizeClientesDistribuicao(c.clientes_distribuicao),
+    tabela_frete_id: c.tabela_frete_id ?? null,
+    tabela_frete_nome: typeof c.tabela_frete_nome === 'string' ? c.tabela_frete_nome : c.tabela_frete_nome,
     frete_minimo: c.frete_minimo ?? null,
     frete_maximo: c.frete_maximo ?? null,
     pausado_em: c.pausado_em ?? null,

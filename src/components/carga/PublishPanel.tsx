@@ -36,6 +36,8 @@ import {
 } from '../../lib/cargasMontadas'
 import { isRascunhoNaoPublicado } from '../../lib/kanbanColumns'
 import { asTipoOferta, labelTipoOferta } from '../../lib/cargaDefaults'
+import { isSuperSession } from '../../lib/superUsers'
+import { FreteTabelaSuperFields } from './FreteTabelaSuperFields'
 import {
   MARCA_SEM_ESPECIFICA,
   MODELO_SEM_ESPECIFICO,
@@ -150,6 +152,7 @@ export function PublishPanel({
     Boolean(user?.is_superuser) ||
     user?.role === 'super' ||
     Boolean(user?.is_superuser)
+  const isSuper = isSuperSession(user)
   const classificacao = carga?.classificacao_rota ?? 'B'
   const margens = config.margens[classificacao]
   const prazosOferta = prazosOfertaPermitidos(config)
@@ -1508,6 +1511,24 @@ export function PublishPanel({
                   Rota {classificacao}
                 </span>
               </div>
+
+              {isSuper ? (
+                <FreteTabelaSuperFields
+                  carga={carga}
+                  canEdit={canEdit}
+                  onAplicar={(patch) => {
+                    if (isCargaEphemeral(carga)) {
+                      onCargaPersistida?.({
+                        ...carga,
+                        ...patch,
+                        updated_at: new Date().toISOString(),
+                      })
+                      return
+                    }
+                    void atualizarCarga(carga.id, patch)
+                  }}
+                />
+              ) : null}
 
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
