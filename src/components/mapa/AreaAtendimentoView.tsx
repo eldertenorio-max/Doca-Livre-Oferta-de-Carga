@@ -15,18 +15,27 @@ import {
 } from '../../lib/geoBrasil'
 import { ZONA_SP_COR, MUN_SAO_PAULO_ID, centrosZonasSp } from '../../lib/zonasSaoPaulo'
 import {
+  areaTemMarca,
+  areaVazia,
   getArea,
   hydrateAreaDb,
+  malhasDoOwner,
   ownerEmbarcadorId,
+  resumoMalha,
   saveAreaDb,
   setArea,
   chaveArea,
+  snapshotMalha,
+  upsertMalha,
+  excluirMalha,
   toggleBairro,
   toggleCidade,
   toggleEstado,
   toggleRegiao,
+  MODO_AREA_LABEL,
   type AreaAtendimento,
   type AreaAtendimentoDB,
+  type AreaMalhaSalva,
   type BairroAtendido,
   type CidadeAtendida,
   type ModoMarcacaoArea,
@@ -193,7 +202,7 @@ export function AreaAtendimentoView() {
   const abrirBairrosRef = useRef<(p: GeoProps, bounds?: L.LatLngBounds) => Promise<void>>(async () => {})
 
   const [tree, setTree] = useState<OrgNo[]>(() => loadOrgTree())
-  const [db, setDb] = useState<AreaAtendimentoDB>(() => ({ areas: {} }))
+  const [db, setDb] = useState<AreaAtendimentoDB>(() => ({ areas: {}, malhas: {} }))
   const [modo, setModo] = useState<ModoMarcacaoArea | null>(null)
   const [ufAtiva, setUfAtiva] = useState<UfBr | null>(null)
   const [munAtiva, setMunAtiva] = useState<{ id: string; nome: string; uf?: UfBr } | null>(null)
@@ -203,6 +212,9 @@ export function AreaAtendimentoView() {
   const [catalogo, setCatalogo] = useState<MunicipioCat[]>([])
   const [mostrarTudo, setMostrarTudo] = useState(false)
   const [ownerId, setOwnerId] = useState('')
+  const [nomeMalha, setNomeMalha] = useState('')
+  const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [msgSalva, setMsgSalva] = useState('')
 
   const superView = isDiegoElder(user)
   const embarcadores = useMemo(() => listarEmbarcadores(tree), [tree])
@@ -212,7 +224,7 @@ export function AreaAtendimentoView() {
       empresaOrgId: user?.empresa_org_id,
       embarcadores,
     })
-    setOwnerId(id)
+    setOwnerId((prev) => (prev && embarcadores.some((e) => e.id === prev) ? prev : id))
   }, [user?.empresa_org_id, embarcadores])
 
   const area = useMemo(
@@ -276,6 +288,96 @@ export function AreaAtendimentoView() {
   }
   persistPatchRef.current = persistPatch
 
+  const malhasOwner = useMemo(
+    () => (ownerId ? malhasDoOwner(db, 'embarcador', ownerId) : []),
+    [db, ownerId],
+  )
+
+  function salvarAreaNomeada() {
+    if (!ownerId) return
+    const nome = nomeMalha.trim()
+    if (!nome) {
+      setMsgSalva('')
+      setErro('Dê um nome para esta área.')
+      return
+    }
+    if (!areaTemMarca(area, modo)) {
+      setMsgSalva('')
+      setErro('Marque no mapa o recorte em que você trabalha (região, estado, cidade ou bairro).')
+      return
+    }
+    const modoSave = modo ?? area.modo
+    const rascunho: AreaAtendimento = {
+      ...area,
+      ownerId,
+      ownerKind: 'embarcador',
+      modo: modoSave,
+    }
+    const malha = snapshotMalha({
+      area: rascunho,
+      nome,
+      id: editandoId,
+      previa: editandoId ? db.malhas[editandoId] : null,
+    })
+    persist(upsertMalha(setArea(db, rascunho), malha))
+    setEditandoId(malha.id)
+    setErro('')
+    setMsgSalva(
+      editandoId
+        ? 'Alterações salvas. Pode continuar editando e salvar de novo.'
+        : 'Área salva. Abra de novo na lista para editar.',
+    )
+  }
+
+  function novaAreaNomeada() {
+    if (!ownerId) return
+    setEditandoId(null)
+    setNomeMalha('')
+    setMsgSalva('')
+    setErro('')
+    persistPatch(() => areaVazia('embarcador', ownerIdRef.current))
+    voltarBrasil()
+  }
+
+  function abrirMalhaSalva(m: AreaMalhaSalva) {
+    setNomeMalha(m.nome)
+    setEditandoId(m.id)
+    setMsgSalva(`Editando “${m.nome}”. Ajuste no mapa e salve.`)
+    setErro('')
+    persistPatch(() => ({
+      ownerId: ownerIdRef.current,
+      ownerKind: 'embarcador' as const,
+      modo: m.modo,
+      cidades: m.cidades,
+      estados: m.estados,
+      regioes: m.regioes,
+      bairros: m.bairros,
+      updatedAt: new Date().toISOString(),
+    }))
+    setModo(m.modo)
+    if (m.modo === 'bairro') {
+      const b = m.bairros[0]
+      if (b?.municipioId) {
+        void abrirBairros({
+          id: b.municipioId,
+          nome: b.municipioNome || '',
+          uf: (b.uf as UfBr) || undefined,
+        })
+        return
+      }
+    }
+    voltarBrasil()
+  }
+
+  function removerMalhaSalva(id: string) {
+    persist(excluirMalha(db, id))
+    if (editandoId === id) {
+      setEditandoId(null)
+      setNomeMalha('')
+      setMsgSalva('Área excluída.')
+    }
+  }
+
   function aplicarCidades(cidades: CidadeAtendida[]) {
     if (!ownerId) return
     persist(setArea(db, { ...area, ownerId, ownerKind: 'embarcador', modo: 'cidade', cidades }))
@@ -283,7 +385,12 @@ export function AreaAtendimentoView() {
 
   useEffect(() => {
     void hydrateOrgTree().then(setTree)
-    void hydrateAreaDb().then(setDb)
+    void hydrateAreaDb().then((remote) => {
+      setDb((cur) => ({
+        areas: { ...remote.areas, ...cur.areas },
+        malhas: { ...remote.malhas, ...cur.malhas },
+      }))
+    })
     void carregarCatalogoMunicipios()
       .then(setCatalogo)
       .catch(() => setCatalogo([]))
@@ -760,7 +867,8 @@ export function AreaAtendimentoView() {
         <section className="mapa-log__panel">
           <h2>Como marcar</h2>
           <p className="mapa-log__empty" style={{ marginBottom: 10 }}>
-            Escolha a divisão do mapa e clique para marcar a área.
+            Escolha Região, Estado, Cidade ou Bairro, clique no mapa, dê um nome e salve. Depois
+            abra a área salva para editar do seu jeito.
           </p>
           <div className="area-att-modos">
             {MODOS.map((op) => (
@@ -793,6 +901,65 @@ export function AreaAtendimentoView() {
           )}
         </section>
 
+        <section className="mapa-log__panel">
+          <h2>Salvar área de trabalho</h2>
+          <p className="mapa-log__empty" style={{ marginBottom: 8 }}>
+            O recorte é o que você escolheu acima (região, estado, cidade ou bairro). Dê um nome
+            para reabrir e editar depois.
+          </p>
+          {editandoId ? (
+            <p className="area-att-editando">Editando área salva</p>
+          ) : null}
+          <label className="area-att-search">
+            <input
+              value={nomeMalha}
+              onChange={(e) => {
+                setNomeMalha(e.target.value)
+                setMsgSalva('')
+              }}
+              placeholder="Ex.: Grande São Paulo"
+              maxLength={80}
+            />
+          </label>
+          <div className="area-att-acoes">
+            <button type="button" className="is-save" onClick={salvarAreaNomeada}>
+              {editandoId ? 'Salvar alterações' : 'Salvar área'}
+            </button>
+            <button type="button" className="is-nova" onClick={novaAreaNomeada}>
+              Nova
+            </button>
+          </div>
+          {msgSalva ? <p className="area-att-ok">{msgSalva}</p> : null}
+          {malhasOwner.length === 0 ? (
+            <p className="mapa-log__empty" style={{ marginTop: 10 }}>
+              Nenhuma área salva ainda.
+            </p>
+          ) : (
+            <ul className="area-att-malhas">
+              {malhasOwner.map((m) => (
+                <li key={m.id} className={editandoId === m.id ? 'is-on' : undefined}>
+                  <strong>{m.nome}</strong>
+                  <em>
+                    {MODO_AREA_LABEL[m.modo]} · {resumoMalha(m)}
+                  </em>
+                  <div className="area-att-malha-btns">
+                    <button type="button" onClick={() => abrirMalhaSalva(m)}>
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      className="is-del"
+                      onClick={() => removerMalhaSalva(m.id)}
+                    >
+                      Excluir
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
         <section className="mapa-log__panel mapa-log__panel--fontes">
           <h2>Fontes das divisões</h2>
           <p className="mapa-log__empty" style={{ marginBottom: 8 }}>
@@ -817,7 +984,12 @@ export function AreaAtendimentoView() {
             <select
               className="area-att-select"
               value={ownerId}
-              onChange={(e) => setOwnerId(e.target.value)}
+              onChange={(e) => {
+                setOwnerId(e.target.value)
+                setEditandoId(null)
+                setNomeMalha('')
+                setMsgSalva('')
+              }}
             >
               {embarcadores.map((e) => (
                 <option key={e.id} value={e.id}>

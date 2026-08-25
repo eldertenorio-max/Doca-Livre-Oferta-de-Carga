@@ -33,14 +33,33 @@ export type AreaAtendimento = {
   updatedAt: string
 }
 
+/** Recorte gravado com nome (região, estado, cidade ou bairro — o que o embarcador escolheu). */
+export type AreaMalhaSalva = AreaAtendimento & {
+  id: string
+  nome: string
+  createdAt: string
+}
+
 export type AreaAtendimentoDB = {
   areas: Record<string, AreaAtendimento>
+  malhas: Record<string, AreaMalhaSalva>
+}
+
+export const MODO_AREA_LABEL: Record<ModoMarcacaoArea, string> = {
+  regiao: 'Região',
+  estado: 'Estado',
+  cidade: 'Cidade',
+  bairro: 'Bairro',
 }
 
 const STORE_KEY = 'area_atendimento'
 
 export function chaveArea(kind: AreaAtendimento['ownerKind'], ownerId: string) {
   return `${kind}:${ownerId}`
+}
+
+export function uidMalha() {
+  return `malha-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 export function areaVazia(
@@ -59,18 +78,60 @@ export function areaVazia(
   }
 }
 
+function asModo(raw: unknown): ModoMarcacaoArea {
+  if (raw === 'estado' || raw === 'regiao' || raw === 'cidade' || raw === 'bairro') return raw
+  return 'regiao'
+}
+
+function asMalha(raw: Partial<AreaMalhaSalva> | null | undefined): AreaMalhaSalva | null {
+  const id = (raw?.id || '').trim()
+  const nome = (raw?.nome || '').trim()
+  const ownerId = (raw?.ownerId || '').trim()
+  if (!id || !nome || !ownerId) return null
+  const kind = raw?.ownerKind === 'transportadora' ? 'transportadora' : 'embarcador'
+  const base = areaVazia(kind, ownerId)
+  return {
+    ...base,
+    ...raw,
+    id,
+    nome,
+    ownerId,
+    ownerKind: kind,
+    modo: asModo(raw?.modo),
+    cidades: Array.isArray(raw?.cidades) ? raw.cidades : [],
+    estados: Array.isArray(raw?.estados) ? raw.estados : [],
+    regioes: Array.isArray(raw?.regioes) ? raw.regioes : [],
+    bairros: Array.isArray(raw?.bairros) ? raw.bairros : [],
+    createdAt: raw?.createdAt || raw?.updatedAt || new Date().toISOString(),
+    updatedAt: raw?.updatedAt || new Date().toISOString(),
+  }
+}
+
+export function normalizeAreaDb(raw: Partial<AreaAtendimentoDB> | null | undefined): AreaAtendimentoDB {
+  const areas =
+    raw?.areas && typeof raw.areas === 'object' && !Array.isArray(raw.areas) ? raw.areas : {}
+  const malhas: Record<string, AreaMalhaSalva> = {}
+  const src = raw?.malhas
+  if (src && typeof src === 'object') {
+    for (const [k, v] of Object.entries(src)) {
+      const m = asMalha(v)
+      if (m) malhas[k] = m
+    }
+  }
+  return { areas, malhas }
+}
+
 export function loadAreaDb(): AreaAtendimentoDB {
-  return appStoreGetCached<AreaAtendimentoDB>(STORE_KEY, { areas: {} })
+  return normalizeAreaDb(appStoreGetCached<Partial<AreaAtendimentoDB> | null>(STORE_KEY, null))
 }
 
 export async function hydrateAreaDb(): Promise<AreaAtendimentoDB> {
-  const db = await appStoreGet<AreaAtendimentoDB>(STORE_KEY, { areas: {} })
-  if (!db?.areas) return { areas: {} }
-  return db
+  const db = await appStoreGet<Partial<AreaAtendimentoDB> | null>(STORE_KEY, null)
+  return normalizeAreaDb(db)
 }
 
 export function saveAreaDb(db: AreaAtendimentoDB) {
-  void appStoreSet(STORE_KEY, db)
+  void appStoreSet(STORE_KEY, normalizeAreaDb(db))
 }
 
 export function getArea(
@@ -80,13 +141,7 @@ export function getArea(
 ): AreaAtendimento {
   const raw = db.areas[chaveArea(kind, ownerId)]
   if (!raw) return areaVazia(kind, ownerId)
-  const modo: ModoMarcacaoArea =
-    raw.modo === 'estado' ||
-    raw.modo === 'regiao' ||
-    raw.modo === 'cidade' ||
-    raw.modo === 'bairro'
-      ? raw.modo
-      : 'regiao'
+  const modo = asModo(raw.modo)
   return {
     ...areaVazia(kind, ownerId),
     ...raw,
@@ -99,15 +154,86 @@ export function getArea(
 }
 
 export function setArea(db: AreaAtendimentoDB, area: AreaAtendimento): AreaAtendimentoDB {
+  const next = normalizeAreaDb(db)
   return {
+    ...next,
     areas: {
-      ...db.areas,
+      ...next.areas,
       [chaveArea(area.ownerKind, area.ownerId)]: {
         ...area,
         updatedAt: new Date().toISOString(),
       },
     },
   }
+}
+
+export function areaTemMarca(area: AreaAtendimento, modo?: ModoMarcacaoArea | null): boolean {
+  const m = modo ?? area.modo
+  if (m === 'regiao') return area.regioes.length > 0
+  if (m === 'estado') return area.estados.length > 0
+  if (m === 'cidade') return area.cidades.length > 0
+  if (m === 'bairro') return area.bairros.length > 0
+  return (
+    area.regioes.length + area.estados.length + area.cidades.length + area.bairros.length > 0
+  )
+}
+
+export function resumoMalha(m: Pick<AreaMalhaSalva, 'modo' | 'regioes' | 'estados' | 'cidades' | 'bairros'>): string {
+  if (m.modo === 'regiao') return m.regioes.join(', ') || '—'
+  if (m.modo === 'estado') return m.estados.join(', ') || '—'
+  if (m.modo === 'cidade') {
+    const nomes = m.cidades.map((c) => c.nome)
+    if (nomes.length <= 3) return nomes.join(', ') || '—'
+    return `${nomes.slice(0, 3).join(', ')} +${nomes.length - 3}`
+  }
+  const nomes = m.bairros.map((b) => b.nome)
+  if (nomes.length <= 3) return nomes.join(', ') || '—'
+  return `${nomes.slice(0, 3).join(', ')} +${nomes.length - 3}`
+}
+
+export function malhasDoOwner(
+  db: AreaAtendimentoDB,
+  kind: AreaAtendimento['ownerKind'],
+  ownerId: string,
+): AreaMalhaSalva[] {
+  return Object.values(normalizeAreaDb(db).malhas)
+    .filter((m) => m.ownerKind === kind && m.ownerId === ownerId)
+    .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
+}
+
+export function snapshotMalha(opts: {
+  area: AreaAtendimento
+  nome: string
+  id?: string | null
+  previa?: AreaMalhaSalva | null
+}): AreaMalhaSalva {
+  const agora = new Date().toISOString()
+  const id = (opts.id || '').trim() || uidMalha()
+  return {
+    ...opts.area,
+    id,
+    nome: opts.nome.trim(),
+    createdAt: opts.previa?.createdAt || agora,
+    updatedAt: agora,
+  }
+}
+
+export function upsertMalha(db: AreaAtendimentoDB, malha: AreaMalhaSalva): AreaAtendimentoDB {
+  const next = normalizeAreaDb(db)
+  return {
+    ...next,
+    malhas: {
+      ...next.malhas,
+      [malha.id]: malha,
+    },
+  }
+}
+
+export function excluirMalha(db: AreaAtendimentoDB, id: string): AreaAtendimentoDB {
+  const next = normalizeAreaDb(db)
+  const malhas = { ...next.malhas }
+  delete malhas[id]
+  return { ...next, malhas }
 }
 
 export function toggleCidade(area: AreaAtendimento, cidade: CidadeAtendida): AreaAtendimento {

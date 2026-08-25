@@ -636,6 +636,104 @@
   padding: 0;
 }
 
+.area-att-editando {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #1d4ed8;
+}
+
+.area-att-ok {
+  margin: 8px 0 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #15803d;
+}
+
+.area-att-acoes {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.area-att-acoes button {
+  flex: 1;
+  border: 0;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.area-att-acoes .is-save {
+  background: #0f172a;
+  color: #fff;
+}
+
+.area-att-acoes .is-nova {
+  background: #e8ecf1;
+  color: #0f172a;
+}
+
+.area-att-malhas {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.area-att-malhas li {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+  padding: 8px;
+  background: #fff;
+}
+
+.area-att-malhas li.is-on {
+  border-color: #0f172a;
+  box-shadow: 0 0 0 1px #0f172a;
+}
+
+.area-att-malhas strong {
+  display: block;
+  font-size: 0.82rem;
+}
+
+.area-att-malhas em {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.7rem;
+  color: #64748b;
+  font-style: normal;
+}
+
+.area-att-malha-btns {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.area-att-malha-btns button {
+  border: 0;
+  background: #e8ecf1;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.area-att-malha-btns .is-del {
+  background: none;
+  color: #b91c1c;
+}
+
 .area-att-mapbar {
   position: absolute;
   z-index: 6;
