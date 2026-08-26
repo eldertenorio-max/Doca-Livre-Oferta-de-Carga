@@ -178,11 +178,9 @@ export function RotaMapPreview({
       zoomControl: true,
       attributionControl: false,
     })
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      subdomains: 'abcd',
-      crossOrigin: true,
-      attribution: '© OpenStreetMap © CARTO',
+      attribution: '© OpenStreetMap',
     }).addTo(map)
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map

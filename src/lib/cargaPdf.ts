@@ -316,7 +316,6 @@ async function gerarMapaEstatico(pts: MapaPonto[]): Promise<string | null> {
   const x1 = Math.ceil(tlX + W / TILE)
   const y1 = Math.ceil(tlY + H / TILE)
   const n = 2 ** z
-  const subs = ['a', 'b', 'c', 'd']
 
   const canvas = document.createElement('canvas')
   canvas.width = W
@@ -331,8 +330,7 @@ async function gerarMapaEstatico(pts: MapaPonto[]): Promise<string | null> {
     for (let ty = y0; ty <= y1; ty++) {
       if (ty < 0 || ty >= n) continue
       const wx = ((tx % n) + n) % n
-      const sub = subs[Math.abs(wx + ty) % 4]
-      const url = `https://${sub}.basemaps.cartocdn.com/rastertiles/voyager/${z}/${wx}/${ty}.png`
+      const url = `https://tile.openstreetmap.org/${z}/${wx}/${ty}.png`
       jobs.push(
         loadTileImg(url).then((img) => {
           if (!img) return

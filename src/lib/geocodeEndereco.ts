@@ -3,7 +3,7 @@
  * Usado na origem residencial do transportador (não no endereço do CNPJ).
  */
 
-import { coordsSedeMunicipio } from './geoBrasil'
+import { coordsSedeMunicipio } from './municipiosSedes'
 
 export type EnderecoCampos = {
   cep: string
@@ -1033,8 +1033,8 @@ export async function geocodificarConsulta(
   const temNumero = Boolean(parsed.numero || extrairNumeroDigitado(q))
   const temTipoLogradouro = pareceLogradouroTxt(q)
 
-  // Só trata como município puro se não houver número nem logradouro
-  if (mun && !temNumero && !temTipoLogradouro && !parsed.rico) {
+  // Município puro: sede IBGE. Não cai no Photon (evita "Rua São José dos Campos" em SP).
+  if (mun && !temNumero && !temTipoLogradouro) {
     const geo = await geocodificarMunicipioBr(mun.cidade, mun.uf)
     if (geo) {
       return { ok: true, coords: { lat: geo.lat, lng: geo.lng }, display: geo.display }
@@ -1043,7 +1043,7 @@ export async function geocodificarConsulta(
 
   // Nome de cidade sem UF: só se for único no IBGE (Arujá, Guarulhos…)
   if (!mun && !temNumero && !temTipoLogradouro && !parsed.rico && !parsed.cep) {
-    const sede = await coordsSedeMunicipio(parsed.cidade || q, parsed.uf || null)
+    const sede = coordsSedeMunicipio(parsed.cidade || q, parsed.uf || null)
     if (sede) {
       return {
         ok: true,
@@ -1229,17 +1229,13 @@ async function geocodificarMunicipioBr(
   const ufUp = uf.toUpperCase()
   const estado = UF_NOME[ufUp] || ufUp
 
-  try {
-    const sede = await coordsSedeMunicipio(cidade, ufUp)
-    if (sede) {
-      return {
-        lat: sede.lat,
-        lng: sede.lng,
-        display: `${sede.nome} - ${sede.uf}`,
-      }
+  const sede = coordsSedeMunicipio(cidade, ufUp)
+  if (sede) {
+    return {
+      lat: sede.lat,
+      lng: sede.lng,
+      display: `${sede.nome} - ${sede.uf}`,
     }
-  } catch {
-    /* Nominatim */
   }
 
   const queries = [

@@ -36,9 +36,11 @@ import {
 import { VeiculoSuggestInput } from '../ui/VeiculoSuggestInput'
 import { RotaMapPreview } from './RotaMapPreview'
 import { fmtMapsCoords, parseMapsCoords } from '../../lib/mapsCoords'
+import { coordsSedePorLabel } from '../../lib/municipiosSedes'
 import {
   enderecoPorCoordenadas,
   geocodificarConsulta,
+  parseCidadeUf,
   type EnderecoCampos,
   type SugestaoEndereco,
 } from '../../lib/geocodeEndereco'
@@ -450,40 +452,59 @@ export function CargaDistribuicaoDados({
 
   useEffect(() => {
     if (!editavel || !modoCidades) return
+    setCidadesDist((prev) => {
+      let changed = false
+      const next = prev.map((x) => {
+        const sede = coordsSedePorLabel(x.cidade)
+        if (!sede) return x
+        const jaTem = x.lat != null && x.lng != null
+        if (jaTem) {
+          const dLat = (Number(x.lat) - sede.lat) * 111
+          const dLng =
+            (Number(x.lng) - sede.lng) *
+            111 *
+            Math.cos((Number(x.lat) * Math.PI) / 180)
+          if (Math.hypot(dLat, dLng) < 25) return x
+        }
+        changed = true
+        skipRevCidades.current[x.id] = true
+        return {
+          ...x,
+          lat: sede.lat,
+          lng: sede.lng,
+          mapsStr: fmtMapsCoords(sede.lat, sede.lng),
+        }
+      })
+      return changed ? next : prev
+    })
+  }, [cidadesDist, editavel, modoCidades])
+
+  useEffect(() => {
+    if (!editavel || !modoCidades) return
     const timers: number[] = []
     for (const c of cidadesDist) {
+      if (coordsSedePorLabel(c.cidade)) continue
       const txt = (c.cidade || '').trim()
-      if (txt.length < 3) continue
+      if (!parseCidadeUf(txt)) continue
+      if (c.lat != null && c.lng != null) continue
       const id = c.id
       const t = window.setTimeout(() => {
         void (async () => {
           const res = await geocodificarConsulta(txt)
           if (!res.ok) return
-          setCidadesDist((prev) => {
-            let changed = false
-            const next = prev.map((x) => {
-              if (x.id !== id) return x
-              if ((x.cidade || '').trim() !== txt) return x
-              const jaTem = x.lat != null && x.lng != null
-              if (jaTem) {
-                const dLat = (Number(x.lat) - res.coords.lat) * 111
-                const dLng =
-                  (Number(x.lng) - res.coords.lng) *
-                  111 *
-                  Math.cos((Number(x.lat) * Math.PI) / 180)
-                if (Math.hypot(dLat, dLng) < 35) return x
-              }
-              changed = true
-              return {
-                ...x,
-                lat: res.coords.lat,
-                lng: res.coords.lng,
-                mapsStr: fmtMapsCoords(res.coords.lat, res.coords.lng),
-              }
-            })
-            if (changed) skipRevCidades.current[id] = true
-            return changed ? next : prev
-          })
+          skipRevCidades.current[id] = true
+          setCidadesDist((prev) =>
+            prev.map((x) =>
+              x.id === id && (x.cidade || '').trim() === txt
+                ? {
+                    ...x,
+                    lat: res.coords.lat,
+                    lng: res.coords.lng,
+                    mapsStr: fmtMapsCoords(res.coords.lat, res.coords.lng),
+                  }
+                : x,
+            ),
+          )
         })()
       }, 700)
       timers.push(t)
@@ -1275,9 +1296,16 @@ export function CargaDistribuicaoDados({
               <Field label="Cidade">
                 <SuggestInput
                   value={cid.cidade}
-                  onChange={(v) =>
-                    patchCidade(cid.id, { cidade: v, lat: null, lng: null })
-                  }
+                  onChange={(v) => {
+                    const sede = coordsSedePorLabel(v)
+                    skipRevCidades.current[cid.id] = true
+                    patchCidade(cid.id, {
+                      cidade: v,
+                      lat: sede?.lat ?? null,
+                      lng: sede?.lng ?? null,
+                      mapsStr: sede ? fmtMapsCoords(sede.lat, sede.lng) : '',
+                    })
+                  }}
                   suggestions={sugCidade}
                   placeholder="Cidade / UF"
                 />
