@@ -529,7 +529,13 @@ async function malhaBairrosOsm(opts: {
   }
 }
 
-/** Bairros oficiais do município (IBGE Censo 2022). Distrito se não houver bairro; OSM só como último recurso. */
+/**
+ * Bairros oficiais do município (IBGE Censo 2022). Quando o IBGE só tem distrito
+ * (comum fora das capitais) e ele vem raso — sede + 1 ou 2 distritos rurais, o que
+ * na prática desenha o contorno quase inteiro da cidade em vez de bairros —
+ * tenta o OSM (admin_level=10), que costuma ter os bairros reais mapeados.
+ * Usa sempre a malha mais granular disponível entre distrito e OSM.
+ */
 export async function carregarMalhaBairros(opts: {
   municipioId: string
   uf?: UfBr
@@ -545,8 +551,18 @@ export async function carregarMalhaBairros(opts: {
     opts.municipioId === MUN_SAO_PAULO_ID && ibgeDistritos
       ? agruparDistritosEmZonasSp(ibgeDistritos)
       : null
-  const escolhida =
-    zonasSp ?? ibgeBairros ?? ibgeDistritos ?? (await malhaBairrosOsm({ municipioId: opts.municipioId, uf }))
+
+  let escolhida: GeoFc | null = zonasSp ?? ibgeBairros ?? null
+  if (!escolhida) {
+    const distritoRaso = !ibgeDistritos || ibgeDistritos.features.length <= 3
+    const osm = distritoRaso
+      ? await malhaBairrosOsm({ municipioId: opts.municipioId, uf })
+      : null
+    escolhida =
+      osm && (!ibgeDistritos || osm.features.length > ibgeDistritos.features.length)
+        ? osm
+        : ibgeDistritos ?? osm
+  }
   if (!escolhida || escolhida.features.length === 0) {
     throw new Error('Sem malha de bairros nesta cidade')
   }
