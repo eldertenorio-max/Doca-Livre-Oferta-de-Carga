@@ -159,6 +159,9 @@ export function CargaDistribuicaoDados({
     cidadesParaForm(carga.clientes_distribuicao ?? []),
   )
   const [calcularTrajetoId, setCalcularTrajetoId] = useState(0)
+  const [kmRotaCalculada, setKmRotaCalculada] = useState<number | null>(
+    carga.distancia_km_rota ?? null,
+  )
   const [dataCarreg, setDataCarreg] = useState(toDateInput(carga.data_carregamento))
   const [previsao, setPrevisao] = useState(toDateInput(carga.previsao_entrega))
   const [observacao, setObservacao] = useState(carga.observacao ?? '')
@@ -810,6 +813,7 @@ export function CargaDistribuicaoDados({
       observacao: observacao.trim() || undefined,
       numero: numeroCarga.trim(),
       antt: null,
+      distancia_km_rota: kmRotaCalculada ?? null,
       gerenciamento_risco: risco,
       marca_rastreador:
         risco === 'rastreador' || risco === 'ambos' ? marcaRastreador : undefined,
@@ -1416,6 +1420,7 @@ export function CargaDistribuicaoDados({
           autoCalcular={false}
           calcularId={calcularTrajetoId}
           resumoAbaixo
+          onRotaCalculada={({ km }) => setKmRotaCalculada(km)}
           className="h-[220px] min-h-[220px] w-full"
         />
       </section>

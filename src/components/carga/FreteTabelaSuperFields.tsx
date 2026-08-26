@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatCurrency, formatMoneyInput, moneyFromDigits } from '../../lib/businessRules'
 import {
@@ -25,14 +25,20 @@ export function FreteTabelaSuperFields({
   const { tabelas } = useTabelasFrete()
   const [busca, setBusca] = useState('')
   const [escolhidaId, setEscolhidaId] = useState(carga.tabela_frete_id ?? '')
-  const [kmOverride, setKmOverride] = useState(
-    String(carga.antt?.rota?.distancia_km ?? ''),
-  )
+  const kmRota = carga.antt?.rota?.distancia_km || carga.distancia_km_rota || 0
+  const [kmOverride, setKmOverride] = useState(String(kmRota || ''))
   const [manualStr, setManualStr] = useState(
     carga.frete_tabela ? formatMoneyInput(carga.frete_tabela) : '',
   )
 
-  const kmRota = carga.antt?.rota?.distancia_km ?? 0
+  // Preenche automaticamente quando a rota é calculada (ex.: mapa da distribuição)
+  // depois que este painel já foi montado, sem sobrescrever um valor digitado.
+  useEffect(() => {
+    if (kmRota > 0 && !kmOverride) {
+      setKmOverride(String(kmRota))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kmRota])
   const kmUsado = Number(String(kmOverride).replace(',', '.'))
   const km = Number.isFinite(kmUsado) && kmUsado > 0 ? kmUsado : kmRota
   const peso = carga.peso || 0

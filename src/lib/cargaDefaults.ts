@@ -182,6 +182,10 @@ export function normalizeCarga(c: Carga): Carga {
       c.temp_max != null && Number.isFinite(Number(c.temp_max)) ? Number(c.temp_max) : undefined,
     exige_ajudante: flagSim(c.exige_ajudante),
     antt: c.antt ?? null,
+    distancia_km_rota:
+      c.distancia_km_rota != null && Number.isFinite(Number(c.distancia_km_rota))
+        ? Number(c.distancia_km_rota)
+        : null,
     tipo_oferta: asTipoOferta(c.tipo_oferta),
     nome_rota: typeof c.nome_rota === 'string' ? c.nome_rota.trim() : c.nome_rota,
     seq_distribuicao: asSeqDistribuicao(c.seq_distribuicao),

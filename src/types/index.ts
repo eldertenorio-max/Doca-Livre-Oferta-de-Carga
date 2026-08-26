@@ -418,6 +418,8 @@ export interface Carga {
   classificacao_rota: ClassificacaoRota | null
   /** Cálculo ANTT (piso + custos de rota) na publicação */
   antt?: AnttInfoCarga | null
+  /** Distância (km) do trajeto calculado no mapa (ex.: distribuição, sem cálculo ANTT completo). */
+  distancia_km_rota?: number | null
   status: StatusCargaMinerva
   prioridade: Prioridade | null
   modo_publicacao: ModoPublicacao | null
