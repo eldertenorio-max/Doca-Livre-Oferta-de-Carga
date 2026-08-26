@@ -649,3 +649,23 @@ export function acharMunicipio(
     null
   )
 }
+
+/**
+ * Sede do município (lat/lng IBGE). Match exato de nome; com UF filtra o estado.
+ * Sem UF, só devolve se o nome for único no Brasil (evita "Bom Jesus" errado).
+ */
+export async function coordsSedeMunicipio(
+  nome: string,
+  uf?: string | null,
+): Promise<{ lat: number; lng: number; nome: string; uf: UfBr } | null> {
+  const n = normalizarTexto(nome)
+  if (!n) return null
+  const lista = await carregarCatalogoMunicipios()
+  const ufOk = (uf || '').trim().toUpperCase()
+  const pool = ufOk ? lista.filter((m) => m.uf === ufOk) : lista
+  const exact = pool.filter((m) => normalizarTexto(m.nome) === n)
+  if (exact.length !== 1) return null
+  const hit = exact[0]
+  if (!Number.isFinite(hit.lat) || !Number.isFinite(hit.lng)) return null
+  return { lat: hit.lat, lng: hit.lng, nome: hit.nome, uf: hit.uf }
+}

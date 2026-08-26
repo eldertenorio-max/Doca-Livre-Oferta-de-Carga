@@ -3,6 +3,8 @@
  * Usado na origem residencial do transportador (não no endereço do CNPJ).
  */
 
+import { coordsSedeMunicipio } from './geoBrasil'
+
 export type EnderecoCampos = {
   cep: string
   cidade: string
@@ -291,12 +293,22 @@ function pareceComplementoBr(parte: string): boolean {
   )
 }
 
+/** Remove ", Brasil" / "- Brazil" do fim — senão "Arujá - SP, Brasil" não parseia como município. */
+function stripSufixoPaisBr(consulta: string): string {
+  return consulta
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/[,;]\s*(Brasil|Brazil)\s*$/i, '')
+    .replace(/\s+[-–]\s*(Brasil|Brazil)\s*$/i, '')
+    .trim()
+}
+
 /**
  * Interpreta endereços BR no estilo Google / nota fiscal:
  * "Rodovia X, 975 - KM 33 Quadra GI Lote … - Bairro - Cidade - SP - CEP 06.696-000"
  */
 export function parseEnderecoBrLivre(consulta: string): EnderecoBrParseado {
-  const original = consulta.trim().replace(/\s+/g, ' ')
+  const original = stripSufixoPaisBr(consulta)
   let resto = original
   const cep = extrairCepDigitado(resto) || ''
   if (cep) {
@@ -984,7 +996,7 @@ export async function sugerirEnderecos(
 export async function geocodificarConsulta(
   consulta: string,
 ): Promise<{ ok: true; coords: Coordenadas; display?: string } | { ok: false; erro: string }> {
-  const q = consulta.trim()
+  const q = stripSufixoPaisBr(consulta)
   if (q.length < 3) return { ok: false, erro: 'Digite um endereço ou lugar.' }
 
   const parsed = parseEnderecoBrLivre(q)
@@ -1019,13 +1031,25 @@ export async function geocodificarConsulta(
       ? { cidade: parsed.cidade, uf: parsed.uf }
       : parseCidadeUf(q.replace(/\bCEP\s*[:.]?\s*[\d.\-\s]+/i, '').trim())
   const temNumero = Boolean(parsed.numero || extrairNumeroDigitado(q))
-  const pareceLogradouro = pareceLogradouroTxt(q) || Boolean(parsed.logradouro)
+  const temTipoLogradouro = pareceLogradouroTxt(q)
 
   // Só trata como município puro se não houver número nem logradouro
-  if (mun && !temNumero && !pareceLogradouro && !parsed.rico) {
+  if (mun && !temNumero && !temTipoLogradouro && !parsed.rico) {
     const geo = await geocodificarMunicipioBr(mun.cidade, mun.uf)
     if (geo) {
       return { ok: true, coords: { lat: geo.lat, lng: geo.lng }, display: geo.display }
+    }
+  }
+
+  // Nome de cidade sem UF: só se for único no IBGE (Arujá, Guarulhos…)
+  if (!mun && !temNumero && !temTipoLogradouro && !parsed.rico && !parsed.cep) {
+    const sede = await coordsSedeMunicipio(parsed.cidade || q, parsed.uf || null)
+    if (sede) {
+      return {
+        ok: true,
+        coords: { lat: sede.lat, lng: sede.lng },
+        display: `${sede.nome} - ${sede.uf}`,
+      }
     }
   }
 
@@ -1101,7 +1125,7 @@ function normalizarGeo(s: string): string {
 
 /** Extrai "Cidade - UF" / "Cidade-UF" / "Cidade, UF" de textos de rota. */
 export function parseCidadeUf(consulta: string): { cidade: string; uf: string } | null {
-  const raw = consulta.trim().replace(/\s+/g, ' ')
+  const raw = stripSufixoPaisBr(consulta)
   if (!raw) return null
 
   // "Ribeirão Preto - SP" | "Ribeirão Preto, SP" | "Ribeirão Preto – SP"
@@ -1125,17 +1149,120 @@ export function parseCidadeUf(consulta: string): { cidade: string; uf: string } 
   return null
 }
 
+async function nominatimEscolherMunicipio(
+  url: URL,
+  cidade: string,
+  ufUp: string,
+  estado: string,
+): Promise<{ lat: number; lng: number; display: string } | null> {
+  const res = await fetch(url.toString(), {
+    headers: {
+      Accept: 'application/json',
+      'Accept-Language': 'pt-BR,pt;q=0.9',
+    },
+  })
+  if (!res.ok) return null
+  const rows = (await res.json()) as (NominatimHit & {
+    type?: string
+    class?: string
+    importance?: number
+  })[]
+
+  const cidadeNorm = normalizarGeo(cidade)
+  const estadoNorm = normalizarGeo(estado)
+  let best: { lat: number; lng: number; display: string; score: number } | null = null
+
+  for (const hit of rows) {
+    const lat = hit.lat != null ? Number(hit.lat) : NaN
+    const lng = hit.lon != null ? Number(hit.lon) : NaN
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
+
+    const a = hit.address
+    const nomeLocal = normalizarGeo(
+      a?.city || a?.town || a?.village || a?.municipality || hit.display_name?.split(',')[0] || '',
+    )
+    const estadoHit = normalizarGeo(limparEstado(a?.state || ''))
+    const display = (hit.display_name || '').trim()
+    const displayNorm = normalizarGeo(display)
+
+    let score = Number(hit.importance ?? 0) * 10
+    if (nomeLocal === cidadeNorm || displayNorm.startsWith(cidadeNorm)) score += 50
+    else if (nomeLocal.includes(cidadeNorm) || displayNorm.includes(cidadeNorm)) score += 25
+    else continue
+
+    if (
+      estadoHit.includes(estadoNorm) ||
+      estadoHit === normalizarGeo(ufUp) ||
+      displayNorm.includes(` ${normalizarGeo(ufUp)}`) ||
+      displayNorm.includes(estadoNorm)
+    ) {
+      score += 40
+    } else {
+      score -= 30
+    }
+
+    const tipo = `${hit.class || ''}/${hit.type || ''}`.toLowerCase()
+    if (
+      tipo.includes('city') ||
+      tipo.includes('town') ||
+      tipo.includes('municipality') ||
+      tipo.includes('administrative')
+    ) {
+      score += 20
+    }
+    if (tipo.includes('highway') || tipo.includes('residential') || tipo.includes('shop')) {
+      score -= 40
+    }
+
+    if (!best || score > best.score) {
+      best = { lat, lng, display: display || `${cidade} - ${ufUp}`, score }
+    }
+  }
+
+  return best && best.score >= 40 ? best : null
+}
+
 async function geocodificarMunicipioBr(
   cidade: string,
   uf: string,
 ): Promise<{ lat: number; lng: number; display: string } | null> {
   const ufUp = uf.toUpperCase()
   const estado = UF_NOME[ufUp] || ufUp
+
+  try {
+    const sede = await coordsSedeMunicipio(cidade, ufUp)
+    if (sede) {
+      return {
+        lat: sede.lat,
+        lng: sede.lng,
+        display: `${sede.nome} - ${sede.uf}`,
+      }
+    }
+  } catch {
+    /* Nominatim */
+  }
+
   const queries = [
     `${cidade}, ${ufUp}, Brasil`,
     `${cidade}, ${estado}, Brasil`,
     `${cidade}, ${estado}, Brazil`,
   ]
+
+  try {
+    const url = new URL('https://nominatim.openstreetmap.org/search')
+    url.searchParams.set('format', 'json')
+    url.searchParams.set('addressdetails', '1')
+    url.searchParams.set('limit', '8')
+    url.searchParams.set('countrycodes', 'br')
+    url.searchParams.set('city', cidade)
+    url.searchParams.set('state', estado)
+    url.searchParams.set('country', 'Brasil')
+    url.searchParams.set('featureType', 'city')
+    const structured = await nominatimEscolherMunicipio(url, cidade, ufUp, estado)
+    if (structured) return structured
+  } catch {
+    /* tenta query livre */
+  }
 
   for (const q of queries) {
     try {
@@ -1145,73 +1272,8 @@ async function geocodificarMunicipioBr(
       url.searchParams.set('limit', '8')
       url.searchParams.set('countrycodes', 'br')
       url.searchParams.set('q', q)
-
-      const res = await fetch(url.toString(), {
-        headers: {
-          Accept: 'application/json',
-          'Accept-Language': 'pt-BR,pt;q=0.9',
-        },
-      })
-      if (!res.ok) continue
-      const rows = (await res.json()) as (NominatimHit & {
-        type?: string
-        class?: string
-        importance?: number
-      })[]
-
-      const cidadeNorm = normalizarGeo(cidade)
-      const estadoNorm = normalizarGeo(estado)
-      let best: { lat: number; lng: number; display: string; score: number } | null = null
-
-      for (const hit of rows) {
-        const lat = hit.lat != null ? Number(hit.lat) : NaN
-        const lng = hit.lon != null ? Number(hit.lon) : NaN
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
-
-        const a = hit.address
-        const nomeLocal = normalizarGeo(
-          a?.city || a?.town || a?.village || a?.municipality || hit.display_name?.split(',')[0] || '',
-        )
-        const estadoHit = normalizarGeo(limparEstado(a?.state || ''))
-        const display = (hit.display_name || '').trim()
-        const displayNorm = normalizarGeo(display)
-
-        let score = Number(hit.importance ?? 0) * 10
-        if (nomeLocal === cidadeNorm || displayNorm.startsWith(cidadeNorm)) score += 50
-        else if (nomeLocal.includes(cidadeNorm) || displayNorm.includes(cidadeNorm)) score += 25
-        else continue // nome da cidade não bate — evita "Ribeirão" errado em SP capital
-
-        if (
-          estadoHit.includes(estadoNorm) ||
-          estadoHit === normalizarGeo(ufUp) ||
-          displayNorm.includes(` ${normalizarGeo(ufUp)}`) ||
-          displayNorm.includes(estadoNorm)
-        ) {
-          score += 40
-        } else {
-          score -= 30
-        }
-
-        const tipo = `${hit.class || ''}/${hit.type || ''}`.toLowerCase()
-        if (
-          tipo.includes('city') ||
-          tipo.includes('town') ||
-          tipo.includes('municipality') ||
-          tipo.includes('administrative')
-        ) {
-          score += 20
-        }
-        // Penaliza rua/POI
-        if (tipo.includes('highway') || tipo.includes('residential') || tipo.includes('shop')) {
-          score -= 40
-        }
-
-        if (!best || score > best.score) {
-          best = { lat, lng, display: display || `${cidade} - ${ufUp}`, score }
-        }
-      }
-
-      if (best && best.score >= 40) return best
+      const best = await nominatimEscolherMunicipio(url, cidade, ufUp, estado)
+      if (best) return best
     } catch {
       /* tenta próxima query */
     }

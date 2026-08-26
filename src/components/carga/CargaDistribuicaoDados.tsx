@@ -454,25 +454,36 @@ export function CargaDistribuicaoDados({
     for (const c of cidadesDist) {
       const txt = (c.cidade || '').trim()
       if (txt.length < 3) continue
-      if (c.lat != null && c.lng != null) continue
       const id = c.id
       const t = window.setTimeout(() => {
         void (async () => {
-          const res = await geocodificarConsulta(`${txt}, Brasil`)
+          const res = await geocodificarConsulta(txt)
           if (!res.ok) return
-          skipRevCidades.current[id] = true
-          setCidadesDist((prev) =>
-            prev.map((x) =>
-              x.id === id
-                ? {
-                    ...x,
-                    lat: res.coords.lat,
-                    lng: res.coords.lng,
-                    mapsStr: fmtMapsCoords(res.coords.lat, res.coords.lng),
-                  }
-                : x,
-            ),
-          )
+          setCidadesDist((prev) => {
+            let changed = false
+            const next = prev.map((x) => {
+              if (x.id !== id) return x
+              if ((x.cidade || '').trim() !== txt) return x
+              const jaTem = x.lat != null && x.lng != null
+              if (jaTem) {
+                const dLat = (Number(x.lat) - res.coords.lat) * 111
+                const dLng =
+                  (Number(x.lng) - res.coords.lng) *
+                  111 *
+                  Math.cos((Number(x.lat) * Math.PI) / 180)
+                if (Math.hypot(dLat, dLng) < 35) return x
+              }
+              changed = true
+              return {
+                ...x,
+                lat: res.coords.lat,
+                lng: res.coords.lng,
+                mapsStr: fmtMapsCoords(res.coords.lat, res.coords.lng),
+              }
+            })
+            if (changed) skipRevCidades.current[id] = true
+            return changed ? next : prev
+          })
         })()
       }, 700)
       timers.push(t)
