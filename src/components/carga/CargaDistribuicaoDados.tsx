@@ -326,6 +326,15 @@ export function CargaDistribuicaoDados({
   useEffect(() => {
     if (!editavel) return
     const txt = origem.trim()
+    const sede = coordsSedePorLabel(txt)
+    if (sede) {
+      skipGeoOrigem.current = false
+      skipRevOrigem.current = true
+      setOrigemLat(sede.lat)
+      setOrigemLng(sede.lng)
+      setOrigemMapsStr(fmtMapsCoords(sede.lat, sede.lng))
+      return
+    }
     if (skipGeoOrigem.current) {
       skipGeoOrigem.current = false
       return

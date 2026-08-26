@@ -29,6 +29,9 @@ function getIndex(): CidadeIndex[] {
 /** Busca municípios BR no formato "Cidade - UF". */
 export function buscarCidades(query: string, limit = 14): string[] {
   const q = normalizarTexto(query)
+    .replace(/\s*[-–,]\s*[a-z]{2}$/i, '')
+    .replace(/\s*[-–,]\s*(brasil|brazil)$/i, '')
+    .trim()
   if (q.length < 2) return []
 
   const starts: CidadeIndex[] = []

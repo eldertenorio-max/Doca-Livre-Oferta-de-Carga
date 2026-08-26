@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { coordsSedePorLabel } from '../../lib/municipiosSedes'
 import {
   aplicarNumeroDigitado,
   sugerirEnderecos,
+  sugestaoComSedeIbge,
   type SugestaoEndereco,
 } from '../../lib/geocodeEndereco'
 import { inputClass } from './Modal'
@@ -110,10 +112,22 @@ export function AddressSuggestInput({
   function pick(opt: { label: string }, index: number) {
     const rem = remote[index]
     if (rem && options[index]?.key.startsWith('r-')) {
-      onChange(aplicarNumeroDigitado(rem, value))
-      onPick?.(rem)
+      const sug = sugestaoComSedeIbge(rem)
+      onChange(aplicarNumeroDigitado(sug, value))
+      onPick?.(sug)
     } else {
       onChange(opt.label)
+      const sede = coordsSedePorLabel(opt.label)
+      if (sede && onPick) {
+        onPick({
+          label: opt.label,
+          primary: opt.label,
+          secondary: 'Município',
+          display: opt.label,
+          lat: sede.lat,
+          lng: sede.lng,
+        })
+      }
     }
     setOpen(false)
   }

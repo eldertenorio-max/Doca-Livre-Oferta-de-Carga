@@ -3,7 +3,14 @@
  * Usado na origem residencial do transportador (não no endereço do CNPJ).
  */
 
-import { coordsSedeMunicipio } from './municipiosSedes'
+import {
+  coordsSedeMunicipio,
+  coordsSedePorLabel,
+  parseCidadeUf,
+  sugerirCidadesComCoords,
+} from './municipiosSedes'
+
+export { parseCidadeUf } from './municipiosSedes'
 
 export type EnderecoCampos = {
   cep: string
@@ -445,6 +452,60 @@ export function parseEnderecoBrLivre(consulta: string): EnderecoBrParseado {
   }
 }
 
+function kmAprox(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const dLat = (a.lat - b.lat) * 111
+  const dLng = (a.lng - b.lng) * 111 * Math.cos((a.lat * Math.PI) / 180)
+  return Math.hypot(dLat, dLng)
+}
+
+/** Se a sugestão é um município, troca lat/lng da rua homônima pela sede IBGE. */
+export function sugestaoComSedeIbge(sug: SugestaoEndereco): SugestaoEndereco {
+  if (sug.housenumber) return sug
+  if (pareceLogradouroTxt(sug.label) || pareceLogradouroTxt(sug.primary)) return sug
+  const sede =
+    coordsSedePorLabel(sug.label) ||
+    coordsSedePorLabel([sug.primary, sug.secondary].filter(Boolean).join(', '))
+  if (!sede) return sug
+  if (kmAprox(sug, sede) < 25) return sug
+  const label = `${sede.nome} - ${sede.uf}`
+  return {
+    ...sug,
+    lat: sede.lat,
+    lng: sede.lng,
+    label,
+    primary: label,
+    secondary: 'Município',
+    display: label,
+  }
+}
+
+function mergeSugestoesCidade(
+  cidades: SugestaoEndereco[],
+  hits: SugestaoEndereco[],
+  consulta: string,
+  limit: number,
+): SugestaoEndereco[] {
+  const seen = new Set<string>()
+  const out: SugestaoEndereco[] = []
+  const push = (s: SugestaoEndereco) => {
+    const key = `${s.lat.toFixed(4)},${s.lng.toFixed(4)}|${s.label.toLowerCase()}`
+    if (seen.has(key)) return
+    seen.add(key)
+    out.push(s)
+  }
+  for (const c of cidades) push(c)
+  for (const h of hits.map(sugestaoComSedeIbge)) {
+    const sede = coordsSedePorLabel(h.label)
+    if (sede && kmAprox(h, sede) < 1) continue
+    push(h)
+    if (out.length >= limit) break
+  }
+  return decorarSugestoesComNumero(out.slice(0, limit), consulta)
+}
+
 function pareceLogradouroTxt(s: string): boolean {
   return /\b(rua|r\.|avenida|av\.?|alameda|al\.|travessa|tv\.?|rodovia|rod\.|estrada|est\.|praça|praca|largo|viela|via)\b/i.test(
     s,
@@ -859,9 +920,12 @@ async function sugerirEnderecosPhoton(
   // Bounding box aproximado do Brasil
   url.searchParams.set('bbox', '-74,-34,-34,6')
 
-  // Viés SP só para busca de rua (não para "Cidade - UF", que enviesava Ribeirão Preto → capital)
+  // Viés SP só para busca de rua (não para município IBGE)
   const mun = parseCidadeUf(consulta)
-  if (!mun) {
+  const pareceCidade =
+    Boolean(mun) ||
+    Boolean(!pareceLogradouroTxt(consulta) && coordsSedePorLabel(consulta))
+  if (!pareceCidade) {
     url.searchParams.set('lat', '-23.55')
     url.searchParams.set('lon', '-46.63')
     url.searchParams.set('location_bias_scale', '0.25')
@@ -914,8 +978,7 @@ async function sugerirEnderecosNominatim(
 
 /**
  * Sugestões de endereço estilo Google Maps (Photon, fallback Nominatim).
- * Debounce no componente que chama.
- * Endereços BR longos (KM/Quadra/CEP) usam query enxuta para achar o local.
+ * Municípios IBGE vêm primeiro, com a sede correta (não rua homônima em SP).
  */
 export async function sugerirEnderecos(
   consulta: string,
@@ -923,6 +986,17 @@ export async function sugerirEnderecos(
 ): Promise<SugestaoEndereco[]> {
   const q = consulta.trim()
   if (q.length < 2) return []
+
+  const cidadesIbge: SugestaoEndereco[] = sugerirCidadesComCoords(q, Math.min(8, limit)).map(
+    (c) => ({
+      label: c.label,
+      primary: c.primary,
+      secondary: c.secondary,
+      display: c.display,
+      lat: c.lat,
+      lng: c.lng,
+    }),
+  )
 
   const parsed = parseEnderecoBrLivre(q)
   const queries = Array.from(
@@ -985,7 +1059,7 @@ export async function sugerirEnderecos(
     }
   }
 
-  return decorarSugestoesComNumero(hits, q)
+  return mergeSugestoesCidade(cidadesIbge, hits, q, limit)
 }
 
 /**
@@ -1026,29 +1100,26 @@ export async function geocodificarConsulta(
     }
   }
 
-  const mun =
-    parsed.cidade && parsed.uf
-      ? { cidade: parsed.cidade, uf: parsed.uf }
-      : parseCidadeUf(q.replace(/\bCEP\s*[:.]?\s*[\d.\-\s]+/i, '').trim())
   const temNumero = Boolean(parsed.numero || extrairNumeroDigitado(q))
   const temTipoLogradouro = pareceLogradouroTxt(q)
+  const mun =
+    parseCidadeUf(q) ||
+    (parsed.cidade && parsed.uf ? { cidade: parsed.cidade, uf: parsed.uf } : null)
 
-  // Município puro: sede IBGE. Não cai no Photon (evita "Rua São José dos Campos" em SP).
-  if (mun && !temNumero && !temTipoLogradouro) {
-    const geo = await geocodificarMunicipioBr(mun.cidade, mun.uf)
-    if (geo) {
-      return { ok: true, coords: { lat: geo.lat, lng: geo.lng }, display: geo.display }
-    }
-  }
-
-  // Nome de cidade sem UF: só se for único no IBGE (Arujá, Guarulhos…)
-  if (!mun && !temNumero && !temTipoLogradouro && !parsed.rico && !parsed.cep) {
-    const sede = coordsSedeMunicipio(parsed.cidade || q, parsed.uf || null)
+  // Município puro: sede IBGE (não cai no Photon / rua homônima em SP).
+  if (!temNumero && !temTipoLogradouro && !parsed.cep) {
+    const sede = coordsSedePorLabel(q)
     if (sede) {
       return {
         ok: true,
         coords: { lat: sede.lat, lng: sede.lng },
         display: `${sede.nome} - ${sede.uf}`,
+      }
+    }
+    if (mun) {
+      const geo = await geocodificarMunicipioBr(mun.cidade, mun.uf)
+      if (geo) {
+        return { ok: true, coords: { lat: geo.lat, lng: geo.lng }, display: geo.display }
       }
     }
   }
@@ -1057,10 +1128,11 @@ export async function geocodificarConsulta(
   const hits = await sugerirEnderecos(q, 8)
   const melhor = escolherMelhorHit(hits, q, mun?.uf || parsed.uf || undefined)
   if (melhor) {
+    const fix = sugestaoComSedeIbge(melhor)
     return {
       ok: true,
-      coords: { lat: melhor.lat, lng: melhor.lng },
-      display: displayFinal || aplicarNumeroDigitado(melhor, q),
+      coords: { lat: fix.lat, lng: fix.lng },
+      display: displayFinal || aplicarNumeroDigitado(fix, q),
     }
   }
 
@@ -1121,32 +1193,6 @@ function normalizarGeo(s: string): string {
     .toLowerCase()
     .replace(/\s+/g, ' ')
     .trim()
-}
-
-/** Extrai "Cidade - UF" / "Cidade-UF" / "Cidade, UF" de textos de rota. */
-export function parseCidadeUf(consulta: string): { cidade: string; uf: string } | null {
-  const raw = stripSufixoPaisBr(consulta)
-  if (!raw) return null
-
-  // "Ribeirão Preto - SP" | "Ribeirão Preto, SP" | "Ribeirão Preto – SP"
-  let m = raw.match(/^(.+?)\s*[-–,]\s*([A-Za-zÁÉÍÓÚÂÊÔÃÕÇ]{2})\s*$/u)
-  if (m && UFS_BR.has(m[2].toUpperCase())) {
-    return { cidade: m[1].trim(), uf: m[2].toUpperCase() }
-  }
-
-  // "RIBEIRAO PRETO-SP" (sem espaço antes da UF)
-  m = raw.match(/^(.+)-([A-Za-z]{2})$/)
-  if (m && UFS_BR.has(m[2].toUpperCase())) {
-    return { cidade: m[1].trim(), uf: m[2].toUpperCase() }
-  }
-
-  // "Ribeirão Preto SP" (espaço + UF no fim)
-  m = raw.match(/^(.+?)\s+([A-Za-z]{2})$/)
-  if (m && UFS_BR.has(m[2].toUpperCase()) && m[1].trim().length >= 3) {
-    return { cidade: m[1].trim(), uf: m[2].toUpperCase() }
-  }
-
-  return null
 }
 
 async function nominatimEscolherMunicipio(

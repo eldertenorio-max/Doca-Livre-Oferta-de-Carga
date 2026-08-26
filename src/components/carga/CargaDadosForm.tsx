@@ -29,10 +29,12 @@ import { AddressSuggestInput, PLACEHOLDER_ENDERECO_EXEMPLO } from "../ui/Address
 import { joinCarrocerias, parseCarrocerias } from "../../lib/tiposCarroceria";
 import { limparPontosPassagemRota, newPontoPassagemId, newRotaId } from "../../lib/rotasSync";
 import { fmtMapsCoords, parseMapsCoords } from "../../lib/mapsCoords";
+import { coordsSedePorLabel } from "../../lib/municipiosSedes";
 import {
   enderecoPorCoordenadas,
   geocodificarConsulta,
   type EnderecoCampos,
+  type SugestaoEndereco,
 } from "../../lib/geocodeEndereco";
 import { CarroceriaSuggestInput } from "../ui/CarroceriaSuggestInput";
 import { VeiculoSuggestInput } from "../ui/VeiculoSuggestInput";
@@ -812,6 +814,33 @@ function CargaDadosFormLongoPercurso({
     const timers: number[] = [];
     for (const p of pontosPassagem) {
       const txt = (p.endereco || "").trim();
+      if (txt.length < 3) continue;
+      const sede = coordsSedePorLabel(txt);
+      if (sede) {
+        const jaTem = p.lat != null && p.lng != null;
+        if (
+          jaTem &&
+          Math.hypot(
+            (Number(p.lat) - sede.lat) * 111,
+            (Number(p.lng) - sede.lng) *
+              111 *
+              Math.cos((Number(p.lat) * Math.PI) / 180),
+          ) < 25
+        ) {
+          continue;
+        }
+        skipRevPontos.current[p.id] = true;
+        setPontosPassagem((prev) =>
+          prev.map((x) =>
+            x.id === p.id ? { ...x, lat: sede.lat, lng: sede.lng } : x,
+          ),
+        );
+        setPontosMapsStr((prev) => ({
+          ...prev,
+          [p.id]: fmtMapsCoords(sede.lat, sede.lng),
+        }));
+        continue;
+      }
       if (txt.length < 5) continue;
       if (p.lat != null && p.lng != null) continue;
       const id = p.id;
@@ -885,6 +914,15 @@ function CargaDadosFormLongoPercurso({
   useEffect(() => {
     if (!editavel) return;
     const txt = origem.trim();
+    const sede = coordsSedePorLabel(txt);
+    if (sede) {
+      skipGeoOrigem.current = false;
+      skipRevOrigem.current = true;
+      setOrigemLat(sede.lat);
+      setOrigemLng(sede.lng);
+      setOrigemMapsStr(fmtMapsCoords(sede.lat, sede.lng));
+      return;
+    }
     if (skipGeoOrigem.current) {
       skipGeoOrigem.current = false;
       return;
@@ -911,6 +949,15 @@ function CargaDadosFormLongoPercurso({
   useEffect(() => {
     if (!editavel) return;
     const txt = destino.trim();
+    const sede = coordsSedePorLabel(txt);
+    if (sede) {
+      skipGeoDestino.current = false;
+      skipRevDestino.current = true;
+      setDestinoLat(sede.lat);
+      setDestinoLng(sede.lng);
+      setDestinoMapsStr(fmtMapsCoords(sede.lat, sede.lng));
+      return;
+    }
     if (skipGeoDestino.current) {
       skipGeoDestino.current = false;
       return;
@@ -1636,6 +1683,15 @@ function CargaDadosFormLongoPercurso({
                 setOrigem(v);
                 if (rotaId && v.trim() !== origem.trim()) setRotaId("");
               }}
+              onPick={(sug: SugestaoEndereco) => {
+                skipGeoOrigem.current = true;
+                skipRevOrigem.current = true;
+                setOrigem(sug.label);
+                setOrigemLat(sug.lat);
+                setOrigemLng(sug.lng);
+                setOrigemMapsStr(fmtMapsCoords(sug.lat, sug.lng));
+                if (rotaId) setRotaId("");
+              }}
               localSuggestions={sugOrigem}
               minChars={2}
               placeholder={PLACEHOLDER_ENDERECO_EXEMPLO}
@@ -1647,6 +1703,15 @@ function CargaDadosFormLongoPercurso({
               onChange={(v) => {
                 setDestino(v);
                 if (rotaId && v.trim() !== destino.trim()) setRotaId("");
+              }}
+              onPick={(sug: SugestaoEndereco) => {
+                skipGeoDestino.current = true;
+                skipRevDestino.current = true;
+                setDestino(sug.label);
+                setDestinoLat(sug.lat);
+                setDestinoLng(sug.lng);
+                setDestinoMapsStr(fmtMapsCoords(sug.lat, sug.lng));
+                if (rotaId) setRotaId("");
               }}
               localSuggestions={sugDestino}
               minChars={2}
@@ -1730,6 +1795,18 @@ function CargaDadosFormLongoPercurso({
                             lng: null,
                           })
                         }
+                        onPick={(sug: SugestaoEndereco) => {
+                          skipRevPontos.current[p.id] = true;
+                          atualizarPonto(p.id, {
+                            endereco: sug.label,
+                            lat: sug.lat,
+                            lng: sug.lng,
+                          });
+                          setPontosMapsStr((prev) => ({
+                            ...prev,
+                            [p.id]: fmtMapsCoords(sug.lat, sug.lng),
+                          }));
+                        }}
                         localSuggestions={sugPonto}
                         minChars={2}
                         placeholder={PLACEHOLDER_ENDERECO_EXEMPLO}

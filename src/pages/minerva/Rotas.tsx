@@ -7,8 +7,10 @@ import {
   enderecoPorCoordenadas,
   geocodificarConsulta,
   type EnderecoCampos,
+  type SugestaoEndereco,
 } from '../../lib/geocodeEndereco'
 import { fmtMapsCoords, parseMapsCoords } from '../../lib/mapsCoords'
+import { coordsSedePorLabel } from '../../lib/municipiosSedes'
 import { rotaOsrmComGeometria } from '../../lib/anttPedagioAberto'
 import { distanciaKm } from '../../lib/mapaFrota'
 import type { ClassificacaoRota, PontoPassagemRota, Rota } from '../../types'
@@ -257,6 +259,18 @@ export function RotasPage() {
   // Endereço origem → lat/lng
   useEffect(() => {
     const txt = (form.origem || '').trim()
+    const sede = coordsSedePorLabel(txt)
+    if (sede) {
+      skipGeoOrigem.current = false
+      skipRevOrigem.current = true
+      setOrigemMapsStr(fmtMapsCoords(sede.lat, sede.lng))
+      setForm((prev) => ({
+        ...prev,
+        origem_lat: sede.lat,
+        origem_lng: sede.lng,
+      }))
+      return
+    }
     if (skipGeoOrigem.current) {
       skipGeoOrigem.current = false
       return
@@ -291,6 +305,18 @@ export function RotasPage() {
   // Endereço destino → lat/lng
   useEffect(() => {
     const txt = (form.destino || '').trim()
+    const sede = coordsSedePorLabel(txt)
+    if (sede) {
+      skipGeoDestino.current = false
+      skipRevDestino.current = true
+      setDestinoMapsStr(fmtMapsCoords(sede.lat, sede.lng))
+      setForm((prev) => ({
+        ...prev,
+        destino_lat: sede.lat,
+        destino_lng: sede.lng,
+      }))
+      return
+    }
     if (skipGeoDestino.current) {
       skipGeoDestino.current = false
       return
@@ -942,6 +968,18 @@ export function RotasPage() {
                 kmManual.current = false
                 setForm({ ...form, origem })
               }}
+              onPick={(sug: SugestaoEndereco) => {
+                kmManual.current = false
+                skipGeoOrigem.current = true
+                skipRevOrigem.current = true
+                setOrigemMapsStr(fmtMapsCoords(sug.lat, sug.lng))
+                setForm({
+                  ...form,
+                  origem: sug.label,
+                  origem_lat: sug.lat,
+                  origem_lng: sug.lng,
+                })
+              }}
               localSuggestions={sugOrigem}
               minChars={2}
               placeholder={PLACEHOLDER_ENDERECO_EXEMPLO}
@@ -953,6 +991,18 @@ export function RotasPage() {
               onChange={(destino) => {
                 kmManual.current = false
                 setForm({ ...form, destino })
+              }}
+              onPick={(sug: SugestaoEndereco) => {
+                kmManual.current = false
+                skipGeoDestino.current = true
+                skipRevDestino.current = true
+                setDestinoMapsStr(fmtMapsCoords(sug.lat, sug.lng))
+                setForm({
+                  ...form,
+                  destino: sug.label,
+                  destino_lat: sug.lat,
+                  destino_lng: sug.lng,
+                })
               }}
               localSuggestions={sugDestino}
               minChars={2}
@@ -1038,6 +1088,20 @@ export function RotasPage() {
                         onChange={(endereco) => {
                           kmManual.current = false
                           atualizarPonto(p.id, { endereco, lat: null, lng: null })
+                        }}
+                        onPick={(sug: SugestaoEndereco) => {
+                          kmManual.current = false
+                          skipGeoPontos.current.add(p.id)
+                          skipRevPontos.current.add(p.id)
+                          atualizarPonto(p.id, {
+                            endereco: sug.label,
+                            lat: sug.lat,
+                            lng: sug.lng,
+                          })
+                          setPontosMapsStr((prev) => ({
+                            ...prev,
+                            [p.id]: fmtMapsCoords(sug.lat, sug.lng),
+                          }))
                         }}
                         localSuggestions={sugPonto}
                         minChars={2}
