@@ -868,6 +868,80 @@ export function AreaAtendimentoView() {
     <div className="mapa-log__body">
       <aside className="mapa-log__side">
         <section className="mapa-log__panel">
+          <h2>
+            {modo === 'estado'
+              ? 'Buscar estado'
+              : modo === 'regiao'
+                ? 'Buscar região'
+                : modo === 'bairro'
+                  ? 'Buscar cidade (São Paulo: zonas)'
+                  : 'Buscar cidade'}
+          </h2>
+          <label className="area-att-search">
+            <Search size={15} />
+            <input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder={
+                modo === 'estado'
+                  ? 'Ex.: São Paulo'
+                  : modo === 'regiao'
+                    ? 'Ex.: Sudeste'
+                    : modo === 'bairro'
+                      ? 'Ex.: Guarulhos'
+                      : 'Ex.: Guarulhos'
+              }
+              disabled={!modo}
+            />
+          </label>
+          {(modo === 'cidade' || modo === 'bairro') && sugestoesCidade.length > 0 ? (
+            <ul className="area-att-sug">
+              {sugestoesCidade.map((m) => (
+                <li key={m.id}>
+                  <button type="button" onClick={() => void escolherSugestaoCidade(m)}>
+                    {m.nome} — {m.uf}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {modo === 'estado' && sugestoesEstado.length > 0 ? (
+            <ul className="area-att-sug">
+              {sugestoesEstado.map((uf) => (
+                <li key={uf}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBusca('')
+                      persistPatch((a) => toggleEstado(a, uf))
+                    }}
+                  >
+                    {UF_CENTRO[uf].nome} — {uf}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {modo === 'regiao' && sugestoesRegiao.length > 0 ? (
+            <ul className="area-att-sug">
+              {sugestoesRegiao.map((r) => (
+                <li key={r}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBusca('')
+                      persistPatch((a) => toggleRegiao(a, r))
+                    }}
+                  >
+                    {r}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+
+        <section className="mapa-log__panel">
           <div className="area-att-info-head">
             <h2>Como marcar</h2>
             <button
@@ -1046,80 +1120,6 @@ export function AreaAtendimentoView() {
             </select>
           </section>
         ) : null}
-
-        <section className="mapa-log__panel">
-          <h2>
-            {modo === 'estado'
-              ? 'Buscar estado'
-              : modo === 'regiao'
-                ? 'Buscar região'
-                : modo === 'bairro'
-                  ? 'Buscar cidade (São Paulo: zonas)'
-                  : 'Buscar cidade'}
-          </h2>
-          <label className="area-att-search">
-            <Search size={15} />
-            <input
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder={
-                modo === 'estado'
-                  ? 'Ex.: São Paulo'
-                  : modo === 'regiao'
-                    ? 'Ex.: Sudeste'
-                    : modo === 'bairro'
-                      ? 'Ex.: Guarulhos'
-                      : 'Ex.: Guarulhos'
-              }
-              disabled={!modo}
-            />
-          </label>
-          {(modo === 'cidade' || modo === 'bairro') && sugestoesCidade.length > 0 ? (
-            <ul className="area-att-sug">
-              {sugestoesCidade.map((m) => (
-                <li key={m.id}>
-                  <button type="button" onClick={() => void escolherSugestaoCidade(m)}>
-                    {m.nome} — {m.uf}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {modo === 'estado' && sugestoesEstado.length > 0 ? (
-            <ul className="area-att-sug">
-              {sugestoesEstado.map((uf) => (
-                <li key={uf}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setBusca('')
-                      persistPatch((a) => toggleEstado(a, uf))
-                    }}
-                  >
-                    {UF_CENTRO[uf].nome} — {uf}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {modo === 'regiao' && sugestoesRegiao.length > 0 ? (
-            <ul className="area-att-sug">
-              {sugestoesRegiao.map((r) => (
-                <li key={r}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setBusca('')
-                      persistPatch((a) => toggleRegiao(a, r))
-                    }}
-                  >
-                    {r}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </section>
 
         <section className="mapa-log__panel">
           <h2>
