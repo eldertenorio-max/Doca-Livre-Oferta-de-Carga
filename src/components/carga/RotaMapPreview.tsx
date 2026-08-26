@@ -42,6 +42,8 @@ type Props = {
   autoCalcular?: boolean
   /** Incrementar para disparar o cálculo (quando autoCalcular=false). */
   calcularId?: number
+  /** Se true, mostra km/tempo (e custos) num resumo abaixo do mapa, em vez do cartão flutuante. */
+  resumoAbaixo?: boolean
 }
 
 function normWaypoint(w: RotaWaypointInput): {
@@ -149,6 +151,7 @@ export function RotaMapPreview({
   mostrarCustos = true,
   autoCalcular = true,
   calcularId = 0,
+  resumoAbaixo = false,
 }: Props) {
   const mapEl = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
@@ -444,69 +447,116 @@ export function RotaMapPreview({
   ])
 
   return (
-    <div
-      className={`rota-map-preview relative z-0 isolate overflow-hidden rounded-lg border border-ink/15 bg-[#f4f6f8] ${className}`}
-    >
-      <div ref={mapEl} className="absolute inset-0 z-0" />
-      {status === 'loading' || status === 'erro' || (status === 'idle' && autoCalcular) ? (
-        <div
-          data-pdf-ignore
-          className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-white/75 px-3 text-center"
-        >
-          <p
-            className={`text-xs font-semibold ${
-              status === 'erro' ? 'text-red-700' : 'text-ink-muted'
-            }`}
-          >
-            {status === 'loading' ? (mostrarCustos ? 'Calculando trajeto e pedágios…' : 'Calculando trajeto…') : msg}
-          </p>
-        </div>
-      ) : null}
-      {status === 'idle' && !autoCalcular ? (
-        <div
-          data-pdf-ignore
-          className="pointer-events-none absolute left-2 right-2 top-2 z-10 rounded-lg bg-white/95 px-3 py-2 text-center text-[11px] font-semibold text-ink-muted shadow-md ring-1 ring-ink/10"
-        >
-          {msg}
-        </div>
-      ) : null}
-      {status === 'circular' ? (
-        <div
-          data-pdf-ignore
-          className="absolute bottom-2 left-2 right-2 z-10 rounded-lg bg-teal-50/95 px-2.5 py-2 text-[11px] font-semibold text-teal-900 shadow-md ring-1 ring-teal-200"
-        >
-          {msg}
-        </div>
-      ) : null}
+    <div>
       <div
-        data-pdf-ignore
-        className="pointer-events-none absolute bottom-2 right-2 z-20 min-w-[132px] max-w-[min(100%,220px)] rounded-lg bg-white/95 px-2.5 py-2 text-[11px] text-ink shadow-md ring-1 ring-ink/10"
+        className={`rota-map-preview relative z-0 isolate overflow-hidden rounded-lg border border-ink/15 bg-[#f4f6f8] ${className}`}
       >
-        <p className="text-[10px] font-bold uppercase tracking-wide text-ink-muted">Total km</p>
-        <p className="text-sm font-extrabold tabular-nums text-ink">
-          {status === 'ok' && meta ? formatKm(meta.km) : status === 'loading' ? '…' : '—'}
-        </p>
-        <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-ink-muted">
-          Tempo em rota
-        </p>
-        <p className="text-sm font-extrabold tabular-nums text-blue-700">
-          {status === 'ok' && meta ? formatDur(meta.dur) : status === 'loading' ? '…' : '—'}
-        </p>
-        {mostrarCustos && status === 'ok' && meta ? (
-          <>
-            <p className="mt-1.5 font-bold text-orange-700 tabular-nums">
-              {formatCurrency(meta.pedagio)} Pedágio
-              {meta.pracas > 0 ? ` · ${meta.pracas} praça${meta.pracas === 1 ? '' : 's'}` : ''}
+        <div ref={mapEl} className="absolute inset-0 z-0" />
+        {status === 'loading' || status === 'erro' || (status === 'idle' && autoCalcular) ? (
+          <div
+            data-pdf-ignore
+            className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-white/75 px-3 text-center"
+          >
+            <p
+              className={`text-xs font-semibold ${
+                status === 'erro' ? 'text-red-700' : 'text-ink-muted'
+              }`}
+            >
+              {status === 'loading' ? (mostrarCustos ? 'Calculando trajeto e pedágios…' : 'Calculando trajeto…') : msg}
             </p>
-            <p className="font-semibold text-ink/80 tabular-nums">
-              {formatCurrency(meta.combustivel)} Comb.
-            </p>
-            <p className="mt-1 border-t border-ink/10 pt-1 font-extrabold tabular-nums">
-              {formatCurrency(meta.custo)} · {meta.eixos} eixos
-            </p>
-          </>
+          </div>
         ) : null}
+        {status === 'idle' && !autoCalcular ? (
+          <div
+            data-pdf-ignore
+            className="pointer-events-none absolute left-2 right-2 top-2 z-10 rounded-lg bg-white/95 px-3 py-2 text-center text-[11px] font-semibold text-ink-muted shadow-md ring-1 ring-ink/10"
+          >
+            {msg}
+          </div>
+        ) : null}
+        {status === 'circular' ? (
+          <div
+            data-pdf-ignore
+            className="absolute bottom-2 left-2 right-2 z-10 rounded-lg bg-teal-50/95 px-2.5 py-2 text-[11px] font-semibold text-teal-900 shadow-md ring-1 ring-teal-200"
+          >
+            {msg}
+          </div>
+        ) : null}
+        {!resumoAbaixo && (
+          <div
+            data-pdf-ignore
+            className="pointer-events-none absolute bottom-2 right-2 z-20 min-w-[132px] max-w-[min(100%,220px)] rounded-lg bg-white/95 px-2.5 py-2 text-[11px] text-ink shadow-md ring-1 ring-ink/10"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-wide text-ink-muted">Total km</p>
+            <p className="text-sm font-extrabold tabular-nums text-ink">
+              {status === 'ok' && meta ? formatKm(meta.km) : status === 'loading' ? '…' : '—'}
+            </p>
+            <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-ink-muted">
+              Tempo em rota
+            </p>
+            <p className="text-sm font-extrabold tabular-nums text-blue-700">
+              {status === 'ok' && meta ? formatDur(meta.dur) : status === 'loading' ? '…' : '—'}
+            </p>
+            {mostrarCustos && status === 'ok' && meta ? (
+              <>
+                <p className="mt-1.5 font-bold text-orange-700 tabular-nums">
+                  {formatCurrency(meta.pedagio)} Pedágio
+                  {meta.pracas > 0 ? ` · ${meta.pracas} praça${meta.pracas === 1 ? '' : 's'}` : ''}
+                </p>
+                <p className="font-semibold text-ink/80 tabular-nums">
+                  {formatCurrency(meta.combustivel)} Comb.
+                </p>
+                <p className="mt-1 border-t border-ink/10 pt-1 font-extrabold tabular-nums">
+                  {formatCurrency(meta.custo)} · {meta.eixos} eixos
+                </p>
+              </>
+            ) : null}
+          </div>
+        )}
       </div>
+      {resumoAbaixo && (
+        <div className="mt-2 flex flex-wrap items-stretch gap-2">
+          <div className="flex-1 min-w-[120px] rounded-lg border border-ink/15 bg-white px-3 py-2">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-ink-muted">
+              Total km
+            </p>
+            <p className="text-base font-extrabold tabular-nums text-ink">
+              {status === 'ok' && meta ? formatKm(meta.km) : status === 'loading' ? '…' : '—'}
+            </p>
+          </div>
+          <div className="flex-1 min-w-[120px] rounded-lg border border-ink/15 bg-white px-3 py-2">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-ink-muted">
+              Tempo em rota
+            </p>
+            <p className="text-base font-extrabold tabular-nums text-blue-700">
+              {status === 'ok' && meta ? formatDur(meta.dur) : status === 'loading' ? '…' : '—'}
+            </p>
+          </div>
+          {mostrarCustos && (
+            <>
+              <div className="flex-1 min-w-[140px] rounded-lg border border-ink/15 bg-white px-3 py-2">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-ink-muted">
+                  Pedágio
+                </p>
+                <p className="text-base font-extrabold tabular-nums text-orange-700">
+                  {status === 'ok' && meta ? formatCurrency(meta.pedagio) : status === 'loading' ? '…' : '—'}
+                  {status === 'ok' && meta && meta.pracas > 0
+                    ? ` · ${meta.pracas} praça${meta.pracas === 1 ? '' : 's'}`
+                    : ''}
+                </p>
+              </div>
+              <div className="flex-1 min-w-[140px] rounded-lg border border-ink/15 bg-white px-3 py-2">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-ink-muted">
+                  Custo total
+                </p>
+                <p className="text-base font-extrabold tabular-nums text-ink">
+                  {status === 'ok' && meta ? formatCurrency(meta.custo) : status === 'loading' ? '…' : '—'}
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }

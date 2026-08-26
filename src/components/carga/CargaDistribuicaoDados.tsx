@@ -1415,6 +1415,7 @@ export function CargaDistribuicaoDados({
           mostrarCustos={false}
           autoCalcular={false}
           calcularId={calcularTrajetoId}
+          resumoAbaixo
           className="h-[220px] min-h-[220px] w-full"
         />
       </section>
