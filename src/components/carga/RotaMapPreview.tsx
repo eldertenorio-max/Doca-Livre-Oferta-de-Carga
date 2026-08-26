@@ -35,6 +35,13 @@ type Props = {
   onRotaCalculada?: (info: { km: number; duracaoMin: number }) => void
   /** Se false, só o trajeto no mapa (sem pedágio / combustível / ANTT). */
   mostrarCustos?: boolean
+  /**
+   * Se false, o OSRM só roda quando `calcularId` aumenta
+   * (botão "Calcular trajeto").
+   */
+  autoCalcular?: boolean
+  /** Incrementar para disparar o cálculo (quando autoCalcular=false). */
+  calcularId?: number
 }
 
 function normWaypoint(w: RotaWaypointInput): {
@@ -140,6 +147,8 @@ export function RotaMapPreview({
   precoDiesel,
   onRotaCalculada,
   mostrarCustos = true,
+  autoCalcular = true,
+  calcularId = 0,
 }: Props) {
   const mapEl = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
@@ -153,8 +162,13 @@ export function RotaMapPreview({
   consumoRef.current = consumoKmL
   precoRef.current = precoDiesel
 
+  const lastManualId = useRef(0)
   const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'erro' | 'circular'>('idle')
-  const [msg, setMsg] = useState('Informe origem e destino para ver o trajeto')
+  const [msg, setMsg] = useState(
+    autoCalcular
+      ? 'Informe origem e destino para ver o trajeto'
+      : 'Adicione as cidades e clique em Calcular trajeto',
+  )
   const [meta, setMeta] = useState<MetaRota | null>(null)
 
   const viasNorm = waypoints
@@ -211,12 +225,30 @@ export function RotaMapPreview({
 
     const o = origem.trim()
     const d = destino.trim()
+    const msgIdle = autoCalcular
+      ? 'Informe origem e destino para ver o trajeto'
+      : 'Adicione as cidades e clique em Calcular trajeto'
+
+    if (!autoCalcular && calcularId < 1) {
+      lastManualId.current = 0
+      reqId.current += 1
+      layer.clearLayers()
+      setStatus('idle')
+      setMeta(null)
+      setMsg(msgIdle)
+      return
+    }
+    if (!autoCalcular && calcularId === lastManualId.current) {
+      return
+    }
+    if (!autoCalcular) lastManualId.current = calcularId
+
     if (o.length < 5 || d.length < 5) {
       reqId.current += 1
       layer.clearLayers()
       setStatus('idle')
       setMeta(null)
-      setMsg('Informe origem e destino para ver o trajeto')
+      setMsg(msgIdle)
       return
     }
 
@@ -399,14 +431,24 @@ export function RotaMapPreview({
     }, 550)
 
     return () => window.clearTimeout(timer)
-  }, [origem, destino, viasKey, coordsKey, veiculo, eixosProp, mostrarCustos])
+  }, [
+    origem,
+    destino,
+    viasKey,
+    coordsKey,
+    veiculo,
+    eixosProp,
+    mostrarCustos,
+    autoCalcular,
+    calcularId,
+  ])
 
   return (
     <div
       className={`rota-map-preview relative z-0 isolate overflow-hidden rounded-lg border border-ink/15 bg-[#f4f6f8] ${className}`}
     >
       <div ref={mapEl} className="absolute inset-0 z-0" />
-      {status === 'loading' || status === 'erro' || status === 'idle' ? (
+      {status === 'loading' || status === 'erro' || (status === 'idle' && autoCalcular) ? (
         <div
           data-pdf-ignore
           className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-white/75 px-3 text-center"
@@ -418,6 +460,14 @@ export function RotaMapPreview({
           >
             {status === 'loading' ? (mostrarCustos ? 'Calculando trajeto e pedágios…' : 'Calculando trajeto…') : msg}
           </p>
+        </div>
+      ) : null}
+      {status === 'idle' && !autoCalcular ? (
+        <div
+          data-pdf-ignore
+          className="pointer-events-none absolute left-2 right-2 top-2 z-10 rounded-lg bg-white/95 px-3 py-2 text-center text-[11px] font-semibold text-ink-muted shadow-md ring-1 ring-ink/10"
+        >
+          {msg}
         </div>
       ) : null}
       {status === 'circular' ? (

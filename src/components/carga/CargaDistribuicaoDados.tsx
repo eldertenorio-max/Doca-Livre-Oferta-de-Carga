@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, MapPinned, Plus, Trash2 } from 'lucide-react'
 import { isCargaEphemeral, useData } from '../../context/DataContext'
 import {
   formatCurrency,
@@ -158,6 +158,7 @@ export function CargaDistribuicaoDados({
   const [cidadesDist, setCidadesDist] = useState<CidadeDistForm[]>(() =>
     cidadesParaForm(carga.clientes_distribuicao ?? []),
   )
+  const [calcularTrajetoId, setCalcularTrajetoId] = useState(0)
   const [dataCarreg, setDataCarreg] = useState(toDateInput(carga.data_carregamento))
   const [previsao, setPrevisao] = useState(toDateInput(carga.previsao_entrega))
   const [observacao, setObservacao] = useState(carga.observacao ?? '')
@@ -205,6 +206,7 @@ export function CargaDistribuicaoDados({
     )
     setClientesDist(clientesParaForm(carga.clientes_distribuicao ?? []))
     setCidadesDist(cidadesParaForm(carga.clientes_distribuicao ?? []))
+    setCalcularTrajetoId(0)
     setDataCarreg(toDateInput(carga.data_carregamento))
     setPrevisao(toDateInput(carga.previsao_entrega))
     setObservacao(carga.observacao ?? '')
@@ -575,6 +577,39 @@ export function CargaDistribuicaoDados({
   function patchCidade(id: string, patch: Partial<CidadeDistForm>) {
     setCidadesDist((prev) => prev.map((x) => (x.id === id ? { ...x, ...patch } : x)))
   }
+
+  function calcularTrajetoMapa() {
+    if (modoCidades) {
+      setCidadesDist((prev) =>
+        prev.map((x) => {
+          const sede = coordsSedePorLabel(x.cidade)
+          if (!sede) return x
+          skipRevCidades.current[x.id] = true
+          return {
+            ...x,
+            lat: sede.lat,
+            lng: sede.lng,
+            mapsStr: fmtMapsCoords(sede.lat, sede.lng),
+          }
+        }),
+      )
+      const sedeOrigem = coordsSedePorLabel(origem)
+      if (sedeOrigem) {
+        skipRevOrigem.current = true
+        skipGeoOrigem.current = true
+        setOrigemLat(sedeOrigem.lat)
+        setOrigemLng(sedeOrigem.lng)
+        setOrigemMapsStr(fmtMapsCoords(sedeOrigem.lat, sedeOrigem.lng))
+      }
+    }
+    setCalcularTrajetoId((n) => n + 1)
+  }
+
+  const podeCalcularTrajeto =
+    origem.trim().length >= 3 &&
+    (modoCidades
+      ? cidadesDist.some((c) => c.cidade.trim().length >= 3)
+      : clientesDist.some((c) => (c.endereco || c.nome).trim().length >= 3))
 
   function onPickEndereco(id: string, sug: SugestaoEndereco) {
     skipRevClientes.current[id] = true
@@ -1348,9 +1383,20 @@ export function CargaDistribuicaoDados({
       </section>
 
       <section className="space-y-1.5 border-t border-ink/15 pt-2">
-        <h3 className="text-[13px] font-extrabold uppercase tracking-wide text-black">
-          Mapa da rota
-        </h3>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-[13px] font-extrabold uppercase tracking-wide text-black">
+            Mapa da rota
+          </h3>
+          <button
+            type="button"
+            disabled={!podeCalcularTrajeto}
+            onClick={calcularTrajetoMapa}
+            className="inline-flex items-center gap-1.5 rounded-md bg-black px-3 py-2 text-xs font-extrabold text-white hover:bg-ink disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <MapPinned size={14} />
+            {calcularTrajetoId > 0 ? 'Recalcular trajeto' : 'Calcular trajeto no mapa'}
+          </button>
+        </div>
         <RotaMapPreview
           origem={origem}
           destino={rotaMapa.destino}
@@ -1367,6 +1413,8 @@ export function CargaDistribuicaoDados({
           waypoints={rotaMapa.waypoints}
           veiculo={veiculo}
           mostrarCustos={false}
+          autoCalcular={false}
+          calcularId={calcularTrajetoId}
           className="h-[220px] min-h-[220px] w-full"
         />
       </section>
