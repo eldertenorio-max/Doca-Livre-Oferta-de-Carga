@@ -988,6 +988,28 @@ export function AreaAtendimentoView() {
   return (
     <div className="mapa-log__body">
       <aside className="mapa-log__side">
+        {embarcadores.length > 1 ? (
+          <section className="mapa-log__panel">
+            <h2>Embarcador</h2>
+            <select
+              className="area-att-select"
+              value={ownerId}
+              onChange={(e) => {
+                setOwnerId(e.target.value)
+                setEditandoId(null)
+                setNomeMalha('')
+                setMsgSalva('')
+              }}
+            >
+              {embarcadores.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.nome}
+                </option>
+              ))}
+            </select>
+          </section>
+        ) : null}
+
         <section className="mapa-log__panel">
           <h2>
             {modo === 'estado'
@@ -1067,134 +1089,6 @@ export function AreaAtendimentoView() {
             </ul>
           ) : null}
         </section>
-
-        <section className="mapa-log__panel">
-          <div className="area-att-info-head">
-            <h2>Salvar minha malha</h2>
-            <div className="area-att-head-btns">
-              <button
-                type="button"
-                className={`area-att-listar${showMalhas ? ' is-on' : ''}`}
-                aria-expanded={showMalhas}
-                title="Listar áreas salvas"
-                onClick={() => setShowMalhas((v) => !v)}
-              >
-                <List size={14} />
-                {showMalhas ? 'Ocultar' : 'Listar'}
-                {malhasOwner.length > 0 ? ` (${malhasOwner.length})` : ''}
-              </button>
-              <button
-                type="button"
-                className={`area-att-info${showSalvarHint ? ' is-on' : ''}`}
-                aria-label="Como salvar a área"
-                aria-expanded={showSalvarHint}
-                title="Como salvar a área"
-                onClick={() => setShowSalvarHint((v) => !v)}
-              >
-                <Info size={16} />
-              </button>
-            </div>
-          </div>
-          {showSalvarHint ? (
-            <div className="area-att-info-pop">
-              <p className="mapa-log__empty" style={{ marginBottom: 6 }}>
-                Área nova e limpa. Agora é só:
-              </p>
-              <ol className="area-att-passos">
-                <li>
-                  Escolha um modo lá em cima do mapa (Região, Estado, Cidade, Bairro ou Zona).
-                </li>
-                <li>Clique no mapa (ou use a busca) para marcar o recorte que você quer.</li>
-                <li>Dê um nome aqui embaixo, em “Ex.: Grande São Paulo”.</li>
-                <li>
-                  Clique em <strong>Salvar área</strong>.
-                </li>
-              </ol>
-            </div>
-          ) : null}
-          {editandoId ? (
-            <p className="area-att-editando">Editando área salva</p>
-          ) : null}
-          <label className="area-att-search">
-            <input
-              value={nomeMalha}
-              onChange={(e) => {
-                setNomeMalha(e.target.value)
-                setMsgSalva('')
-              }}
-              placeholder="Ex.: Grande São Paulo"
-              maxLength={80}
-            />
-          </label>
-          <div className="area-att-acoes">
-            <button type="button" className="is-save" onClick={salvarAreaNomeada}>
-              {editandoId ? 'Salvar alterações' : 'Salvar área'}
-            </button>
-            <button type="button" className="is-nova" onClick={novaAreaNomeada}>
-              Nova
-            </button>
-          </div>
-          {msgSalva ? <p className="area-att-ok">{msgSalva}</p> : null}
-          {showMalhas ? (
-            malhasOwner.length === 0 ? (
-              <p className="mapa-log__empty" style={{ marginTop: 10 }}>
-                Nenhuma área salva ainda.
-              </p>
-            ) : (
-              <ul className="area-att-malhas">
-                {malhasOwner.map((m) => (
-                  <li key={m.id} className={editandoId === m.id ? 'is-on' : undefined}>
-                    <button
-                      type="button"
-                      className="area-att-malha-nome"
-                      title="Mostrar esta área no mapa"
-                      onClick={() => abrirMalhaSalva(m)}
-                    >
-                      <strong>{m.nome}</strong>
-                      <em>
-                        {MODO_AREA_LABEL[m.modo]} · {resumoMalha(m)}
-                      </em>
-                    </button>
-                    <div className="area-att-malha-btns">
-                      <button type="button" onClick={() => abrirMalhaSalva(m)}>
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        className="is-del"
-                        onClick={() => removerMalhaSalva(m.id)}
-                      >
-                        Excluir
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )
-          ) : null}
-        </section>
-
-        {embarcadores.length > 1 ? (
-          <section className="mapa-log__panel">
-            <h2>Embarcador</h2>
-            <select
-              className="area-att-select"
-              value={ownerId}
-              onChange={(e) => {
-                setOwnerId(e.target.value)
-                setEditandoId(null)
-                setNomeMalha('')
-                setMsgSalva('')
-              }}
-            >
-              {embarcadores.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.nome}
-                </option>
-              ))}
-            </select>
-          </section>
-        ) : null}
 
         <section className="mapa-log__panel">
           <h2>
@@ -1331,6 +1225,118 @@ export function AreaAtendimentoView() {
               Limpar área
             </button>
           ) : null}
+        </section>
+
+        <section className="mapa-log__panel">
+          <div className="area-att-info-head">
+            <h2>Salvar minha malha</h2>
+            <button
+              type="button"
+              className={`area-att-info${showSalvarHint ? ' is-on' : ''}`}
+              aria-label="Como salvar a área"
+              aria-expanded={showSalvarHint}
+              title="Como salvar a área"
+              onClick={() => setShowSalvarHint((v) => !v)}
+            >
+              <Info size={16} />
+            </button>
+          </div>
+          {showSalvarHint ? (
+            <div className="area-att-info-pop">
+              <p className="mapa-log__empty" style={{ marginBottom: 6 }}>
+                Área nova e limpa. Agora é só:
+              </p>
+              <ol className="area-att-passos">
+                <li>
+                  Escolha um modo lá em cima do mapa (Região, Estado, Cidade, Bairro ou Zona).
+                </li>
+                <li>Clique no mapa (ou use a busca) para marcar o recorte que você quer.</li>
+                <li>Dê um nome aqui embaixo, em “Ex.: Grande São Paulo”.</li>
+                <li>
+                  Clique em <strong>Salvar área</strong>.
+                </li>
+              </ol>
+            </div>
+          ) : null}
+          {editandoId ? (
+            <p className="area-att-editando">Editando área salva</p>
+          ) : null}
+          <label className="area-att-search">
+            <input
+              value={nomeMalha}
+              onChange={(e) => {
+                setNomeMalha(e.target.value)
+                setMsgSalva('')
+              }}
+              placeholder="Ex.: Grande São Paulo"
+              maxLength={80}
+            />
+          </label>
+          <div className="area-att-acoes">
+            <button type="button" className="is-save" onClick={salvarAreaNomeada}>
+              {editandoId ? 'Salvar alterações' : 'Salvar área'}
+            </button>
+            <button type="button" className="is-nova" onClick={novaAreaNomeada}>
+              Nova
+            </button>
+          </div>
+          {msgSalva ? <p className="area-att-ok">{msgSalva}</p> : null}
+        </section>
+
+        <section className="mapa-log__panel">
+          <div className="area-att-info-head">
+            <h2>Minhas áreas salvas</h2>
+            <button
+              type="button"
+              className={`area-att-listar${showMalhas ? ' is-on' : ''}`}
+              aria-expanded={showMalhas}
+              title="Listar áreas salvas"
+              onClick={() => setShowMalhas((v) => !v)}
+            >
+              <List size={14} />
+              {showMalhas ? 'Ocultar' : 'Listar'}
+              {malhasOwner.length > 0 ? ` (${malhasOwner.length})` : ''}
+            </button>
+          </div>
+          {showMalhas ? (
+            malhasOwner.length === 0 ? (
+              <p className="mapa-log__empty">Nenhuma área salva ainda.</p>
+            ) : (
+              <ul className="area-att-malhas">
+                {malhasOwner.map((m) => (
+                  <li key={m.id} className={editandoId === m.id ? 'is-on' : undefined}>
+                    <button
+                      type="button"
+                      className="area-att-malha-nome"
+                      title="Mostrar esta área no mapa"
+                      onClick={() => abrirMalhaSalva(m)}
+                    >
+                      <strong>{m.nome}</strong>
+                      <em>
+                        {MODO_AREA_LABEL[m.modo]} · {resumoMalha(m)}
+                      </em>
+                    </button>
+                    <div className="area-att-malha-btns">
+                      <button type="button" onClick={() => abrirMalhaSalva(m)}>
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        className="is-del"
+                        onClick={() => removerMalhaSalva(m.id)}
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )
+          ) : (
+            <p className="mapa-log__empty">
+              Clique para ver as áreas que você já salvou e reabrir qualquer uma no mapa.
+            </p>
+          )}
         </section>
 
         {superView ? (

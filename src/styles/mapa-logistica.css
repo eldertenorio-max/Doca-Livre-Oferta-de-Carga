@@ -488,13 +488,6 @@
   margin: 0;
 }
 
-.area-att-head-btns {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
 .area-att-listar {
   display: inline-flex;
   align-items: center;
