@@ -186,6 +186,27 @@ function styleMun(
   return styleDivisao(corCidade(id), selecionada)
 }
 
+/** Dá zoom só no(s) polígono(s) que batem com `match` dentro da camada, pra
+ * "isolar" visualmente o que foi buscado (cidade/estado/região) em vez de
+ * deixar o zoom genérico mostrando um monte de vizinhos por cima. */
+function focarFeature(layer: L.GeoJSON | null, map: L.Map, match: (p: GeoProps) => boolean): boolean {
+  if (!layer) return false
+  let bounds: L.LatLngBounds | undefined
+  layer.eachLayer((lyr) => {
+    const poly = lyr as L.Polygon<GeoProps>
+    const props = poly.feature?.properties
+    if (!props || !match(props)) return
+    const b = poly.getBounds?.()
+    if (!b?.isValid()) return
+    bounds = bounds ? bounds.extend(b) : L.latLngBounds(b.getSouthWest(), b.getNorthEast())
+  })
+  if (bounds && bounds.isValid()) {
+    map.fitBounds(bounds.pad(0.15), { maxZoom: 13 })
+    return true
+  }
+  return false
+}
+
 function bairroEstaSel(bp: GeoProps, ids: Set<string>): boolean {
   if (ids.has(bp.id)) return true
   if (bp.zonaId && ids.has(bp.zonaId)) return true
@@ -965,9 +986,24 @@ export function AreaAtendimentoView() {
         : toggleCidade(a, { id: m.id, nome: m.nome, uf: m.uf, lat: m.lat, lng: m.lng }),
     )
     const map = mapRef.current
-    if (map && Number.isFinite(m.lat) && Number.isFinite(m.lng)) {
-      map.setView([m.lat, m.lng], 8)
+    if (map) {
+      const achou = focarFeature(munLayerRef.current, map, (p) => p.id === m.id)
+      if (!achou && Number.isFinite(m.lat) && Number.isFinite(m.lng)) {
+        map.setView([m.lat, m.lng], 11)
+      }
     }
+  }
+
+  function escolherSugestaoEstado(uf: UfBr) {
+    persistPatch((a) => toggleEstado(a, uf))
+    const map = mapRef.current
+    if (map) focarFeature(ufsLayerRef.current, map, (p) => p.uf === uf)
+  }
+
+  function escolherSugestaoRegiao(r: string) {
+    persistPatch((a) => toggleRegiao(a, r))
+    const map = mapRef.current
+    if (map) focarFeature(regLayerRef.current, map, (p) => p.nome === r)
   }
 
   const embarcadorNome = embarcadores.find((e) => e.id === ownerId)?.nome || 'Embarcador'
@@ -1064,10 +1100,7 @@ export function AreaAtendimentoView() {
             <ul className="area-att-sug">
               {sugestoesEstado.map((uf) => (
                 <li key={uf}>
-                  <button
-                    type="button"
-                    onClick={() => persistPatch((a) => toggleEstado(a, uf))}
-                  >
+                  <button type="button" onClick={() => escolherSugestaoEstado(uf)}>
                     {UF_CENTRO[uf].nome} — {uf}
                   </button>
                 </li>
@@ -1078,10 +1111,7 @@ export function AreaAtendimentoView() {
             <ul className="area-att-sug">
               {sugestoesRegiao.map((r) => (
                 <li key={r}>
-                  <button
-                    type="button"
-                    onClick={() => persistPatch((a) => toggleRegiao(a, r))}
-                  >
+                  <button type="button" onClick={() => escolherSugestaoRegiao(r)}>
                     {r}
                   </button>
                 </li>
