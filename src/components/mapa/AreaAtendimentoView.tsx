@@ -762,11 +762,24 @@ export function AreaAtendimentoView() {
   }
 
   function escolherModo(m: ModoMarcacaoArea) {
-    setModo(m)
     setErro('')
-    // Só fecha a camada de bairro/zona aberta; mantém o zoom/posição atual do
-    // mapa (trocar de modo não deve "sair fora" pra visão do Brasil inteiro).
-    fecharCamadaMunicipio()
+    // Bairro <-> Zona são as duas "sub-visões" de uma mesma cidade: se já tem
+    // uma cidade aberta, só troca a camada (bairro por zona ou vice-versa) em
+    // vez de fechar tudo e voltar pra lista geral de cidades do Brasil.
+    const trocaDentroDaMesmaCidade =
+      (m === 'bairro' || m === 'zona') &&
+      (modoRef.current === 'bairro' || modoRef.current === 'zona') &&
+      munAtiva
+    setModo(m)
+    if (trocaDentroDaMesmaCidade && munAtiva) {
+      const p: GeoProps = { id: munAtiva.id, nome: munAtiva.nome, uf: munAtiva.uf }
+      if (m === 'zona') void abrirZonasRef.current(p)
+      else void abrirBairrosRef.current(p)
+    } else {
+      // Só fecha a camada de bairro/zona aberta; mantém o zoom/posição atual
+      // do mapa (trocar de modo não deve "sair fora" pra visão do Brasil).
+      fecharCamadaMunicipio()
+    }
     if (ownerId) {
       persist(setArea(db, { ...area, ownerId, ownerKind: 'embarcador', modo: m }))
     }
