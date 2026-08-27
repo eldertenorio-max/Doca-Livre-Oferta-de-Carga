@@ -596,6 +596,25 @@
   min-width: 0;
 }
 
+.area-att-search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 999px;
+  background: #e8ecf1;
+  color: #475569;
+  cursor: pointer;
+}
+
+.area-att-search-clear:hover {
+  background: #0f172a;
+  color: #fff;
+}
+
 .area-att-sug {
   list-style: none;
   margin: 8px 0 0;

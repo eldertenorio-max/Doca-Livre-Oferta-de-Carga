@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
-import { Info, List, MapPin, Search, Users } from 'lucide-react'
+import { Info, List, MapPin, Search, Users, X } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import {
   acharMunicipio,
@@ -737,7 +737,6 @@ export function AreaAtendimentoView() {
   function escolherModo(m: ModoMarcacaoArea) {
     setModo(m)
     setErro('')
-    setBusca('')
     voltarBrasil()
     if (ownerId) {
       persist(setArea(db, { ...area, ownerId, ownerKind: 'embarcador', modo: m }))
@@ -976,6 +975,17 @@ export function AreaAtendimentoView() {
               }
               disabled={!modo}
             />
+            {busca ? (
+              <button
+                type="button"
+                className="area-att-search-clear"
+                title="Limpar busca"
+                aria-label="Limpar busca"
+                onClick={() => setBusca('')}
+              >
+                <X size={14} />
+              </button>
+            ) : null}
           </label>
           {(modo === 'cidade' || modo === 'bairro' || modo === 'zona') &&
           sugestoesCidade.length > 0 ? (
