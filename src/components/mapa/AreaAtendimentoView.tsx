@@ -296,6 +296,25 @@ export function AreaAtendimentoView() {
     return REGIOES_BR.filter((r) => r.toLowerCase().includes(q))
   }, [busca])
 
+  // Se o que foi digitado não bate com nada no modo atual (ex.: digitou "São
+  // Paulo" em Região), mas bate em outro (Estado/Cidade/Região), pula sozinho
+  // pro modo certo — sem precisar clicar manualmente.
+  useEffect(() => {
+    if (!busca.trim()) return
+    if (modo !== 'regiao' && modo !== 'estado' && modo !== 'cidade') return
+    const atual =
+      modo === 'estado'
+        ? sugestoesEstado.length
+        : modo === 'cidade'
+          ? sugestoesCidade.length
+          : sugestoesRegiao.length
+    if (atual > 0) return
+    if (sugestoesEstado.length > 0) escolherModo('estado')
+    else if (sugestoesCidade.length > 0) escolherModo('cidade')
+    else if (sugestoesRegiao.length > 0) escolherModo('regiao')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busca, modo, sugestoesEstado, sugestoesCidade, sugestoesRegiao])
+
   function persist(nextDb: AreaAtendimentoDB) {
     setDb(nextDb)
     if (saveTimer.current) window.clearTimeout(saveTimer.current)
