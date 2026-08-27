@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
-import { Info, MapPin, Search, Users } from 'lucide-react'
+import { Info, List, MapPin, Search, Users } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import {
   acharMunicipio,
@@ -232,6 +232,7 @@ export function AreaAtendimentoView() {
   const [msgSalva, setMsgSalva] = useState('')
   const [showFontes, setShowFontes] = useState(false)
   const [showSalvarHint, setShowSalvarHint] = useState(false)
+  const [showMalhas, setShowMalhas] = useState(false)
 
   const superView = isDiegoElder(user)
   const embarcadores = useMemo(() => listarEmbarcadores(tree), [tree])
@@ -348,10 +349,11 @@ export function AreaAtendimentoView() {
     persist(upsertMalha(setArea(db, rascunho), malha))
     setEditandoId(malha.id)
     setErro('')
+    setShowMalhas(true)
     setMsgSalva(
       editandoId
         ? 'Alterações salvas. Pode continuar editando e salvar de novo.'
-        : 'Área salva. Abra de novo na lista para editar.',
+        : 'Área salva. Clique nela na lista para reabrir.',
     )
   }
 
@@ -368,8 +370,9 @@ export function AreaAtendimentoView() {
   function abrirMalhaSalva(m: AreaMalhaSalva) {
     setNomeMalha(m.nome)
     setEditandoId(m.id)
-    setMsgSalva(`Editando “${m.nome}”. Ajuste no mapa e salve.`)
+    setMsgSalva(`Mostrando “${m.nome}” no mapa. Para editar, ajuste e salve de novo.`)
     setErro('')
+    setShowMalhas(true)
     persistPatch(() => ({
       ownerId: ownerIdRef.current,
       ownerKind: 'embarcador' as const,
@@ -1025,16 +1028,29 @@ export function AreaAtendimentoView() {
         <section className="mapa-log__panel">
           <div className="area-att-info-head">
             <h2>Salvar área de trabalho</h2>
-            <button
-              type="button"
-              className={`area-att-info${showSalvarHint ? ' is-on' : ''}`}
-              aria-label="Como salvar a área"
-              aria-expanded={showSalvarHint}
-              title="Como salvar a área"
-              onClick={() => setShowSalvarHint((v) => !v)}
-            >
-              <Info size={16} />
-            </button>
+            <div className="area-att-head-btns">
+              <button
+                type="button"
+                className={`area-att-listar${showMalhas ? ' is-on' : ''}`}
+                aria-expanded={showMalhas}
+                title="Listar áreas salvas"
+                onClick={() => setShowMalhas((v) => !v)}
+              >
+                <List size={14} />
+                {showMalhas ? 'Ocultar' : 'Listar'}
+                {malhasOwner.length > 0 ? ` (${malhasOwner.length})` : ''}
+              </button>
+              <button
+                type="button"
+                className={`area-att-info${showSalvarHint ? ' is-on' : ''}`}
+                aria-label="Como salvar a área"
+                aria-expanded={showSalvarHint}
+                title="Como salvar a área"
+                onClick={() => setShowSalvarHint((v) => !v)}
+              >
+                <Info size={16} />
+              </button>
+            </div>
           </div>
           {showSalvarHint ? (
             <div className="area-att-info-pop">
@@ -1067,34 +1083,43 @@ export function AreaAtendimentoView() {
             </button>
           </div>
           {msgSalva ? <p className="area-att-ok">{msgSalva}</p> : null}
-          {malhasOwner.length === 0 ? (
-            <p className="mapa-log__empty" style={{ marginTop: 10 }}>
-              Nenhuma área salva ainda.
-            </p>
-          ) : (
-            <ul className="area-att-malhas">
-              {malhasOwner.map((m) => (
-                <li key={m.id} className={editandoId === m.id ? 'is-on' : undefined}>
-                  <strong>{m.nome}</strong>
-                  <em>
-                    {MODO_AREA_LABEL[m.modo]} · {resumoMalha(m)}
-                  </em>
-                  <div className="area-att-malha-btns">
-                    <button type="button" onClick={() => abrirMalhaSalva(m)}>
-                      Editar
-                    </button>
+          {showMalhas ? (
+            malhasOwner.length === 0 ? (
+              <p className="mapa-log__empty" style={{ marginTop: 10 }}>
+                Nenhuma área salva ainda.
+              </p>
+            ) : (
+              <ul className="area-att-malhas">
+                {malhasOwner.map((m) => (
+                  <li key={m.id} className={editandoId === m.id ? 'is-on' : undefined}>
                     <button
                       type="button"
-                      className="is-del"
-                      onClick={() => removerMalhaSalva(m.id)}
+                      className="area-att-malha-nome"
+                      title="Mostrar esta área no mapa"
+                      onClick={() => abrirMalhaSalva(m)}
                     >
-                      Excluir
+                      <strong>{m.nome}</strong>
+                      <em>
+                        {MODO_AREA_LABEL[m.modo]} · {resumoMalha(m)}
+                      </em>
                     </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+                    <div className="area-att-malha-btns">
+                      <button type="button" onClick={() => abrirMalhaSalva(m)}>
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        className="is-del"
+                        onClick={() => removerMalhaSalva(m.id)}
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )
+          ) : null}
         </section>
 
         {embarcadores.length > 1 ? (

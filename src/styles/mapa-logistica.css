@@ -488,6 +488,38 @@
   margin: 0;
 }
 
+.area-att-head-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.area-att-listar {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 999px;
+  background: #e8ecf1;
+  color: #0f172a;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 6px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.area-att-listar:hover {
+  background: #dbe1e8;
+}
+
+.area-att-listar.is-on {
+  background: #0f172a;
+  color: #fff;
+}
+
 .area-att-info {
   display: inline-flex;
   align-items: center;
@@ -701,9 +733,27 @@
   box-shadow: 0 0 0 1px #0f172a;
 }
 
+.area-att-malha-nome {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.area-att-malha-nome:hover strong {
+  text-decoration: underline;
+  color: #0e7490;
+}
+
 .area-att-malhas strong {
   display: block;
   font-size: 0.82rem;
+  color: #0f172a;
 }
 
 .area-att-malhas em {
