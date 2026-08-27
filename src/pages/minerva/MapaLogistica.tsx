@@ -177,7 +177,7 @@ export function MapaLogisticaPage() {
               className={`mapa-log__tab${aba === 'area' ? ' is-on' : ''}`}
               onClick={() => setAba('area')}
             >
-              Área de atendimento
+              Minhas Áreas
             </button>
           </div>
         </div>
