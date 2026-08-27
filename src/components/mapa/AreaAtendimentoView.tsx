@@ -1037,7 +1037,7 @@ export function AreaAtendimentoView() {
 
         <section className="mapa-log__panel">
           <div className="area-att-info-head">
-            <h2>Salvar área de trabalho</h2>
+            <h2>Salvar minha malha</h2>
             <div className="area-att-head-btns">
               <button
                 type="button"
