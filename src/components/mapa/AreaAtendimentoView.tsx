@@ -10,6 +10,7 @@ import {
   carregarMalhaMunicipiosBrasil,
   carregarMalhaRegioes,
   carregarMalhaUfs,
+  carregarMalhaZonas,
   type GeoProps,
   type MunicipioCat,
 } from '../../lib/geoBrasil'
@@ -32,6 +33,7 @@ import {
   toggleCidade,
   toggleEstado,
   toggleRegiao,
+  toggleZona,
   MODO_AREA_LABEL,
   type AreaAtendimento,
   type AreaAtendimentoDB,
@@ -88,7 +90,13 @@ const MODOS: { id: ModoMarcacaoArea; label: string; hint: string; fonte: string 
   {
     id: 'bairro',
     label: 'Bairro',
-    hint: 'Clique na cidade. Em São Paulo a divisão é por zona (Sul, Leste, Norte, Oeste e Centro).',
+    hint: 'Clique na cidade para marcar bairro por bairro (distrito/bairro oficial do IBGE).',
+    fonte: 'IBGE · Censo 2022',
+  },
+  {
+    id: 'zona',
+    label: 'Zona',
+    hint: 'Clique na cidade para marcar de uma vez a zona inteira (Norte, Sul, Leste, Oeste, Centro). Em São Paulo usa as regiões oficiais da Prefeitura; nas demais cidades é uma divisão aproximada pela posição geográfica dos bairros.',
     fonte: 'IBGE · Censo 2022 + zonas da Prefeitura (SP)',
   },
 ]
@@ -107,9 +115,14 @@ const FONTES_DIVISAO: { titulo: string; detalhe: string; href: string }[] = [
     href: 'https://servicodados.ibge.gov.br/api/docs/localidades',
   },
   {
-    titulo: 'Bairro / zona',
+    titulo: 'Bairro',
+    detalhe: 'Bairros e distritos oficiais do IBGE (Censo 2022), um a um.',
+    href: 'https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais/26565-malhas-de-setores-censitarios-divisoes-intramunicipais.html',
+  },
+  {
+    titulo: 'Zona',
     detalhe:
-      'Bairros e distritos oficiais do IBGE (Censo 2022). Na capital paulista, os 96 distritos aparecem com nome e são pintados em Centro, Zona Norte, Zona Sul, Zona Leste e Zona Oeste (regiões da Prefeitura).',
+      'Agrupa os bairros/distritos em 5 zonas (Centro, Norte, Sul, Leste, Oeste). Em São Paulo usa as regiões oficiais da Prefeitura; nas demais cidades é uma divisão aproximada pela posição geográfica.',
     href: 'https://www.ibge.gov.br/geociencias/organizacao-do-territorio/malhas-territoriais/26565-malhas-de-setores-censitarios-divisoes-intramunicipais.html',
   },
   {
@@ -192,6 +205,7 @@ export function AreaAtendimentoView() {
   const saveTimer = useRef<number | null>(null)
   const idsRef = useRef<Set<string>>(new Set())
   const bairroIdsRef = useRef<Set<string>>(new Set())
+  const zonaIdsRef = useRef<Set<string>>(new Set())
   const estadosRef = useRef<Set<string>>(new Set())
   const regioesRef = useRef<Set<string>>(new Set())
   const modoRef = useRef<ModoMarcacaoArea | null>(null)
@@ -200,6 +214,7 @@ export function AreaAtendimentoView() {
   const mostrarRegioesRef = useRef<() => Promise<void>>(async () => {})
   const mostrarCidadesRef = useRef<() => Promise<void>>(async () => {})
   const abrirBairrosRef = useRef<(p: GeoProps, bounds?: L.LatLngBounds) => Promise<void>>(async () => {})
+  const abrirZonasRef = useRef<(p: GeoProps, bounds?: L.LatLngBounds) => Promise<void>>(async () => {})
 
   const [tree, setTree] = useState<OrgNo[]>(() => loadOrgTree())
   const [db, setDb] = useState<AreaAtendimentoDB>(() => ({ areas: {}, malhas: {} }))
@@ -216,7 +231,6 @@ export function AreaAtendimentoView() {
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [msgSalva, setMsgSalva] = useState('')
   const [showFontes, setShowFontes] = useState(false)
-  const [showModoHint, setShowModoHint] = useState(false)
   const [showSalvarHint, setShowSalvarHint] = useState(false)
 
   const superView = isDiegoElder(user)
@@ -238,10 +252,13 @@ export function AreaAtendimentoView() {
   const estadosSel = area.estados
   const regioesSel = area.regioes
   const bairrosSel = area.bairros
+  const zonasSel = area.zonas
   const idsSel = useMemo(() => new Set(selecionadas.map((c) => c.id)), [selecionadas])
   const idsBairro = useMemo(() => new Set(bairrosSel.map((b) => b.id)), [bairrosSel])
+  const idsZona = useMemo(() => new Set(zonasSel.map((z) => z.id)), [zonasSel])
   idsRef.current = idsSel
   bairroIdsRef.current = idsBairro
+  zonaIdsRef.current = idsZona
   estadosRef.current = new Set(estadosSel.map((e) => e.toUpperCase()))
   regioesRef.current = new Set(regioesSel)
 
@@ -249,7 +266,13 @@ export function AreaAtendimentoView() {
     if (!ownerId) return
     const raw = db.areas[chaveArea('embarcador', ownerId)]
     if (!raw) return
-    if (raw.modo === 'estado' || raw.modo === 'cidade' || raw.modo === 'regiao' || raw.modo === 'bairro') {
+    if (
+      raw.modo === 'estado' ||
+      raw.modo === 'cidade' ||
+      raw.modo === 'regiao' ||
+      raw.modo === 'bairro' ||
+      raw.modo === 'zona'
+    ) {
       setModo(raw.modo)
     }
   }, [ownerId, db])
@@ -355,6 +378,7 @@ export function AreaAtendimentoView() {
       estados: m.estados,
       regioes: m.regioes,
       bairros: m.bairros,
+      zonas: m.zonas,
       updatedAt: new Date().toISOString(),
     }))
     setModo(m.modo)
@@ -365,6 +389,17 @@ export function AreaAtendimentoView() {
           id: b.municipioId,
           nome: b.municipioNome || '',
           uf: (b.uf as UfBr) || undefined,
+        })
+        return
+      }
+    }
+    if (m.modo === 'zona') {
+      const z = m.zonas[0]
+      if (z?.municipioId) {
+        void abrirZonas({
+          id: z.municipioId,
+          nome: z.municipioNome || '',
+          uf: (z.uf as UfBr) || undefined,
         })
         return
       }
@@ -432,7 +467,7 @@ export function AreaAtendimentoView() {
             lyr.on('click', () => {
               const m = modoRef.current
               if (!m) {
-                setErro('Escolha Região, Estado, Cidade ou Bairro.')
+                setErro('Escolha Região, Estado, Cidade, Bairro ou Zona.')
                 return
               }
               if (!uf) return
@@ -510,6 +545,11 @@ export function AreaAtendimentoView() {
             if (m === 'bairro') {
               const b = (lyr as L.Polygon).getBounds?.()
               if (b?.isValid()) void abrirBairrosRef.current(p, b)
+              return
+            }
+            if (m === 'zona') {
+              const b = (lyr as L.Polygon).getBounds?.()
+              if (b?.isValid()) void abrirZonasRef.current(p, b)
             }
           })
         },
@@ -529,23 +569,29 @@ export function AreaAtendimentoView() {
     zonaLabelsRef.current = null
   }
 
-  async function abrirBairros(p: GeoProps, bounds?: L.LatLngBounds) {
+  async function abrirDivisaoIntramunicipal(
+    p: GeoProps,
+    tipoModo: 'bairro' | 'zona',
+    bounds?: L.LatLngBounds,
+  ) {
     const map = mapRef.current
     if (!map) return
     setMunAtiva({ id: p.id, nome: p.nome, uf: p.uf })
     setCarregando(
-      p.id === MUN_SAO_PAULO_ID
+      tipoModo === 'zona'
         ? `Carregando zonas de ${p.nome}…`
-        : `Carregando bairros de ${p.nome} (IBGE)…`,
+        : p.id === MUN_SAO_PAULO_ID
+          ? `Carregando distritos de ${p.nome}…`
+          : `Carregando bairros de ${p.nome} (IBGE)…`,
     )
     try {
-      const fc = await carregarMalhaBairros({
-        municipioId: p.id,
-        uf: p.uf,
-      })
+      const fc = await (tipoModo === 'zona'
+        ? carregarMalhaZonas({ municipioId: p.id, uf: p.uf })
+        : carregarMalhaBairros({ municipioId: p.id, uf: p.uf }))
       limparRotulosZona()
       bairroLayerRef.current?.remove()
       munLayerRef.current && map.hasLayer(munLayerRef.current) && map.removeLayer(munLayerRef.current)
+      const idsAtivos = tipoModo === 'zona' ? zonaIdsRef.current : bairroIdsRef.current
       const layer = L.geoJSON(fc as GeoJSON.GeoJsonObject, {
         renderer: L.svg({ padding: 0.5 }),
         style: (feat) => {
@@ -553,7 +599,7 @@ export function AreaAtendimentoView() {
           const id = props?.id ?? ''
           return styleMun(
             id,
-            props ? bairroEstaSel(props, bairroIdsRef.current) : false,
+            props ? bairroEstaSel(props, idsAtivos) : false,
             props?.nome,
             props?.tipo,
             props?.zona,
@@ -561,15 +607,32 @@ export function AreaAtendimentoView() {
         },
         onEachFeature: (feature, lyr) => {
           const bp = (feature as Feat).properties
-          lyr.bindTooltip(bp.nome, {
-            permanent: true,
-            direction: 'center',
-            className: bp.tipo === 'zona' ? 'area-zona-label' : 'area-bairro-label',
-            opacity: 0.95,
-          })
+          if (tipoModo !== 'zona') {
+            lyr.bindTooltip(bp.nome, {
+              permanent: true,
+              direction: 'center',
+              className: bp.tipo === 'zona' ? 'area-zona-label' : 'area-bairro-label',
+              opacity: 0.95,
+            })
+          } else {
+            lyr.bindTooltip(bp.zona ? `${bp.nome} · ${bp.zona}` : bp.nome, { sticky: true })
+          }
           lyr.on('click', () => {
-            if (modoRef.current !== 'bairro') return
+            if (modoRef.current !== tipoModo) return
             const center = (lyr as L.Polygon).getBounds?.().getCenter?.()
+            if (tipoModo === 'zona') {
+              const item: BairroAtendido = {
+                id: bp.zonaId || bp.id,
+                nome: bp.zona || bp.nome,
+                municipioId: p.id,
+                municipioNome: p.nome,
+                uf: bp.uf || p.uf || '',
+                lat: center?.lat,
+                lng: center?.lng,
+              }
+              persistPatchRef.current((a) => toggleZona(a, item))
+              return
+            }
             const item: BairroAtendido = {
               id: bp.id,
               nome: bp.nome,
@@ -609,11 +672,21 @@ export function AreaAtendimentoView() {
     } catch {
       setCarregando('')
       setErro(
-        `Não há divisão de bairro/distrito do IBGE para ${p.nome}. Tente outra cidade ou marque o município em Cidade.`,
+        tipoModo === 'zona'
+          ? `Não há divisão suficiente para calcular zonas em ${p.nome}. Tente outra cidade ou marque o município em Cidade.`
+          : `Não há divisão de bairro/distrito do IBGE para ${p.nome}. Tente outra cidade ou marque o município em Cidade.`,
       )
     }
   }
+
+  async function abrirBairros(p: GeoProps, bounds?: L.LatLngBounds) {
+    return abrirDivisaoIntramunicipal(p, 'bairro', bounds)
+  }
+  async function abrirZonas(p: GeoProps, bounds?: L.LatLngBounds) {
+    return abrirDivisaoIntramunicipal(p, 'zona', bounds)
+  }
   abrirBairrosRef.current = abrirBairros
+  abrirZonasRef.current = abrirZonas
 
   async function mostrarRegioes() {
     const map = mapRef.current
@@ -698,7 +771,7 @@ export function AreaAtendimentoView() {
       hide(regs)
       hide(bairros)
       void mostrarCidadesRef.current()
-    } else if (modo === 'bairro') {
+    } else if (modo === 'bairro' || modo === 'zona') {
       hide(ufs)
       hide(regs)
       if (!munAtiva) {
@@ -727,6 +800,7 @@ export function AreaAtendimentoView() {
   useEffect(() => {
     const layer = bairroLayerRef.current
     if (!layer) return
+    const idsAtivos = modo === 'zona' ? idsZona : idsBairro
     layer.eachLayer((lyr) => {
       const feat = (lyr as L.GeoJSON & { feature?: Feat }).feature
       const id = feat?.properties?.id
@@ -734,14 +808,14 @@ export function AreaAtendimentoView() {
       ;(lyr as L.Path).setStyle(
         styleMun(
           id,
-          feat?.properties ? bairroEstaSel(feat.properties, idsBairro) : idsBairro.has(id),
+          feat?.properties ? bairroEstaSel(feat.properties, idsAtivos) : idsAtivos.has(id),
           feat?.properties?.nome,
           feat?.properties?.tipo,
           feat?.properties?.zona,
         ),
       )
     })
-  }, [idsBairro])
+  }, [idsBairro, idsZona, modo])
 
   useEffect(() => {
     const layer = ufsLayerRef.current
@@ -836,6 +910,10 @@ export function AreaAtendimentoView() {
       await abrirBairros({ id: m.id, nome: m.nome, uf: m.uf })
       return
     }
+    if (modo === 'zona') {
+      await abrirZonas({ id: m.id, nome: m.nome, uf: m.uf })
+      return
+    }
     if (modo !== 'cidade') {
       setErro('Escolha “Cidade” para marcar município.')
       return
@@ -862,7 +940,9 @@ export function AreaAtendimentoView() {
         ? regioesSel.length
         : modo === 'bairro'
           ? bairrosSel.length
-          : selecionadas.length
+          : modo === 'zona'
+            ? zonasSel.length
+            : selecionadas.length
 
   return (
     <div className="mapa-log__body">
@@ -874,8 +954,10 @@ export function AreaAtendimentoView() {
               : modo === 'regiao'
                 ? 'Buscar região'
                 : modo === 'bairro'
-                  ? 'Buscar cidade (São Paulo: zonas)'
-                  : 'Buscar cidade'}
+                  ? 'Buscar cidade (bairros)'
+                  : modo === 'zona'
+                    ? 'Buscar cidade (zonas)'
+                    : 'Buscar cidade'}
           </h2>
           <label className="area-att-search">
             <Search size={15} />
@@ -887,14 +969,13 @@ export function AreaAtendimentoView() {
                   ? 'Ex.: São Paulo'
                   : modo === 'regiao'
                     ? 'Ex.: Sudeste'
-                    : modo === 'bairro'
-                      ? 'Ex.: Guarulhos'
-                      : 'Ex.: Guarulhos'
+                    : 'Ex.: Guarulhos'
               }
               disabled={!modo}
             />
           </label>
-          {(modo === 'cidade' || modo === 'bairro') && sugestoesCidade.length > 0 ? (
+          {(modo === 'cidade' || modo === 'bairro' || modo === 'zona') &&
+          sugestoesCidade.length > 0 ? (
             <ul className="area-att-sug">
               {sugestoesCidade.map((m) => (
                 <li key={m.id}>
@@ -939,89 +1020,6 @@ export function AreaAtendimentoView() {
               ))}
             </ul>
           ) : null}
-        </section>
-
-        <section className="mapa-log__panel">
-          <div className="area-att-info-head">
-            <h2>Como marcar</h2>
-            <button
-              type="button"
-              className={`area-att-info${showFontes ? ' is-on' : ''}`}
-              aria-label="Como marcar a área"
-              aria-expanded={showFontes}
-              title="Como marcar a área"
-              onClick={() => setShowFontes((v) => !v)}
-            >
-              <Info size={16} />
-            </button>
-          </div>
-          {showFontes ? (
-            <div className="area-att-info-pop">
-              <p className="mapa-log__empty" style={{ marginBottom: 8 }}>
-                Escolha Região, Estado, Cidade ou Bairro, clique no mapa, dê um nome e salve. Depois
-                abra a área salva para editar do seu jeito.
-              </p>
-              <p className="mapa-log__empty" style={{ marginBottom: 8 }}>
-                De onde vêm Região, Estado, Cidade e Bairro neste mapa.
-              </p>
-              <ul className="mapa-log__fontes">
-                {FONTES_DIVISAO.map((f) => (
-                  <li key={f.titulo}>
-                    <strong>{f.titulo}</strong>
-                    <span>{f.detalhe}</span>
-                    <a href={f.href} target="_blank" rel="noreferrer">
-                      Abrir documentação →
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          <div className="area-att-modos">
-            {MODOS.map((op) => (
-              <button
-                key={op.id}
-                type="button"
-                className={`area-att-modo${modo === op.id ? ' is-on' : ''}`}
-                onClick={() => escolherModo(op.id)}
-              >
-                <span>{op.label}</span>
-                <small>{op.fonte}</small>
-              </button>
-            ))}
-          </div>
-          {!modo ? (
-            <p className="mapa-log__empty" style={{ marginTop: 8 }}>
-              Selecione <strong>Região</strong>, <strong>Estado</strong>, <strong>Cidade</strong> ou{' '}
-              <strong>Bairro</strong>.
-            </p>
-          ) : (
-            <div className="area-att-modo-help">
-              <button
-                type="button"
-                className={`area-att-info${showModoHint ? ' is-on' : ''}`}
-                aria-label="Como usar este modo"
-                aria-expanded={showModoHint}
-                title="Como usar este modo"
-                onClick={() => setShowModoHint((v) => !v)}
-              >
-                <Info size={16} />
-              </button>
-              {showModoHint ? (
-                <div className="area-att-info-pop">
-                  <p className="area-att-hint">
-                    {hint}
-                    {fonteAtiva ? (
-                      <>
-                        <br />
-                        <em>Fonte: {fonteAtiva}</em>
-                      </>
-                    ) : null}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          )}
         </section>
 
         <section className="mapa-log__panel">
@@ -1130,7 +1128,9 @@ export function AreaAtendimentoView() {
                 ? 'Regiões na área'
                 : modo === 'bairro'
                   ? 'Bairros na área'
-                  : 'Cidades na área'}
+                  : modo === 'zona'
+                    ? 'Zonas na área'
+                    : 'Cidades na área'}
             <span className="area-att-count">{qtdLista}</span>
           </h2>
           <p className="mapa-log__empty" style={{ marginBottom: 8 }}>
@@ -1177,7 +1177,7 @@ export function AreaAtendimentoView() {
             )
           ) : modo === 'bairro' ? (
             bairrosSel.length === 0 ? (
-              <p className="mapa-log__empty">Nenhum bairro ou zona marcado.</p>
+              <p className="mapa-log__empty">Nenhum bairro marcado.</p>
             ) : (
               <ul className="area-att-chips">
                 {bairrosSel
@@ -1192,6 +1192,28 @@ export function AreaAtendimentoView() {
                       >
                         {b.nome}
                         {b.municipioNome ? ` · ${b.municipioNome}` : ''} ×
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            )
+          ) : modo === 'zona' ? (
+            zonasSel.length === 0 ? (
+              <p className="mapa-log__empty">Nenhuma zona marcada.</p>
+            ) : (
+              <ul className="area-att-chips">
+                {zonasSel
+                  .slice()
+                  .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+                  .map((z) => (
+                    <li key={z.id}>
+                      <button
+                        type="button"
+                        onClick={() => persistPatch((a) => toggleZona(a, z))}
+                        title="Remover"
+                      >
+                        {z.nome}
+                        {z.municipioNome ? ` · ${z.municipioNome}` : ''} ×
                       </button>
                     </li>
                   ))}
@@ -1225,6 +1247,7 @@ export function AreaAtendimentoView() {
                 if (modo === 'estado') persistPatch((a) => ({ ...a, estados: [] }))
                 else if (modo === 'regiao') persistPatch((a) => ({ ...a, regioes: [] }))
                 else if (modo === 'bairro') persistPatch((a) => ({ ...a, bairros: [] }))
+                else if (modo === 'zona') persistPatch((a) => ({ ...a, zonas: [] }))
                 else aplicarCidades([])
               }}
             >
@@ -1284,27 +1307,85 @@ export function AreaAtendimentoView() {
             </span>
           ) : null}
         </div>
-        <div className="area-att-mapbar">
-          {modo === 'bairro' && munAtiva ? (
-            <button type="button" onClick={voltarBrasil}>
-              ← Voltar às cidades do Brasil
+        <div className="area-att-map-top">
+          <div className="area-att-mapmodos">
+            {MODOS.map((op) => (
+              <button
+                key={op.id}
+                type="button"
+                className={`area-att-mapmodo${modo === op.id ? ' is-on' : ''}`}
+                title={op.hint}
+                onClick={() => escolherModo(op.id)}
+              >
+                {op.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              className={`area-att-info${showFontes ? ' is-on' : ''}`}
+              aria-label="Como marcar a área"
+              aria-expanded={showFontes}
+              title="Como marcar a área"
+              onClick={() => setShowFontes((v) => !v)}
+            >
+              <Info size={15} />
             </button>
-          ) : (
-            <span>
-              {modo === 'regiao'
-                ? 'Brasil inteiro · dividido por região'
-                : modo === 'estado'
-                  ? 'Brasil inteiro · dividido por estado'
-                  : modo === 'cidade'
-                    ? 'Brasil inteiro · dividido por cidade'
-                    : modo === 'bairro'
-                      ? 'Brasil inteiro · clique na cidade (em São Paulo: zonas)'
-                      : 'Brasil · escolha Região, Estado, Cidade ou Bairro'}
-              {fonteAtiva ? ` · Fonte: ${fonteAtiva}` : ''}
-            </span>
-          )}
-          {carregando ? <em>{carregando}</em> : null}
-          {erro ? <strong>{erro}</strong> : null}
+          </div>
+          {showFontes ? (
+            <div className="area-att-info-pop">
+              {modo ? (
+                <p className="area-att-hint" style={{ marginTop: 0 }}>
+                  {hint}
+                  {fonteAtiva ? (
+                    <>
+                      <br />
+                      <em>Fonte: {fonteAtiva}</em>
+                    </>
+                  ) : null}
+                </p>
+              ) : (
+                <p className="mapa-log__empty" style={{ marginBottom: 8 }}>
+                  Selecione Região, Estado, Cidade, Bairro ou Zona. Clique no mapa, dê um nome e
+                  salve. Depois abra a área salva para editar do seu jeito.
+                </p>
+              )}
+              <ul className="mapa-log__fontes">
+                {FONTES_DIVISAO.map((f) => (
+                  <li key={f.titulo}>
+                    <strong>{f.titulo}</strong>
+                    <span>{f.detalhe}</span>
+                    <a href={f.href} target="_blank" rel="noreferrer">
+                      Abrir documentação →
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          <div className="area-att-mapbar">
+            {(modo === 'bairro' || modo === 'zona') && munAtiva ? (
+              <button type="button" onClick={voltarBrasil}>
+                ← Voltar às cidades do Brasil
+              </button>
+            ) : (
+              <span>
+                {modo === 'regiao'
+                  ? 'Brasil inteiro · dividido por região'
+                  : modo === 'estado'
+                    ? 'Brasil inteiro · dividido por estado'
+                    : modo === 'cidade'
+                      ? 'Brasil inteiro · dividido por cidade'
+                      : modo === 'bairro'
+                        ? 'Brasil inteiro · clique na cidade para ver os bairros'
+                        : modo === 'zona'
+                          ? 'Brasil inteiro · clique na cidade para ver as zonas'
+                          : 'Brasil · escolha Região, Estado, Cidade, Bairro ou Zona'}
+                {fonteAtiva ? ` · Fonte: ${fonteAtiva}` : ''}
+              </span>
+            )}
+            {carregando ? <em>{carregando}</em> : null}
+            {erro ? <strong>{erro}</strong> : null}
+          </div>
         </div>
       </div>
     </div>

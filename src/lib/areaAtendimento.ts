@@ -2,7 +2,7 @@ import { appStoreGet, appStoreGetCached, appStoreSet } from './appStore'
 import { ORG_EMBARCADOR_ULTRAFRIO_ID } from './orgHierarchy'
 import type { UfBr } from './mapaLogisticaIntel'
 
-export type ModoMarcacaoArea = 'regiao' | 'estado' | 'cidade' | 'bairro'
+export type ModoMarcacaoArea = 'regiao' | 'estado' | 'cidade' | 'bairro' | 'zona'
 
 export type CidadeAtendida = {
   id: string
@@ -30,6 +30,8 @@ export type AreaAtendimento = {
   estados: string[]
   regioes: string[]
   bairros: BairroAtendido[]
+  /** Zonas marcadas (Centro/Norte/Sul/Leste/Oeste) — oficiais em SP, aproximadas nas demais cidades. */
+  zonas: BairroAtendido[]
   updatedAt: string
 }
 
@@ -50,6 +52,7 @@ export const MODO_AREA_LABEL: Record<ModoMarcacaoArea, string> = {
   estado: 'Estado',
   cidade: 'Cidade',
   bairro: 'Bairro',
+  zona: 'Zona',
 }
 
 const STORE_KEY = 'area_atendimento'
@@ -74,12 +77,20 @@ export function areaVazia(
     estados: [],
     regioes: [],
     bairros: [],
+    zonas: [],
     updatedAt: new Date().toISOString(),
   }
 }
 
 function asModo(raw: unknown): ModoMarcacaoArea {
-  if (raw === 'estado' || raw === 'regiao' || raw === 'cidade' || raw === 'bairro') return raw
+  if (
+    raw === 'estado' ||
+    raw === 'regiao' ||
+    raw === 'cidade' ||
+    raw === 'bairro' ||
+    raw === 'zona'
+  )
+    return raw
   return 'regiao'
 }
 
@@ -102,6 +113,7 @@ function asMalha(raw: Partial<AreaMalhaSalva> | null | undefined): AreaMalhaSalv
     estados: Array.isArray(raw?.estados) ? raw.estados : [],
     regioes: Array.isArray(raw?.regioes) ? raw.regioes : [],
     bairros: Array.isArray(raw?.bairros) ? raw.bairros : [],
+    zonas: Array.isArray(raw?.zonas) ? raw.zonas : [],
     createdAt: raw?.createdAt || raw?.updatedAt || new Date().toISOString(),
     updatedAt: raw?.updatedAt || new Date().toISOString(),
   }
@@ -150,6 +162,7 @@ export function getArea(
     estados: Array.isArray(raw.estados) ? raw.estados : [],
     regioes: Array.isArray(raw.regioes) ? raw.regioes : [],
     bairros: Array.isArray(raw.bairros) ? raw.bairros : [],
+    zonas: Array.isArray(raw.zonas) ? raw.zonas : [],
   }
 }
 
@@ -173,12 +186,20 @@ export function areaTemMarca(area: AreaAtendimento, modo?: ModoMarcacaoArea | nu
   if (m === 'estado') return area.estados.length > 0
   if (m === 'cidade') return area.cidades.length > 0
   if (m === 'bairro') return area.bairros.length > 0
+  if (m === 'zona') return area.zonas.length > 0
   return (
-    area.regioes.length + area.estados.length + area.cidades.length + area.bairros.length > 0
+    area.regioes.length +
+      area.estados.length +
+      area.cidades.length +
+      area.bairros.length +
+      area.zonas.length >
+    0
   )
 }
 
-export function resumoMalha(m: Pick<AreaMalhaSalva, 'modo' | 'regioes' | 'estados' | 'cidades' | 'bairros'>): string {
+export function resumoMalha(
+  m: Pick<AreaMalhaSalva, 'modo' | 'regioes' | 'estados' | 'cidades' | 'bairros' | 'zonas'>,
+): string {
   if (m.modo === 'regiao') return m.regioes.join(', ') || '—'
   if (m.modo === 'estado') return m.estados.join(', ') || '—'
   if (m.modo === 'cidade') {
@@ -186,7 +207,7 @@ export function resumoMalha(m: Pick<AreaMalhaSalva, 'modo' | 'regioes' | 'estado
     if (nomes.length <= 3) return nomes.join(', ') || '—'
     return `${nomes.slice(0, 3).join(', ')} +${nomes.length - 3}`
   }
-  const nomes = m.bairros.map((b) => b.nome)
+  const nomes = (m.modo === 'zona' ? m.zonas : m.bairros).map((b) => b.nome)
   if (nomes.length <= 3) return nomes.join(', ') || '—'
   return `${nomes.slice(0, 3).join(', ')} +${nomes.length - 3}`
 }
@@ -275,6 +296,15 @@ export function toggleBairro(area: AreaAtendimento, bairro: BairroAtendido): Are
     ...area,
     modo: 'bairro',
     bairros: existe ? area.bairros.filter((b) => b.id !== bairro.id) : [...area.bairros, bairro],
+  }
+}
+
+export function toggleZona(area: AreaAtendimento, zona: BairroAtendido): AreaAtendimento {
+  const existe = area.zonas.some((z) => z.id === zona.id)
+  return {
+    ...area,
+    modo: 'zona',
+    zonas: existe ? area.zonas.filter((z) => z.id !== zona.id) : [...area.zonas, zona],
   }
 }
 

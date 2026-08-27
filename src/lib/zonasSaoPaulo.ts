@@ -169,6 +169,79 @@ export function agruparDistritosEmZonasSp(fc: GeoFc): GeoFc | null {
   return features.length >= 2 ? { type: 'FeatureCollection', features } : null
 }
 
+function centroideFeature(g: GeoJSON.Geometry): { lat: number; lng: number } | null {
+  const aneis = aneisDeGeom(g)
+  let lat = 0
+  let lng = 0
+  let n = 0
+  for (const poly of aneis) {
+    const ring = poly[0]
+    if (!ring?.length) continue
+    for (const [x, y] of ring) {
+      lng += x
+      lat += y
+      n += 1
+    }
+  }
+  if (!n) return null
+  return { lat: lat / n, lng: lng / n }
+}
+
+/**
+ * Divide bairros/distritos em zonas aproximadas (Centro, Norte, Sul, Leste, Oeste)
+ * pela posição do centróide de cada um em relação ao centro da cidade. Usado fora
+ * de São Paulo, onde não há zoneamento oficial da prefeitura por bairro.
+ */
+export function agruparEmZonasGenerico(fc: GeoFc): GeoFc | null {
+  const municipioId = fc.features[0]?.properties.municipioId
+  if (!municipioId) return null
+  const centros: Array<{ f: GeoFc['features'][number]; lat: number; lng: number }> = []
+  for (const f of fc.features) {
+    if (!f.geometry) continue
+    const c = centroideFeature(f.geometry)
+    if (!c) continue
+    centros.push({ f, lat: c.lat, lng: c.lng })
+  }
+  if (centros.length < 4) return null
+
+  const centroCidade = {
+    lat: centros.reduce((s, c) => s + c.lat, 0) / centros.length,
+    lng: centros.reduce((s, c) => s + c.lng, 0) / centros.length,
+  }
+  const distMax = Math.max(
+    ...centros.map((c) => Math.hypot(c.lat - centroCidade.lat, c.lng - centroCidade.lng)),
+  )
+  if (!Number.isFinite(distMax) || distMax <= 0) return null
+
+  const features: GeoFc['features'] = []
+  for (const { f, lat, lng } of centros) {
+    const dLat = lat - centroCidade.lat
+    const dLng = lng - centroCidade.lng
+    const dist = Math.hypot(dLat, dLng)
+    let zonaId: ZonaSpId
+    if (dist < distMax * 0.28) {
+      zonaId = 'centro'
+    } else {
+      const ang = (Math.atan2(dLat, dLng) * 180) / Math.PI
+      if (ang >= -45 && ang < 45) zonaId = 'leste'
+      else if (ang >= 45 && ang < 135) zonaId = 'norte'
+      else if (ang >= -135 && ang < -45) zonaId = 'sul'
+      else zonaId = 'oeste'
+    }
+    const zona = ZONAS_SP.find((z) => z.id === zonaId)
+    if (!zona) continue
+    features.push({
+      ...f,
+      properties: {
+        ...f.properties,
+        zona: zona.nome,
+        zonaId: `b-${municipioId}-zona-${zona.id}`,
+      },
+    })
+  }
+  return features.length >= 2 ? { type: 'FeatureCollection', features } : null
+}
+
 /** Centroides das 5 zonas (para o rótulo grande). */
 export function centrosZonasSp(
   fc: GeoFc,

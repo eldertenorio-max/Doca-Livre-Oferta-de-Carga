@@ -1,6 +1,10 @@
 import { UF_CENTRO, type UfBr } from './mapaLogisticaIntel'
 import { normalizarTexto } from './cidadesBrasil'
-import { agruparDistritosEmZonasSp, MUN_SAO_PAULO_ID } from './zonasSaoPaulo'
+import {
+  agruparDistritosEmZonasSp,
+  agruparEmZonasGenerico,
+  MUN_SAO_PAULO_ID,
+} from './zonasSaoPaulo'
 
 export const UF_IBGE: Record<UfBr, string> = {
   RO: '11',
@@ -567,6 +571,29 @@ export async function carregarMalhaBairros(opts: {
     throw new Error('Sem malha de bairros nesta cidade')
   }
   cacheBairros.set(opts.municipioId, escolhida)
+  return escolhida
+}
+
+const cacheZonas = new Map<string, GeoFc>()
+
+/**
+ * Zonas da cidade (Centro, Norte, Sul, Leste, Oeste). Em São Paulo usa as regiões
+ * oficiais da Prefeitura; nas demais cidades agrupa os bairros/distritos do IBGE
+ * numa divisão aproximada pela posição geográfica.
+ */
+export async function carregarMalhaZonas(opts: {
+  municipioId: string
+  uf?: UfBr
+}): Promise<GeoFc> {
+  const hit = cacheZonas.get(opts.municipioId)
+  if (hit) return hit
+  const bairros = await carregarMalhaBairros(opts)
+  const zonas =
+    opts.municipioId === MUN_SAO_PAULO_ID
+      ? agruparDistritosEmZonasSp(bairros)
+      : agruparEmZonasGenerico(bairros)
+  const escolhida = zonas ?? bairros
+  cacheZonas.set(opts.municipioId, escolhida)
   return escolhida
 }
 
