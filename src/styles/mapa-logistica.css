@@ -548,6 +548,22 @@
   border: 1px solid rgba(15, 23, 42, 0.08);
 }
 
+.area-att-passos {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  font-weight: 600;
+  color: #334155;
+}
+
+.area-att-passos strong {
+  color: #0e7490;
+}
+
 .area-att-hint {
   margin: 10px 0 0;
   font-size: 0.75rem;

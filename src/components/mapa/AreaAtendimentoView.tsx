@@ -363,6 +363,7 @@ export function AreaAtendimentoView() {
     setNomeMalha('')
     setMsgSalva('')
     setErro('')
+    setShowSalvarHint(true)
     persistPatch(() => areaVazia('embarcador', ownerIdRef.current))
     voltarBrasil()
   }
@@ -1060,10 +1061,19 @@ export function AreaAtendimentoView() {
           </div>
           {showSalvarHint ? (
             <div className="area-att-info-pop">
-              <p className="mapa-log__empty" style={{ marginBottom: 0 }}>
-                O recorte é o que você escolheu acima (região, estado, cidade ou bairro). Dê um nome
-                para reabrir e editar depois.
+              <p className="mapa-log__empty" style={{ marginBottom: 6 }}>
+                Área nova e limpa. Agora é só:
               </p>
+              <ol className="area-att-passos">
+                <li>
+                  Escolha um modo lá em cima do mapa (Região, Estado, Cidade, Bairro ou Zona).
+                </li>
+                <li>Clique no mapa (ou use a busca) para marcar o recorte que você quer.</li>
+                <li>Dê um nome aqui embaixo, em “Ex.: Grande São Paulo”.</li>
+                <li>
+                  Clique em <strong>Salvar área</strong>.
+                </li>
+              </ol>
             </div>
           ) : null}
           {editandoId ? (
