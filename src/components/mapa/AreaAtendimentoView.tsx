@@ -154,10 +154,14 @@ function corCidade(id: string): string {
   return `hsl(${(h >>> 0) % 360} 58% 48%)`
 }
 
+/** Cor de destaque do que está marcado na malha — bem viva pra saltar aos olhos
+ * em cima de qualquer cor de preenchimento (antes era um contorno escuro/preto). */
+const COR_DESTAQUE = '#facc15'
+
 function styleDivisao(cor: string, ativa: boolean): L.PathOptions {
   return {
-    color: ativa ? '#0f172a' : cor,
-    weight: ativa ? 2.4 : 1.3,
+    color: ativa ? COR_DESTAQUE : cor,
+    weight: ativa ? 3.6 : 1.3,
     fillColor: cor,
     fillOpacity: ativa ? 0.52 : 0.28,
   }
@@ -177,7 +181,7 @@ function styleMun(
   const zonaNome = tipo === 'zona' ? nome : zona
   if (zonaNome && ZONA_SP_COR[zonaNome]) {
     const base = styleDivisao(ZONA_SP_COR[zonaNome], selecionada)
-    return { ...base, weight: selecionada ? 2.4 : 1.15, fillOpacity: selecionada ? 0.55 : 0.38 }
+    return { ...base, weight: selecionada ? 3.6 : 1.15, fillOpacity: selecionada ? 0.55 : 0.38 }
   }
   return styleDivisao(corCidade(id), selecionada)
 }
