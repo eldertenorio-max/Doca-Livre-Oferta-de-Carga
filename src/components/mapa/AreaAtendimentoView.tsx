@@ -512,7 +512,6 @@ export function AreaAtendimentoView() {
     if (!map) return
     if (munLayerRef.current) {
       if (!map.hasLayer(munLayerRef.current)) munLayerRef.current.addTo(map)
-      map.setView([-14.2, -51.9], 4)
       return
     }
     setCarregando('Carregando municípios do Brasil…')
@@ -558,7 +557,6 @@ export function AreaAtendimentoView() {
         },
       }).addTo(map)
       munLayerRef.current = layer
-      map.setView([-14.2, -51.9], 4)
       setCarregando('')
     } catch {
       setCarregando('')
@@ -725,19 +723,26 @@ export function AreaAtendimentoView() {
   }
   mostrarRegioesRef.current = mostrarRegioes
 
-  function voltarBrasil() {
+  /** Fecha a camada de bairro/zona aberta, sem mexer no zoom/posição do mapa. */
+  function fecharCamadaMunicipio() {
     limparRotulosZona()
     bairroLayerRef.current?.remove()
     bairroLayerRef.current = null
     setMunAtiva(null)
     setUfAtiva(null)
+  }
+
+  function voltarBrasil() {
+    fecharCamadaMunicipio()
     mapRef.current?.setView([-14.2, -51.9], 4)
   }
 
   function escolherModo(m: ModoMarcacaoArea) {
     setModo(m)
     setErro('')
-    voltarBrasil()
+    // Só fecha a camada de bairro/zona aberta; mantém o zoom/posição atual do
+    // mapa (trocar de modo não deve "sair fora" pra visão do Brasil inteiro).
+    fecharCamadaMunicipio()
     if (ownerId) {
       persist(setArea(db, { ...area, ownerId, ownerKind: 'embarcador', modo: m }))
     }
@@ -761,13 +766,11 @@ export function AreaAtendimentoView() {
       hide(muns)
       hide(bairros)
       void mostrarRegioesRef.current()
-      map.setView([-14.2, -51.9], 4)
     } else if (modo === 'estado') {
       hide(regs)
       hide(muns)
       hide(bairros)
       show(ufs)
-      map.setView([-14.2, -51.9], 4)
     } else if (modo === 'cidade') {
       hide(ufs)
       hide(regs)
