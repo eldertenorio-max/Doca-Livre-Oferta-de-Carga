@@ -156,7 +156,7 @@ function corCidade(id: string): string {
 
 /** Cor de destaque do que está marcado na malha — bem viva pra saltar aos olhos
  * em cima de qualquer cor de preenchimento (antes era um contorno escuro/preto). */
-const COR_DESTAQUE = '#facc15'
+const COR_DESTAQUE = '#1e3a8a'
 
 function styleDivisao(cor: string, ativa: boolean): L.PathOptions {
   return {
