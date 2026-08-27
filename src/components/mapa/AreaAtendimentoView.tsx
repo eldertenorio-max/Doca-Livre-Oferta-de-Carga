@@ -909,7 +909,6 @@ export function AreaAtendimentoView() {
   }, [mostrarTudo, superView, transportadores, catalogo])
 
   async function escolherSugestaoCidade(m: MunicipioCat) {
-    setBusca('')
     setErro('')
     if (modo === 'bairro') {
       await abrirBairros({ id: m.id, nome: m.nome, uf: m.uf })
@@ -1008,10 +1007,7 @@ export function AreaAtendimentoView() {
                 <li key={uf}>
                   <button
                     type="button"
-                    onClick={() => {
-                      setBusca('')
-                      persistPatch((a) => toggleEstado(a, uf))
-                    }}
+                    onClick={() => persistPatch((a) => toggleEstado(a, uf))}
                   >
                     {UF_CENTRO[uf].nome} — {uf}
                   </button>
@@ -1025,10 +1021,7 @@ export function AreaAtendimentoView() {
                 <li key={r}>
                   <button
                     type="button"
-                    onClick={() => {
-                      setBusca('')
-                      persistPatch((a) => toggleRegiao(a, r))
-                    }}
+                    onClick={() => persistPatch((a) => toggleRegiao(a, r))}
                   >
                     {r}
                   </button>
