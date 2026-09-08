@@ -10,7 +10,7 @@ import './index.css'
  * Força novo bundle (setas da galeria). Depois do primeiro load limpo,
  * updates de deploy só no F5 (ver onNeedRefresh).
  */
-const BUILD_ID = 'rota-publico-qualp-ui-v122'
+const BUILD_ID = 'rota-publico-cache-v123'
 
 async function forceFreshOnce(): Promise<boolean> {
   const key = `doca-build:${BUILD_ID}`
@@ -58,18 +58,10 @@ async function forceFreshOnce(): Promise<boolean> {
 }
 
 function boot() {
-  // autoUpdate: garante que o deploy com setas chegue nas abas
-  // onNeedRefresh só recarrega se a aba estiver oculta ou recém aberta (não no meio do form)
-  let quietUntil = Date.now() + 15_000
   const updateSW = registerSW({
     immediate: true,
     onNeedRefresh() {
-      const noMapa = /#\/(mapa|rota|calcular-rota)/.test(window.location.hash)
-      const abaOculta = document.visibilityState === 'hidden'
-      const recemAberto = Date.now() < quietUntil
-      if (noMapa || abaOculta || recemAberto) {
-        void updateSW(true)
-      }
+      void updateSW(true)
     },
     onRegisteredSW(_url, reg) {
       if (!reg) return

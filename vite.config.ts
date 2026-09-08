@@ -66,9 +66,11 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // SPA com HashRouter — navegações offline caem no index
-        navigateFallback: 'index.html',
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webp}'],
+        // HashRouter: a navegação é sempre /index.html. Não precachear HTML —
+        // senão o SW entrega o site velho e o usuário acha que não atualizou.
+        globPatterns: ['**/*.{js,css,ico,png,svg,woff2,webp}'],
+        globIgnores: ['**/index.html'],
+        navigateFallbackAllowlist: [],
         importScripts: ['push-sw.js'],
         skipWaiting: true,
         clientsClaim: true,
@@ -77,6 +79,14 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         runtimeCaching: [
           {
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'doca-html-network-first',
+              networkTimeoutSeconds: 3,
+              expiration: { maxEntries: 4, maxAgeSeconds: 60 },
+            },
+          },
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
