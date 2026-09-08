@@ -218,10 +218,39 @@
   color: #cbd5e1;
 }
 
-.mapa-pub__map {
+.mapa-pub__map-wrap {
+  position: relative;
   flex: 1;
   min-height: 420px;
   margin: 0 12px 8px;
+}
+
+.mapa-pub__logistica {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1100;
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 8px 12px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.28);
+  pointer-events: auto;
+}
+
+.mapa-pub__logistica:hover {
+  background: #1e293b;
+}
+
+.mapa-pub__map {
+  height: 100%;
+  min-height: 420px;
   border-radius: 14px;
   overflow: hidden;
   border: 1px solid #e2e8f0;
@@ -446,8 +475,10 @@
   .mapa-pub__search {
     flex-direction: column;
   }
-  .mapa-pub__map {
+  .mapa-pub__map-wrap {
     margin: 0;
+  }
+  .mapa-pub__map {
     border-radius: 0;
     border-left: 0;
     border-right: 0;

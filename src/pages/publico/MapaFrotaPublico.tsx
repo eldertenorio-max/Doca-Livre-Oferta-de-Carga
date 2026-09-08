@@ -50,6 +50,9 @@ function markerPublicoHtml(p: PontoFrota, qtd = 1): string {
   `
 }
 
+const LINK_MAPA_LOGISTICA =
+  'https://doca-livre-mapa-da-log-stica.onrender.com/?_v=mapa-publico-planos-v1#/mapa'
+
 const PLANOS_PUBLICOS = [
   {
     id: 'motorista',
@@ -422,7 +425,18 @@ export function MapaFrotaPublicoPage() {
         ))}
       </div>
 
-      <div ref={mapEl} className="mapa-pub__map" role="application" aria-label="Mapa público da frota" />
+      <div className="mapa-pub__map-wrap">
+        <a
+          className="mapa-pub__logistica"
+          href={LINK_MAPA_LOGISTICA}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Abrir mapa da logística em nova aba"
+        >
+          Abrir mapa da logística
+        </a>
+        <div ref={mapEl} className="mapa-pub__map" role="application" aria-label="Mapa público da frota" />
+      </div>
 
       <p className="mapa-pub__foot">
         {filtrados.length} veículo{filtrados.length === 1 ? '' : 's'} visível
