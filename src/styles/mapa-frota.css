@@ -626,6 +626,16 @@
   cursor: not-allowed;
 }
 
+.mapa-frota__mini-btn--ghost {
+  background: #fff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.mapa-frota__mini-btn--ghost:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
 .mapa-frota__origem-ok {
   margin: 0;
   font-size: 0.72rem;

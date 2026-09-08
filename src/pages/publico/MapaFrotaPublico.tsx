@@ -618,6 +618,17 @@ export function MapaFrotaPublicoPage() {
     definirOrigem(lat, lng, `${lat.toFixed(5)}, ${lng.toFixed(5)}`)
   }
 
+  function limparPesquisaVeiculo() {
+    setDigitadoVeiculo('')
+    setBuscaVeiculo('')
+  }
+
+  function limparPesquisaTransp() {
+    setDigitadoTransp('')
+    setBuscaTransportadora('')
+    setTransportadorFiltroId('')
+  }
+
   function limparFiltros() {
     setDigitadoVeiculo('')
     setDigitadoTransp('')
@@ -929,6 +940,14 @@ export function MapaFrotaPublicoPage() {
                         >
                           {geoBusy ? '…' : 'OK'}
                         </button>
+                        <button
+                          type="button"
+                          className="mapa-frota__mini-btn mapa-frota__mini-btn--ghost"
+                          disabled={!digitadoVeiculo.trim() && !buscaVeiculo.trim()}
+                          onClick={limparPesquisaVeiculo}
+                        >
+                          Limpar
+                        </button>
                       </div>
                       <div className="mapa-frota__tipos">
                         <span className="mapa-frota__tipos-label">Tipos de veículo</span>
@@ -979,6 +998,18 @@ export function MapaFrotaPublicoPage() {
                           onClick={() => buscarTextoTransp(digitadoTransp)}
                         >
                           OK
+                        </button>
+                        <button
+                          type="button"
+                          className="mapa-frota__mini-btn mapa-frota__mini-btn--ghost"
+                          disabled={
+                            !digitadoTransp.trim() &&
+                            !buscaTransportadora.trim() &&
+                            !transportadorFiltroId
+                          }
+                          onClick={limparPesquisaTransp}
+                        >
+                          Limpar
                         </button>
                       </div>
                       <label className="mapa-frota__field">
