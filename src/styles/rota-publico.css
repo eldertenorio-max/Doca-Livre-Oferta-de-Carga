@@ -1,0 +1,219 @@
+.rota-pub .mapa-frota__lista {
+  overflow: auto;
+}
+
+.rota-pub .mapa-frota__search-body {
+  overflow: visible;
+}
+
+.rota-pub__swap {
+  display: flex;
+  justify-content: center;
+}
+
+.rota-pub__swap button {
+  border: 1px solid #d0d7de;
+  background: #fff;
+  color: #0f172a;
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.rota-pub__swap button:hover {
+  background: #f8fafc;
+}
+
+.rota-pub__via {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.rota-pub__via > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.rota-pub__via-del {
+  margin-top: 20px;
+  border: 0;
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 8px;
+  width: 32px;
+  height: 36px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.rota-pub__add {
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.rota-pub__add:hover {
+  background: #eef2f7;
+}
+
+.rota-pub__eixos {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rota-pub__eixos button {
+  border: 1px solid #d0d7de;
+  background: #fff;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.rota-pub__eixos span {
+  flex: 1;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.rota-pub__switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rota-pub__switch.is-on {
+  border-color: #0f172a;
+  background: #f1f5f9;
+}
+
+.rota-pub__calc {
+  width: 100%;
+  border: 0;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #fff;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.rota-pub__calc:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.rota-pub__erro {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.rota-pub__resumo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.rota-pub__resumo h3 {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #64748b;
+}
+
+.rota-pub__linha {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.rota-pub__linha strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.rota-pub__linha--total {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+  font-weight: 800;
+}
+
+.rota-pub__pracas {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 160px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rota-pub__pracas li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.rota-pub .mapa-frota__map-wrap > div {
+  height: 100%;
+}
+
+.rota-pub .rota-map-preview {
+  height: 100%;
+  min-height: 360px;
+  border: 0;
+  border-radius: 0;
+}
+
+@media (max-width: 860px) {
+  .rota-pub .mapa-frota__layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(280px, 42vh) 1fr;
+  }
+
+  .rota-pub .mapa-frota__map-wrap {
+    order: -1;
+    min-height: 280px;
+  }
+}

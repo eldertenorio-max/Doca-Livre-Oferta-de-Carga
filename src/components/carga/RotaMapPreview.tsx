@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { formatCurrency } from '../../lib/businessRules'
-import { eixosDoVeiculo, estimarCustosRota } from '../../lib/anttFrete'
+import { eixosDoVeiculo, estimarCustosRota, type PreferenciaRota } from '../../lib/anttFrete'
 import { geocodificarConsulta } from '../../lib/geocodeEndereco'
 import {
   calcularPedagioNaRota,
@@ -44,6 +44,8 @@ type Props = {
   calcularId?: number
   /** Se true, mostra km/tempo (e custos) num resumo abaixo do mapa, em vez do cartão flutuante. */
   resumoAbaixo?: boolean
+  /** Mesma preferência da calculadora (QualP / Rotas Brasil). */
+  preferencia?: PreferenciaRota
 }
 
 function normWaypoint(w: RotaWaypointInput): {
@@ -152,6 +154,7 @@ export function RotaMapPreview({
   autoCalcular = true,
   calcularId = 0,
   resumoAbaixo = false,
+  preferencia = 'eficiente',
 }: Props) {
   const mapEl = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
@@ -322,6 +325,8 @@ export function RotaMapPreview({
         const rota = await rotaOsrmComGeometria(oCoords, dCoords, {
           waypoints: viaCoords,
           eixos,
+          preferencia,
+          evitarPedagios: preferencia === 'evitar_pedagio',
         })
         if (id !== reqId.current) return
         if (!rota?.polyline.length) {
@@ -444,6 +449,7 @@ export function RotaMapPreview({
     mostrarCustos,
     autoCalcular,
     calcularId,
+    preferencia,
   ])
 
   return (

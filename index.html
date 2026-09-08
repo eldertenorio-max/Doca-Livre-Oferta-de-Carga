@@ -52,12 +52,21 @@
 
     <link rel="canonical" href="https://ofertadecargas.docalivre.com.br/" />
     <title>Doca Livre — Oferta de Carga</title>
+    <script>
+      ;(function () {
+        var h = (location.hostname || '').toLowerCase().replace(/^www\./, '')
+        if (h !== 'ofertadecarga.com.br') return
+        document.title = 'Calcular rota — Oferta de Carga'
+        var canon = document.querySelector('link[rel="canonical"]')
+        if (canon) canon.setAttribute('href', 'https://ofertadecarga.com.br/')
+      })()
+    </script>
   </head>
   <body>
     <script>
       // Força o navegador a procurar SW novo e limpar cache morto (uma vez por build).
       ;(function () {
-        var BUILD = 'mapa-publico-paywall-3a-v118'
+        var BUILD = 'oferta-de-carga-rota-v119'
         var urlV = ''
         try {
           urlV = new URL(location.href).searchParams.get('_v') || ''

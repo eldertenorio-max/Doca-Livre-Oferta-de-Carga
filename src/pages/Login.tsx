@@ -584,6 +584,9 @@ export function LoginPage() {
               <Link to="/mapa" className="portal-login__link">
                 Ver mapa da frota (sem login)
               </Link>
+              <Link to="/rota" className="portal-login__link">
+                Calcular rota e pedágio
+              </Link>
               <Link to="/cadastro-transportador" className="portal-login__link">
                 Quero ser transportador
               </Link>

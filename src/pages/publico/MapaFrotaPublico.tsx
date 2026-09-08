@@ -792,6 +792,9 @@ export function MapaFrotaPublicoPage() {
           </span>
         </Link>
         <div className="mapa-pub__top-actions">
+          <Link className="mapa-pub__btn mapa-pub__btn--ghost" to="/rota">
+            Calcular rota
+          </Link>
           {logado ? (
             <Link
               className="mapa-pub__btn mapa-pub__btn--ghost"

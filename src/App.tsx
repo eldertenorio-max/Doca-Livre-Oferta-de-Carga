@@ -27,6 +27,8 @@ import { ConfiguracoesTransportadorPage } from './pages/transportador/Configurac
 import { MapaFrotaPage } from './pages/minerva/MapaFrota'
 import { MapaLogisticaPage } from './pages/minerva/MapaLogistica'
 import { MapaFrotaPublicoPage } from './pages/publico/MapaFrotaPublico'
+import { CalcularRotaPublicoPage } from './pages/publico/CalcularRotaPublico'
+import { devePularSplash, isSiteOfertaDeCarga } from './lib/siteOfertaDeCarga'
 import { PerfilPage } from './pages/Perfil'
 import { PwaInstallBanner } from './components/PwaInstallBanner'
 import { PushEnableBanner } from './components/PushEnableBanner'
@@ -39,14 +41,11 @@ function MinervaToEmbarcadorRedirect() {
   return <Navigate to={next} replace />
 }
 
-function isPublicMapPath() {
-  const h = (typeof window !== 'undefined' ? window.location.hash : '').replace(/^#/, '')
-  return h === '/mapa' || h.startsWith('/mapa?') || h.startsWith('/mapa/')
-}
-
 function AppBanners() {
   const location = useLocation()
-  if (location.pathname === '/mapa') return null
+  if (location.pathname === '/mapa' || location.pathname === '/rota' || location.pathname === '/calcular-rota') {
+    return null
+  }
   return (
     <>
       <PwaInstallBanner />
@@ -71,7 +70,7 @@ function Protected({ role, children }: { role?: UserRole | UserRole[]; children:
 }
 
 export default function App() {
-  const [splashDone, setSplashDone] = useState(() => isPublicMapPath())
+  const [splashDone, setSplashDone] = useState(() => devePularSplash())
 
   const handleSplashComplete = useCallback(() => {
     setSplashDone(true)
@@ -88,6 +87,14 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/cadastro-transportador" element={<CadastroTransportadorPage />} />
       <Route path="/mapa" element={<MapaFrotaPublicoPage />} />
+      <Route path="/rota" element={<CalcularRotaPublicoPage />} />
+      <Route path="/calcular-rota" element={<CalcularRotaPublicoPage />} />
+      <Route
+        path="/"
+        element={
+          isSiteOfertaDeCarga() ? <CalcularRotaPublicoPage /> : <Navigate to="/login" replace />
+        }
+      />
       <Route
         element={
           <Protected>
@@ -299,7 +306,10 @@ export default function App() {
           }
         />
       </Route>
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route
+        path="*"
+        element={<Navigate to={isSiteOfertaDeCarga() ? '/rota' : '/login'} replace />}
+      />
     </Routes>
     </>
   )
