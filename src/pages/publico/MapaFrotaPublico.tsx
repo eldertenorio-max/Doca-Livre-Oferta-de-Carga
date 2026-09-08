@@ -1380,15 +1380,23 @@ export function MapaFrotaPublicoPage() {
                 Clique no mapa para definir a origem da busca em raio
               </div>
             ) : null}
-            <a
-              className="mapa-pub__logistica"
-              href={LINK_MAPA_LOGISTICA}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Abrir mapa da logística em nova aba"
-            >
-              Abrir mapa da logística
-            </a>
+            <div className="mapa-pub__map-links">
+              <img className="mapa-pub__map-logo" src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
+              <a
+                className="mapa-pub__pill"
+                href={LINK_MAPA_LOGISTICA}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Abrir mapa da logística em nova aba"
+              >
+                <span>Mapa da</span>
+                <strong>Logística</strong>
+              </a>
+              <LinkRota className="mapa-pub__pill">
+                <span>Calcular</span>
+                <strong>rota</strong>
+              </LinkRota>
+            </div>
             <div
               ref={mapEl}
               className="mapa-frota__map"
