@@ -86,6 +86,9 @@ const PLANOS_PUBLICOS = [
   },
 ] as const
 
+const LINK_MAPA_LOGISTICA =
+  'https://doca-livre-mapa-da-log-stica.onrender.com/?_v=mapa-publico-planos-v1#/mapa'
+
 type Coord = { lat: number; lng: number }
 type Via = { id: string; endereco: string; lat?: number | null; lng?: number | null }
 
@@ -297,7 +300,6 @@ export function CalcularRotaPublicoPage() {
           </span>
         </Link>
         <div className="mapa-pub__top-actions">
-          <LinkMapaFrota className="mapa-pub__btn mapa-pub__btn--ghost">Mapa da Frota</LinkMapaFrota>
           {logado ? (
             <LinkSistema
               className="mapa-pub__btn mapa-pub__btn--solid"
@@ -640,6 +642,17 @@ export function CalcularRotaPublicoPage() {
           </aside>
 
           <div className="mapa-frota__map-wrap">
+            <div className="rota-pub__map-links">
+              <LinkMapaFrota className="mapa-pub__logistica">Mapa da Frota</LinkMapaFrota>
+              <a
+                className="mapa-pub__logistica mapa-pub__logistica--alt"
+                href={LINK_MAPA_LOGISTICA}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Mapa da logística
+              </a>
+            </div>
             {mapId === 0 && !calc ? (
               <div className="rota-pub__map-hint">
                 <Route size={28} strokeWidth={2.2} />

@@ -579,6 +579,32 @@
     #e2e8f0;
 }
 
+.rota-pub__map-links {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.rota-pub__map-links .mapa-pub__logistica {
+  position: static;
+}
+
+.rota-pub__map-links .mapa-pub__logistica--alt {
+  background: #fff;
+  color: #0b1b4a;
+  box-shadow: 0 8px 20px rgb(15 23 42 / 0.14);
+}
+
+.rota-pub__map-links .mapa-pub__logistica--alt:hover {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
 .rota-pub__map-hint {
   position: absolute;
   z-index: 1100;
@@ -632,5 +658,14 @@
   .rota-pub .mapa-frota__map-wrap {
     order: -1;
     min-height: 280px;
+  }
+
+  .rota-pub__map-links {
+    top: 8px;
+    right: 8px;
+  }
+
+  .rota-pub__map-hint {
+    top: 28%;
   }
 }
