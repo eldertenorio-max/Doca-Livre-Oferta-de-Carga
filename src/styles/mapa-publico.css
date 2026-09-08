@@ -124,13 +124,84 @@
   cursor: pointer;
 }
 
-.mapa-pub__endereco .mapa-frota__row > .relative {
-  flex: 1;
-  min-width: 0;
+.mapa-pub .mapa-frota__lista {
+  overflow: visible;
 }
 
-.mapa-pub__endereco .relative ul {
-  z-index: 60;
+.mapa-pub .mapa-frota__search,
+.mapa-pub .mapa-frota__search-body,
+.mapa-pub .mapa-frota__tab-panel {
+  overflow: visible;
+}
+
+.mapa-pub .mapa-frota__cats {
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+}
+
+.mapa-pub__busca-row {
+  align-items: stretch;
+}
+
+.mapa-pub-suggest {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  z-index: 8;
+}
+
+.mapa-pub-suggest__list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 80;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  max-height: 240px;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgb(15 23 42 / 0.16);
+}
+
+.mapa-pub-suggest__item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 8px 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mapa-pub-suggest__item strong {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.mapa-pub-suggest__item span {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.mapa-pub-suggest__item.is-on,
+.mapa-pub-suggest__item:hover {
+  background: #f1f5f9;
+}
+
+.mapa-pub-suggest__empty {
+  padding: 8px 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
 }
 
 .mapa-pub__logistica {

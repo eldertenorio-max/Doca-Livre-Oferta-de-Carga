@@ -3,12 +3,17 @@ import { Link } from 'react-router-dom'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useData } from '../../context/DataContext'
-import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
 import { CarroceriaFilterSelect } from '../../components/ui/CarroceriaFilterSelect'
+import {
+  MapaPubSuggestInput,
+  type SugestaoPub,
+} from '../../components/ui/MapaPubSuggestInput'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
-import { geocodificarConsulta, type SugestaoEndereco } from '../../lib/geocodeEndereco'
+import { geocodificarConsulta } from '../../lib/geocodeEndereco'
 import { frotaIconeSvgRaw } from '../../lib/frotaIcones'
-import { parseCarrocerias } from '../../lib/tiposCarroceria'
+import { UF_CENTRO, UFS_BR } from '../../lib/mapaLogisticaIntel'
+import { sugerirCidadesComCoords } from '../../lib/municipiosSedes'
+import { parseCarrocerias, TIPOS_CARROCERIA } from '../../lib/tiposCarroceria'
 import {
   agruparPontosPorCoord,
   distanciaKm,
@@ -152,6 +157,8 @@ export function MapaFrotaPublicoPage() {
 
   const [filtro, setFiltro] = useState<FiltroStatus>('disponiveis')
   const [abaPesquisa, setAbaPesquisa] = useState<'veiculo' | 'transportadora'>('veiculo')
+  const [digitadoVeiculo, setDigitadoVeiculo] = useState('')
+  const [digitadoTransp, setDigitadoTransp] = useState('')
   const [buscaVeiculo, setBuscaVeiculo] = useState('')
   const [buscaTransportadora, setBuscaTransportadora] = useState('')
   const [transportadorFiltroId, setTransportadorFiltroId] = useState('')
@@ -267,6 +274,111 @@ export function MapaFrotaPublicoPage() {
     return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
   }, [pontos])
 
+  function sugestoesVeiculo(query: string): SugestaoPub[] {
+    const q = query.trim().toLowerCase()
+    if (q.length < 1) return []
+    const out: SugestaoPub[] = []
+    const seen = new Set<string>()
+    const add = (item: SugestaoPub) => {
+      const k = item.label.toLowerCase()
+      if (seen.has(k)) return
+      if (!k.includes(q) && !item.hint.toLowerCase().includes(q)) return
+      seen.add(k)
+      out.push(item)
+    }
+    for (const item of LEGENDA_FROTA) {
+      add({
+        key: `tipo-${item.grupo}`,
+        label: item.label,
+        hint: 'Tipo de veículo',
+        kind: 'tipo',
+        grupo: item.grupo,
+      })
+    }
+    for (const nome of TIPOS_CARROCERIA) {
+      add({
+        key: `car-${nome}`,
+        label: nome,
+        hint: 'Carroceria',
+        kind: 'carroceria',
+      })
+    }
+    for (const c of sugerirCidadesComCoords(query, 8)) {
+      add({
+        key: `cid-${c.label}`,
+        label: c.label,
+        hint: 'Cidade',
+        kind: 'cidade',
+        lat: c.lat,
+        lng: c.lng,
+        cidade: c.primary,
+      })
+    }
+    for (const p of pontos) {
+      const label = [p.cidade, p.uf].filter(Boolean).join(' — ')
+      if (label) {
+        add({
+          key: `frota-${label}`,
+          label,
+          hint: 'Cidade da frota',
+          kind: 'cidade',
+          cidade: p.cidade,
+          uf: p.uf,
+          lat: p.lat,
+          lng: p.lng,
+        })
+      }
+    }
+    for (const uf of UFS_BR) {
+      const nome = UF_CENTRO[uf].nome
+      add({
+        key: `uf-${uf}`,
+        label: `${nome} — ${uf}`,
+        hint: 'Estado',
+        kind: 'uf',
+        uf,
+        lat: UF_CENTRO[uf].lat,
+        lng: UF_CENTRO[uf].lng,
+      })
+    }
+    for (const r of REGIOES_BR) {
+      add({
+        key: `reg-${r}`,
+        label: r,
+        hint: 'Região',
+        kind: 'regiao',
+      })
+    }
+    return out.slice(0, 10)
+  }
+
+  function sugestoesTransportadora(query: string): SugestaoPub[] {
+    const q = query.trim().toLowerCase()
+    if (q.length < 1) return []
+    return opcoesTransportadora
+      .filter((t) => t.nome.toLowerCase().includes(q))
+      .slice(0, 10)
+      .map((t) => ({
+        key: `tr-${t.id}`,
+        label: t.nome,
+        hint: `${t.qtd} veículo${t.qtd === 1 ? '' : 's'}`,
+        kind: 'transportadora' as const,
+        transportadorId: t.id,
+      }))
+  }
+
+  function sugestoesEndereco(query: string): SugestaoPub[] {
+    return sugerirCidadesComCoords(query, 8).map((c) => ({
+      key: `end-cid-${c.label}`,
+      label: c.label,
+      hint: 'Cidade',
+      kind: 'cidade' as const,
+      lat: c.lat,
+      lng: c.lng,
+      cidade: c.primary,
+    }))
+  }
+
   const filtradosSemStatus = useMemo(() => {
     const qVeic = buscaVeiculo.trim().toLowerCase()
     const qTransp = buscaTransportadora.trim().toLowerCase()
@@ -353,7 +465,7 @@ export function MapaFrotaPublicoPage() {
     tipos.length > 0 ||
     carroceriasFiltro.length > 0
 
-  function podeUsarBuscaGeo(): boolean {
+  function consumirBusca(): boolean {
     if (userRef.current) return true
     if (estadoBuscasPublicas().esgotado) {
       setShowPaywall(true)
@@ -370,8 +482,7 @@ export function MapaFrotaPublicoPage() {
     return true
   }
 
-  function definirOrigem(lat: number, lng: number, label: string) {
-    if (!podeUsarBuscaGeo()) return
+  function aplicarOrigem(lat: number, lng: number, label: string) {
     setOrigemRaio({ lat, lng, label })
     setCoordLat(lat.toFixed(5))
     setCoordLng(lng.toFixed(5))
@@ -379,7 +490,84 @@ export function MapaFrotaPublicoPage() {
     setClicarOrigem(false)
     setRaioGeoAtivo(true)
   }
+
+  function definirOrigem(lat: number, lng: number, label: string) {
+    if (!consumirBusca()) return
+    aplicarOrigem(lat, lng, label)
+  }
   definirOrigemRef.current = definirOrigem
+
+  function aplicarSugestaoVeiculo(item: SugestaoPub) {
+    if (!consumirBusca()) return
+    setDigitadoVeiculo(item.label)
+    if (item.kind === 'tipo' && item.grupo) {
+      setTipos([item.grupo as FrotaIconeGrupo])
+      setBuscaVeiculo('')
+    } else if (item.kind === 'carroceria') {
+      setCarroceriasFiltro([item.label])
+      setBuscaVeiculo('')
+    } else if (item.kind === 'uf' && item.uf) {
+      setUf(item.uf)
+      const r = regiaoDaUf(item.uf)
+      if (r) setRegiao(r)
+      setBuscaVeiculo('')
+    } else if (item.kind === 'regiao') {
+      setRegiao(item.label as RegiaoBr)
+      setUf('')
+      setBuscaVeiculo('')
+    } else if (item.kind === 'cidade') {
+      setCidade(item.cidade || item.label)
+      if (item.uf) {
+        setUf(item.uf)
+        const r = regiaoDaUf(item.uf)
+        if (r) setRegiao(r)
+      }
+      setBuscaVeiculo('')
+    } else {
+      setBuscaVeiculo(item.label)
+    }
+    if (item.lat != null && item.lng != null) {
+      aplicarOrigem(item.lat, item.lng, item.label)
+    }
+  }
+
+  async function buscarTextoVeiculo(texto: string) {
+    const q = texto.trim()
+    if (!q) return
+    const exato = sugestoesVeiculo(q).find((x) => x.label.toLowerCase() === q.toLowerCase())
+    if (exato) {
+      aplicarSugestaoVeiculo(exato)
+      return
+    }
+    if (!consumirBusca()) return
+    setDigitadoVeiculo(q)
+    setBuscaVeiculo(q)
+    setGeoBusy(true)
+    const res = await geocodificarConsulta(q)
+    setGeoBusy(false)
+    if (res.ok) aplicarOrigem(res.coords.lat, res.coords.lng, res.display || q)
+  }
+
+  function aplicarSugestaoTransp(item: SugestaoPub) {
+    if (!consumirBusca()) return
+    setDigitadoTransp(item.label)
+    setBuscaTransportadora('')
+    setTransportadorFiltroId(item.transportadorId || '')
+  }
+
+  function buscarTextoTransp(texto: string) {
+    const q = texto.trim()
+    if (!q) return
+    const hit = sugestoesTransportadora(q)[0]
+    if (hit) {
+      aplicarSugestaoTransp(hit)
+      return
+    }
+    if (!consumirBusca()) return
+    setDigitadoTransp(q)
+    setBuscaTransportadora(q)
+    setTransportadorFiltroId('')
+  }
 
   async function localizarPorEndereco(endereco?: string) {
     const q = (endereco ?? enderecoOrigem).trim()
@@ -398,11 +586,6 @@ export function MapaFrotaPublicoPage() {
     definirOrigem(res.coords.lat, res.coords.lng, res.display || q)
   }
 
-  function escolherSugestao(sug: SugestaoEndereco) {
-    setEnderecoOrigem(sug.label)
-    definirOrigem(sug.lat, sug.lng, sug.label)
-  }
-
   function localizarPorCoordenadas() {
     setGeoErro('')
     const lat = Number(String(coordLat).replace(',', '.'))
@@ -419,6 +602,8 @@ export function MapaFrotaPublicoPage() {
   }
 
   function limparFiltros() {
+    setDigitadoVeiculo('')
+    setDigitadoTransp('')
     setBuscaVeiculo('')
     setBuscaTransportadora('')
     setTransportadorFiltroId('')
@@ -620,10 +805,10 @@ export function MapaFrotaPublicoPage() {
             </p>
             <p className="mapa-pub__creditos">
               {user
-                ? 'Conta logada · buscas em raio ilimitadas'
+                ? 'Conta logada · buscas ilimitadas'
                 : restam > 0
-                  ? `${restam} de ${MAPA_PUBLICO_LIMITE_BUSCAS} buscas grátis em raio restantes`
-                  : 'Buscas grátis em raio esgotadas'}
+                  ? `${restam} de ${MAPA_PUBLICO_LIMITE_BUSCAS} buscas grátis restantes`
+                  : 'Buscas grátis esgotadas'}
             </p>
           </div>
           <div className="mapa-frota__filtros">
@@ -648,7 +833,7 @@ export function MapaFrotaPublicoPage() {
 
         {!user && restam === 0 ? (
           <div className="mapa-pub__cta-esgotado">
-            <span>Para continuar buscando em raio e ver contato da frota, assine o Doca Livre.</span>
+            <span>Para continuar buscando e ver contato da frota, assine o Doca Livre.</span>
             <button type="button" onClick={() => setShowPaywall(true)}>
               Assinar para continuar
             </button>
@@ -708,13 +893,25 @@ export function MapaFrotaPublicoPage() {
 
                   {abaPesquisa === 'veiculo' ? (
                     <div className="mapa-frota__tab-panel" role="tabpanel">
-                      <input
-                        className="mapa-frota__input"
-                        type="search"
-                        placeholder="Tipo, cidade, carroceria…"
-                        value={buscaVeiculo}
-                        onChange={(e) => setBuscaVeiculo(e.target.value)}
-                      />
+                      <div className="mapa-frota__row mapa-pub__busca-row">
+                        <MapaPubSuggestInput
+                          value={digitadoVeiculo}
+                          onChange={setDigitadoVeiculo}
+                          onPick={aplicarSugestaoVeiculo}
+                          onSubmit={(v) => void buscarTextoVeiculo(v)}
+                          localSuggestions={sugestoesVeiculo}
+                          placeholder="Tipo, cidade, carroceria, UF…"
+                          disabled={!user && restam === 0}
+                        />
+                        <button
+                          type="button"
+                          className="mapa-frota__mini-btn"
+                          disabled={geoBusy || !digitadoVeiculo.trim()}
+                          onClick={() => void buscarTextoVeiculo(digitadoVeiculo)}
+                        >
+                          {geoBusy ? '…' : 'OK'}
+                        </button>
+                      </div>
                       <div className="mapa-frota__tipos">
                         <span className="mapa-frota__tipos-label">Tipos de veículo</span>
                         <div className="mapa-frota__tipos-grid">
@@ -746,23 +943,46 @@ export function MapaFrotaPublicoPage() {
                     </div>
                   ) : (
                     <div className="mapa-frota__tab-panel" role="tabpanel">
-                      <input
-                        className="mapa-frota__input"
-                        type="search"
-                        placeholder="Nome fantasia da transportadora…"
-                        value={buscaTransportadora}
-                        onChange={(e) => {
-                          setBuscaTransportadora(e.target.value)
-                          setTransportadorFiltroId('')
-                        }}
-                      />
+                      <div className="mapa-frota__row mapa-pub__busca-row">
+                        <MapaPubSuggestInput
+                          value={digitadoTransp}
+                          onChange={setDigitadoTransp}
+                          onPick={aplicarSugestaoTransp}
+                          onSubmit={buscarTextoTransp}
+                          localSuggestions={sugestoesTransportadora}
+                          placeholder="Nome fantasia da transportadora…"
+                          disabled={!user && restam === 0}
+                          fetchRemote={false}
+                        />
+                        <button
+                          type="button"
+                          className="mapa-frota__mini-btn"
+                          disabled={!digitadoTransp.trim()}
+                          onClick={() => buscarTextoTransp(digitadoTransp)}
+                        >
+                          OK
+                        </button>
+                      </div>
                       <label className="mapa-frota__field">
                         <span>Transportadora</span>
                         <select
                           value={transportadorFiltroId}
                           onChange={(e) => {
-                            setTransportadorFiltroId(e.target.value)
-                            if (e.target.value) setBuscaTransportadora('')
+                            const id = e.target.value
+                            if (!id) {
+                              setTransportadorFiltroId('')
+                              return
+                            }
+                            const t = opcoesTransportadora.find((x) => x.id === id)
+                            if (t) {
+                              aplicarSugestaoTransp({
+                                key: t.id,
+                                label: t.nome,
+                                hint: `${t.qtd} veículo${t.qtd === 1 ? '' : 's'}`,
+                                kind: 'transportadora',
+                                transportadorId: t.id,
+                              })
+                            }
                           }}
                         >
                           <option value="">Todas</option>
@@ -777,7 +997,7 @@ export function MapaFrotaPublicoPage() {
                         <ul className="mapa-frota__transp-list" aria-label="Transportadoras">
                           {opcoesTransportadora
                             .filter((t) => {
-                              const q = buscaTransportadora.trim().toLowerCase()
+                              const q = digitadoTransp.trim().toLowerCase()
                               if (!q) return true
                               return t.nome.toLowerCase().includes(q)
                             })
@@ -791,8 +1011,17 @@ export function MapaFrotaPublicoPage() {
                                     className={`mapa-frota__transp-row${on ? ' is-on' : ''}`}
                                     aria-pressed={on}
                                     onClick={() => {
-                                      setTransportadorFiltroId(on ? '' : t.id)
-                                      setBuscaTransportadora('')
+                                      if (on) {
+                                        setTransportadorFiltroId('')
+                                        return
+                                      }
+                                      aplicarSugestaoTransp({
+                                        key: t.id,
+                                        label: t.nome,
+                                        hint: `${t.qtd} veículo${t.qtd === 1 ? '' : 's'}`,
+                                        kind: 'transportadora',
+                                        transportadorId: t.id,
+                                      })
                                     }}
                                   >
                                     <span className="mapa-frota__transp-nome">{t.nome}</span>
@@ -883,7 +1112,13 @@ export function MapaFrotaPublicoPage() {
                       type="button"
                       className={`mapa-frota__origem-btn${clicarOrigem ? ' is-on' : ''}`}
                       aria-pressed={clicarOrigem}
-                      onClick={() => setClicarOrigem((v) => !v)}
+                      onClick={() => {
+                        if (!user && restam === 0) {
+                          setShowPaywall(true)
+                          return
+                        }
+                        setClicarOrigem((v) => !v)
+                      }}
                     >
                       {clicarOrigem ? 'Clique no mapa agora…' : 'Definir origem no mapa'}
                     </button>
@@ -891,16 +1126,25 @@ export function MapaFrotaPublicoPage() {
                     <label className="mapa-frota__field mapa-pub__endereco">
                       <span>Endereço</span>
                       <div className="mapa-frota__row">
-                        <AddressSuggestInput
+                        <MapaPubSuggestInput
                           value={enderecoOrigem}
                           onChange={(v) => {
                             setEnderecoOrigem(v)
                             setGeoErro('')
                           }}
-                          onPick={escolherSugestao}
+                          onPick={(item) => {
+                            setEnderecoOrigem(item.label)
+                            if (item.lat != null && item.lng != null) {
+                              definirOrigem(item.lat, item.lng, item.label)
+                            } else {
+                              void localizarPorEndereco(item.label)
+                            }
+                          }}
+                          onSubmit={(v) => void localizarPorEndereco(v)}
+                          localSuggestions={sugestoesEndereco}
                           minChars={2}
                           placeholder="Rua, cidade, CEP…"
-                          className="mapa-frota__input"
+                          disabled={!user && restam === 0}
                         />
                         <button
                           type="button"
