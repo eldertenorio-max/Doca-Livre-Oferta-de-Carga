@@ -55,10 +55,14 @@
     <script>
       ;(function () {
         var h = (location.hostname || '').toLowerCase().replace(/^www\./, '')
-        if (h !== 'ofertadecarga.com.br') return
-        document.title = 'Calcular rota — Oferta de Carga'
         var canon = document.querySelector('link[rel="canonical"]')
-        if (canon) canon.setAttribute('href', 'https://ofertadecarga.com.br/')
+        if (h === 'ofertadecarga.com.br') {
+          document.title = 'Calcular rota — Oferta de Carga'
+          if (canon) canon.setAttribute('href', 'https://ofertadecarga.com.br/')
+        } else if (h === 'sistema.ofertadecarga.com.br') {
+          document.title = 'Sistema — Oferta de Carga'
+          if (canon) canon.setAttribute('href', 'https://sistema.ofertadecarga.com.br/')
+        }
       })()
     </script>
   </head>
@@ -66,7 +70,7 @@
     <script>
       // Força o navegador a procurar SW novo e limpar cache morto (uma vez por build).
       ;(function () {
-        var BUILD = 'oferta-de-carga-rota-v119'
+        var BUILD = 'sistema-ofertadecarga-v120'
         var urlV = ''
         try {
           urlV = new URL(location.href).searchParams.get('_v') || ''

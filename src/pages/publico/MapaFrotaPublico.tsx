@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
+import { LinkRota, LinkSistema } from '../../components/ui/HostLink'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useData } from '../../context/DataContext'
@@ -792,9 +793,7 @@ export function MapaFrotaPublicoPage() {
           </span>
         </Link>
         <div className="mapa-pub__top-actions">
-          <Link className="mapa-pub__btn mapa-pub__btn--ghost" to="/rota">
-            Calcular rota
-          </Link>
+          <LinkRota className="mapa-pub__btn mapa-pub__btn--ghost">Calcular rota</LinkRota>
           {logado ? (
             <Link
               className="mapa-pub__btn mapa-pub__btn--ghost"
@@ -804,12 +803,12 @@ export function MapaFrotaPublicoPage() {
             </Link>
           ) : (
             <>
-              <Link className="mapa-pub__btn mapa-pub__btn--ghost" to="/login">
+              <LinkSistema className="mapa-pub__btn mapa-pub__btn--ghost" to="/login">
                 Entrar
-              </Link>
-              <Link className="mapa-pub__btn mapa-pub__btn--solid" to="/cadastro-transportador">
+              </LinkSistema>
+              <LinkSistema className="mapa-pub__btn mapa-pub__btn--solid" to="/cadastro-transportador">
                 Cadastrar
-              </Link>
+              </LinkSistema>
             </>
           )}
         </div>
@@ -1384,19 +1383,19 @@ export function MapaFrotaPublicoPage() {
                       <li key={item}>{item}</li>
                     ))}
                   </ul>
-                  <Link
+                  <LinkSistema
                     className="mapa-pub__btn mapa-pub__btn--solid"
                     to={`/cadastro-transportador?plano=${plano.id}`}
                   >
                     Assinar {plano.nome}
-                  </Link>
+                  </LinkSistema>
                 </article>
               ))}
             </div>
             <div className="mapa-pub-modal__acoes">
-              <Link className="mapa-pub__btn mapa-pub__btn--ghost" to="/login">
+              <LinkSistema className="mapa-pub__btn mapa-pub__btn--ghost" to="/login">
                 Já tenho conta
-              </Link>
+              </LinkSistema>
               <button type="button" className="mapa-pub-modal__fechar" onClick={() => setShowPaywall(false)}>
                 Continuar só olhando o mapa
               </button>

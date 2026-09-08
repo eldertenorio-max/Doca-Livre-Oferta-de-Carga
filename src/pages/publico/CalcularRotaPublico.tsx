@@ -9,7 +9,7 @@ import {
   type PreferenciaRota,
 } from '../../lib/anttFrete'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
-import { URL_MAPA_FROTA } from '../../lib/siteOfertaDeCarga'
+import { LinkSistema, LinkMapaFrota } from '../../components/ui/HostLink'
 import { useData } from '../../context/DataContext'
 import { AddressSuggestInput, PLACEHOLDER_ENDERECO_EXEMPLO } from '../../components/ui/AddressSuggestInput'
 import { RotaMapPreview } from '../../components/carga/RotaMapPreview'
@@ -155,24 +155,22 @@ export function CalcularRotaPublicoPage() {
           </span>
         </Link>
         <div className="mapa-pub__top-actions">
-          <Link className="mapa-pub__btn mapa-pub__btn--ghost" to="/mapa">
-            Mapa da Frota
-          </Link>
+          <LinkMapaFrota className="mapa-pub__btn mapa-pub__btn--ghost">Mapa da Frota</LinkMapaFrota>
           {logado ? (
-            <Link
+            <LinkSistema
               className="mapa-pub__btn mapa-pub__btn--solid"
               to={user?.role === 'transportador' ? '/transportador' : '/embarcador'}
             >
               Ir para o sistema
-            </Link>
+            </LinkSistema>
           ) : (
             <>
-              <Link className="mapa-pub__btn mapa-pub__btn--ghost" to="/login">
+              <LinkSistema className="mapa-pub__btn mapa-pub__btn--ghost" to="/login">
                 Entrar
-              </Link>
-              <Link className="mapa-pub__btn mapa-pub__btn--solid" to="/cadastro-transportador">
+              </LinkSistema>
+              <LinkSistema className="mapa-pub__btn mapa-pub__btn--solid" to="/cadastro-transportador">
                 Cadastrar
-              </Link>
+              </LinkSistema>
             </>
           )}
         </div>
@@ -412,9 +410,9 @@ export function CalcularRotaPublicoPage() {
                   </ul>
                 )}
                 <p className="mapa-frota__sub">{calc.fonte}</p>
-                <a className="mapa-pub__btn mapa-pub__btn--ghost" href={URL_MAPA_FROTA}>
+                <LinkMapaFrota className="mapa-pub__btn mapa-pub__btn--ghost">
                   Ver frota disponível
-                </a>
+                </LinkMapaFrota>
               </div>
             ) : null}
           </aside>

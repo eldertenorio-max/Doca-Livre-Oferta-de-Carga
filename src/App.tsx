@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useData } from './context/DataContext'
 import { AppLayout } from './components/layout/AppLayout'
@@ -28,7 +28,7 @@ import { MapaFrotaPage } from './pages/minerva/MapaFrota'
 import { MapaLogisticaPage } from './pages/minerva/MapaLogistica'
 import { MapaFrotaPublicoPage } from './pages/publico/MapaFrotaPublico'
 import { CalcularRotaPublicoPage } from './pages/publico/CalcularRotaPublico'
-import { devePularSplash, isSiteOfertaDeCarga } from './lib/siteOfertaDeCarga'
+import { devePularSplash, isSiteOfertaDeCarga, urlSistemaComHash } from './lib/siteOfertaDeCarga'
 import { PerfilPage } from './pages/Perfil'
 import { PwaInstallBanner } from './components/PwaInstallBanner'
 import { PushEnableBanner } from './components/PushEnableBanner'
@@ -39,6 +39,19 @@ function MinervaToEmbarcadorRedirect() {
   const location = useLocation()
   const next = location.pathname.replace(/^\/minerva/, '/embarcador') + location.search + location.hash
   return <Navigate to={next} replace />
+}
+
+function RedirectToSistema() {
+  const loc = useLocation()
+  const url = urlSistemaComHash(loc.pathname + loc.search)
+  useEffect(() => {
+    window.location.replace(url)
+  }, [url])
+  return (
+    <p style={{ padding: 24, fontWeight: 700 }}>
+      Abrindo o sistema em sistema.ofertadecarga.com.br…
+    </p>
+  )
 }
 
 function AppBanners() {
@@ -80,6 +93,17 @@ export default function App() {
     return <CompanySplash onComplete={handleSplashComplete} />
   }
 
+  if (isSiteOfertaDeCarga()) {
+    return (
+      <Routes>
+        <Route path="/" element={<CalcularRotaPublicoPage />} />
+        <Route path="/rota" element={<CalcularRotaPublicoPage />} />
+        <Route path="/calcular-rota" element={<CalcularRotaPublicoPage />} />
+        <Route path="*" element={<RedirectToSistema />} />
+      </Routes>
+    )
+  }
+
   return (
     <>
       <AppBanners />
@@ -89,12 +113,7 @@ export default function App() {
       <Route path="/mapa" element={<MapaFrotaPublicoPage />} />
       <Route path="/rota" element={<CalcularRotaPublicoPage />} />
       <Route path="/calcular-rota" element={<CalcularRotaPublicoPage />} />
-      <Route
-        path="/"
-        element={
-          isSiteOfertaDeCarga() ? <CalcularRotaPublicoPage /> : <Navigate to="/login" replace />
-        }
-      />
+      <Route path="/" element={<Navigate to="/login" replace />} />
       <Route
         element={
           <Protected>
@@ -308,7 +327,7 @@ export default function App() {
       </Route>
       <Route
         path="*"
-        element={<Navigate to={isSiteOfertaDeCarga() ? '/rota' : '/login'} replace />}
+        element={<Navigate to="/login" replace />}
       />
     </Routes>
     </>
