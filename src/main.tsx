@@ -10,7 +10,7 @@ import './index.css'
  * Força novo bundle (setas da galeria). Depois do primeiro load limpo,
  * updates de deploy só no F5 (ver onNeedRefresh).
  */
-const BUILD_ID = 'mapa-publico-2-por-dia-v117'
+const BUILD_ID = 'mapa-publico-paywall-3a-v118'
 
 async function forceFreshOnce(): Promise<boolean> {
   const key = `doca-build:${BUILD_ID}`

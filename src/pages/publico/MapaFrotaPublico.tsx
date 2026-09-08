@@ -208,7 +208,6 @@ export function MapaFrotaPublicoPage() {
     void consultarEstadoBuscasPublicas().then((estado) => {
       if (!alive) return
       setRestam(estado.restam)
-      if (estado.esgotado) setShowPaywall(true)
     })
     return () => {
       alive = false
@@ -493,7 +492,6 @@ export function MapaFrotaPublicoPage() {
         setShowPaywall(true)
         return false
       }
-      if (consumo.restam === 0 || consumo.esgotado) setShowPaywall(true)
       return true
     } finally {
       cotaBusyRef.current = false
