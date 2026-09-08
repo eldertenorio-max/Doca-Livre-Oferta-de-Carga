@@ -1,6 +1,5 @@
--- Cota das 2 buscas grátis do mapa público.
+-- Cota: 2 buscas grátis POR DIA (meia-noite em Brasília).
 -- Contada no servidor (IP + visitante + aparelho), como Qualp / Rotas Brasil.
--- Assim vale em aba nova, janela anônima e outro navegador na mesma rede.
 -- Execute no SQL Editor do projeto imnlbbfgaztfhwndfxwb.
 
 create extension if not exists pgcrypto with schema extensions;
@@ -51,7 +50,8 @@ begin
     from public.mapa_publico_cotas c
     where c.chave = v_chave;
     if found then
-      if v_agora - v_inicio >= interval '24 hours' then
+      if (timezone('America/Sao_Paulo', v_agora))::date
+        <> (timezone('America/Sao_Paulo', v_inicio))::date then
         v_n := 0;
         v_inicio := v_agora;
       else

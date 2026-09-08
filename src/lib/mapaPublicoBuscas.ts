@@ -1,13 +1,22 @@
 import { isSupabaseConfigured, supabase } from './supabase'
 
-const STORAGE_KEY = 'doca-mapa-publico-buscas-v1'
+const STORAGE_KEY = 'doca-mapa-publico-buscas-v2'
 const VISITOR_KEY = 'doca-mapa-publico-vid'
+/** Duas buscas grátis por dia civil (Brasília). */
 const LIMITE = 2
-const JANELA_MS = 24 * 60 * 60 * 1000
 
 type Registro = {
   n: number
-  inicio: number
+  dia: string
+}
+
+function diaBrasil(ms = Date.now()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(ms))
 }
 
 export type EstadoBuscasPublicas = {
@@ -19,17 +28,17 @@ export type EstadoBuscasPublicas = {
 export const MAPA_PUBLICO_LIMITE_BUSCAS = LIMITE
 
 function lerLocal(): Registro {
+  const hoje = diaBrasil()
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { n: 0, inicio: Date.now() }
-    const parsed = JSON.parse(raw) as Registro
-    if (!parsed || typeof parsed.n !== 'number' || typeof parsed.inicio !== 'number') {
-      return { n: 0, inicio: Date.now() }
-    }
-    if (Date.now() - parsed.inicio >= JANELA_MS) return { n: 0, inicio: Date.now() }
-    return parsed
+    if (!raw) return { n: 0, dia: hoje }
+    const parsed = JSON.parse(raw) as Partial<Registro> & { inicio?: number }
+    if (!parsed || typeof parsed.n !== 'number') return { n: 0, dia: hoje }
+    const dia = typeof parsed.dia === 'string' ? parsed.dia : hoje
+    if (dia !== hoje) return { n: 0, dia: hoje }
+    return { n: parsed.n, dia }
   } catch {
-    return { n: 0, inicio: Date.now() }
+    return { n: 0, dia: hoje }
   }
 }
 
@@ -109,9 +118,10 @@ function aplicarResposta(res: EstadoBuscasPublicas & { ok?: boolean }): EstadoBu
     : Math.max(0, LIMITE - usadas)
   const esgotado = restam <= 0 || Boolean(res.esgotado)
   const local = lerLocal()
+  const hoje = diaBrasil()
   gravarLocal({
-    n: Math.max(local.n, usadas, esgotado ? LIMITE : usadas),
-    inicio: local.n === 0 ? Date.now() : local.inicio,
+    n: local.dia === hoje ? Math.max(local.n, usadas, esgotado ? LIMITE : usadas) : usadas,
+    dia: hoje,
   })
   return { usadas: esgotado ? LIMITE : usadas, restam: esgotado ? 0 : restam, esgotado }
 }
@@ -182,8 +192,7 @@ export async function registrarBuscaPublica(): Promise<EstadoBuscasPublicas & { 
 
   const local = lerLocal()
   if (local.n >= LIMITE) return { ok: false, usadas: LIMITE, restam: 0, esgotado: true }
-  const inicio = local.n === 0 ? Date.now() : local.inicio
   const n = local.n + 1
-  gravarLocal({ n, inicio })
+  gravarLocal({ n, dia: diaBrasil() })
   return { ok: true, usadas: n, restam: Math.max(0, LIMITE - n), esgotado: n >= LIMITE }
 }

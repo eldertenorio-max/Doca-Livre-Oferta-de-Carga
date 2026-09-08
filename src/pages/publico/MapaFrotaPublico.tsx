@@ -825,8 +825,8 @@ export function MapaFrotaPublicoPage() {
               {user
                 ? 'Conta logada · buscas ilimitadas'
                 : restam > 0
-                  ? `${restam} de ${MAPA_PUBLICO_LIMITE_BUSCAS} buscas grátis restantes`
-                  : 'Buscas grátis esgotadas'}
+                  ? `${restam} de ${MAPA_PUBLICO_LIMITE_BUSCAS} buscas grátis hoje`
+                  : 'As 2 buscas grátis de hoje acabaram'}
             </p>
           </div>
           <div className="mapa-frota__filtros">
@@ -851,7 +851,7 @@ export function MapaFrotaPublicoPage() {
 
         {!user && restam === 0 ? (
           <div className="mapa-pub__cta-esgotado">
-            <span>Para continuar buscando e ver contato da frota, assine o Doca Livre.</span>
+            <span>Para continuar buscando hoje e ver contato da frota, assine o Doca Livre.</span>
             <button type="button" onClick={() => setShowPaywall(true)}>
               Assinar para continuar
             </button>
@@ -1361,8 +1361,8 @@ export function MapaFrotaPublicoPage() {
           <div className="mapa-pub-modal__card mapa-pub-modal__card--planos">
             <h2 id="mapa-pub-pay-title">Escolha um plano</h2>
             <p>
-              As {MAPA_PUBLICO_LIMITE_BUSCAS} buscas grátis acabaram. Assine para continuar no mapa
-              e entrar no sistema Doca Livre Oferta de Carga.
+              As {MAPA_PUBLICO_LIMITE_BUSCAS} buscas grátis de hoje acabaram. Amanhã você tem mais
+              duas, ou assine para buscar sem limite.
             </p>
             <div className="mapa-pub-planos">
               {PLANOS_PUBLICOS.map((plano) => (
