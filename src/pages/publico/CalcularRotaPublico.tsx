@@ -321,20 +321,6 @@ export function CalcularRotaPublicoPage() {
       </header>
 
       <div className="mapa-frota mapa-pub__shell">
-        <header className="mapa-frota__head">
-          <div>
-            <h1 className="mapa-frota__title">Calcular rota</h1>
-            <p className="mapa-frota__sub">Pedágio, km e combustível em um clique.</p>
-            <p className="rota-pub__badge">
-              {user
-                ? 'Conta logada · ilimitado'
-                : restam > 0
-                  ? `${restam} de ${ROTA_PUBLICO_LIMITE_CALCULOS} grátis hoje`
-                  : 'Cálculos grátis de hoje esgotados'}
-            </p>
-          </div>
-        </header>
-
         {!user && restam === 0 ? (
           <div className="mapa-pub__cta-esgotado">
             <span>Para calcular mais rotas hoje, assine o Doca Livre.</span>
@@ -345,7 +331,20 @@ export function CalcularRotaPublicoPage() {
         ) : null}
 
         <div className="mapa-frota__layout">
-          <aside className="mapa-frota__lista">
+          <aside className="mapa-frota__lista rota-pub__panel">
+            <div className="rota-pub__hero">
+              <div>
+                <p className="rota-pub__kicker">Pedágio · km · combustível</p>
+                <h1>Calcular rota</h1>
+              </div>
+              <p className="rota-pub__badge">
+                {user
+                  ? 'Ilimitado'
+                  : restam > 0
+                    ? `${restam} de ${ROTA_PUBLICO_LIMITE_CALCULOS} grátis`
+                    : 'Esgotado hoje'}
+              </p>
+            </div>
             <div className={`mapa-frota__search${formAberto ? '' : ' is-collapsed'}`}>
               <div className="rota-pub__card-top">
                 <button
@@ -354,7 +353,7 @@ export function CalcularRotaPublicoPage() {
                   aria-expanded={formAberto}
                   onClick={() => setFormAberto((v) => !v)}
                 >
-                  <span className="mapa-frota__cats-title">Montar a rota</span>
+                  <span className="mapa-frota__cats-title">Trajeto</span>
                   {!formAberto ? (
                     <span className="mapa-frota__search-resumo">
                       {origem.trim() || destino.trim()
@@ -471,6 +470,7 @@ export function CalcularRotaPublicoPage() {
                     </div>
                   ))}
 
+                  <p className="rota-pub__sec">Veículo</p>
                   <div className="rota-pub__veiculos">
                     <div className="rota-pub__tipos" role="group" aria-label="Tipo de veículo">
                       {VEICULOS.map(({ id, label, Icon }) => (
@@ -481,7 +481,7 @@ export function CalcularRotaPublicoPage() {
                           className={`rota-pub__tipo${tipoVeiculo === id ? ' is-on' : ''}`}
                           onClick={() => escolherVeiculo(id)}
                         >
-                          <Icon size={22} strokeWidth={2.2} />
+                          <Icon size={24} strokeWidth={2.2} />
                           <small>{label}</small>
                         </button>
                       ))}
@@ -490,13 +490,15 @@ export function CalcularRotaPublicoPage() {
                       <button type="button" title="Mais eixos" onClick={() => setEixos((e) => Math.min(9, e + 1))}>
                         <ChevronUp size={16} />
                       </button>
-                      <span>{eixos} eixos</span>
+                      <strong>{eixos}</strong>
+                      <span>eixos</span>
                       <button type="button" title="Menos eixos" onClick={() => setEixos((e) => Math.max(2, e - 1))}>
                         <ChevronDown size={16} />
                       </button>
                     </div>
                   </div>
 
+                  <p className="rota-pub__sec">Custo</p>
                   <div className="rota-pub__grid">
                     <label className="rota-pub__box">
                       <span>Consumo</span>
@@ -537,6 +539,7 @@ export function CalcularRotaPublicoPage() {
                     </label>
                   </div>
 
+                  <p className="rota-pub__sec">Preferência</p>
                   <div className="rota-pub__prefs" role="radiogroup" aria-label="Preferência de rota">
                     {PREFS.map(([id, label, Icon]) => (
                       <button
@@ -579,7 +582,10 @@ export function CalcularRotaPublicoPage() {
 
             {calc?.rota ? (
               <div className="rota-pub__resumo" aria-live="polite">
-                <h3>Resultado</h3>
+                <div className="rota-pub__total">
+                  <span>Custo total</span>
+                  <strong>{formatCurrency(calc.rota.custo_total)}</strong>
+                </div>
                 <div className="rota-pub__stats">
                   <div>
                     <small>Distância</small>
@@ -605,10 +611,6 @@ export function CalcularRotaPublicoPage() {
                     <Fuel size={14} /> Combustível
                   </span>
                   <strong>{formatCurrency(calc.rota.combustivel)}</strong>
-                </div>
-                <div className="rota-pub__linha rota-pub__linha--total">
-                  <span>Custo total</span>
-                  <strong>{formatCurrency(calc.rota.custo_total)}</strong>
                 </div>
                 {calc.piso_selecionado != null ? (
                   <div className="rota-pub__linha">
