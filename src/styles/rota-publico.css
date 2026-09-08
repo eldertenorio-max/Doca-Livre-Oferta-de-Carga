@@ -1,45 +1,182 @@
+.rota-pub {
+  background:
+    radial-gradient(1200px 480px at 80% -10%, #ffe7c2 0%, transparent 58%),
+    radial-gradient(900px 420px at -10% 110%, #dbeafe 0%, transparent 55%),
+    #f4f1ea;
+}
+
 .rota-pub .mapa-frota__lista {
   overflow: auto;
+  border: 0;
+  box-shadow: 0 16px 40px rgb(15 23 42 / 0.1);
+}
+
+.rota-pub .mapa-frota__search {
+  background: #fff;
+  border-bottom: 0;
 }
 
 .rota-pub .mapa-frota__search-body {
   overflow: visible;
 }
 
-.rota-pub__swap {
+.rota-pub__card-top {
   display: flex;
-  justify-content: center;
-}
-
-.rota-pub__swap button {
-  border: 1px solid #d0d7de;
-  background: #fff;
-  color: #0f172a;
-  border-radius: 8px;
-  width: 36px;
-  height: 36px;
-  font-size: 1rem;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.rota-pub__swap button:hover {
-  background: #f8fafc;
-}
-
-.rota-pub__via {
-  display: flex;
+  align-items: center;
   gap: 6px;
-  align-items: flex-start;
 }
 
-.rota-pub__via > :first-child {
+.rota-pub__card-top .mapa-frota__search-toggle {
   flex: 1;
   min-width: 0;
 }
 
+.rota-pub__reset {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #c2410c;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.rota-pub__reset:hover {
+  background: #ffedd5;
+}
+
+.rota-pub__form {
+  gap: 12px;
+}
+
+.rota-pub__ab {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.rota-pub__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.rota-pub__pin {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.rota-pub__pin--a {
+  background: #2563eb;
+}
+
+.rota-pub__pin--b {
+  background: #ef4444;
+}
+
+.rota-pub__pin--via {
+  background: #f97316;
+  margin-top: 8px;
+}
+
+.rota-pub__dots {
+  flex: 1;
+  width: 0;
+  border-left: 2px dotted #cbd5e1;
+  min-height: 10px;
+}
+
+.rota-pub__swap {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff7ed;
+  color: #c2410c;
+  cursor: pointer;
+}
+
+.rota-pub__swap:hover {
+  background: #ffedd5;
+}
+
+.rota-pub__ab-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rota-pub__campo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 42px;
+  padding: 0 8px 0 10px;
+  border-radius: 10px;
+  background: #f4f6f8;
+}
+
+.rota-pub__campo > .relative {
+  flex: 1;
+  min-width: 0;
+}
+
+.rota-pub__input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 10px 4px;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #0f172a;
+  outline: none;
+}
+
+.rota-pub__input::placeholder {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.rota-pub__campo-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.rota-pub__campo-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.rota-pub__via {
+  display: grid;
+  grid-template-columns: 28px 1fr 32px;
+  gap: 8px;
+  align-items: center;
+}
+
 .rota-pub__via-del {
-  margin-top: 20px;
   border: 0;
   background: #fee2e2;
   color: #991b1b;
@@ -50,84 +187,202 @@
   cursor: pointer;
 }
 
-.rota-pub__add {
-  border: 1px dashed #cbd5e1;
-  background: #f8fafc;
-  color: #0f172a;
-  border-radius: 8px;
-  padding: 8px 10px;
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.rota-pub__add:hover {
-  background: #eef2f7;
-}
-
-.rota-pub__eixos {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.rota-pub__eixos button {
-  border: 1px solid #d0d7de;
-  background: #fff;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.rota-pub__eixos span {
-  flex: 1;
-  text-align: center;
-  font-size: 0.82rem;
-  font-weight: 800;
-  text-transform: none;
-  letter-spacing: 0;
-}
-
-.rota-pub__switch {
+.rota-pub__veiculos {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  width: 100%;
-  min-height: 38px;
-  padding: 8px 10px;
-  border: 1px solid #d0d7de;
-  border-radius: 8px;
-  background: #fff;
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 700;
+}
+
+.rota-pub__tipos {
+  display: flex;
+  gap: 4px;
+}
+
+.rota-pub__tipo {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #94a3b8;
   cursor: pointer;
 }
 
-.rota-pub__switch.is-on {
-  border-color: #0f172a;
-  background: #f1f5f9;
+.rota-pub__tipo.is-on {
+  color: #ea580c;
+  background: #fff7ed;
+}
+
+.rota-pub__eixos {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  min-width: 72px;
+}
+
+.rota-pub__eixos button {
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  width: 28px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.rota-pub__eixos span {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #0f172a;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.rota-pub__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.rota-pub__box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 58px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: #f4f6f8;
+  text-align: left;
+  font: inherit;
+}
+
+.rota-pub__box > span:first-child {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.rota-pub__box-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #94a3b8;
+}
+
+.rota-pub__box-row input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #0f172a;
+  outline: none;
+}
+
+.rota-pub__box-row em {
+  font-style: normal;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.rota-pub__volta {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  min-height: 46px;
+}
+
+.rota-pub__volta strong {
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.rota-pub__volta.is-on {
+  background: #fff7ed;
+}
+
+.rota-pub__volta.is-on strong {
+  color: #c2410c;
+}
+
+.rota-pub__prefs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.rota-pub__pref {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.rota-pub__pref.is-on {
+  color: #0f172a;
+}
+
+.rota-pub__radio {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid #cbd5e1;
+  color: #fff;
+}
+
+.rota-pub__pref.is-on .rota-pub__radio {
+  border-color: #ea580c;
+  background: #ea580c;
 }
 
 .rota-pub__calc {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   width: 100%;
   border: 0;
   border-radius: 10px;
-  background: #0f172a;
+  background: #111827;
   color: #fff;
-  padding: 10px 12px;
+  padding: 12px;
   font: inherit;
-  font-size: 0.82rem;
+  font-size: 0.92rem;
   font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   cursor: pointer;
 }
 
+.rota-pub__calc:hover:not(:disabled) {
+  background: #1f2937;
+}
+
 .rota-pub__calc:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: wait;
 }
 
@@ -145,8 +400,9 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 10px;
-  border-top: 1px solid #e2e8f0;
+  padding: 12px 10px 14px;
+  background: linear-gradient(180deg, #fff7ed 0%, #fff 42%);
+  border-top: 1px solid #fed7aa;
 }
 
 .rota-pub__resumo h3 {
@@ -155,14 +411,22 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: #64748b;
+  color: #c2410c;
 }
 
 .rota-pub__linha {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 8px;
   font-size: 0.8rem;
+}
+
+.rota-pub__linha span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #475569;
 }
 
 .rota-pub__linha strong {
@@ -172,7 +436,7 @@
 .rota-pub__linha--total {
   margin-top: 4px;
   padding-top: 8px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid #fed7aa;
   font-weight: 800;
 }
 
@@ -193,6 +457,14 @@
   gap: 8px;
   font-size: 0.72rem;
   font-weight: 600;
+}
+
+.rota-pub .mapa-frota__map-wrap {
+  border: 0;
+  box-shadow: 0 16px 40px rgb(234 88 12 / 0.12);
+  background:
+    linear-gradient(180deg, #fff7ed 0%, transparent 48px),
+    #e2e8f0;
 }
 
 .rota-pub .mapa-frota__map-wrap > div {

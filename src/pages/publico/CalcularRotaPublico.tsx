@@ -1,5 +1,22 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import {
+  ArrowUpDown,
+  Bike,
+  Bus,
+  Car,
+  Check,
+  Clock3,
+  Fuel,
+  Gauge,
+  MapPin,
+  Minus,
+  Plus,
+  RotateCcw,
+  Route,
+  Truck,
+  Wallet,
+} from 'lucide-react'
 import { formatCurrency } from '../../lib/businessRules'
 import {
   calcularRotaOperacional,
@@ -11,7 +28,7 @@ import {
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { LinkSistema, LinkMapaFrota } from '../../components/ui/HostLink'
 import { useData } from '../../context/DataContext'
-import { AddressSuggestInput, PLACEHOLDER_ENDERECO_EXEMPLO } from '../../components/ui/AddressSuggestInput'
+import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
 import { RotaMapPreview } from '../../components/carga/RotaMapPreview'
 import type { SugestaoEndereco } from '../../lib/geocodeEndereco'
 import {
@@ -76,6 +93,20 @@ const PREFS: Array<[PreferenciaRota, string]> = [
   ['evitar_pedagio', 'Evitar pedágios'],
 ]
 
+type TipoVeiculoUi = 'caminhao' | 'carro' | 'onibus' | 'moto'
+
+const VEICULOS: Array<{
+  id: TipoVeiculoUi
+  eixos: number
+  label: string
+  Icon: typeof Truck
+}> = [
+  { id: 'caminhao', eixos: 6, label: 'Caminhão', Icon: Truck },
+  { id: 'carro', eixos: 2, label: 'Carro', Icon: Car },
+  { id: 'onibus', eixos: 3, label: 'Ônibus', Icon: Bus },
+  { id: 'moto', eixos: 2, label: 'Moto', Icon: Bike },
+]
+
 function parseNumBr(raw: string, fallback: number): number {
   const n = Number(String(raw).trim().replace(/\./g, '').replace(',', '.'))
   return Number.isFinite(n) && n > 0 ? n : fallback
@@ -110,8 +141,9 @@ export function CalcularRotaPublicoPage() {
   const [origemCoords, setOrigemCoords] = useState<Coord | null>(null)
   const [destinoCoords, setDestinoCoords] = useState<Coord | null>(null)
   const [vias, setVias] = useState<Via[]>([])
-  const [eixos, setEixos] = useState(5)
-  const [consumo, setConsumo] = useState(() => fmtConsumo(consumoPadraoKmL(5)))
+  const [tipoVeiculo, setTipoVeiculo] = useState<TipoVeiculoUi>('caminhao')
+  const [eixos, setEixos] = useState(6)
+  const [consumo, setConsumo] = useState(() => fmtConsumo(consumoPadraoKmL(6)))
   const [precoDiesel, setPrecoDiesel] = useState(() => fmtDiesel(PRECO_DIESEL_SUGERIDO))
   const [idaEVolta, setIdaEVolta] = useState(false)
   const [preferencia, setPreferencia] = useState<PreferenciaRota>('eficiente')
@@ -169,6 +201,24 @@ export function CalcularRotaPublicoPage() {
     setDestino(origem)
     setOrigemCoords(destinoCoords)
     setDestinoCoords(origemCoords)
+  }
+
+  function escolherVeiculo(tipo: TipoVeiculoUi) {
+    const item = VEICULOS.find((v) => v.id === tipo)
+    if (!item) return
+    setTipoVeiculo(tipo)
+    setEixos(item.eixos)
+  }
+
+  function limparRota() {
+    setOrigem('')
+    setDestino('')
+    setOrigemCoords(null)
+    setDestinoCoords(null)
+    setVias([])
+    setCalc(null)
+    setErro('')
+    setMapId(0)
   }
 
   async function consumirCalculo(): Promise<boolean> {
@@ -271,7 +321,7 @@ export function CalcularRotaPublicoPage() {
           <div>
             <h1 className="mapa-frota__title">Calcular rota</h1>
             <p className="mapa-frota__sub">
-              Distância, pedágio ANTT e combustível — no mesmo modelo do QualP e do Rotas Brasil.
+              Pedágio, km e combustível em um clique — origem A, destino B e pronto.
             </p>
             <p className="mapa-pub__creditos">
               {user
@@ -280,18 +330,6 @@ export function CalcularRotaPublicoPage() {
                   ? `${restam} de ${ROTA_PUBLICO_LIMITE_CALCULOS} cálculos grátis hoje`
                   : 'Os 2 cálculos grátis de hoje acabaram'}
             </p>
-          </div>
-          <div className="mapa-frota__filtros">
-            {PREFS.map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                className={`mapa-frota__chip${preferencia === id ? ' is-active' : ''}`}
-                onClick={() => setPreferencia(id)}
-              >
-                {label}
-              </button>
-            ))}
           </div>
         </header>
 
@@ -307,65 +345,92 @@ export function CalcularRotaPublicoPage() {
         <div className="mapa-frota__layout">
           <aside className="mapa-frota__lista">
             <div className={`mapa-frota__search${formAberto ? '' : ' is-collapsed'}`}>
-              <button
-                type="button"
-                className="mapa-frota__search-toggle"
-                aria-expanded={formAberto}
-                onClick={() => setFormAberto((v) => !v)}
-              >
-                <span className="mapa-frota__cats-title">Origem e destino</span>
-                {!formAberto ? (
-                  <span className="mapa-frota__search-resumo">
-                    {origem.trim() || destino.trim()
-                      ? `${origem.trim() || '…'} → ${destino.trim() || '…'}`
-                      : 'Preencher'}
+              <div className="rota-pub__card-top">
+                <button
+                  type="button"
+                  className="mapa-frota__search-toggle"
+                  aria-expanded={formAberto}
+                  onClick={() => setFormAberto((v) => !v)}
+                >
+                  <span className="mapa-frota__cats-title">Montar a rota</span>
+                  {!formAberto ? (
+                    <span className="mapa-frota__search-resumo">
+                      {origem.trim() || destino.trim()
+                        ? `${origem.trim() || '…'} → ${destino.trim() || '…'}`
+                        : 'Preencher'}
+                    </span>
+                  ) : null}
+                  <span className={`mapa-frota__search-chevron${formAberto ? ' is-open' : ''}`} aria-hidden>
+                    ▾
                   </span>
-                ) : null}
-                <span className={`mapa-frota__search-chevron${formAberto ? ' is-open' : ''}`} aria-hidden>
-                  ▾
-                </span>
-              </button>
+                </button>
+                <button
+                  type="button"
+                  className="rota-pub__reset"
+                  title="Limpar origem e destino"
+                  onClick={limparRota}
+                >
+                  <RotateCcw size={15} />
+                </button>
+              </div>
 
               {formAberto ? (
-                <div className="mapa-frota__search-body">
-                  <label className="mapa-frota__field">
-                    <span>Origem</span>
-                    <AddressSuggestInput
-                      value={origem}
-                      onChange={(v) => {
-                        setOrigem(v)
-                        setOrigemCoords(null)
-                      }}
-                      onPick={pickOrigem}
-                      placeholder={PLACEHOLDER_ENDERECO_EXEMPLO}
-                      className="mapa-frota__input"
-                    />
-                  </label>
-
-                  <div className="rota-pub__swap">
-                    <button type="button" title="Inverter origem e destino" onClick={trocarPontos}>
-                      ↕
-                    </button>
+                <div className="mapa-frota__search-body rota-pub__form">
+                  <div className="rota-pub__ab">
+                    <div className="rota-pub__rail" aria-hidden>
+                      <span className="rota-pub__pin rota-pub__pin--a">A</span>
+                      <span className="rota-pub__dots" />
+                      <button
+                        type="button"
+                        className="rota-pub__swap"
+                        title="Inverter origem e destino"
+                        onClick={trocarPontos}
+                      >
+                        <ArrowUpDown size={14} />
+                      </button>
+                      <span className="rota-pub__dots" />
+                      <span className="rota-pub__pin rota-pub__pin--b">B</span>
+                    </div>
+                    <div className="rota-pub__ab-fields">
+                      <div className="rota-pub__campo">
+                        <AddressSuggestInput
+                          value={origem}
+                          onChange={(v) => {
+                            setOrigem(v)
+                            setOrigemCoords(null)
+                          }}
+                          onPick={pickOrigem}
+                          placeholder="Origem"
+                          className="rota-pub__input"
+                        />
+                      </div>
+                      <div className="rota-pub__campo">
+                        <AddressSuggestInput
+                          value={destino}
+                          onChange={(v) => {
+                            setDestino(v)
+                            setDestinoCoords(null)
+                          }}
+                          onPick={pickDestino}
+                          placeholder="Destino"
+                          className="rota-pub__input"
+                        />
+                        <button
+                          type="button"
+                          className="rota-pub__campo-btn"
+                          title="Adicionar ponto de passagem"
+                          onClick={() => setVias((lista) => [...lista, novaVia()])}
+                        >
+                          <Plus size={16} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-
-                  <label className="mapa-frota__field">
-                    <span>Destino</span>
-                    <AddressSuggestInput
-                      value={destino}
-                      onChange={(v) => {
-                        setDestino(v)
-                        setDestinoCoords(null)
-                      }}
-                      onPick={pickDestino}
-                      placeholder={PLACEHOLDER_ENDERECO_EXEMPLO}
-                      className="mapa-frota__input"
-                    />
-                  </label>
 
                   {vias.map((via, idx) => (
                     <div key={via.id} className="rota-pub__via">
-                      <label className="mapa-frota__field">
-                        <span>Ponto {idx + 1}</span>
+                      <span className="rota-pub__pin rota-pub__pin--via">{idx + 1}</span>
+                      <div className="rota-pub__campo">
                         <AddressSuggestInput
                           value={via.endereco}
                           onChange={(v) =>
@@ -389,10 +454,10 @@ export function CalcularRotaPublicoPage() {
                               ),
                             )
                           }
-                          placeholder="Cidade ou endereço de passagem"
-                          className="mapa-frota__input"
+                          placeholder="Ponto de passagem"
+                          className="rota-pub__input"
                         />
-                      </label>
+                      </div>
                       <button
                         type="button"
                         className="rota-pub__via-del"
@@ -404,52 +469,86 @@ export function CalcularRotaPublicoPage() {
                     </div>
                   ))}
 
-                  <button type="button" className="rota-pub__add" onClick={() => setVias((lista) => [...lista, novaVia()])}>
-                    + Ponto de passagem
-                  </button>
-
-                  <label className="mapa-frota__field">
-                    <span>Eixos</span>
+                  <div className="rota-pub__veiculos">
+                    <div className="rota-pub__tipos" role="group" aria-label="Tipo de veículo">
+                      {VEICULOS.map(({ id, label, Icon }) => (
+                        <button
+                          key={id}
+                          type="button"
+                          title={label}
+                          className={`rota-pub__tipo${tipoVeiculo === id ? ' is-on' : ''}`}
+                          onClick={() => escolherVeiculo(id)}
+                        >
+                          <Icon size={22} strokeWidth={2.2} />
+                        </button>
+                      ))}
+                    </div>
                     <div className="rota-pub__eixos">
                       <button type="button" onClick={() => setEixos((e) => Math.max(2, e - 1))}>
-                        −
+                        <Minus size={14} />
                       </button>
                       <span>{eixos} eixos</span>
                       <button type="button" onClick={() => setEixos((e) => Math.min(9, e + 1))}>
-                        +
+                        <Plus size={14} />
                       </button>
                     </div>
-                  </label>
+                  </div>
 
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={idaEVolta}
-                    className={`rota-pub__switch${idaEVolta ? ' is-on' : ''}`}
-                    onClick={() => setIdaEVolta((v) => !v)}
-                  >
-                    <span>Ida e volta</span>
-                    <strong>{idaEVolta ? 'Sim' : 'Não'}</strong>
-                  </button>
+                  <div className="rota-pub__grid">
+                    <label className="rota-pub__box">
+                      <span>Consumo</span>
+                      <span className="rota-pub__box-row">
+                        <Gauge size={16} />
+                        <input
+                          value={consumo}
+                          onChange={(e) => setConsumo(e.target.value)}
+                          inputMode="decimal"
+                          aria-label="Consumo em km por litro"
+                        />
+                        <em>km/l</em>
+                      </span>
+                    </label>
+                    <label className="rota-pub__box">
+                      <span>Preço</span>
+                      <span className="rota-pub__box-row">
+                        <input
+                          value={precoDiesel}
+                          onChange={(e) => setPrecoDiesel(e.target.value)}
+                          inputMode="decimal"
+                          aria-label="Preço do diesel"
+                        />
+                        <Fuel size={16} />
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={idaEVolta}
+                      className={`rota-pub__box rota-pub__volta${idaEVolta ? ' is-on' : ''}`}
+                      onClick={() => setIdaEVolta((v) => !v)}
+                    >
+                      <span>Calcular volta</span>
+                      <strong>{idaEVolta ? 'Sim' : 'Não'}</strong>
+                    </button>
+                  </div>
 
-                  <label className="mapa-frota__field">
-                    <span>Consumo (km/l)</span>
-                    <input
-                      className="mapa-frota__input"
-                      value={consumo}
-                      onChange={(e) => setConsumo(e.target.value)}
-                      inputMode="decimal"
-                    />
-                  </label>
-                  <label className="mapa-frota__field">
-                    <span>Diesel (R$/L)</span>
-                    <input
-                      className="mapa-frota__input"
-                      value={precoDiesel}
-                      onChange={(e) => setPrecoDiesel(e.target.value)}
-                      inputMode="decimal"
-                    />
-                  </label>
+                  <div className="rota-pub__prefs" role="radiogroup" aria-label="Preferência de rota">
+                    {PREFS.map(([id, label]) => (
+                      <button
+                        key={id}
+                        type="button"
+                        role="radio"
+                        aria-checked={preferencia === id}
+                        className={`rota-pub__pref${preferencia === id ? ' is-on' : ''}`}
+                        onClick={() => setPreferencia(id)}
+                      >
+                        <span className="rota-pub__radio">
+                          {preferencia === id ? <Check size={11} strokeWidth={3} /> : null}
+                        </span>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
 
                   {erro ? <p className="rota-pub__erro">{erro}</p> : null}
 
@@ -465,7 +564,8 @@ export function CalcularRotaPublicoPage() {
                       void calcular()
                     }}
                   >
-                    {busy ? 'Calculando…' : 'Calcular rota'}
+                    <Route size={18} />
+                    {busy ? 'Calculando…' : 'Calcular'}
                   </button>
                 </div>
               ) : null}
@@ -475,15 +575,21 @@ export function CalcularRotaPublicoPage() {
               <div className="rota-pub__resumo" aria-live="polite">
                 <h3>Resultado</h3>
                 <div className="rota-pub__linha">
-                  <span>Distância</span>
+                  <span>
+                    <MapPin size={14} /> Distância
+                  </span>
                   <strong>{calc.rota.distancia_km} km</strong>
                 </div>
                 <div className="rota-pub__linha">
-                  <span>Duração</span>
+                  <span>
+                    <Clock3 size={14} /> Duração
+                  </span>
                   <strong>{calc.rota.duracao_label}</strong>
                 </div>
                 <div className="rota-pub__linha">
-                  <span>Pedágio</span>
+                  <span>
+                    <Wallet size={14} /> Pedágio
+                  </span>
                   <strong>{formatCurrency(calc.rota.pedagio)}</strong>
                 </div>
                 <div className="rota-pub__linha">
@@ -491,7 +597,9 @@ export function CalcularRotaPublicoPage() {
                   <strong>{formatCurrency(calc.rota.pedagio_por_eixo)}</strong>
                 </div>
                 <div className="rota-pub__linha">
-                  <span>Combustível</span>
+                  <span>
+                    <Fuel size={14} /> Combustível
+                  </span>
                   <strong>{formatCurrency(calc.rota.combustivel)}</strong>
                 </div>
                 <div className="rota-pub__linha rota-pub__linha--total">
