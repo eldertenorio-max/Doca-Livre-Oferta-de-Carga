@@ -539,6 +539,28 @@
   background: #e2e8f0;
 }
 
+.mapa-frota__clear--wide {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid #0f172a;
+  background: #fff;
+  color: #0f172a;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.mapa-frota__clear--wide:hover:not(:disabled) {
+  background: #0f172a;
+  color: #fff;
+}
+
+.mapa-frota__clear--wide:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
 .mapa-frota__result {
   margin: 0;
   font-size: 0.75rem;

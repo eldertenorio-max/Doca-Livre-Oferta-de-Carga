@@ -1085,6 +1085,15 @@ export function MapaFrotaPublicoPage() {
                     </div>
                   )}
 
+                  <button
+                    type="button"
+                    className="mapa-frota__clear mapa-frota__clear--wide"
+                    onClick={limparFiltros}
+                    disabled={!filtrosAtivos}
+                  >
+                    Limpar filtro
+                  </button>
+
                   <label className="mapa-frota__field">
                     <span>Cidade</span>
                     <select value={cidade} onChange={(e) => setCidade(e.target.value)}>
@@ -1304,11 +1313,14 @@ export function MapaFrotaPublicoPage() {
                     </div>
                   </div>
 
-                  {filtrosAtivos ? (
-                    <button type="button" className="mapa-frota__clear" onClick={limparFiltros}>
-                      Limpar filtros
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    className="mapa-frota__clear mapa-frota__clear--wide"
+                    onClick={limparFiltros}
+                    disabled={!filtrosAtivos}
+                  >
+                    Limpar filtro
+                  </button>
                   <p className="mapa-frota__result">
                     {filtrados.length} ponto{filtrados.length === 1 ? '' : 's'} no mapa
                   </p>
