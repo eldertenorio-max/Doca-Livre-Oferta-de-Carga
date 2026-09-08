@@ -1,0 +1,17 @@
+---
+description: Link público e aba do sistema devem ficar iguais
+alwaysApply: true
+---
+
+# Mapas públicos = abas do sistema
+
+Tudo que mudar no mapa/calculadora do **link à parte** também muda na **aba do sistema**. Os dois ficam iguais na UI (filtros, campos, botões, pills).
+
+| Link público | Aba / tela do sistema |
+|---|---|
+| `#/mapa` (`MapaFrotaPublico.tsx`) | `#/embarcador/mapa-frota` (`MapaFrota.tsx`) |
+| `#/rota` (`CalcularRotaPublico.tsx`) | Calculadora do sistema (`TransportadorRotaCalc.tsx` + `AnttFretePanel.tsx`) |
+
+- Não altere só o público. Se a mudança for de filtro, campo, botão ou layout, replique no par.
+- Exceção só do contexto: cota/paywall e dados ocultos no público; contato, galeria e deep-link de carga no sistema.
+- Prefira extrair componente compartilhado se a mesma UI for copiada de novo.

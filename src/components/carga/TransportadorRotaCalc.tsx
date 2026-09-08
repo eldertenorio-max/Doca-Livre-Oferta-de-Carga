@@ -3,16 +3,19 @@ import { ArrowUpDown, Calculator, Fuel, Minus, Plus } from 'lucide-react'
 import { formatCurrency, roundMoney } from '../../lib/businessRules'
 import {
   calcularRotaOperacional,
+  CATEGORIAS_ANTT,
   consumoPadraoKmL,
   eixosDoVeiculo,
   PRECO_DIESEL_SUGERIDO,
   type AnttCalculo,
   type PreferenciaRota,
 } from '../../lib/anttFrete'
+import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
 import { limparPontosPassagemRota } from '../../lib/rotasSync'
 import type { Carga, PontoPassagemRota } from '../../types'
 import { useData } from '../../context/DataContext'
 import { AddressSuggestInput, PLACEHOLDER_ENDERECO_EXEMPLO } from '../ui/AddressSuggestInput'
+import { VeiculoSuggestInput } from '../ui/VeiculoSuggestInput'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
 import { AnttFretePanel } from './AnttFretePanel'
 import { RotaMapPreview } from './RotaMapPreview'
@@ -31,6 +34,7 @@ type CalcParams = {
   preco: string
   volta: boolean
   pref: PreferenciaRota
+  categoriaId?: number | ''
   waypoints?: PontoPassagemRota[]
 }
 
@@ -65,6 +69,8 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
   const [origem, setOrigem] = useState('')
   const [destino, setDestino] = useState('')
   const [waypoints, setWaypoints] = useState<PontoPassagemRota[]>([])
+  const [tipoVeiculoNome, setTipoVeiculoNome] = useState('')
+  const [categoriaCargaId, setCategoriaCargaId] = useState<number | ''>('')
   const [eixos, setEixos] = useState(5)
   const [consumo, setConsumo] = useState('3,2')
   const [precoDiesel, setPrecoDiesel] = useState(fmtDiesel(PRECO_DIESEL_SUGERIDO))
@@ -103,6 +109,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
     const preco = override?.preco ?? precoDiesel
     const volta = override?.volta ?? idaEVolta
     const pref = override?.pref ?? preferencia
+    const cat = override?.categoriaId ?? categoriaCargaId
     const vias = override?.waypoints ?? waypoints
 
     if (o.trim().length < 3 || d.trim().length < 3) {
@@ -122,7 +129,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
       idaEVolta: volta,
       preferencia: pref,
       tabela: carga?.antt?.tabela ?? 'A',
-      categoriaId: carga?.antt?.categoria_id ?? null,
+      categoriaId: cat === '' ? null : cat,
       waypoints: vias,
       origemCoords,
       destinoCoords,
@@ -159,6 +166,8 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
     setWaypoints(vias)
     setOrigem(o)
     setDestino(d)
+    setTipoVeiculoNome(carga.veiculo || 'Carreta')
+    setCategoriaCargaId(carga.antt?.categoria_id ?? '')
     setEixos(ex)
     setConsumo(consSug)
     setPrecoDiesel(precoSug)
@@ -202,7 +211,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
         <AnttFretePanel
           origem={origem || carga.origem}
           destino={destino || carga.destino}
-          veiculo={carga.veiculo}
+          veiculo={tipoVeiculoNome || carga.veiculo}
           value={carga.antt ?? null}
           modoConsulta
           waypoints={waypoints}
@@ -280,7 +289,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
               origemCoords={origemCoords}
               destinoCoords={destinoCoords}
               waypoints={waypoints}
-              veiculo={carga.veiculo}
+              veiculo={tipoVeiculoNome || carga.veiculo}
               eixos={eixos}
               consumoKmL={consumoAplicado ?? consSugNum}
               precoDiesel={dieselAplicado ?? PRECO_DIESEL_SUGERIDO}
@@ -290,6 +299,35 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
         ) : null}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field label="Tipo de veículo" className="min-w-0">
+            <VeiculoSuggestInput
+              value={tipoVeiculoNome}
+              onChange={(nome) => {
+                setTipoVeiculoNome(nome)
+                const q = nome.trim().toLowerCase()
+                if (TIPOS_VEICULO.some((t) => t.toLowerCase() === q)) {
+                  setEixos(eixosDoVeiculo(nome))
+                }
+              }}
+            />
+          </Field>
+          <Field label="Categoria da carga" className="min-w-0">
+            <select
+              className={inputClass}
+              value={categoriaCargaId === '' ? '' : String(categoriaCargaId)}
+              onChange={(e) => {
+                const v = e.target.value
+                setCategoriaCargaId(v ? Number(v) : '')
+              }}
+            >
+              <option value="">Selecione a categoria da carga</option>
+              {CATEGORIAS_ANTT.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </Field>
           <Field label="Eixos" className="min-w-0">
             <div className="flex min-w-0 items-center gap-1.5">
               <button

@@ -936,9 +936,71 @@
 }
 
 .mapa-frota__map {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
   min-height: 360px;
+}
+
+.mapa-frota__map-wrap .mapa-pub__map-links {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 4000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 168px;
+  pointer-events: auto;
+}
+
+.mapa-frota__map-wrap .mapa-pub__map-logo {
+  width: 100%;
+  height: 58px;
+  object-fit: contain;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 8px 18px rgb(0 0 0 / 0.16);
+}
+
+.mapa-frota__map-wrap .mapa-pub__pill {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 58px;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #000;
+  color: #f5a623;
+  text-decoration: none;
+  text-align: center;
+  line-height: 1.05;
+  box-shadow: 0 8px 18px rgb(0 0 0 / 0.28);
+}
+
+.mapa-frota__map-wrap .mapa-pub__pill span,
+.mapa-frota__map-wrap .mapa-pub__pill strong {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.mapa-frota__map-wrap .mapa-pub__pill span {
+  font-size: 0.82rem;
+}
+
+.mapa-frota__map-wrap .mapa-pub__pill strong {
+  font-size: 0.98rem;
+}
+
+.mapa-frota__map-wrap .mapa-pub__pill:hover {
+  background: #111;
+  color: #ffb300;
 }
 
 .mapa-frota__legend {

@@ -29,8 +29,13 @@ import {
 } from '../../lib/tiposCarroceria'
 import { CarroceriaFilterSelect } from '../../components/ui/CarroceriaFilterSelect'
 import { FrotaGaleriaVeiculoModal } from '../../components/mapa/FrotaGaleriaVeiculoModal'
+import { LinkRota } from '../../components/ui/HostLink'
+import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import '../../styles/cadastro.css'
 import '../../styles/mapa-frota.css'
+
+const LINK_MAPA_LOGISTICA =
+  'https://doca-livre-mapa-da-log-stica.onrender.com/?_v=mapa-publico-planos-v1#/mapa'
 
 function pontoTemCarroceria(p: PontoFrota, selecionadas: string[]): boolean {
   if (selecionadas.length === 0) return true
@@ -1303,13 +1308,23 @@ export function MapaFrotaPage() {
 
                 {abaPesquisa === 'veiculo' ? (
                   <div className="mapa-frota__tab-panel" role="tabpanel">
-                    <input
-                      className="mapa-frota__input"
-                      type="search"
-                      placeholder="Placa, motorista, tipo…"
-                      value={buscaVeiculo}
-                      onChange={(e) => setBuscaVeiculo(e.target.value)}
-                    />
+                    <div className="mapa-frota__row">
+                      <input
+                        className="mapa-frota__input"
+                        type="search"
+                        placeholder="Placa, motorista, tipo…"
+                        value={buscaVeiculo}
+                        onChange={(e) => setBuscaVeiculo(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="mapa-frota__mini-btn mapa-frota__mini-btn--ghost"
+                        disabled={!buscaVeiculo.trim()}
+                        onClick={() => setBuscaVeiculo('')}
+                      >
+                        Limpar
+                      </button>
+                    </div>
                     <div className="mapa-frota__tipos">
                       <span className="mapa-frota__tipos-label">Tipos de veículo</span>
                       {tipoDoAnuncio && (
@@ -1349,16 +1364,29 @@ export function MapaFrotaPage() {
                   </div>
                 ) : (
                   <div className="mapa-frota__tab-panel" role="tabpanel">
-                    <input
-                      className="mapa-frota__input"
-                      type="search"
-                      placeholder="Nome fantasia da transportadora…"
-                      value={buscaTransportadora}
-                      onChange={(e) => {
-                        setBuscaTransportadora(e.target.value)
-                        setTransportadorFiltroId('')
-                      }}
-                    />
+                    <div className="mapa-frota__row">
+                      <input
+                        className="mapa-frota__input"
+                        type="search"
+                        placeholder="Nome fantasia da transportadora…"
+                        value={buscaTransportadora}
+                        onChange={(e) => {
+                          setBuscaTransportadora(e.target.value)
+                          setTransportadorFiltroId('')
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="mapa-frota__mini-btn mapa-frota__mini-btn--ghost"
+                        disabled={!buscaTransportadora.trim() && !transportadorFiltroId}
+                        onClick={() => {
+                          setBuscaTransportadora('')
+                          setTransportadorFiltroId('')
+                        }}
+                      >
+                        Limpar
+                      </button>
+                    </div>
                     <label className="mapa-frota__field">
                       <span>Transportadora</span>
                       <select
@@ -1409,6 +1437,15 @@ export function MapaFrotaPage() {
                     {blocoCarroceria}
                   </div>
                 )}
+
+                <button
+                  type="button"
+                  className="mapa-frota__clear mapa-frota__clear--wide"
+                  onClick={limparFiltros}
+                  disabled={!filtrosAtivos}
+                >
+                  Limpar filtro
+                </button>
 
                 <label className="mapa-frota__field">
                   <span>Cidade</span>
@@ -1616,11 +1653,14 @@ export function MapaFrotaPage() {
                   </div>
                 </div>
 
-                {filtrosAtivos && (
-                  <button type="button" className="mapa-frota__clear" onClick={limparFiltros}>
-                    Limpar filtros
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="mapa-frota__clear mapa-frota__clear--wide"
+                  onClick={limparFiltros}
+                  disabled={!filtrosAtivos}
+                >
+                  Limpar filtro
+                </button>
                 <p className="mapa-frota__result">
                   {filtrados.length} ponto{filtrados.length === 1 ? '' : 's'} no mapa
                 </p>
@@ -1692,6 +1732,22 @@ export function MapaFrotaPage() {
             </div>
           )}
           <div ref={mapEl} className="mapa-frota__map" />
+          <div className="mapa-pub__map-links">
+            <img className="mapa-pub__map-logo" src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
+            <a
+              className="mapa-pub__pill"
+              href={LINK_MAPA_LOGISTICA}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span>Mapa da</span>
+              <strong>Logística</strong>
+            </a>
+            <LinkRota className="mapa-pub__pill">
+              <span>Calcular</span>
+              <strong>rota</strong>
+            </LinkRota>
+          </div>
         </div>
       </div>
 
