@@ -508,6 +508,7 @@ export function CalcularRotaPublicoPage() {
                           value={consumo}
                           onChange={(e) => setConsumo(e.target.value)}
                           inputMode="decimal"
+                          placeholder="0,0"
                           aria-label="Consumo em km por litro"
                         />
                         <em>km/l</em>
@@ -521,6 +522,7 @@ export function CalcularRotaPublicoPage() {
                           value={precoDiesel}
                           onChange={(e) => setPrecoDiesel(e.target.value)}
                           inputMode="decimal"
+                          placeholder="0,00"
                           aria-label="Preço do diesel"
                         />
                         <Fuel size={16} />
