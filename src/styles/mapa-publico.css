@@ -135,6 +135,38 @@
   cursor: pointer;
 }
 
+.mapa-pub__cta-esgotado {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #fff;
+}
+
+.mapa-pub__cta-esgotado span {
+  flex: 1;
+  min-width: 180px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.mapa-pub__cta-esgotado button {
+  border: 0;
+  border-radius: 8px;
+  background: #facc15;
+  color: #0f172a;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
 .mapa-pub__chips {
   display: flex;
   flex-wrap: wrap;
@@ -219,8 +251,8 @@
 .mapa-pub-modal {
   position: fixed;
   inset: 0;
-  z-index: 40;
-  background: rgb(15 23 42 / 0.45);
+  z-index: 5000;
+  background: rgb(15 23 42 / 0.55);
   display: grid;
   place-items: center;
   padding: 16px;

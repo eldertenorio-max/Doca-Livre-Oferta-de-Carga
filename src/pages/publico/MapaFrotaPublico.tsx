@@ -201,12 +201,9 @@ export function MapaFrotaPublicoPage() {
     if (!user) {
       const consumo = registrarBuscaPublica()
       setRestam(consumo.restam)
-      if (!consumo.ok) {
+      if (!consumo.ok || consumo.restam === 0) {
         setShowPaywall(true)
-        return
-      }
-      if (consumo.restam === 0) {
-        window.setTimeout(() => setShowPaywall(true), 900)
+        if (!consumo.ok) return
       }
     }
     setOrigem({ lat: res.coords.lat, lng: res.coords.lng, label: res.display || q })
@@ -273,6 +270,14 @@ export function MapaFrotaPublicoPage() {
               ? `${restam} de ${MAPA_PUBLICO_LIMITE_BUSCAS} buscas grátis restantes`
               : 'Buscas grátis esgotadas'}
         </p>
+        {!user && restam === 0 ? (
+          <div className="mapa-pub__cta-esgotado">
+            <span>Para continuar buscando e ver contato da frota, assine o Doca Livre.</span>
+            <button type="button" onClick={() => setShowPaywall(true)}>
+              Assinar para continuar
+            </button>
+          </div>
+        ) : null}
         {erro ? <p className="mapa-pub__erro">{erro}</p> : null}
         {origem ? (
           <p className="mapa-pub__origem">
