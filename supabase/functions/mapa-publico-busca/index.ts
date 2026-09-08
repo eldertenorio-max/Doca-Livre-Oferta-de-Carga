@@ -30,12 +30,6 @@ function admin() {
   return createClient(url, key)
 }
 
-async function sha256Hex(text: string) {
-  const data = new TextEncoder().encode(`doca-mapa-cota:${text}`)
-  const hash = await crypto.subtle.digest('SHA-256', data)
-  return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('')
-}
-
 function ipDoPedido(req: Request): string {
   const cf = req.headers.get('cf-connecting-ip')?.trim()
   if (cf) return cf
@@ -57,7 +51,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ ok: false, erro: 'Método não permitido.' }, 405)
 
-  let body: { action?: string; visitor_id?: string; device_hash?: string } = {}
+  let body: { action?: string; visitor_id?: string; device_hash?: string; produto?: string } = {}
   try {
     body = (await req.json()) as typeof body
   } catch {
@@ -68,11 +62,18 @@ Deno.serve(async (req) => {
   const visitor = limparToken(body.visitor_id)
   const device = limparToken(body.device_hash)
   const ip = ipDoPedido(req)
+  const prefixo = body.produto === 'rota' ? 'rota:' : ''
+  const salt = body.produto === 'rota' ? 'doca-rota-cota:' : 'doca-mapa-cota:'
 
   const chaves: string[] = []
-  if (ip) chaves.push(`ip:${(await sha256Hex(ip)).slice(0, 40)}`)
-  if (visitor) chaves.push(`vid:${visitor.slice(0, 80)}`)
-  if (device) chaves.push(`dev:${device.slice(0, 80)}`)
+  if (ip) {
+    const data = new TextEncoder().encode(salt + ip)
+    const hash = await crypto.subtle.digest('SHA-256', data)
+    const hex = [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('')
+    chaves.push(`${prefixo}ip:${hex.slice(0, 40)}`)
+  }
+  if (visitor) chaves.push(`${prefixo}vid:${visitor.slice(0, 80)}`)
+  if (device) chaves.push(`${prefixo}dev:${device.slice(0, 80)}`)
 
   if (chaves.length === 0) {
     return json({ ok: true, usadas: 0, restam: LIMITE, esgotado: false, limite: LIMITE })

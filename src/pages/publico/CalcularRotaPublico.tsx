@@ -14,9 +14,58 @@ import { useData } from '../../context/DataContext'
 import { AddressSuggestInput, PLACEHOLDER_ENDERECO_EXEMPLO } from '../../components/ui/AddressSuggestInput'
 import { RotaMapPreview } from '../../components/carga/RotaMapPreview'
 import type { SugestaoEndereco } from '../../lib/geocodeEndereco'
+import {
+  consultarEstadoCalculosPublicos,
+  estadoCalculosPublicos,
+  registrarCalculoPublico,
+  ROTA_PUBLICO_LIMITE_CALCULOS,
+} from '../../lib/rotaPublicoCalculos'
 import '../../styles/mapa-frota.css'
 import '../../styles/mapa-publico.css'
 import '../../styles/rota-publico.css'
+
+const PLANOS_PUBLICOS = [
+  {
+    id: 'motorista',
+    nome: 'Motorista',
+    preco: 'R$ 49',
+    periodo: '/mês',
+    extra: 'ou R$ 14,90 /semana',
+    para: 'Caminhoneiro e transportador',
+    itens: ['Rotas ilimitadas', 'Mapa da frota', 'Perfil no sistema'],
+    destaque: false,
+  },
+  {
+    id: 'start',
+    nome: 'Embarcador Start',
+    preco: 'R$ 197',
+    periodo: '/mês',
+    extra: '2 usuários',
+    para: 'Empresa pequena',
+    itens: ['Publicar cargas', 'Rotas ilimitadas', 'WhatsApp e placa da frota'],
+    destaque: true,
+  },
+  {
+    id: 'pro',
+    nome: 'Embarcador Pro',
+    preco: 'R$ 397',
+    periodo: '/mês',
+    extra: '5 usuários',
+    para: 'Operação com time',
+    itens: ['Tudo do Start', 'Malha logística', 'Kanban e áreas salvas'],
+    destaque: false,
+  },
+  {
+    id: 'empresa',
+    nome: 'Empresa',
+    preco: 'R$ 890',
+    periodo: '/mês',
+    extra: 'ou sob consulta',
+    para: 'Várias filiais',
+    itens: ['10 usuários', 'Usuários extras', 'Prioridade no suporte'],
+    destaque: false,
+  },
+] as const
 
 type Coord = { lat: number; lng: number }
 type Via = { id: string; endereco: string; lat?: number | null; lng?: number | null }
@@ -52,6 +101,9 @@ export function CalcularRotaPublicoPage() {
   const { user } = useData()
   const formId = useId()
   const reqId = useRef(0)
+  const userRef = useRef(user)
+  const cotaBusyRef = useRef(false)
+  userRef.current = user
 
   const [origem, setOrigem] = useState('')
   const [destino, setDestino] = useState('')
@@ -68,11 +120,31 @@ export function CalcularRotaPublicoPage() {
   const [erro, setErro] = useState('')
   const [calc, setCalc] = useState<AnttCalculo | null>(null)
   const [mapId, setMapId] = useState(0)
+  const [restam, setRestam] = useState(() =>
+    user ? ROTA_PUBLICO_LIMITE_CALCULOS : estadoCalculosPublicos().restam,
+  )
+  const [showPaywall, setShowPaywall] = useState(false)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'light')
     document.title = 'Calcular rota — Oferta de Carga'
   }, [])
+
+  useEffect(() => {
+    if (user) setRestam(ROTA_PUBLICO_LIMITE_CALCULOS)
+  }, [user])
+
+  useEffect(() => {
+    if (user) return
+    let alive = true
+    void consultarEstadoCalculosPublicos().then((estado) => {
+      if (!alive) return
+      setRestam(estado.restam)
+    })
+    return () => {
+      alive = false
+    }
+  }, [user])
 
   useEffect(() => {
     setConsumo(fmtConsumo(consumoPadraoKmL(eixos)))
@@ -99,11 +171,29 @@ export function CalcularRotaPublicoPage() {
     setDestinoCoords(origemCoords)
   }
 
+  async function consumirCalculo(): Promise<boolean> {
+    if (userRef.current) return true
+    if (cotaBusyRef.current) return false
+    cotaBusyRef.current = true
+    try {
+      const consumoCota = await registrarCalculoPublico()
+      setRestam(consumoCota.restam)
+      if (!consumoCota.ok) {
+        setShowPaywall(true)
+        return false
+      }
+      return true
+    } finally {
+      cotaBusyRef.current = false
+    }
+  }
+
   async function calcular() {
     if (origem.trim().length < 3 || destino.trim().length < 3) {
       setErro('Informe origem e destino.')
       return
     }
+    if (!(await consumirCalculo())) return
     const id = ++reqId.current
     setBusy(true)
     setErro('')
@@ -183,6 +273,13 @@ export function CalcularRotaPublicoPage() {
             <p className="mapa-frota__sub">
               Distância, pedágio ANTT e combustível — no mesmo modelo do QualP e do Rotas Brasil.
             </p>
+            <p className="mapa-pub__creditos">
+              {user
+                ? 'Conta logada · cálculos ilimitados'
+                : restam > 0
+                  ? `${restam} de ${ROTA_PUBLICO_LIMITE_CALCULOS} cálculos grátis hoje`
+                  : 'Os 2 cálculos grátis de hoje acabaram'}
+            </p>
           </div>
           <div className="mapa-frota__filtros">
             {PREFS.map(([id, label]) => (
@@ -197,6 +294,15 @@ export function CalcularRotaPublicoPage() {
             ))}
           </div>
         </header>
+
+        {!user && restam === 0 ? (
+          <div className="mapa-pub__cta-esgotado">
+            <span>Para calcular mais rotas hoje, assine o Doca Livre.</span>
+            <button type="button" onClick={() => setShowPaywall(true)}>
+              Assinar para continuar
+            </button>
+          </div>
+        ) : null}
 
         <div className="mapa-frota__layout">
           <aside className="mapa-frota__lista">
@@ -350,8 +456,14 @@ export function CalcularRotaPublicoPage() {
                   <button
                     type="button"
                     className="rota-pub__calc"
-                    disabled={busy}
-                    onClick={() => void calcular()}
+                    disabled={busy || (!user && restam === 0)}
+                    onClick={() => {
+                      if (!user && restam === 0) {
+                        setShowPaywall(true)
+                        return
+                      }
+                      void calcular()
+                    }}
                   >
                     {busy ? 'Calculando…' : 'Calcular rota'}
                   </button>
@@ -436,6 +548,54 @@ export function CalcularRotaPublicoPage() {
           </div>
         </div>
       </div>
+
+      {showPaywall ? (
+        <div className="mapa-pub-modal" role="dialog" aria-modal="true" aria-labelledby="rota-pub-pay-title">
+          <div className="mapa-pub-modal__card mapa-pub-modal__card--planos">
+            <h2 id="rota-pub-pay-title">Escolha um plano</h2>
+            <p>
+              Os {ROTA_PUBLICO_LIMITE_CALCULOS} cálculos grátis de hoje acabaram. Amanhã você tem
+              mais dois, ou assine para calcular sem limite.
+            </p>
+            <div className="mapa-pub-planos">
+              {PLANOS_PUBLICOS.map((plano) => (
+                <article
+                  key={plano.id}
+                  className={`mapa-pub-plano${plano.destaque ? ' is-destaque' : ''}`}
+                >
+                  {plano.destaque ? <span className="mapa-pub-plano__tag">Mais escolhido</span> : null}
+                  <h3>{plano.nome}</h3>
+                  <p className="mapa-pub-plano__para">{plano.para}</p>
+                  <p className="mapa-pub-plano__preco">
+                    <strong>{plano.preco}</strong>
+                    <small>{plano.periodo}</small>
+                  </p>
+                  <p className="mapa-pub-plano__extra">{plano.extra}</p>
+                  <ul>
+                    {plano.itens.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                  <LinkSistema
+                    className="mapa-pub__btn mapa-pub__btn--solid"
+                    to={`/cadastro-transportador?plano=${plano.id}`}
+                  >
+                    Assinar {plano.nome}
+                  </LinkSistema>
+                </article>
+              ))}
+            </div>
+            <div className="mapa-pub-modal__acoes">
+              <LinkSistema className="mapa-pub__btn mapa-pub__btn--ghost" to="/login">
+                Já tenho conta
+              </LinkSistema>
+              <button type="button" className="mapa-pub-modal__fechar" onClick={() => setShowPaywall(false)}>
+                Continuar vendo o último cálculo
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

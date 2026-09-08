@@ -1,5 +1,6 @@
--- Cota: 2 buscas grátis POR DIA (meia-noite em Brasília).
+-- Cota: 2 usos grátis POR DIA (meia-noite em Brasília).
 -- Contada no servidor (IP + visitante + aparelho), como Qualp / Rotas Brasil.
+-- Mapa da frota + calculadora de rota (chaves rota:).
 -- Execute no SQL Editor do projeto imnlbbfgaztfhwndfxwb.
 
 create extension if not exists pgcrypto with schema extensions;
@@ -160,3 +161,60 @@ $$;
 
 revoke all on function public.mapa_publico_cota_cliente(text, text, boolean) from public;
 grant execute on function public.mapa_publico_cota_cliente(text, text, boolean) to anon, authenticated;
+
+-- Calculadora pública de rota (ofertadecarga.com.br): mesma cota, chaves prefixadas.
+-- Independente das 2 buscas do mapa da frota.
+create or replace function public.rota_publico_cota_cliente(
+  p_visitor text,
+  p_device text,
+  p_consumir boolean
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_headers jsonb := '{}'::jsonb;
+  v_ip text := '';
+  v_chaves text[] := '{}';
+  v_visitor text := coalesce(nullif(btrim(p_visitor), ''), '');
+  v_device text := coalesce(nullif(btrim(p_device), ''), '');
+begin
+  begin
+    v_headers := current_setting('request.headers', true)::jsonb;
+  exception when others then
+    v_headers := '{}'::jsonb;
+  end;
+
+  v_ip := btrim(coalesce(
+    v_headers->>'cf-connecting-ip',
+    split_part(coalesce(v_headers->>'x-forwarded-for', ''), ',', 1),
+    v_headers->>'x-real-ip',
+    v_headers->>'x-client-ip',
+    ''
+  ));
+
+  if v_ip <> '' then
+    v_chaves := array_append(
+      v_chaves,
+      'rota:ip:' || substr(encode(extensions.digest('doca-rota-cota:' || v_ip, 'sha256'), 'hex'), 1, 40)
+    );
+  end if;
+  if v_visitor ~ '^[a-zA-Z0-9:_-]{8,80}$' then
+    v_chaves := array_append(v_chaves, 'rota:vid:' || v_visitor);
+  end if;
+  if v_device ~ '^[a-zA-Z0-9:_-]{8,80}$' then
+    v_chaves := array_append(v_chaves, 'rota:dev:' || v_device);
+  end if;
+
+  if array_length(v_chaves, 1) is null then
+    return jsonb_build_object('ok', true, 'usadas', 0, 'restam', 2, 'esgotado', false);
+  end if;
+
+  return public.mapa_publico_cota_aplicar(v_chaves, p_consumir, 2);
+end;
+$$;
+
+revoke all on function public.rota_publico_cota_cliente(text, text, boolean) from public;
+grant execute on function public.rota_publico_cota_cliente(text, text, boolean) to anon, authenticated;
