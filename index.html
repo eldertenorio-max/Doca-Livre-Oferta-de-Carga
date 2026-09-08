@@ -57,9 +57,14 @@
     <script>
       // Força o navegador a procurar SW novo e limpar cache morto (uma vez por build).
       ;(function () {
-        var BUILD = 'galeria-setas-v3'
+        var BUILD = 'mapa-publico-ui-frota-v114'
+        var urlV = ''
         try {
-          if (localStorage.getItem('doca-html-bust') === BUILD) return
+          urlV = new URL(location.href).searchParams.get('_v') || ''
+        } catch (e) {}
+        try {
+          var stored = localStorage.getItem('doca-html-bust')
+          if (stored === BUILD && urlV === BUILD) return
           localStorage.setItem('doca-html-bust', BUILD)
         } catch (e) {}
         if (!('serviceWorker' in navigator)) return

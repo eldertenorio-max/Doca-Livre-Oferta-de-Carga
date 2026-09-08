@@ -10,7 +10,7 @@ import './index.css'
  * Força novo bundle (setas da galeria). Depois do primeiro load limpo,
  * updates de deploy só no F5 (ver onNeedRefresh).
  */
-const BUILD_ID = 'mapa-publico-ui-frota-v113'
+const BUILD_ID = 'mapa-publico-ui-frota-v114'
 
 async function forceFreshOnce(): Promise<boolean> {
   const key = `doca-build:${BUILD_ID}`
@@ -64,12 +64,12 @@ function boot() {
   const updateSW = registerSW({
     immediate: true,
     onNeedRefresh() {
+      const noMapa = /#\/mapa/.test(window.location.hash)
       const abaOculta = document.visibilityState === 'hidden'
       const recemAberto = Date.now() < quietUntil
-      if (abaOculta || recemAberto) {
+      if (noMapa || abaOculta || recemAberto) {
         void updateSW(true)
       }
-      // senão: próximo F5 — onRegisteredSW aplica waiting
     },
     onRegisteredSW(_url, reg) {
       if (!reg) return
