@@ -26,6 +26,7 @@ import { PainelTransportadorPage } from './pages/transportador/Painel'
 import { ConfiguracoesTransportadorPage } from './pages/transportador/Configuracoes'
 import { MapaFrotaPage } from './pages/minerva/MapaFrota'
 import { MapaLogisticaPage } from './pages/minerva/MapaLogistica'
+import { MapaFrotaPublicoPage } from './pages/publico/MapaFrotaPublico'
 import { PerfilPage } from './pages/Perfil'
 import { PwaInstallBanner } from './components/PwaInstallBanner'
 import { PushEnableBanner } from './components/PushEnableBanner'
@@ -36,6 +37,22 @@ function MinervaToEmbarcadorRedirect() {
   const location = useLocation()
   const next = location.pathname.replace(/^\/minerva/, '/embarcador') + location.search + location.hash
   return <Navigate to={next} replace />
+}
+
+function isPublicMapPath() {
+  const h = (typeof window !== 'undefined' ? window.location.hash : '').replace(/^#/, '')
+  return h === '/mapa' || h.startsWith('/mapa?') || h.startsWith('/mapa/')
+}
+
+function AppBanners() {
+  const location = useLocation()
+  if (location.pathname === '/mapa') return null
+  return (
+    <>
+      <PwaInstallBanner />
+      <PushEnableBanner />
+    </>
+  )
 }
 
 function Protected({ role, children }: { role?: UserRole | UserRole[]; children: React.ReactNode }) {
@@ -54,7 +71,7 @@ function Protected({ role, children }: { role?: UserRole | UserRole[]; children:
 }
 
 export default function App() {
-  const [splashDone, setSplashDone] = useState(false)
+  const [splashDone, setSplashDone] = useState(() => isPublicMapPath())
 
   const handleSplashComplete = useCallback(() => {
     setSplashDone(true)
@@ -66,11 +83,11 @@ export default function App() {
 
   return (
     <>
-      <PwaInstallBanner />
-      <PushEnableBanner />
+      <AppBanners />
       <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/cadastro-transportador" element={<CadastroTransportadorPage />} />
+      <Route path="/mapa" element={<MapaFrotaPublicoPage />} />
       <Route
         element={
           <Protected>

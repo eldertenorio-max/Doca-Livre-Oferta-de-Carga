@@ -581,6 +581,9 @@ export function LoginPage() {
           )}
           {mode === 'login' && (
             <>
+              <Link to="/mapa" className="portal-login__link">
+                Ver mapa da frota (sem login)
+              </Link>
               <Link to="/cadastro-transportador" className="portal-login__link">
                 Quero ser transportador
               </Link>
