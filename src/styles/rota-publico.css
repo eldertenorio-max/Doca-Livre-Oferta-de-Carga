@@ -675,41 +675,45 @@
   align-items: center;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 10px;
   height: auto;
 }
 
-.rota-pub__map-links .mapa-pub__logistica {
-  position: static;
+.rota-pub__pill {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-  min-height: 46px;
-  padding: 10px 16px;
-  border-radius: 14px;
-  font-size: 0.88rem;
+  justify-content: center;
+  min-width: 148px;
+  min-height: 58px;
+  padding: 10px 22px;
+  border: 0;
+  border-radius: 999px;
+  background: #000;
+  color: #f5a623;
+  text-decoration: none;
+  text-align: center;
+  line-height: 1.05;
+  box-shadow: 0 8px 18px rgb(0 0 0 / 0.28);
 }
 
-.rota-pub__map-links .mapa-pub__logistica img {
-  width: 22px;
-  height: 22px;
-  object-fit: contain;
-  flex-shrink: 0;
-  background: #fff;
-  border-radius: 6px;
-  padding: 1px;
+.rota-pub__pill span,
+.rota-pub__pill strong {
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
-.rota-pub__map-links .mapa-pub__logistica--alt {
-  background: #fff;
-  color: #0b1b4a;
-  box-shadow: 0 8px 20px rgb(15 23 42 / 0.14);
+.rota-pub__pill span {
+  font-size: 0.82rem;
 }
 
-.rota-pub__map-links .mapa-pub__logistica--alt:hover {
-  background: #fff7ed;
-  color: #c2410c;
+.rota-pub__pill strong {
+  font-size: 0.98rem;
+}
+
+.rota-pub__pill:hover {
+  background: #111;
+  color: #ffb300;
 }
 
 .rota-pub .mapa-frota__map-wrap > div:not(.rota-pub__map-links) {
@@ -751,12 +755,21 @@
   .rota-pub__map-links {
     top: 8px;
     right: 8px;
+    gap: 6px;
   }
 
-  .rota-pub__map-links .mapa-pub__logistica {
-    min-height: 40px;
-    padding: 8px 12px;
-    font-size: 0.78rem;
+  .rota-pub__pill {
+    min-width: 120px;
+    min-height: 50px;
+    padding: 8px 16px;
+  }
+
+  .rota-pub__pill span {
+    font-size: 0.72rem;
+  }
+
+  .rota-pub__pill strong {
+    font-size: 0.86rem;
   }
 
   .rota-pub__prefs {

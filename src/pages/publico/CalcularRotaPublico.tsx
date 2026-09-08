@@ -645,18 +645,18 @@ export function CalcularRotaPublicoPage() {
 
           <div className="mapa-frota__map-wrap">
             <div className="rota-pub__map-links">
-              <LinkMapaFrota className="mapa-pub__logistica">
-                <img src={LOGO_DOCA_LIVRE_SRC} alt="" />
-                Mapa da Frota
+              <LinkMapaFrota className="rota-pub__pill">
+                <span>Mapa</span>
+                <strong>da Frota</strong>
               </LinkMapaFrota>
               <a
-                className="mapa-pub__logistica mapa-pub__logistica--alt"
+                className="rota-pub__pill"
                 href={LINK_MAPA_LOGISTICA}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <img src={LOGO_DOCA_LIVRE_SRC} alt="" />
-                Mapa da logística
+                <span>Mapa da</span>
+                <strong>Logística</strong>
               </a>
             </div>
             <RotaMapPreview
