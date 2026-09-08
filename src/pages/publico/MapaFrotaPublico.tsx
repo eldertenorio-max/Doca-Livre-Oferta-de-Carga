@@ -50,6 +50,49 @@ function markerPublicoHtml(p: PontoFrota, qtd = 1): string {
   `
 }
 
+const PLANOS_PUBLICOS = [
+  {
+    id: 'motorista',
+    nome: 'Motorista',
+    preco: 'R$ 49',
+    periodo: '/mês',
+    extra: 'ou R$ 14,90 /semana',
+    para: 'Caminhoneiro e transportador',
+    itens: ['Mapa ilimitado', 'Ver ofertas de carga', 'Perfil no sistema'],
+    destaque: false,
+  },
+  {
+    id: 'start',
+    nome: 'Embarcador Start',
+    preco: 'R$ 197',
+    periodo: '/mês',
+    extra: '2 usuários',
+    para: 'Empresa pequena',
+    itens: ['Publicar cargas', 'Mapa ilimitado', 'WhatsApp e placa da frota'],
+    destaque: true,
+  },
+  {
+    id: 'pro',
+    nome: 'Embarcador Pro',
+    preco: 'R$ 397',
+    periodo: '/mês',
+    extra: '5 usuários',
+    para: 'Operação com time',
+    itens: ['Tudo do Start', 'Malha logística', 'Kanban e áreas salvas'],
+    destaque: false,
+  },
+  {
+    id: 'empresa',
+    nome: 'Empresa',
+    preco: 'R$ 890',
+    periodo: '/mês',
+    extra: 'ou sob consulta',
+    para: 'Várias filiais',
+    itens: ['10 usuários', 'Usuários extras', 'Prioridade no suporte'],
+    destaque: false,
+  },
+] as const
+
 function popupPublicoHtml(p: PontoFrota, qtd: number): string {
   const local = [p.cidade, p.uf].filter(Boolean).join(' / ') || 'Brasil'
   const extra = qtd > 1 ? ` · ${qtd} veículos neste ponto` : ''
@@ -59,7 +102,7 @@ function popupPublicoHtml(p: PontoFrota, qtd: number): string {
       <p class="mapa-pub-popup__local">${escapeHtml(local)}${escapeHtml(extra)}</p>
       <p class="mapa-pub-popup__status">Disponível para carregar</p>
       <p class="mapa-pub-popup__lock">Contato, placa e WhatsApp só para assinante.</p>
-      <a class="mapa-pub-popup__cta" href="#/login">Assinar para ver contato</a>
+      <button type="button" class="mapa-pub-popup__cta js-mapa-pub-assinar">Assinar para ver contato</button>
     </div>
   `
 }
@@ -89,6 +132,17 @@ export function MapaFrotaPublicoPage() {
     document.title = 'Mapa da frota — Doca Livre Oferta de Carga'
     void refreshTransportadores()
   }, [refreshTransportadores])
+
+  useEffect(() => {
+    function onAssinar(ev: MouseEvent) {
+      const el = ev.target as HTMLElement | null
+      if (!el?.closest?.('.js-mapa-pub-assinar')) return
+      ev.preventDefault()
+      setShowPaywall(true)
+    }
+    document.addEventListener('click', onAssinar)
+    return () => document.removeEventListener('click', onAssinar)
+  }, [])
 
   const pontos = useMemo(
     () =>
@@ -377,23 +431,48 @@ export function MapaFrotaPublicoPage() {
 
       {showPaywall ? (
         <div className="mapa-pub-modal" role="dialog" aria-modal="true" aria-labelledby="mapa-pub-pay-title">
-          <div className="mapa-pub-modal__card">
-            <h2 id="mapa-pub-pay-title">Assine para continuar buscando</h2>
+          <div className="mapa-pub-modal__card mapa-pub-modal__card--planos">
+            <h2 id="mapa-pub-pay-title">Escolha um plano</h2>
             <p>
-              Você usou as {MAPA_PUBLICO_LIMITE_BUSCAS} buscas grátis. Com a assinatura o mapa fica
-              ilimitado, você vê WhatsApp e placa e entra no sistema Doca Livre Oferta de Carga.
+              As {MAPA_PUBLICO_LIMITE_BUSCAS} buscas grátis acabaram. Assine para continuar no mapa
+              e entrar no sistema Doca Livre Oferta de Carga.
             </p>
+            <div className="mapa-pub-planos">
+              {PLANOS_PUBLICOS.map((plano) => (
+                <article
+                  key={plano.id}
+                  className={`mapa-pub-plano${plano.destaque ? ' is-destaque' : ''}`}
+                >
+                  {plano.destaque ? <span className="mapa-pub-plano__tag">Mais escolhido</span> : null}
+                  <h3>{plano.nome}</h3>
+                  <p className="mapa-pub-plano__para">{plano.para}</p>
+                  <p className="mapa-pub-plano__preco">
+                    <strong>{plano.preco}</strong>
+                    <small>{plano.periodo}</small>
+                  </p>
+                  <p className="mapa-pub-plano__extra">{plano.extra}</p>
+                  <ul>
+                    {plano.itens.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                  <Link
+                    className="mapa-pub__btn mapa-pub__btn--solid"
+                    to={`/cadastro-transportador?plano=${plano.id}`}
+                  >
+                    Assinar {plano.nome}
+                  </Link>
+                </article>
+              ))}
+            </div>
             <div className="mapa-pub-modal__acoes">
-              <Link className="mapa-pub__btn mapa-pub__btn--solid" to="/cadastro-transportador">
-                Quero assinar
-              </Link>
               <Link className="mapa-pub__btn mapa-pub__btn--ghost" to="/login">
                 Já tenho conta
               </Link>
+              <button type="button" className="mapa-pub-modal__fechar" onClick={() => setShowPaywall(false)}>
+                Continuar só olhando o mapa
+              </button>
             </div>
-            <button type="button" className="mapa-pub-modal__fechar" onClick={() => setShowPaywall(false)}>
-              Continuar só olhando o mapa
-            </button>
           </div>
         </div>
       ) : null}
