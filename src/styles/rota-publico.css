@@ -595,7 +595,24 @@
 
 .rota-pub__map-links .mapa-pub__logistica {
   position: static;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   white-space: nowrap;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 0.88rem;
+}
+
+.rota-pub__map-links .mapa-pub__logistica img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex-shrink: 0;
+  background: #fff;
+  border-radius: 6px;
+  padding: 1px;
 }
 
 .rota-pub__map-links .mapa-pub__logistica--alt {
