@@ -148,6 +148,8 @@ export function CalcularRotaPublicoPage() {
   const [vias, setVias] = useState<Via[]>([])
   const [tipoVeiculo, setTipoVeiculo] = useState<TipoVeiculoUi>('caminhao')
   const [eixos, setEixos] = useState(6)
+  const [eixosTick, setEixosTick] = useState(0)
+  const [eixosDir, setEixosDir] = useState<'up' | 'down'>('up')
   const [consumo, setConsumo] = useState(() => fmtConsumo(consumoPadraoKmL(6)))
   const [precoDiesel, setPrecoDiesel] = useState(() => fmtDiesel(PRECO_DIESEL_SUGERIDO))
   const [idaEVolta, setIdaEVolta] = useState(false)
@@ -208,11 +210,19 @@ export function CalcularRotaPublicoPage() {
     setDestinoCoords(origemCoords)
   }
 
+  function mudarEixos(proximo: number) {
+    const n = Math.min(9, Math.max(2, proximo))
+    if (n === eixos) return
+    setEixosDir(n > eixos ? 'up' : 'down')
+    setEixos(n)
+    setEixosTick((t) => t + 1)
+  }
+
   function escolherVeiculo(tipo: TipoVeiculoUi) {
     const item = VEICULOS.find((v) => v.id === tipo)
     if (!item) return
     setTipoVeiculo(tipo)
-    setEixos(item.eixos)
+    mudarEixos(item.eixos)
   }
 
   function limparRota() {
@@ -487,12 +497,14 @@ export function CalcularRotaPublicoPage() {
                       ))}
                     </div>
                     <div className="rota-pub__eixos">
-                      <button type="button" title="Mais eixos" onClick={() => setEixos((e) => Math.min(9, e + 1))}>
+                      <button type="button" title="Mais eixos" onClick={() => mudarEixos(eixos + 1)}>
                         <ChevronUp size={16} />
                       </button>
-                      <strong>{eixos}</strong>
+                      <strong key={eixosTick} className={`rota-pub__eixos-n is-${eixosDir}`}>
+                        {eixos}
+                      </strong>
                       <span>eixos</span>
-                      <button type="button" title="Menos eixos" onClick={() => setEixos((e) => Math.max(2, e - 1))}>
+                      <button type="button" title="Menos eixos" onClick={() => mudarEixos(eixos - 1)}>
                         <ChevronDown size={16} />
                       </button>
                     </div>
