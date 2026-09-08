@@ -22,15 +22,19 @@ import {
 import { formatCurrency } from '../../lib/businessRules'
 import {
   calcularRotaOperacional,
+  CATEGORIAS_ANTT,
   consumoPadraoKmL,
+  eixosDoVeiculo,
   PRECO_DIESEL_SUGERIDO,
   type AnttCalculo,
   type PreferenciaRota,
 } from '../../lib/anttFrete'
+import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { LinkSistema, LinkMapaFrota } from '../../components/ui/HostLink'
 import { useData } from '../../context/DataContext'
 import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
+import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
 import { RotaMapPreview } from '../../components/carga/RotaMapPreview'
 import type { SugestaoEndereco } from '../../lib/geocodeEndereco'
 import {
@@ -103,14 +107,27 @@ type TipoVeiculoUi = 'caminhao' | 'carro' | 'onibus' | 'moto'
 const VEICULOS: Array<{
   id: TipoVeiculoUi
   eixos: number
+  tipoCatalogo: string
   label: string
   Icon: typeof Truck
 }> = [
-  { id: 'caminhao', eixos: 6, label: 'Caminhão', Icon: Truck },
-  { id: 'carro', eixos: 2, label: 'Carro', Icon: Car },
-  { id: 'onibus', eixos: 3, label: 'Ônibus', Icon: Bus },
-  { id: 'moto', eixos: 2, label: 'Moto', Icon: Bike },
+  { id: 'caminhao', eixos: 6, tipoCatalogo: 'Carreta LS', label: 'Caminhão', Icon: Truck },
+  { id: 'carro', eixos: 2, tipoCatalogo: 'Fiorino', label: 'Carro', Icon: Car },
+  { id: 'onibus', eixos: 3, tipoCatalogo: 'Toco', label: 'Ônibus', Icon: Bus },
+  { id: 'moto', eixos: 2, tipoCatalogo: '', label: 'Moto', Icon: Bike },
 ]
+
+function iconeDoCatalogo(tipo: string): TipoVeiculoUi {
+  const t = tipo.trim().toLowerCase()
+  if (t === 'fiorino') return 'carro'
+  if (t === 'vlc' || t === '3/4') return 'carro'
+  return 'caminhao'
+}
+
+function tipoCatalogoExato(nome: string): boolean {
+  const q = nome.trim().toLowerCase()
+  return TIPOS_VEICULO.some((t) => t.toLowerCase() === q)
+}
 
 function parseNumBr(raw: string, fallback: number): number {
   const n = Number(String(raw).trim().replace(/\./g, '').replace(',', '.'))
@@ -147,6 +164,8 @@ export function CalcularRotaPublicoPage() {
   const [destinoCoords, setDestinoCoords] = useState<Coord | null>(null)
   const [vias, setVias] = useState<Via[]>([])
   const [tipoVeiculo, setTipoVeiculo] = useState<TipoVeiculoUi>('caminhao')
+  const [tipoVeiculoNome, setTipoVeiculoNome] = useState('Carreta LS')
+  const [categoriaCargaId, setCategoriaCargaId] = useState<number | ''>('')
   const [eixos, setEixos] = useState(6)
   const [eixosTick, setEixosTick] = useState(0)
   const [eixosDir, setEixosDir] = useState<'up' | 'down'>('up')
@@ -222,7 +241,15 @@ export function CalcularRotaPublicoPage() {
     const item = VEICULOS.find((v) => v.id === tipo)
     if (!item) return
     setTipoVeiculo(tipo)
+    setTipoVeiculoNome(item.tipoCatalogo)
     mudarEixos(item.eixos)
+  }
+
+  function escolherTipoCatalogo(nome: string) {
+    setTipoVeiculoNome(nome)
+    if (!tipoCatalogoExato(nome)) return
+    setTipoVeiculo(iconeDoCatalogo(nome))
+    mudarEixos(eixosDoVeiculo(nome))
   }
 
   function limparRota() {
@@ -281,6 +308,7 @@ export function CalcularRotaPublicoPage() {
       precoDiesel: parseNumBr(precoDiesel, PRECO_DIESEL_SUGERIDO),
       idaEVolta,
       preferencia,
+      categoriaId: categoriaCargaId === '' ? null : categoriaCargaId,
       waypoints,
       origemCoords,
       destinoCoords,
@@ -481,8 +509,41 @@ export function CalcularRotaPublicoPage() {
                   ))}
 
                   <p className="rota-pub__sec">Veículo</p>
+                  <div className="rota-pub__catalogo">
+                    <div className="rota-pub__field">
+                      <div className="rota-pub__field-head">
+                        <span>Tipo de veículo</span>
+                        <em>{TIPOS_VEICULO.length} cadastrados</em>
+                      </div>
+                      <VeiculoSuggestInput
+                        value={tipoVeiculoNome}
+                        onChange={escolherTipoCatalogo}
+                        className="rota-pub__select"
+                      />
+                    </div>
+                    <label className="rota-pub__field">
+                      <span className="rota-pub__field-head">
+                        <span>Categoria da carga</span>
+                      </span>
+                      <select
+                        className="rota-pub__select"
+                        value={categoriaCargaId === '' ? '' : String(categoriaCargaId)}
+                        onChange={(e) => {
+                          const v = e.target.value
+                          setCategoriaCargaId(v ? Number(v) : '')
+                        }}
+                      >
+                        <option value="">Selecione a categoria da carga</option>
+                        {CATEGORIAS_ANTT.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
                   <div className="rota-pub__veiculos">
-                    <div className="rota-pub__tipos" role="group" aria-label="Tipo de veículo">
+                    <div className="rota-pub__tipos" role="group" aria-label="Classe do veículo">
                       {VEICULOS.map(({ id, label, Icon }) => (
                         <button
                           key={id}
@@ -626,6 +687,12 @@ export function CalcularRotaPublicoPage() {
                   </span>
                   <strong>{formatCurrency(calc.rota.combustivel)}</strong>
                 </div>
+                {calc.categoria_label ? (
+                  <div className="rota-pub__linha">
+                    <span>Categoria</span>
+                    <strong>{calc.categoria_label}</strong>
+                  </div>
+                ) : null}
                 {calc.piso_selecionado != null ? (
                   <div className="rota-pub__linha">
                     <span>Piso ANTT</span>

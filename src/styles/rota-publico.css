@@ -293,6 +293,66 @@
   cursor: pointer;
 }
 
+.rota-pub__catalogo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rota-pub__field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.rota-pub__field-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rota-pub__field-head span {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #64748b;
+}
+
+.rota-pub__field-head em {
+  font-style: normal;
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.rota-pub__select {
+  width: 100%;
+  min-height: 42px;
+  border: 1.5px solid #94a3b8;
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #0f172a;
+  outline: none;
+}
+
+.rota-pub__field:focus-within .rota-pub__select {
+  border-color: #eab308;
+  box-shadow: 0 0 0 3px rgb(234 179 8 / 0.22);
+}
+
+.rota-pub__field .relative {
+  width: 100%;
+}
+
+.rota-pub__field .absolute {
+  z-index: 80;
+}
+
 .rota-pub__veiculos {
   display: grid;
   grid-template-columns: 1fr 68px;
