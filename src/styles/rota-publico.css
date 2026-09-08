@@ -686,6 +686,87 @@
   font-weight: 700;
 }
 
+.rota-pub__ver-resultado {
+  width: 100%;
+  margin-top: 8px;
+  border: 1.5px solid #1636a0;
+  border-radius: 12px;
+  background: #fff;
+  color: #1636a0;
+  padding: 10px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.rota-pub__ver-resultado:hover {
+  background: #eef2ff;
+}
+
+.rota-pub-janela {
+  position: fixed;
+  inset: 0;
+  z-index: 4800;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgb(15 23 42 / 0.45);
+  overflow: auto;
+}
+
+.rota-pub-janela__card {
+  width: min(420px, 100%);
+  max-height: min(88vh, 760px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 28px 60px rgb(15 23 42 / 0.28);
+}
+
+.rota-pub-janela__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 12px;
+  background: linear-gradient(135deg, #071433 0%, #1636a0 72%);
+  color: #fff;
+}
+
+.rota-pub-janela__kicker {
+  margin: 0 0 2px;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fdba74;
+}
+
+.rota-pub-janela__head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.rota-pub-janela__fechar {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.12);
+  color: #fff;
+  cursor: pointer;
+}
+
+.rota-pub-janela__fechar:hover {
+  background: rgb(255 255 255 / 0.22);
+}
+
 .rota-pub__resumo {
   display: flex;
   flex-direction: column;
@@ -693,6 +774,11 @@
   padding: 14px 14px 16px;
   background: #fff;
   border-top: 1px solid #f1f5f9;
+}
+
+.rota-pub__resumo--janela {
+  border-top: 0;
+  overflow: auto;
 }
 
 .rota-pub__resumo h3 {

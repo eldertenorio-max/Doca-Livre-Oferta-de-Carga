@@ -17,6 +17,7 @@ import {
   Timer,
   Truck,
   Wallet,
+  X,
   Zap,
 } from 'lucide-react'
 import { formatCurrency } from '../../lib/businessRules'
@@ -182,6 +183,7 @@ export function CalcularRotaPublicoPage() {
     user ? ROTA_PUBLICO_LIMITE_CALCULOS : estadoCalculosPublicos().restam,
   )
   const [showPaywall, setShowPaywall] = useState(false)
+  const [showResultado, setShowResultado] = useState(false)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'light')
@@ -261,6 +263,7 @@ export function CalcularRotaPublicoPage() {
     setCalc(null)
     setErro('')
     setMapId(0)
+    setShowResultado(false)
   }
 
   async function consumirCalculo(): Promise<boolean> {
@@ -318,9 +321,11 @@ export function CalcularRotaPublicoPage() {
     if (!res.ok) {
       setErro(res.erro)
       setCalc(null)
+      setShowResultado(false)
       return
     }
     setCalc(res.data)
+    setShowResultado(true)
     setMapId((n) => n + 1)
   }
 
@@ -651,77 +656,18 @@ export function CalcularRotaPublicoPage() {
                     <Route size={18} />
                     {busy ? 'Calculando…' : 'Calcular'}
                   </button>
+                  {calc?.rota && !showResultado ? (
+                    <button
+                      type="button"
+                      className="rota-pub__ver-resultado"
+                      onClick={() => setShowResultado(true)}
+                    >
+                      Ver resultado
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
             </div>
-
-            {calc?.rota ? (
-              <div className="rota-pub__resumo" aria-live="polite">
-                <div className="rota-pub__total">
-                  <span>Custo total</span>
-                  <strong>{formatCurrency(calc.rota.custo_total)}</strong>
-                </div>
-                <div className="rota-pub__stats">
-                  <div>
-                    <small>Distância</small>
-                    <strong>{calc.rota.distancia_km} km</strong>
-                  </div>
-                  <div>
-                    <small>Tempo</small>
-                    <strong>{calc.rota.duracao_label}</strong>
-                  </div>
-                  <div>
-                    <small>Pedágio</small>
-                    <strong>{formatCurrency(calc.rota.pedagio)}</strong>
-                  </div>
-                </div>
-                <div className="rota-pub__linha">
-                  <span>
-                    <Wallet size={14} /> Pedágio / eixo
-                  </span>
-                  <strong>{formatCurrency(calc.rota.pedagio_por_eixo)}</strong>
-                </div>
-                <div className="rota-pub__linha">
-                  <span>
-                    <Fuel size={14} /> Combustível
-                  </span>
-                  <strong>{formatCurrency(calc.rota.combustivel)}</strong>
-                </div>
-                {calc.categoria_label ? (
-                  <div className="rota-pub__linha">
-                    <span>Categoria</span>
-                    <strong>{calc.categoria_label}</strong>
-                  </div>
-                ) : null}
-                {calc.piso_selecionado != null ? (
-                  <div className="rota-pub__linha">
-                    <span>Piso ANTT</span>
-                    <strong>{formatCurrency(calc.piso_selecionado)}</strong>
-                  </div>
-                ) : null}
-
-                <h3>Praças ({calc.rota.pracas?.length ?? 0})</h3>
-                {(calc.rota.pracas?.length ?? 0) === 0 ? (
-                  <p className="mapa-frota__sub">Nenhuma praça detectada nesta rota.</p>
-                ) : (
-                  <ul className="rota-pub__pracas">
-                    {calc.rota.pracas!.map((p, i) => (
-                      <li key={`${p.nome}-${i}`}>
-                        <span>
-                          {p.nome}
-                          {p.free_flow ? ' · Free Flow' : ''}
-                        </span>
-                        <strong>{formatCurrency(p.valor)}</strong>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <p className="mapa-frota__sub">{calc.fonte}</p>
-                <LinkMapaFrota className="mapa-pub__btn mapa-pub__btn--ghost">
-                  Ver frota disponível
-                </LinkMapaFrota>
-              </div>
-            ) : null}
           </aside>
 
           <div className="mapa-frota__map-wrap">
@@ -759,6 +705,98 @@ export function CalcularRotaPublicoPage() {
           </div>
         </div>
       </div>
+
+      {showResultado && calc?.rota ? (
+        <div
+          className="rota-pub-janela"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="rota-pub-result-title"
+          onClick={() => setShowResultado(false)}
+        >
+          <div className="rota-pub-janela__card" onClick={(e) => e.stopPropagation()}>
+            <header className="rota-pub-janela__head">
+              <div>
+                <p className="rota-pub-janela__kicker">Resultado</p>
+                <h2 id="rota-pub-result-title">Custo da rota</h2>
+              </div>
+              <button
+                type="button"
+                className="rota-pub-janela__fechar"
+                aria-label="Fechar resultado"
+                onClick={() => setShowResultado(false)}
+              >
+                <X size={18} />
+              </button>
+            </header>
+            <div className="rota-pub__resumo rota-pub__resumo--janela" aria-live="polite">
+              <div className="rota-pub__total">
+                <span>Custo total</span>
+                <strong>{formatCurrency(calc.rota.custo_total)}</strong>
+              </div>
+              <div className="rota-pub__stats">
+                <div>
+                  <small>Distância</small>
+                  <strong>{calc.rota.distancia_km} km</strong>
+                </div>
+                <div>
+                  <small>Tempo</small>
+                  <strong>{calc.rota.duracao_label}</strong>
+                </div>
+                <div>
+                  <small>Pedágio</small>
+                  <strong>{formatCurrency(calc.rota.pedagio)}</strong>
+                </div>
+              </div>
+              <div className="rota-pub__linha">
+                <span>
+                  <Wallet size={14} /> Pedágio / eixo
+                </span>
+                <strong>{formatCurrency(calc.rota.pedagio_por_eixo)}</strong>
+              </div>
+              <div className="rota-pub__linha">
+                <span>
+                  <Fuel size={14} /> Combustível
+                </span>
+                <strong>{formatCurrency(calc.rota.combustivel)}</strong>
+              </div>
+              {calc.categoria_label ? (
+                <div className="rota-pub__linha">
+                  <span>Categoria</span>
+                  <strong>{calc.categoria_label}</strong>
+                </div>
+              ) : null}
+              {calc.piso_selecionado != null ? (
+                <div className="rota-pub__linha">
+                  <span>Piso ANTT</span>
+                  <strong>{formatCurrency(calc.piso_selecionado)}</strong>
+                </div>
+              ) : null}
+
+              <h3>Praças ({calc.rota.pracas?.length ?? 0})</h3>
+              {(calc.rota.pracas?.length ?? 0) === 0 ? (
+                <p className="mapa-frota__sub">Nenhuma praça detectada nesta rota.</p>
+              ) : (
+                <ul className="rota-pub__pracas">
+                  {calc.rota.pracas!.map((p, i) => (
+                    <li key={`${p.nome}-${i}`}>
+                      <span>
+                        {p.nome}
+                        {p.free_flow ? ' · Free Flow' : ''}
+                      </span>
+                      <strong>{formatCurrency(p.valor)}</strong>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="mapa-frota__sub">{calc.fonte}</p>
+              <LinkMapaFrota className="mapa-pub__btn mapa-pub__btn--ghost">
+                Ver frota disponível
+              </LinkMapaFrota>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {showPaywall ? (
         <div className="mapa-pub-modal" role="dialog" aria-modal="true" aria-labelledby="rota-pub-pay-title">
