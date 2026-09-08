@@ -204,12 +204,20 @@
   color: #64748b;
 }
 
+.mapa-pub .mapa-frota__map-wrap {
+  isolation: isolate;
+}
+
+.mapa-pub .mapa-frota__map {
+  z-index: 1;
+}
+
 .mapa-pub__logistica,
 .mapa-pub__map-links {
   position: absolute;
   top: 12px;
   right: 12px;
-  z-index: 1100;
+  z-index: 4000;
   pointer-events: auto;
 }
 
