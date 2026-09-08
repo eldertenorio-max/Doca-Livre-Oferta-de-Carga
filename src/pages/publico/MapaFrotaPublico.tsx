@@ -67,6 +67,7 @@ export function MapaFrotaPublicoPage() {
   const mapEl = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const layerRef = useRef<L.LayerGroup | null>(null)
+  const origemFitRef = useRef('')
 
   const [busca, setBusca] = useState('')
   const [tipos, setTipos] = useState<FrotaIconeGrupo[]>([])
@@ -162,9 +163,14 @@ export function MapaFrotaPublicoPage() {
       m.addTo(layer)
       bounds.push([p.lat, p.lng])
     }
+    // Só muda o zoom quando a busca muda — redesenhar pins (sync da frota)
+    // não pode trazer o mapa de volta pro Brasil.
+    const chaveOrigem = origem ? `${origem.lat.toFixed(5)},${origem.lng.toFixed(5)}` : ''
+    if (origemFitRef.current === chaveOrigem) return
+    origemFitRef.current = chaveOrigem
     if (origem && bounds.length > 0) {
       map.fitBounds(L.latLngBounds(bounds).pad(0.18), { maxZoom: 11 })
-    } else if (!origem) {
+    } else if (!origem && chaveOrigem === '') {
       map.setView([-14.2, -51.9], 4)
     }
   }, [filtrados, origem])
