@@ -3,8 +3,11 @@ import { Link } from 'react-router-dom'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useData } from '../../context/DataContext'
+import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
-import { geocodificarConsulta } from '../../lib/geocodeEndereco'
+import { geocodificarConsulta, type SugestaoEndereco } from '../../lib/geocodeEndereco'
+import { sugerirCidadesComCoords } from '../../lib/municipiosSedes'
+import { UF_CENTRO, UFS_BR } from '../../lib/mapaLogisticaIntel'
 import {
   agruparPontosPorCoord,
   distanciaKm,
@@ -179,8 +182,43 @@ export function MapaFrotaPublicoPage() {
     setTipos((prev) => (prev.length === 1 && prev[0] === grupo ? [] : [grupo]))
   }
 
-  async function buscar() {
-    const q = busca.trim()
+  const cidadesFrota = useMemo(() => {
+    const set = new Set<string>()
+    for (const p of pontos) {
+      const label = [p.cidade, p.uf].filter(Boolean).join(' — ')
+      if (label) set.add(label)
+    }
+    return Array.from(set)
+  }, [pontos])
+
+  function sugestoesLocais(query: string): string[] {
+    const q = query.trim().toLowerCase()
+    if (q.length < 1) return []
+    const out: string[] = []
+    const seen = new Set<string>()
+    const add = (s: string) => {
+      const k = s.toLowerCase()
+      if (!s || seen.has(k)) return
+      if (!k.includes(q)) return
+      seen.add(k)
+      out.push(s)
+    }
+    for (const c of sugerirCidadesComCoords(query, 8)) add(c.label)
+    for (const label of cidadesFrota) add(label)
+    for (const uf of UFS_BR) {
+      const nome = UF_CENTRO[uf].nome
+      if (uf.toLowerCase().includes(q) || nome.toLowerCase().includes(q)) {
+        add(`${nome} — ${uf}`)
+      }
+    }
+    return out.slice(0, 10)
+  }
+
+  async function aplicarBusca(
+    texto: string,
+    coords?: { lat: number; lng: number; label: string },
+  ) {
+    const q = texto.trim()
     if (!q) {
       setErro('Digite uma cidade, UF ou endereço.')
       return
@@ -190,13 +228,21 @@ export function MapaFrotaPublicoPage() {
       setRestam(0)
       return
     }
-    setBusy(true)
-    setErro('')
-    const res = await geocodificarConsulta(q)
-    setBusy(false)
-    if (!res.ok) {
-      setErro(res.erro || 'Não achei esse lugar. Tente a cidade e a UF.')
-      return
+    let lat = coords?.lat
+    let lng = coords?.lng
+    let label = coords?.label || q
+    if (lat == null || lng == null) {
+      setBusy(true)
+      setErro('')
+      const res = await geocodificarConsulta(q)
+      setBusy(false)
+      if (!res.ok) {
+        setErro(res.erro || 'Não achei esse lugar. Tente a cidade e a UF.')
+        return
+      }
+      lat = res.coords.lat
+      lng = res.coords.lng
+      label = res.display || q
     }
     if (!user) {
       const consumo = registrarBuscaPublica()
@@ -206,7 +252,12 @@ export function MapaFrotaPublicoPage() {
         if (!consumo.ok) return
       }
     }
-    setOrigem({ lat: res.coords.lat, lng: res.coords.lng, label: res.display || q })
+    setErro('')
+    setOrigem({ lat, lng, label })
+  }
+
+  function escolherSugestao(sug: SugestaoEndereco) {
+    void aplicarBusca(sug.label, { lat: sug.lat, lng: sug.lng, label: sug.label })
   }
 
   const logado = Boolean(user)
@@ -247,17 +298,20 @@ export function MapaFrotaPublicoPage() {
           className="mapa-pub__search"
           onSubmit={(e) => {
             e.preventDefault()
-            void buscar()
+            void aplicarBusca(busca)
           }}
         >
-          <input
+          <AddressSuggestInput
             value={busca}
-            onChange={(e) => {
-              setBusca(e.target.value)
+            onChange={(v) => {
+              setBusca(v)
               setErro('')
             }}
+            onPick={escolherSugestao}
+            localSuggestions={sugestoesLocais}
+            minChars={2}
             placeholder="Buscar cidade, UF ou endereço — ex.: Guarulhos SP"
-            aria-label="Buscar cidade"
+            className="mapa-pub__q"
           />
           <button type="submit" disabled={busy}>
             {busy ? 'Buscando…' : 'Buscar'}
