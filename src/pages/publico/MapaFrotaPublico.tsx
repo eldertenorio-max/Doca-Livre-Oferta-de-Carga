@@ -28,6 +28,7 @@ import {
   type RegiaoBr,
 } from '../../lib/mapaFrota'
 import {
+  consultarEstadoBuscasPublicas,
   estadoBuscasPublicas,
   MAPA_PUBLICO_LIMITE_BUSCAS,
   registrarBuscaPublica,
@@ -153,7 +154,10 @@ export function MapaFrotaPublicoPage() {
   const clicarOrigemRef = useRef(false)
   const chaveFiltroAnteriorRef = useRef('')
   const userRef = useRef(user)
-  const definirOrigemRef = useRef<(lat: number, lng: number, label: string) => void>(() => {})
+  const cotaBusyRef = useRef(false)
+  const definirOrigemRef = useRef<(lat: number, lng: number, label: string) => void | Promise<void>>(
+    () => {},
+  )
 
   const [filtro, setFiltro] = useState<FiltroStatus>('disponiveis')
   const [abaPesquisa, setAbaPesquisa] = useState<'veiculo' | 'transportadora'>('veiculo')
@@ -196,6 +200,19 @@ export function MapaFrotaPublicoPage() {
 
   useEffect(() => {
     if (user) setRestam(MAPA_PUBLICO_LIMITE_BUSCAS)
+  }, [user])
+
+  useEffect(() => {
+    if (user) return
+    let alive = true
+    void consultarEstadoBuscasPublicas().then((estado) => {
+      if (!alive) return
+      setRestam(estado.restam)
+      if (estado.esgotado) setShowPaywall(true)
+    })
+    return () => {
+      alive = false
+    }
   }, [user])
 
   useEffect(() => {
@@ -465,21 +482,22 @@ export function MapaFrotaPublicoPage() {
     tipos.length > 0 ||
     carroceriasFiltro.length > 0
 
-  function consumirBusca(): boolean {
+  async function consumirBusca(): Promise<boolean> {
     if (userRef.current) return true
-    if (estadoBuscasPublicas().esgotado) {
-      setShowPaywall(true)
-      setRestam(0)
-      return false
+    if (cotaBusyRef.current) return false
+    cotaBusyRef.current = true
+    try {
+      const consumo = await registrarBuscaPublica()
+      setRestam(consumo.restam)
+      if (!consumo.ok) {
+        setShowPaywall(true)
+        return false
+      }
+      if (consumo.restam === 0 || consumo.esgotado) setShowPaywall(true)
+      return true
+    } finally {
+      cotaBusyRef.current = false
     }
-    const consumo = registrarBuscaPublica()
-    setRestam(consumo.restam)
-    if (!consumo.ok) {
-      setShowPaywall(true)
-      return false
-    }
-    if (consumo.restam === 0) setShowPaywall(true)
-    return true
   }
 
   function aplicarOrigem(lat: number, lng: number, label: string) {
@@ -491,14 +509,14 @@ export function MapaFrotaPublicoPage() {
     setRaioGeoAtivo(true)
   }
 
-  function definirOrigem(lat: number, lng: number, label: string) {
-    if (!consumirBusca()) return
+  async function definirOrigem(lat: number, lng: number, label: string) {
+    if (!(await consumirBusca())) return
     aplicarOrigem(lat, lng, label)
   }
   definirOrigemRef.current = definirOrigem
 
-  function aplicarSugestaoVeiculo(item: SugestaoPub) {
-    if (!consumirBusca()) return
+  async function aplicarSugestaoVeiculo(item: SugestaoPub) {
+    if (!(await consumirBusca())) return
     setDigitadoVeiculo(item.label)
     if (item.kind === 'tipo' && item.grupo) {
       setTipos([item.grupo as FrotaIconeGrupo])
@@ -536,10 +554,10 @@ export function MapaFrotaPublicoPage() {
     if (!q) return
     const exato = sugestoesVeiculo(q).find((x) => x.label.toLowerCase() === q.toLowerCase())
     if (exato) {
-      aplicarSugestaoVeiculo(exato)
+      await aplicarSugestaoVeiculo(exato)
       return
     }
-    if (!consumirBusca()) return
+    if (!(await consumirBusca())) return
     setDigitadoVeiculo(q)
     setBuscaVeiculo(q)
     setGeoBusy(true)
@@ -548,22 +566,22 @@ export function MapaFrotaPublicoPage() {
     if (res.ok) aplicarOrigem(res.coords.lat, res.coords.lng, res.display || q)
   }
 
-  function aplicarSugestaoTransp(item: SugestaoPub) {
-    if (!consumirBusca()) return
+  async function aplicarSugestaoTransp(item: SugestaoPub) {
+    if (!(await consumirBusca())) return
     setDigitadoTransp(item.label)
     setBuscaTransportadora('')
     setTransportadorFiltroId(item.transportadorId || '')
   }
 
-  function buscarTextoTransp(texto: string) {
+  async function buscarTextoTransp(texto: string) {
     const q = texto.trim()
     if (!q) return
     const hit = sugestoesTransportadora(q)[0]
     if (hit) {
-      aplicarSugestaoTransp(hit)
+      await aplicarSugestaoTransp(hit)
       return
     }
-    if (!consumirBusca()) return
+    if (!(await consumirBusca())) return
     setDigitadoTransp(q)
     setBuscaTransportadora(q)
     setTransportadorFiltroId('')
@@ -649,7 +667,7 @@ export function MapaFrotaPublicoPage() {
     map.on('click', (e) => {
       if (!clicarOrigemRef.current) return
       L.DomEvent.stopPropagation(e.originalEvent)
-      definirOrigemRef.current(
+      void definirOrigemRef.current(
         e.latlng.lat,
         e.latlng.lng,
         `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`,
@@ -975,7 +993,7 @@ export function MapaFrotaPublicoPage() {
                             }
                             const t = opcoesTransportadora.find((x) => x.id === id)
                             if (t) {
-                              aplicarSugestaoTransp({
+                              void aplicarSugestaoTransp({
                                 key: t.id,
                                 label: t.nome,
                                 hint: `${t.qtd} veículo${t.qtd === 1 ? '' : 's'}`,
@@ -1015,7 +1033,7 @@ export function MapaFrotaPublicoPage() {
                                         setTransportadorFiltroId('')
                                         return
                                       }
-                                      aplicarSugestaoTransp({
+                                      void aplicarSugestaoTransp({
                                         key: t.id,
                                         label: t.nome,
                                         hint: `${t.qtd} veículo${t.qtd === 1 ? '' : 's'}`,
