@@ -710,12 +710,21 @@
   right: 14px;
   z-index: 1200;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
   gap: 10px;
   height: auto;
+  width: 168px;
+}
+
+.rota-pub__map-logo {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  padding: 8px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 18px rgb(0 0 0 / 0.16);
 }
 
 .rota-pub__pill {
@@ -723,9 +732,10 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-width: 148px;
+  width: 100%;
+  min-width: 0;
   min-height: 58px;
-  padding: 10px 22px;
+  padding: 10px 18px;
   border: 0;
   border-radius: 999px;
   background: #000;
@@ -802,12 +812,19 @@
     top: 8px;
     right: 8px;
     gap: 6px;
+    width: 136px;
+  }
+
+  .rota-pub__map-logo {
+    width: 56px;
+    height: 56px;
+    padding: 6px;
+    border-radius: 14px;
   }
 
   .rota-pub__pill {
-    min-width: 120px;
     min-height: 50px;
-    padding: 8px 16px;
+    padding: 8px 12px;
   }
 
   .rota-pub__pill span {
