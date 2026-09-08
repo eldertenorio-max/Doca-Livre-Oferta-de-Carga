@@ -5,6 +5,30 @@
     #f4f1ea;
 }
 
+.rota-pub .mapa-frota__layout {
+  grid-template-columns: minmax(300px, 368px) 1fr;
+}
+
+.rota-pub .mapa-frota__title {
+  color: #0b1b4a;
+}
+
+.rota-pub .mapa-frota__sub {
+  color: #64748b;
+}
+
+.rota-pub__badge {
+  display: inline-flex;
+  margin: 8px 0 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #c2410c;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
 .rota-pub .mapa-frota__lista {
   overflow: auto;
   border: 0;
@@ -197,50 +221,79 @@
 .rota-pub__tipos {
   display: flex;
   gap: 4px;
+  flex: 1;
+  min-width: 0;
 }
 
 .rota-pub__tipo {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border: 0;
-  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+  height: 52px;
+  border: 1px solid transparent;
+  border-radius: 12px;
   background: transparent;
   color: #94a3b8;
   cursor: pointer;
 }
 
+.rota-pub__tipo small {
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  padding: 0 2px;
+}
+
 .rota-pub__tipo.is-on {
   color: #ea580c;
   background: #fff7ed;
+  border-color: #fdba74;
 }
 
 .rota-pub__eixos {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 0;
-  min-width: 72px;
+  min-width: 64px;
+  padding: 2px 0;
+  border-radius: 12px;
+  background: #f8fafc;
 }
 
 .rota-pub__eixos button {
   border: 0;
   background: transparent;
-  color: #64748b;
+  color: #94a3b8;
   width: 28px;
-  height: 18px;
+  height: 16px;
   display: grid;
   place-items: center;
   cursor: pointer;
 }
 
+.rota-pub__eixos button:hover {
+  color: #ea580c;
+}
+
 .rota-pub__eixos span {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 800;
   color: #0f172a;
   text-transform: none;
   letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .rota-pub__grid {
@@ -294,7 +347,8 @@
   font-size: 0.68rem;
   font-weight: 800;
   color: #94a3b8;
-  text-transform: uppercase;
+  text-transform: none;
+  flex-shrink: 0;
 }
 
 .rota-pub__volta {
@@ -306,23 +360,45 @@
   min-height: 46px;
 }
 
-.rota-pub__volta strong {
-  font-size: 0.82rem;
-  color: #64748b;
-}
-
 .rota-pub__volta.is-on {
   background: #fff7ed;
 }
 
-.rota-pub__volta.is-on strong {
-  color: #c2410c;
+.rota-pub__knob {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.rota-pub__knob::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 0.22);
+  transition: transform 0.15s ease;
+}
+
+.rota-pub__volta.is-on .rota-pub__knob {
+  background: #ea580c;
+}
+
+.rota-pub__volta.is-on .rota-pub__knob::after {
+  transform: translateX(18px);
 }
 
 .rota-pub__prefs {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 12px;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .rota-pub__pref {
@@ -333,10 +409,11 @@
   background: transparent;
   padding: 0;
   font: inherit;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 700;
   color: #64748b;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .rota-pub__pref.is-on {
@@ -365,20 +442,21 @@
   gap: 8px;
   width: 100%;
   border: 0;
-  border-radius: 10px;
-  background: #111827;
+  border-radius: 12px;
+  background: #0b1b4a;
   color: #fff;
-  padding: 12px;
+  padding: 13px;
   font: inherit;
   font-size: 0.92rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   cursor: pointer;
+  box-shadow: 0 8px 18px rgb(11 27 74 / 0.22);
 }
 
 .rota-pub__calc:hover:not(:disabled) {
-  background: #1f2937;
+  background: #12245c;
 }
 
 .rota-pub__calc:disabled {
@@ -412,6 +490,38 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: #c2410c;
+}
+
+.rota-pub__stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin: 2px 0 6px;
+}
+
+.rota-pub__stats > div {
+  padding: 8px 6px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #fed7aa;
+  text-align: center;
+}
+
+.rota-pub__stats small {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: #9a3412;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.rota-pub__stats strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: #0b1b4a;
 }
 
 .rota-pub__linha {
@@ -460,11 +570,45 @@
 }
 
 .rota-pub .mapa-frota__map-wrap {
+  position: relative;
   border: 0;
   box-shadow: 0 16px 40px rgb(234 88 12 / 0.12);
   background:
     linear-gradient(180deg, #fff7ed 0%, transparent 48px),
     #e2e8f0;
+}
+
+.rota-pub__map-hint {
+  position: absolute;
+  z-index: 1100;
+  left: 50%;
+  top: 18%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: min(320px, calc(100% - 32px));
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: rgb(255 255 255 / 0.92);
+  box-shadow: 0 12px 28px rgb(15 23 42 / 0.12);
+  color: #0b1b4a;
+  text-align: center;
+  pointer-events: none;
+}
+
+.rota-pub__map-hint p {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.rota-pub__map-hint small {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 .rota-pub .mapa-frota__map-wrap > div {

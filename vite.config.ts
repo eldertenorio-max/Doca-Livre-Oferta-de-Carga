@@ -87,6 +87,7 @@ export default defineConfig({
               expiration: { maxEntries: 4, maxAgeSeconds: 60 },
             },
           },
+          {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',
             options: {

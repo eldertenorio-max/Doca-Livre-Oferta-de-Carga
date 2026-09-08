@@ -2,20 +2,22 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowUpDown,
+  Ban,
   Bike,
   Bus,
   Car,
   Check,
-  Clock3,
+  ChevronDown,
+  ChevronUp,
   Fuel,
   Gauge,
-  MapPin,
-  Minus,
   Plus,
   RotateCcw,
   Route,
+  Timer,
   Truck,
   Wallet,
+  Zap,
 } from 'lucide-react'
 import { formatCurrency } from '../../lib/businessRules'
 import {
@@ -87,10 +89,10 @@ const PLANOS_PUBLICOS = [
 type Coord = { lat: number; lng: number }
 type Via = { id: string; endereco: string; lat?: number | null; lng?: number | null }
 
-const PREFS: Array<[PreferenciaRota, string]> = [
-  ['eficiente', 'Rota eficiente'],
-  ['curta', 'Rota curta'],
-  ['evitar_pedagio', 'Evitar pedágios'],
+const PREFS: Array<[PreferenciaRota, string, typeof Zap]> = [
+  ['eficiente', 'Rota eficiente', Zap],
+  ['curta', 'Rota curta', Timer],
+  ['evitar_pedagio', 'Evitar pedágios', Ban],
 ]
 
 type TipoVeiculoUi = 'caminhao' | 'carro' | 'onibus' | 'moto'
@@ -320,15 +322,13 @@ export function CalcularRotaPublicoPage() {
         <header className="mapa-frota__head">
           <div>
             <h1 className="mapa-frota__title">Calcular rota</h1>
-            <p className="mapa-frota__sub">
-              Pedágio, km e combustível em um clique — origem A, destino B e pronto.
-            </p>
-            <p className="mapa-pub__creditos">
+            <p className="mapa-frota__sub">Pedágio, km e combustível em um clique.</p>
+            <p className="rota-pub__badge">
               {user
-                ? 'Conta logada · cálculos ilimitados'
+                ? 'Conta logada · ilimitado'
                 : restam > 0
-                  ? `${restam} de ${ROTA_PUBLICO_LIMITE_CALCULOS} cálculos grátis hoje`
-                  : 'Os 2 cálculos grátis de hoje acabaram'}
+                  ? `${restam} de ${ROTA_PUBLICO_LIMITE_CALCULOS} grátis hoje`
+                  : 'Cálculos grátis de hoje esgotados'}
             </p>
           </div>
         </header>
@@ -480,16 +480,17 @@ export function CalcularRotaPublicoPage() {
                           onClick={() => escolherVeiculo(id)}
                         >
                           <Icon size={22} strokeWidth={2.2} />
+                          <small>{label}</small>
                         </button>
                       ))}
                     </div>
                     <div className="rota-pub__eixos">
-                      <button type="button" onClick={() => setEixos((e) => Math.max(2, e - 1))}>
-                        <Minus size={14} />
+                      <button type="button" title="Mais eixos" onClick={() => setEixos((e) => Math.min(9, e + 1))}>
+                        <ChevronUp size={16} />
                       </button>
                       <span>{eixos} eixos</span>
-                      <button type="button" onClick={() => setEixos((e) => Math.min(9, e + 1))}>
-                        <Plus size={14} />
+                      <button type="button" title="Menos eixos" onClick={() => setEixos((e) => Math.max(2, e - 1))}>
+                        <ChevronDown size={16} />
                       </button>
                     </div>
                   </div>
@@ -509,8 +510,9 @@ export function CalcularRotaPublicoPage() {
                       </span>
                     </label>
                     <label className="rota-pub__box">
-                      <span>Preço</span>
+                      <span>Preço diesel</span>
                       <span className="rota-pub__box-row">
+                        <em>R$</em>
                         <input
                           value={precoDiesel}
                           onChange={(e) => setPrecoDiesel(e.target.value)}
@@ -528,12 +530,12 @@ export function CalcularRotaPublicoPage() {
                       onClick={() => setIdaEVolta((v) => !v)}
                     >
                       <span>Calcular volta</span>
-                      <strong>{idaEVolta ? 'Sim' : 'Não'}</strong>
+                      <span className="rota-pub__knob" aria-hidden />
                     </button>
                   </div>
 
                   <div className="rota-pub__prefs" role="radiogroup" aria-label="Preferência de rota">
-                    {PREFS.map(([id, label]) => (
+                    {PREFS.map(([id, label, Icon]) => (
                       <button
                         key={id}
                         type="button"
@@ -545,6 +547,7 @@ export function CalcularRotaPublicoPage() {
                         <span className="rota-pub__radio">
                           {preferencia === id ? <Check size={11} strokeWidth={3} /> : null}
                         </span>
+                        <Icon size={13} strokeWidth={2.4} />
                         {label}
                       </button>
                     ))}
@@ -574,26 +577,24 @@ export function CalcularRotaPublicoPage() {
             {calc?.rota ? (
               <div className="rota-pub__resumo" aria-live="polite">
                 <h3>Resultado</h3>
-                <div className="rota-pub__linha">
-                  <span>
-                    <MapPin size={14} /> Distância
-                  </span>
-                  <strong>{calc.rota.distancia_km} km</strong>
+                <div className="rota-pub__stats">
+                  <div>
+                    <small>Distância</small>
+                    <strong>{calc.rota.distancia_km} km</strong>
+                  </div>
+                  <div>
+                    <small>Tempo</small>
+                    <strong>{calc.rota.duracao_label}</strong>
+                  </div>
+                  <div>
+                    <small>Pedágio</small>
+                    <strong>{formatCurrency(calc.rota.pedagio)}</strong>
+                  </div>
                 </div>
                 <div className="rota-pub__linha">
                   <span>
-                    <Clock3 size={14} /> Duração
+                    <Wallet size={14} /> Pedágio / eixo
                   </span>
-                  <strong>{calc.rota.duracao_label}</strong>
-                </div>
-                <div className="rota-pub__linha">
-                  <span>
-                    <Wallet size={14} /> Pedágio
-                  </span>
-                  <strong>{formatCurrency(calc.rota.pedagio)}</strong>
-                </div>
-                <div className="rota-pub__linha">
-                  <span>Pedágio / eixo</span>
                   <strong>{formatCurrency(calc.rota.pedagio_por_eixo)}</strong>
                 </div>
                 <div className="rota-pub__linha">
@@ -638,6 +639,15 @@ export function CalcularRotaPublicoPage() {
           </aside>
 
           <div className="mapa-frota__map-wrap">
+            {mapId === 0 && !calc ? (
+              <div className="rota-pub__map-hint">
+                <Route size={28} strokeWidth={2.2} />
+                <p>
+                  Informe <strong>origem</strong> e <strong>destino</strong> e toque em Calcular.
+                </p>
+                <small>Pedágio, km e combustível saem juntos no mapa.</small>
+              </div>
+            ) : null}
             <RotaMapPreview
               key={formId}
               origem={origem}
