@@ -5,7 +5,9 @@ export const HOST_SISTEMA = 'sistema.ofertadecarga.com.br'
 
 export const URL_SITE_ROTA = `https://${HOST_OFERTA_DE_CARGA}`
 export const URL_SISTEMA = `https://${HOST_SISTEMA}`
-export const URL_OFERTA_DE_CARGA = `${URL_SITE_ROTA}/#/rota`
+/** Calculadora no ar hoje (enquanto o DNS de ofertadecarga.com.br não fecha). */
+export const URL_ROTA_NO_AR = 'https://ofertadecargas.docalivre.com.br/#/rota'
+export const URL_OFERTA_DE_CARGA = URL_ROTA_NO_AR
 export const URL_MAPA_FROTA = `${URL_SISTEMA}/#/mapa`
 
 function hostAtual(): string {
@@ -72,8 +74,8 @@ export function urlSistemaComHash(path: string): string {
 
 /** Calculadora pública: no sistema, aponta para ofertadecarga.com.br. */
 export function hrefRota(): string {
-  if (isSiteOfertaDeCarga() || isLocalDev()) return '/rota'
-  return URL_OFERTA_DE_CARGA
+  if (isSiteOfertaDeCarga() || isLocalDev() || isSiteSistema()) return '/rota'
+  return URL_ROTA_NO_AR
 }
 
 export function hrefMapaFrota(): string {
