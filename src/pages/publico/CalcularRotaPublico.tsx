@@ -653,15 +653,6 @@ export function CalcularRotaPublicoPage() {
                 Mapa da logística
               </a>
             </div>
-            {mapId === 0 && !calc ? (
-              <div className="rota-pub__map-hint">
-                <Route size={28} strokeWidth={2.2} />
-                <p>
-                  Informe <strong>origem</strong> e <strong>destino</strong> e toque em Calcular.
-                </p>
-                <small>Pedágio, km e combustível saem juntos no mapa.</small>
-              </div>
-            ) : null}
             <RotaMapPreview
               key={formId}
               origem={origem}
