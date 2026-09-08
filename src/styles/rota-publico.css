@@ -351,48 +351,49 @@
   flex-shrink: 0;
 }
 
-.rota-pub__volta {
+.rota-pub__box.rota-pub__volta {
+  position: relative;
   grid-column: 1 / -1;
+  display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
+  gap: 10px;
   cursor: pointer;
-  min-height: 46px;
+  min-height: 52px;
+  user-select: none;
 }
 
-.rota-pub__volta.is-on {
-  background: #fff7ed;
+.rota-pub__volta > span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: #0f172a;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
-.rota-pub__knob {
-  position: relative;
-  width: 40px;
-  height: 22px;
-  border-radius: 999px;
-  background: #cbd5e1;
+.rota-pub__volta small {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.rota-pub__volta input[type='checkbox'] {
+  -webkit-appearance: checkbox;
+  appearance: auto;
+  width: 20px;
+  height: 20px;
+  margin: 0;
   flex-shrink: 0;
-  transition: background 0.15s ease;
+  accent-color: #ea580c;
+  cursor: pointer;
 }
 
-.rota-pub__knob::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 4px rgb(15 23 42 / 0.22);
-  transition: transform 0.15s ease;
-}
-
-.rota-pub__volta.is-on .rota-pub__knob {
-  background: #ea580c;
-}
-
-.rota-pub__volta.is-on .rota-pub__knob::after {
-  transform: translateX(18px);
+.rota-pub__volta.is-on,
+.rota-pub__volta:has(input:checked) {
+  background: #fff7ed;
 }
 
 .rota-pub__prefs {

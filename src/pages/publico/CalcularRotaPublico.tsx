@@ -522,16 +522,17 @@ export function CalcularRotaPublicoPage() {
                         <Fuel size={16} />
                       </span>
                     </label>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={idaEVolta}
-                      className={`rota-pub__box rota-pub__volta${idaEVolta ? ' is-on' : ''}`}
-                      onClick={() => setIdaEVolta((v) => !v)}
-                    >
-                      <span>Calcular volta</span>
-                      <span className="rota-pub__knob" aria-hidden />
-                    </button>
+                    <label className={`rota-pub__box rota-pub__volta${idaEVolta ? ' is-on' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={idaEVolta}
+                        onChange={(e) => setIdaEVolta(e.target.checked)}
+                      />
+                      <span>
+                        Calcular volta
+                        <small>Soma pedágio e combustível da ida e da volta</small>
+                      </span>
+                    </label>
                   </div>
 
                   <div className="rota-pub__prefs" role="radiogroup" aria-label="Preferência de rota">
