@@ -143,6 +143,23 @@ function fmtDiesel(n: number): string {
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+const PREF_LABEL: Record<PreferenciaRota, string> = {
+  eficiente: 'Rota eficiente',
+  curta: 'Rota curta',
+  evitar_pedagio: 'Evitar pedágios',
+}
+
+type ResultadoSnap = {
+  origem: string
+  destino: string
+  vias: string[]
+  tipoVeiculo: string
+  classe: string
+  eixos: number
+  idaEVolta: boolean
+  preferencia: PreferenciaRota
+}
+
 function novaVia(): Via {
   const id =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -184,6 +201,7 @@ export function CalcularRotaPublicoPage() {
   )
   const [showPaywall, setShowPaywall] = useState(false)
   const [showResultado, setShowResultado] = useState(false)
+  const [snap, setSnap] = useState<ResultadoSnap | null>(null)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'light')
@@ -264,6 +282,7 @@ export function CalcularRotaPublicoPage() {
     setErro('')
     setMapId(0)
     setShowResultado(false)
+    setSnap(null)
   }
 
   async function consumirCalculo(): Promise<boolean> {
@@ -322,9 +341,20 @@ export function CalcularRotaPublicoPage() {
       setErro(res.erro)
       setCalc(null)
       setShowResultado(false)
+      setSnap(null)
       return
     }
     setCalc(res.data)
+    setSnap({
+      origem,
+      destino,
+      vias: waypoints.map((v) => v.endereco).filter(Boolean),
+      tipoVeiculo: tipoVeiculoNome.trim() || VEICULOS.find((v) => v.id === tipoVeiculo)?.label || '—',
+      classe: VEICULOS.find((v) => v.id === tipoVeiculo)?.label ?? '',
+      eixos,
+      idaEVolta,
+      preferencia,
+    })
     setShowResultado(true)
     setMapId((n) => n + 1)
   }
@@ -730,8 +760,56 @@ export function CalcularRotaPublicoPage() {
               </button>
             </header>
             <div className="rota-pub__resumo rota-pub__resumo--janela" aria-live="polite">
+              {snap ? (
+                <div className="rota-pub__fatos">
+                  <div className="rota-pub__fato rota-pub__fato--full">
+                    <small>Origem</small>
+                    <strong>{snap.origem}</strong>
+                  </div>
+                  {snap.vias.map((via, i) => (
+                    <div key={`${via}-${i}`} className="rota-pub__fato rota-pub__fato--full">
+                      <small>Passagem {i + 1}</small>
+                      <strong>{via}</strong>
+                    </div>
+                  ))}
+                  <div className="rota-pub__fato rota-pub__fato--full">
+                    <small>Destino</small>
+                    <strong>{snap.destino}</strong>
+                  </div>
+                  <div className="rota-pub__fato">
+                    <small>Veículo</small>
+                    <strong>{snap.tipoVeiculo}</strong>
+                  </div>
+                  <div className="rota-pub__fato">
+                    <small>Classe</small>
+                    <strong>{snap.classe || '—'}</strong>
+                  </div>
+                  <div className="rota-pub__fato">
+                    <small>Eixos</small>
+                    <strong>
+                      {calc.eixos}
+                      {calc.eixos_utilizados !== calc.eixos
+                        ? ` · ANTT ${calc.eixos_utilizados}`
+                        : ''}
+                    </strong>
+                  </div>
+                  <div className="rota-pub__fato">
+                    <small>Categoria</small>
+                    <strong>{calc.categoria_label || 'Não selecionada'}</strong>
+                  </div>
+                  <div className="rota-pub__fato">
+                    <small>Trecho</small>
+                    <strong>{snap.idaEVolta ? 'Ida e volta' : 'Só ida'}</strong>
+                  </div>
+                  <div className="rota-pub__fato">
+                    <small>Preferência</small>
+                    <strong>{PREF_LABEL[snap.preferencia]}</strong>
+                  </div>
+                </div>
+              ) : null}
+
               <div className="rota-pub__total">
-                <span>Custo total</span>
+                <span>Custo total{snap?.idaEVolta ? ' · ida e volta' : ''}</span>
                 <strong>{formatCurrency(calc.rota.custo_total)}</strong>
               </div>
               <div className="rota-pub__stats">
@@ -756,19 +834,25 @@ export function CalcularRotaPublicoPage() {
               </div>
               <div className="rota-pub__linha">
                 <span>
+                  <Wallet size={14} /> Vale-pedágio
+                </span>
+                <strong>{formatCurrency(calc.rota.vale_pedagio ?? calc.rota.pedagio)}</strong>
+              </div>
+              <div className="rota-pub__linha">
+                <span>
                   <Fuel size={14} /> Combustível
                 </span>
                 <strong>{formatCurrency(calc.rota.combustivel)}</strong>
               </div>
-              {calc.categoria_label ? (
-                <div className="rota-pub__linha">
-                  <span>Categoria</span>
-                  <strong>{calc.categoria_label}</strong>
-                </div>
+              {calc.rota.consumo_km_l && calc.rota.preco_diesel && calc.rota.litros != null ? (
+                <p className="rota-pub__conta">
+                  {calc.rota.distancia_km} km ÷ {fmtConsumo(calc.rota.consumo_km_l)} km/l ={' '}
+                  {fmtConsumo(calc.rota.litros)} L × {formatCurrency(calc.rota.preco_diesel)}
+                </p>
               ) : null}
               {calc.piso_selecionado != null ? (
                 <div className="rota-pub__linha">
-                  <span>Piso ANTT</span>
+                  <span>Piso ANTT{calc.categoria_label ? ` · ${calc.categoria_label}` : ''}</span>
                   <strong>{formatCurrency(calc.piso_selecionado)}</strong>
                 </div>
               ) : null}
