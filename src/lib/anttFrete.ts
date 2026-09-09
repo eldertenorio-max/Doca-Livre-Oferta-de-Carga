@@ -30,6 +30,12 @@ export type AnttPracaPedagio = {
   uf?: string
   concessionaria?: string
   fonte?: string
+  /** Ordem da praça no sentido origem → destino. */
+  ordem?: number
+  /** Km desde a origem até a praça na polilinha. */
+  km_ate?: number
+  /** Minutos estimados até a praça. */
+  min_ate?: number
 }
 
 export type AnttRotaCustos = {
@@ -339,10 +345,16 @@ export async function calcularRotaOperacional(params: {
 
   let pedFonte = 'estimativa por km'
   try {
-    const pedIdaRes = await calcularPedagioNaRota(rotaIda.polyline, eixos)
+    const pedIdaRes = await calcularPedagioNaRota(rotaIda.polyline, eixos, {
+      distanciaKm: rotaIda.distanciaKm,
+      duracaoMin: rotaIda.duracaoMin,
+    })
     const pedVoltaRes =
       idaEVolta && polylineVolta
-        ? await calcularPedagioNaRota(polylineVolta, eixos)
+        ? await calcularPedagioNaRota(polylineVolta, eixos, {
+            distanciaKm: Math.max(0, distKm - rotaIda.distanciaKm),
+            duracaoMin: Math.max(0, durMin - rotaIda.duracaoMin),
+          })
         : null
 
     const pracasIda = pedIdaRes.pracas
@@ -374,7 +386,7 @@ export async function calcularRotaOperacional(params: {
           idaEVolta ? { ...p, nome: `${p.nome} (ida)` } : p,
         ),
         ...pracasVolta.map((p) => ({ ...p, nome: `${p.nome} (volta)` })),
-      ]
+      ].map((p, i) => ({ ...p, ordem: i + 1 }))
       rota.free_flow = Boolean(pedIdaRes.free_flow || pedVoltaRes?.free_flow)
       rota.custo_total = roundMoney(rota.pedagio + rota.combustivel)
       rota.provedor = 'antt_aberto'
@@ -532,7 +544,10 @@ export async function calcularAnttCompleto(params: {
 
   let pedFonte = 'estimativa por km'
   try {
-    const ped = await calcularPedagioNaRota(rotaGeo.polyline, eixos)
+    const ped = await calcularPedagioNaRota(rotaGeo.polyline, eixos, {
+      distanciaKm: rotaGeo.distanciaKm,
+      duracaoMin: rotaGeo.duracaoMin,
+    })
     if (ped.pracas.length > 0) {
       rota.pedagio = ped.pedagio
       rota.pedagio_por_eixo = ped.pedagio_por_eixo

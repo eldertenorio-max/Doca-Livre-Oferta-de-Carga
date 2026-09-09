@@ -490,7 +490,10 @@ export function RotaMapPreview({
         }
         if (mostrarCustos) {
           try {
-            const pedRes = await calcularPedagioNaRota(rota.polyline, eixos)
+            const pedRes = await calcularPedagioNaRota(rota.polyline, eixos, {
+              distanciaKm: rota.distanciaKm,
+              duracaoMin: rota.duracaoMin,
+            })
             const custos = estimarCustosRota(rota.distanciaKm, eixos, rota.duracaoMin, {
               consumoKmL: consumoRef.current,
               precoDiesel: precoRef.current,
@@ -569,32 +572,61 @@ export function RotaMapPreview({
           })
           .addTo(layer)
 
-        for (const p of ped.pracas) {
-          if (p.lat == null || p.lng == null) continue
+        const pracasMapa = [...ped.pracas]
+          .filter((p) => p.lat != null && p.lng != null)
+          .sort((a, b) => (a.ordem ?? a.km_ate ?? 0) - (b.ordem ?? b.km_ate ?? 0))
+        const totalPracas = pracasMapa.length
+
+        for (const p of pracasMapa) {
+          const lat = p.lat!
+          const lng = p.lng!
           const valorLabel = formatCurrency(p.valor)
-          const extra = [p.rodovia, p.uf].filter(Boolean).join('/')
-          L.marker([p.lat, p.lng], {
+          const kmAte =
+            p.km_ate != null
+              ? p.km_ate
+              : kmAtePontoNaRota({ lat, lng }, rota.polyline)
+          const minAte =
+            p.min_ate != null
+              ? p.min_ate
+              : rota.distanciaKm > 0
+                ? Math.max(1, Math.round((kmAte / rota.distanciaKm) * rota.duracaoMin))
+                : undefined
+          const ordem = p.ordem ?? 0
+          const extraParts = [
+            p.rodovia && p.uf ? `${p.rodovia}/${p.uf}` : p.rodovia || p.uf || '',
+            kmAte != null ? `em ${formatKm(kmAte)}` : '',
+          ].filter(Boolean)
+          L.marker([lat, lng], {
             icon: pedagioIcon({
               nome: p.nome,
               valorLabel,
-              extra: extra || undefined,
+              extra: extraParts.join(' · ') || undefined,
               freeFlow: Boolean(p.free_flow),
+              ordem: ordem || undefined,
             }),
-            title: `${p.nome}: ${valorLabel}`,
+            title: `${ordem ? `${ordem}ª · ` : ''}${p.nome}: ${valorLabel}`,
             zIndexOffset: 200,
           })
             .bindPopup(
               popupPraca({
                 nome: p.nome,
                 valor: p.valor,
+                valorCarro: p.valor_carro,
                 eixos,
                 tipo: p.tipo,
                 rodovia: p.rodovia,
                 uf: p.uf,
                 concessionaria: p.concessionaria,
                 freeFlow: Boolean(p.free_flow),
+                fonte: p.fonte,
+                ordem: ordem || undefined,
+                totalPracas,
+                kmAte,
+                minAte,
+                lat,
+                lng,
               }),
-              { className: 'rota-map-popup-wrap', maxWidth: 280 },
+              { className: 'rota-map-popup-wrap', maxWidth: 300 },
             )
             .addTo(layer)
         }

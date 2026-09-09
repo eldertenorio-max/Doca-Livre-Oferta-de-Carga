@@ -929,6 +929,36 @@
   font-weight: 600;
 }
 
+.rota-pub__pracas li > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rota-pub__pracas li small {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.rota-pub__praca-ord {
+  color: #ea580c;
+  margin-right: 2px;
+}
+
+.rota-pub__praca-waze {
+  width: fit-content;
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #0369a1;
+  text-decoration: none;
+}
+
+.rota-pub__praca-waze:hover {
+  text-decoration: underline;
+}
+
 .rota-pub .mapa-frota__map-wrap {
   position: absolute;
   inset: 0;

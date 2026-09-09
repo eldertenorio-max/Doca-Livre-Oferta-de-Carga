@@ -353,11 +353,23 @@ textarea {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  max-width: 118px;
+  max-width: 128px;
   padding: 4px 7px 5px;
   border: 1px solid #fdba74;
   background: #fff;
   color: #9a3412;
+}
+
+.rota-map-pedagio__card b {
+  display: inline-block;
+  width: fit-content;
+  margin-bottom: 1px;
+  padding: 1px 5px;
+  background: #ea580c;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
 }
 
 .rota-map-pedagio__card em,
@@ -398,7 +410,7 @@ textarea {
 }
 
 .rota-map-popup {
-  min-width: 160px;
+  min-width: 180px;
   font: 700 12px/1.4 system-ui, sans-serif;
   color: #0f172a;
 }
@@ -418,6 +430,25 @@ textarea {
 
 .rota-map-popup__ff {
   color: #0369a1;
+}
+
+.rota-map-popup__nav {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px !important;
+  padding-top: 6px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.rota-map-popup__nav a {
+  font-size: 12px;
+  font-weight: 800;
+  color: #0369a1;
+  text-decoration: none;
+}
+
+.rota-map-popup__nav a:hover {
+  text-decoration: underline;
 }
 
 .leaflet-popup.rota-map-popup-wrap .leaflet-popup-content-wrapper {

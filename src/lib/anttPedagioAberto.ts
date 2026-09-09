@@ -82,6 +82,67 @@ function distPontoPolilinhaM(
   return min
 }
 
+/** Km ao longo da polilinha até a projeção mais próxima do ponto. */
+function kmAtePontoNaPolilinha(
+  p: { lat: number; lng: number },
+  line: Array<{ lat: number; lng: number }>,
+): number {
+  if (line.length < 2) return 0
+  let melhor = { dist: Infinity, km: 0 }
+  let acc = 0
+  for (let i = 0; i < line.length - 1; i++) {
+    const a = line[i]
+    const b = line[i + 1]
+    const segM = haversineM(a, b)
+    const dLat = b.lat - a.lat
+    const dLng = b.lng - a.lng
+    const len2 = dLat * dLat + dLng * dLng
+    const t =
+      len2 === 0
+        ? 0
+        : Math.max(0, Math.min(1, ((p.lat - a.lat) * dLat + (p.lng - a.lng) * dLng) / len2))
+    const proj = { lat: a.lat + t * dLat, lng: a.lng + t * dLng }
+    const d = haversineM(p, proj)
+    const km = (acc + segM * t) / 1000
+    if (d < melhor.dist) melhor = { dist: d, km }
+    acc += segM
+  }
+  return melhor.km
+}
+
+function comprimentoPolilinhaKm(line: Array<{ lat: number; lng: number }>): number {
+  let acc = 0
+  for (let i = 0; i < line.length - 1; i++) {
+    acc += haversineM(line[i], line[i + 1])
+  }
+  return acc / 1000
+}
+
+function ordenarPracasNaRota(
+  polyline: Array<{ lat: number; lng: number }>,
+  pracas: AnttPracaPedagio[],
+  meta?: { distanciaKm?: number; duracaoMin?: number },
+): AnttPracaPedagio[] {
+  const totalKm =
+    meta?.distanciaKm && meta.distanciaKm > 0
+      ? meta.distanciaKm
+      : comprimentoPolilinhaKm(polyline)
+  const totalMin = meta?.duracaoMin && meta.duracaoMin > 0 ? meta.duracaoMin : null
+  const enriq = pracas.map((p) => {
+    const km_ate =
+      p.lat != null && p.lng != null
+        ? Math.round(kmAtePontoNaPolilinha({ lat: p.lat, lng: p.lng }, polyline) * 10) / 10
+        : undefined
+    const min_ate =
+      km_ate != null && totalMin != null && totalKm > 0
+        ? Math.max(1, Math.round((km_ate / totalKm) * totalMin))
+        : undefined
+    return { ...p, km_ate, min_ate }
+  })
+  enriq.sort((a, b) => (a.km_ate ?? 0) - (b.km_ate ?? 0))
+  return enriq.map((p, i) => ({ ...p, ordem: i + 1 }))
+}
+
 function parseCatalogo(raw: unknown): PracaAntt[] {
   const root = raw as { pracas?: unknown }
   const arr = Array.isArray(root?.pracas)
@@ -223,6 +284,7 @@ function chavePraca(p: { nome: string; concessionaria: string; rodovia: string }
 export async function calcularPedagioNaRota(
   polyline: Array<{ lat: number; lng: number }>,
   eixos: number,
+  metaRota?: { distanciaKm?: number; duracaoMin?: number },
 ): Promise<PedagioRotaResultado> {
   if (polyline.length < 2) {
     return {
@@ -344,7 +406,8 @@ export async function calcularPedagioNaRota(
     else fonteAntt = true
   }
 
-  const pedagio = roundMoney(hits.reduce((s, h) => s + h.valor, 0))
+  const pracasOrd = ordenarPracasNaRota(polyline, hits, metaRota)
+  const pedagio = roundMoney(pracasOrd.reduce((s, h) => s + h.valor, 0))
   const e = Math.max(1, eixos)
   const fontes = [
     fonteAntt ? 'ANTT' : null,
@@ -358,7 +421,7 @@ export async function calcularPedagioNaRota(
     pedagio,
     pedagio_por_eixo: roundMoney(pedagio / e),
     vale_pedagio: pedagio,
-    pracas: hits,
+    pracas: pracasOrd,
     free_flow: porticosFreeFlow > 0,
     fonte:
       (fontes.length

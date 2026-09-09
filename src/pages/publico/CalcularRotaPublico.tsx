@@ -862,15 +862,45 @@ export function CalcularRotaPublicoPage() {
                 <p className="mapa-frota__sub">Nenhuma praça detectada nesta rota.</p>
               ) : (
                 <ul className="rota-pub__pracas">
-                  {calc.rota.pracas!.map((p, i) => (
-                    <li key={`${p.nome}-${i}`}>
-                      <span>
-                        {p.nome}
-                        {p.free_flow ? ' · Free Flow' : ''}
-                      </span>
-                      <strong>{formatCurrency(p.valor)}</strong>
-                    </li>
-                  ))}
+                  {[...calc.rota.pracas!]
+                    .sort((a, b) => (a.ordem ?? a.km_ate ?? 0) - (b.ordem ?? b.km_ate ?? 0))
+                    .map((p, i) => {
+                      const ordem = p.ordem ?? i + 1
+                      const detalhes = [
+                        p.km_ate != null ? `em ${p.km_ate.toLocaleString('pt-BR')} km` : null,
+                        p.min_ate != null ? `~${p.min_ate} min` : null,
+                        p.valor_carro != null
+                          ? `carro ${formatCurrency(p.valor_carro)}`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')
+                      const maps =
+                        p.lat != null && p.lng != null
+                          ? `https://www.waze.com/ul?ll=${p.lat},${p.lng}&navigate=yes`
+                          : null
+                      return (
+                        <li key={`${p.nome}-${i}`}>
+                          <span>
+                            <strong className="rota-pub__praca-ord">{ordem}ª</strong> {p.nome}
+                            {p.free_flow ? ' · Free Flow' : ''}
+                            {detalhes ? <small>{detalhes}</small> : null}
+                            {maps ? (
+                              <a
+                                className="rota-pub__praca-waze"
+                                href={maps}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                Waze
+                              </a>
+                            ) : null}
+                          </span>
+                          <strong>{formatCurrency(p.valor)}</strong>
+                        </li>
+                      )
+                    })}
                 </ul>
               )}
               <p className="mapa-frota__sub">{calc.fonte}</p>
