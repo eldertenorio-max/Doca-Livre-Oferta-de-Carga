@@ -332,6 +332,9 @@ export async function calcularPedagioNaRota(
       free_flow: false,
       lat: p.lat,
       lng: p.lng,
+      rodovia: p.rodovia || undefined,
+      uf: p.uf || undefined,
+      concessionaria: p.concessionaria || undefined,
     })
     const key = chavePraca(p)
     if (key) chaves.add(key)

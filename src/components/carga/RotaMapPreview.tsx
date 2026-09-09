@@ -79,42 +79,111 @@ async function resolverPonto(
   return { ok: true, coords: g.coords }
 }
 
-function pinIcon(label: string, color: string) {
+function escHtml(s: string) {
+  return s.replace(/[&<>"']/g, (c) =>
+    c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '"' ? '&quot;' : '&#39;',
+  )
+}
+
+function pinTeardrop(letra: string, fill: string, size = 34) {
+  const h = Math.round(size * 1.28)
+  const letraEsc = escHtml(letra)
   return L.divIcon({
     className: 'rota-map-pin leaflet-div-icon--clean',
-    html: `<span style="
-      display:inline-flex;align-items:center;justify-content:center;
-      width:26px;height:26px;border-radius:50%;
-      background:${color};color:#fff;font:800 11px/1 system-ui,sans-serif;
-      border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);
-    ">${label}</span>`,
-    iconSize: [26, 26],
-    iconAnchor: [13, 13],
+    html: `<div class="rota-map-pin__wrap" style="width:${size}px;height:${h}px">
+      <svg viewBox="0 0 32 42" width="${size}" height="${h}" aria-hidden="true">
+        <path d="M16 2C8.8 2 3 8 3 15.6c0 9.8 13 23.6 13 23.6s13-13.8 13-23.6C29 8 23.2 2 16 2z"
+          fill="${fill}" stroke="#fff" stroke-width="2"/>
+        <circle cx="16" cy="15.4" r="7.2" fill="#fff"/>
+        <text x="16" y="19.4" text-anchor="middle" font-size="10.5" font-weight="800"
+          font-family="system-ui,sans-serif" fill="${fill}">${letraEsc}</text>
+      </svg>
+    </div>`,
+    iconSize: [size, h],
+    iconAnchor: [size / 2, h - 2],
+    popupAnchor: [0, -h + 8],
   })
 }
 
-function pedagioIcon(valorLabel: string) {
+function origemIcon() {
+  return pinTeardrop('A', '#15803d', 36)
+}
+
+function destinoIcon() {
+  return pinTeardrop('B', '#dc2626', 36)
+}
+
+function viaIcon(n: number) {
+  return pinTeardrop(String(n), '#2563eb', 28)
+}
+
+function baseODestinoIcon() {
+  return pinTeardrop('AB', '#0f766e', 36)
+}
+
+function nomeCurtoPraca(nome: string) {
+  const limpo = nome.replace(/\s*\([^)]*\)\s*/g, ' ').trim()
+  return limpo.length > 22 ? `${limpo.slice(0, 20)}…` : limpo || 'Pedágio'
+}
+
+function pedagioIcon(opts: {
+  nome: string
+  valorLabel: string
+  extra?: string
+  freeFlow?: boolean
+}) {
+  const nome = escHtml(nomeCurtoPraca(opts.nome))
+  const extra = opts.extra ? escHtml(opts.extra) : ''
+  const badge = opts.freeFlow ? '<i>Free Flow</i>' : ''
   return L.divIcon({
     className: 'rota-map-pedagio leaflet-div-icon--clean',
-    html: `<div style="
-      display:flex;flex-direction:column;align-items:center;gap:2px;
-      transform:translateY(-4px);
-    ">
-      <span style="
-        display:inline-flex;align-items:center;justify-content:center;
-        width:28px;height:28px;border-radius:50%;
-        background:#ea580c;color:#fff;font:800 12px/1 system-ui,sans-serif;
-        border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35);
-      ">P</span>
-      <span style="
-        white-space:nowrap;padding:2px 6px;border-radius:999px;
-        background:#fff;color:#9a3412;font:800 10px/1.2 system-ui,sans-serif;
-        border:1px solid #fdba74;box-shadow:0 1px 3px rgba(0,0,0,.2);
-      ">${valorLabel}</span>
+    html: `<div class="rota-map-pedagio__wrap">
+      <span class="rota-map-pedagio__pin" aria-hidden="true">
+        <svg viewBox="0 0 28 28" width="28" height="28">
+          <rect x="2" y="8" width="24" height="16" rx="2" fill="#ea580c" stroke="#fff" stroke-width="2"/>
+          <path d="M6 8V6a8 8 0 0 1 16 0v2" fill="none" stroke="#fff" stroke-width="2"/>
+          <text x="14" y="20" text-anchor="middle" font-size="9" font-weight="800"
+            font-family="system-ui,sans-serif" fill="#fff">P</text>
+        </svg>
+      </span>
+      <span class="rota-map-pedagio__card">
+        <em>${nome}</em>
+        <strong>${escHtml(opts.valorLabel)}</strong>
+        ${extra ? `<small>${extra}</small>` : ''}
+        ${badge}
+      </span>
     </div>`,
-    iconSize: [72, 48],
-    iconAnchor: [36, 40],
+    iconSize: [148, 62],
+    iconAnchor: [20, 58],
+    popupAnchor: [54, -52],
   })
+}
+
+function popupPraca(opts: {
+  nome: string
+  valor: number
+  eixos: number
+  tipo?: string
+  rodovia?: string
+  uf?: string
+  concessionaria?: string
+  freeFlow?: boolean
+}) {
+  const porEixo = opts.eixos > 0 ? opts.valor / opts.eixos : opts.valor
+  const linhas = [
+    `<p class="rota-map-popup__tit">${escHtml(opts.nome)}</p>`,
+    opts.rodovia || opts.uf
+      ? `<p><b>Rodovia</b> ${escHtml([opts.rodovia, opts.uf].filter(Boolean).join(' · '))}</p>`
+      : '',
+    opts.concessionaria
+      ? `<p><b>Concessionária</b> ${escHtml(opts.concessionaria)}</p>`
+      : '',
+    `<p><b>Tarifa</b> ${escHtml(formatCurrency(opts.valor))} · ${opts.eixos} eixo${opts.eixos === 1 ? '' : 's'}</p>`,
+    `<p><b>Por eixo</b> ${escHtml(formatCurrency(porEixo))}</p>`,
+    opts.tipo ? `<p><b>Tipo</b> ${escHtml(opts.tipo)}</p>` : '',
+    opts.freeFlow ? `<p class="rota-map-popup__ff">Free Flow</p>` : '',
+  ]
+  return `<div class="rota-map-popup">${linhas.filter(Boolean).join('')}</div>`
 }
 
 function formatKm(km: number) {
@@ -309,7 +378,7 @@ export function RotaMapPreview({
         if (retornoBase && viaCoords.length === 0) {
           layer.clearLayers()
           L.marker([oCoords.lat, oCoords.lng], {
-            icon: pinIcon('O/D', '#0f766e'),
+            icon: baseODestinoIcon(),
             title: 'Origem e destino (retorno à base)',
           }).addTo(layer)
           map.setView([oCoords.lat, oCoords.lng], 12)
@@ -378,41 +447,80 @@ export function RotaMapPreview({
 
         layer.clearLayers()
         const latlngs = rota.polyline.map((p) => [p.lat, p.lng] as L.LatLngExpression)
+        L.polyline(latlngs, {
+          color: '#fff',
+          weight: 10,
+          opacity: 0.95,
+          lineJoin: 'round',
+          lineCap: 'round',
+        }).addTo(layer)
         const line = L.polyline(latlngs, {
-          color: '#2563eb',
-          weight: 5,
-          opacity: 0.9,
+          color: '#1d4ed8',
+          weight: 5.5,
+          opacity: 1,
+          lineJoin: 'round',
+          lineCap: 'round',
         }).addTo(layer)
 
         L.marker([oCoords.lat, oCoords.lng], {
-          icon: pinIcon('O', '#16a34a'),
-          title: 'Origem',
-        }).addTo(layer)
+          icon: origemIcon(),
+          title: `Origem: ${o}`,
+        })
+          .bindPopup(`<div class="rota-map-popup"><p class="rota-map-popup__tit">Origem</p><p>${escHtml(o)}</p></div>`, {
+            className: 'rota-map-popup-wrap',
+            maxWidth: 280,
+          })
+          .addTo(layer)
 
         viaCoords.forEach((c, idx) => {
+          const viaNome = viasNorm[idx]?.endereco || `Ponto ${idx + 1}`
           L.marker([c.lat, c.lng], {
-            icon: pinIcon(String(idx + 1), '#2563eb'),
-            title: `Ponto de passagem ${idx + 1}`,
-          }).addTo(layer)
+            icon: viaIcon(idx + 1),
+            title: `Passagem ${idx + 1}: ${viaNome}`,
+          })
+            .bindPopup(
+              `<div class="rota-map-popup"><p class="rota-map-popup__tit">Passagem ${idx + 1}</p><p>${escHtml(viaNome)}</p></div>`,
+              { className: 'rota-map-popup-wrap', maxWidth: 280 },
+            )
+            .addTo(layer)
         })
 
         L.marker([dCoords.lat, dCoords.lng], {
-          icon: pinIcon('D', '#dc2626'),
-          title: 'Destino',
-        }).addTo(layer)
+          icon: destinoIcon(),
+          title: `Destino: ${d}`,
+        })
+          .bindPopup(`<div class="rota-map-popup"><p class="rota-map-popup__tit">Destino</p><p>${escHtml(d)}</p></div>`, {
+            className: 'rota-map-popup-wrap',
+            maxWidth: 280,
+          })
+          .addTo(layer)
 
         for (const p of ped.pracas) {
           if (p.lat == null || p.lng == null) continue
           const valorLabel = formatCurrency(p.valor)
+          const extra = [p.rodovia, p.uf].filter(Boolean).join('/')
           L.marker([p.lat, p.lng], {
-            icon: pedagioIcon(valorLabel),
+            icon: pedagioIcon({
+              nome: p.nome,
+              valorLabel,
+              extra: extra || undefined,
+              freeFlow: Boolean(p.free_flow),
+            }),
             title: `${p.nome}: ${valorLabel}`,
             zIndexOffset: 200,
           })
             .bindPopup(
-              `<strong>${p.nome}</strong><br/>Pedágio: <b>${valorLabel}</b>${
-                p.tipo ? `<br/><span style="color:#64748b">${p.tipo}</span>` : ''
-              }`,
+              popupPraca({
+                nome: p.nome,
+                valor: p.valor,
+                eixos,
+                tipo: p.tipo,
+                rodovia: p.rodovia,
+                uf: p.uf,
+                concessionaria: p.concessionaria,
+                freeFlow: Boolean(p.free_flow),
+              }),
+              { className: 'rota-map-popup-wrap', maxWidth: 280 },
             )
             .addTo(layer)
         }

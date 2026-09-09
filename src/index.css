@@ -330,3 +330,101 @@ textarea {
   background: transparent !important;
   border: none !important;
 }
+
+.rota-map-pin__wrap {
+  filter: drop-shadow(0 3px 6px rgb(15 23 42 / 0.35));
+  line-height: 0;
+}
+
+.rota-map-pedagio__wrap {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  filter: drop-shadow(0 3px 8px rgb(15 23 42 / 0.28));
+}
+
+.rota-map-pedagio__pin {
+  display: grid;
+  place-items: center;
+  line-height: 0;
+}
+
+.rota-map-pedagio__card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 118px;
+  padding: 4px 7px 5px;
+  border: 1px solid #fdba74;
+  background: #fff;
+  color: #9a3412;
+}
+
+.rota-map-pedagio__card em,
+.rota-map-pedagio__card strong,
+.rota-map-pedagio__card small,
+.rota-map-pedagio__card i {
+  display: block;
+  font-style: normal;
+  line-height: 1.2;
+}
+
+.rota-map-pedagio__card em {
+  font-size: 9px;
+  font-weight: 800;
+  color: #7c2d12;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rota-map-pedagio__card strong {
+  font-size: 11px;
+  font-weight: 800;
+  color: #c2410c;
+}
+
+.rota-map-pedagio__card small {
+  font-size: 8px;
+  font-weight: 700;
+  color: #9a3412;
+}
+
+.rota-map-pedagio__card i {
+  margin-top: 1px;
+  font-size: 8px;
+  font-weight: 800;
+  color: #0369a1;
+}
+
+.rota-map-popup {
+  min-width: 160px;
+  font: 700 12px/1.4 system-ui, sans-serif;
+  color: #0f172a;
+}
+
+.rota-map-popup p {
+  margin: 0 0 4px;
+}
+
+.rota-map-popup p:last-child {
+  margin-bottom: 0;
+}
+
+.rota-map-popup__tit {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.rota-map-popup__ff {
+  color: #0369a1;
+}
+
+.leaflet-popup.rota-map-popup-wrap .leaflet-popup-content-wrapper {
+  border-radius: 0;
+  box-shadow: 0 10px 24px rgb(15 23 42 / 0.2);
+}
+
+.leaflet-popup.rota-map-popup-wrap .leaflet-popup-content {
+  margin: 10px 12px;
+}

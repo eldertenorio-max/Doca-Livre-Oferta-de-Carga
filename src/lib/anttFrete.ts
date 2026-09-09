@@ -24,6 +24,9 @@ export type AnttPracaPedagio = {
   free_flow?: boolean
   lat?: number
   lng?: number
+  rodovia?: string
+  uf?: string
+  concessionaria?: string
 }
 
 export type AnttRotaCustos = {
