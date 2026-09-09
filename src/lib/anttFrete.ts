@@ -20,6 +20,8 @@ export type AnttPisoCategoria = {
 export type AnttPracaPedagio = {
   nome: string
   valor: number
+  /** Tarifa estimada do automóvel (cat. 1). */
+  valor_carro?: number
   tipo?: string
   free_flow?: boolean
   lat?: number
@@ -27,6 +29,7 @@ export type AnttPracaPedagio = {
   rodovia?: string
   uf?: string
   concessionaria?: string
+  fonte?: string
 }
 
 export type AnttRotaCustos = {

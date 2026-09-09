@@ -328,6 +328,7 @@ export async function calcularPedagioNaRota(
     hits.push({
       nome: `${p.nome}${sufixo}`,
       valor,
+      valor_carro: base,
       tipo: isOsm ? 'Praça (OpenStreetMap)' : 'Praça convencional',
       free_flow: false,
       lat: p.lat,
@@ -335,6 +336,7 @@ export async function calcularPedagioNaRota(
       rodovia: p.rodovia || undefined,
       uf: p.uf || undefined,
       concessionaria: p.concessionaria || undefined,
+      fonte: isOsm ? 'OpenStreetMap' : 'ANTT',
     })
     const key = chavePraca(p)
     if (key) chaves.add(key)

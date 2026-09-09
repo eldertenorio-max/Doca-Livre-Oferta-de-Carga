@@ -126,15 +126,59 @@ function nomeCurtoPraca(nome: string) {
   return limpo.length > 22 ? `${limpo.slice(0, 20)}…` : limpo || 'Pedágio'
 }
 
+function haversineKm(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const R = 6371
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const dLat = toRad(b.lat - a.lat)
+  const dLng = toRad(b.lng - a.lng)
+  const la1 = toRad(a.lat)
+  const la2 = toRad(b.lat)
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)))
+}
+
+function kmAtePontoNaRota(
+  p: { lat: number; lng: number },
+  line: Array<{ lat: number; lng: number }>,
+): number {
+  if (line.length < 2) return 0
+  let melhor = { dist: Infinity, km: 0 }
+  let acc = 0
+  for (let i = 0; i < line.length - 1; i++) {
+    const a = line[i]
+    const b = line[i + 1]
+    const seg = haversineKm(a, b)
+    const dLat = b.lat - a.lat
+    const dLng = b.lng - a.lng
+    const len2 = dLat * dLat + dLng * dLng
+    const t =
+      len2 === 0
+        ? 0
+        : Math.max(0, Math.min(1, ((p.lat - a.lat) * dLat + (p.lng - a.lng) * dLng) / len2))
+    const proj = { lat: a.lat + t * dLat, lng: a.lng + t * dLng }
+    const d = haversineKm(p, proj)
+    const km = acc + seg * t
+    if (d < melhor.dist) melhor = { dist: d, km }
+    acc += seg
+  }
+  return melhor.km
+}
+
 function pedagioIcon(opts: {
   nome: string
   valorLabel: string
   extra?: string
   freeFlow?: boolean
+  ordem?: number
 }) {
   const nome = escHtml(nomeCurtoPraca(opts.nome))
   const extra = opts.extra ? escHtml(opts.extra) : ''
   const badge = opts.freeFlow ? '<i>Free Flow</i>' : ''
+  const ordem = opts.ordem ? `<b>${opts.ordem}ª</b>` : ''
   return L.divIcon({
     className: 'rota-map-pedagio leaflet-div-icon--clean',
     html: `<div class="rota-map-pedagio__wrap">
@@ -147,41 +191,71 @@ function pedagioIcon(opts: {
         </svg>
       </span>
       <span class="rota-map-pedagio__card">
-        <em>${nome}</em>
+        ${ordem}<em>${nome}</em>
         <strong>${escHtml(opts.valorLabel)}</strong>
         ${extra ? `<small>${extra}</small>` : ''}
         ${badge}
       </span>
     </div>`,
-    iconSize: [148, 62],
-    iconAnchor: [20, 58],
-    popupAnchor: [54, -52],
+    iconSize: [160, 72],
+    iconAnchor: [20, 68],
+    popupAnchor: [60, -58],
   })
 }
 
 function popupPraca(opts: {
   nome: string
   valor: number
+  valorCarro?: number
   eixos: number
   tipo?: string
   rodovia?: string
   uf?: string
   concessionaria?: string
   freeFlow?: boolean
+  fonte?: string
+  ordem?: number
+  totalPracas?: number
+  kmAte?: number
+  minAte?: number
+  lat: number
+  lng: number
 }) {
   const porEixo = opts.eixos > 0 ? opts.valor / opts.eixos : opts.valor
+  const waze = `https://www.waze.com/ul?ll=${opts.lat},${opts.lng}&navigate=yes`
+  const maps = `https://www.google.com/maps/dir/?api=1&destination=${opts.lat},${opts.lng}`
+  const ordemTxt =
+    opts.ordem && opts.totalPracas
+      ? `${opts.ordem}ª de ${opts.totalPracas} praças`
+      : opts.ordem
+        ? `${opts.ordem}ª praça`
+        : ''
   const linhas = [
     `<p class="rota-map-popup__tit">${escHtml(opts.nome)}</p>`,
+    ordemTxt ? `<p><b>Ordem</b> ${escHtml(ordemTxt)}</p>` : '',
+    opts.kmAte != null
+      ? `<p><b>Até a praça</b> ${escHtml(formatKm(opts.kmAte))}${
+          opts.minAte != null ? ` · ${escHtml(formatDur(opts.minAte))}` : ''
+        }</p>`
+      : '',
     opts.rodovia || opts.uf
       ? `<p><b>Rodovia</b> ${escHtml([opts.rodovia, opts.uf].filter(Boolean).join(' · '))}</p>`
       : '',
     opts.concessionaria
       ? `<p><b>Concessionária</b> ${escHtml(opts.concessionaria)}</p>`
       : '',
-    `<p><b>Tarifa</b> ${escHtml(formatCurrency(opts.valor))} · ${opts.eixos} eixo${opts.eixos === 1 ? '' : 's'}</p>`,
+    opts.valorCarro != null
+      ? `<p><b>Carro (cat. 1)</b> ${escHtml(formatCurrency(opts.valorCarro))}</p>`
+      : '',
+    `<p><b>Seu veículo</b> ${escHtml(formatCurrency(opts.valor))} · ${opts.eixos} eixo${opts.eixos === 1 ? '' : 's'}</p>`,
     `<p><b>Por eixo</b> ${escHtml(formatCurrency(porEixo))}</p>`,
     opts.tipo ? `<p><b>Tipo</b> ${escHtml(opts.tipo)}</p>` : '',
+    opts.fonte ? `<p><b>Fonte</b> ${escHtml(opts.fonte)}</p>` : '',
     opts.freeFlow ? `<p class="rota-map-popup__ff">Free Flow</p>` : '',
+    `<p class="rota-map-popup__nav">
+      <a href="${waze}" target="_blank" rel="noopener noreferrer">Waze</a>
+      <a href="${maps}" target="_blank" rel="noopener noreferrer">Google Maps</a>
+    </p>`,
   ]
   return `<div class="rota-map-popup">${linhas.filter(Boolean).join('')}</div>`
 }
