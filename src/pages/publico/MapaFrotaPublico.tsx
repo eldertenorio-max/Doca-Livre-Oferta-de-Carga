@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import { LinkRota, LinkSistema } from '../../components/ui/HostLink'
-import { isSiteMapaFrota, URL_MAPA_LOGISTICA } from '../../lib/siteOfertaDeCarga'
+import { LinkRota, LinkSistema, LinkMapaLogistica } from '../../components/ui/HostLink'
+import { isSiteMapaFrota } from '../../lib/siteOfertaDeCarga'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useData } from '../../context/DataContext'
@@ -802,6 +802,9 @@ export function MapaFrotaPublicoPage() {
           </span>
         </Link>
         <div className="mapa-pub__top-actions">
+          <LinkMapaLogistica className="mapa-pub__btn mapa-pub__btn--ghost">
+            Mapa da Logística
+          </LinkMapaLogistica>
           <LinkRota className="mapa-pub__btn mapa-pub__btn--ghost">Calcular rota</LinkRota>
           {logado ? (
             <Link
@@ -1384,22 +1387,6 @@ export function MapaFrotaPublicoPage() {
               role="application"
               aria-label="Mapa público da frota"
             />
-            <div className="mapa-pub__map-links">
-              <img className="mapa-pub__map-logo" src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
-              <a
-                className="mapa-pub__pill"
-                href={URL_MAPA_LOGISTICA}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <span>Mapa da</span>
-                <strong>Logística</strong>
-              </a>
-              <LinkRota className="mapa-pub__pill">
-                <span>Calcular</span>
-                <strong>rota</strong>
-              </LinkRota>
-            </div>
           </div>
         </div>
       </div>

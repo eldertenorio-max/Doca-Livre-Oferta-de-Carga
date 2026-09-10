@@ -29,9 +29,7 @@ import {
 } from '../../lib/tiposCarroceria'
 import { MapaFrotaAjuda } from '../../components/mapa/MapaFrotaAjuda'
 import { FrotaGaleriaVeiculoModal } from '../../components/mapa/FrotaGaleriaVeiculoModal'
-import { LinkRota } from '../../components/ui/HostLink'
-import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
-import { URL_MAPA_LOGISTICA } from '../../lib/siteOfertaDeCarga'
+import { LinkRota, LinkMapaLogistica } from '../../components/ui/HostLink'
 import '../../styles/cadastro.css'
 import '../../styles/mapa-frota.css'
 
@@ -1218,10 +1216,14 @@ export function MapaFrotaPage() {
     <div className="mapa-frota animate-fade-up">
       <header className="mapa-frota__head">
         <div>
-          <div className="mapa-frota__title-row">
-            <h1 className="mapa-frota__title">Mapa da Frota</h1>
-            <MapaFrotaAjuda texto="Filtre por cidade, região, raio e tipo. Clique no ponto para ver o motorista." />
-          </div>
+            <div className="mapa-frota__title-row">
+              <h1 className="mapa-frota__title">Mapa da Frota</h1>
+              <MapaFrotaAjuda texto="Filtre por cidade, região, raio e tipo. Clique no ponto para ver o motorista." />
+              <div className="mapa-frota__produtos">
+                <LinkMapaLogistica className="mapa-frota__prod-link">Mapa da Logística</LinkMapaLogistica>
+                <LinkRota className="mapa-frota__prod-link">Calcular rota</LinkRota>
+              </div>
+            </div>
         </div>
         <div className="mapa-frota__filtros">
           {(
@@ -1730,22 +1732,6 @@ export function MapaFrotaPage() {
             </div>
           )}
           <div ref={mapEl} className="mapa-frota__map" />
-          <div className="mapa-pub__map-links">
-            <img className="mapa-pub__map-logo" src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
-            <a
-              className="mapa-pub__pill"
-              href={URL_MAPA_LOGISTICA}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <span>Mapa da</span>
-              <strong>Logística</strong>
-            </a>
-            <LinkRota className="mapa-pub__pill">
-              <span>Calcular</span>
-              <strong>rota</strong>
-            </LinkRota>
-          </div>
         </div>
       </div>
 

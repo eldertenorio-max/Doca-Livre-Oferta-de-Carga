@@ -19,6 +19,7 @@ import { VeiculoSuggestInput } from '../ui/VeiculoSuggestInput'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
 import { AnttFretePanel } from './AnttFretePanel'
 import { RotaMapPreview } from './RotaMapPreview'
+import { LinkMapaFrota, LinkMapaLogistica } from '../ui/HostLink'
 
 type Props = {
   carga: Carga | null
@@ -208,6 +209,14 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
   return (
     <Modal open={open} onClose={onClose} title={`Calcular rota · Carga ${carga.numero}`} wide>
       <div className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          <LinkMapaLogistica className="inline-flex items-center rounded-lg bg-[#e8ecf1] px-3 py-1.5 text-[0.75rem] font-extrabold text-[#0f172a] no-underline hover:bg-[#0f172a] hover:text-[#ffb300]">
+            Mapa da Logística
+          </LinkMapaLogistica>
+          <LinkMapaFrota className="inline-flex items-center rounded-lg bg-[#e8ecf1] px-3 py-1.5 text-[0.75rem] font-extrabold text-[#0f172a] no-underline hover:bg-[#0f172a] hover:text-[#ffb300]">
+            Mapa da Frota
+          </LinkMapaFrota>
+        </div>
         <AnttFretePanel
           origem={origem || carga.origem}
           destino={destino || carga.destino}

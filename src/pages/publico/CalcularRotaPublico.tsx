@@ -32,8 +32,8 @@ import {
 } from '../../lib/anttFrete'
 import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
-import { LinkSistema, LinkMapaFrota } from '../../components/ui/HostLink'
-import { isSiteOfertaDeCarga, URL_MAPA_LOGISTICA } from '../../lib/siteOfertaDeCarga'
+import { LinkSistema, LinkMapaFrota, LinkMapaLogistica } from '../../components/ui/HostLink'
+import { isSiteOfertaDeCarga } from '../../lib/siteOfertaDeCarga'
 import { useData } from '../../context/DataContext'
 import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
 import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
@@ -380,6 +380,12 @@ export function CalcularRotaPublicoPage() {
           </span>
         </Link>
         <div className="mapa-pub__top-actions">
+          <LinkMapaLogistica className="mapa-pub__btn mapa-pub__btn--ghost">
+            Mapa da Logística
+          </LinkMapaLogistica>
+          <LinkMapaFrota className="mapa-pub__btn mapa-pub__btn--ghost">
+            Mapa da Frota
+          </LinkMapaFrota>
           {logado ? (
             <LinkSistema
               className="mapa-pub__btn mapa-pub__btn--solid"
@@ -708,22 +714,6 @@ export function CalcularRotaPublicoPage() {
           </aside>
 
           <div className="mapa-frota__map-wrap">
-            <div className="rota-pub__map-links">
-              <img className="rota-pub__map-logo" src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
-              <a
-                className="rota-pub__pill"
-                href={URL_MAPA_LOGISTICA}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <span>Mapa da</span>
-                <strong>Logística</strong>
-              </a>
-              <LinkMapaFrota className="rota-pub__pill">
-                <span>Mapa</span>
-                <strong>da Frota</strong>
-              </LinkMapaFrota>
-            </div>
             <RotaMapPreview
               key={formId}
               origem={origem}

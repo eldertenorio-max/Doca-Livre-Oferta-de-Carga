@@ -471,6 +471,12 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
             </span>
           </Link>
           <div className="mapa-log__head-acoes">
+            <a className="mapa-log__btn mapa-log__btn--ghost" href={hrefMapaFrota()}>
+              Mapa da Frota
+            </a>
+            <a className="mapa-log__btn mapa-log__btn--ghost" href={hrefRota()}>
+              Calcular rota
+            </a>
             <a className="mapa-log__btn mapa-log__btn--ghost" href={hrefSistema('/login')}>
               Entrar
             </a>
@@ -488,6 +494,16 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
               Clique no campo, digite e escolha a sugestão. O mapa mostra só as empresas selecionadas.
             </p>
           </div>
+          {!publico ? (
+            <div className="mapa-log__head-acoes">
+              <a className="mapa-log__btn mapa-log__btn--ghost" href={hrefMapaFrota()}>
+                Mapa da Frota
+              </a>
+              <a className="mapa-log__btn mapa-log__btn--ghost" href={hrefRota()}>
+                Calcular rota
+              </a>
+            </div>
+          ) : null}
         </header>
 
       <div className="mapa-log__layout">
@@ -784,29 +800,6 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
 
         <div className="mapa-log__map-wrap">
           <div ref={mapEl} className="mapa-log__map" />
-          <div className="mapa-log__atalho-wrap">
-            <span className="mapa-log__atalho-logo">
-              <img src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
-            </span>
-            <a
-              className="mapa-log__atalho"
-              href={hrefMapaFrota()}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <span>Mapa da</span>
-              <span>Frota</span>
-            </a>
-            <a
-              className="mapa-log__atalho"
-              href={hrefRota()}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <span>Calcular</span>
-              <span>rota</span>
-            </a>
-          </div>
           <div className="mapa-log__legenda-wrap" ref={legendaWrapRef}>
             {legendaAberta ? (
               <div className="mapa-log__legenda" role="dialog" aria-label="Ícones por categoria">
