@@ -1,4 +1,4 @@
-export type UserRole = 'minerva' | 'transportador' | 'super'
+export type UserRole = 'minerva' | 'transportador' | 'super' | 'logistica'
 
 export type ClassificacaoRota = 'A' | 'B' | 'C'
 export type ClassificacaoTransportador = 'ouro' | 'prata' | 'bronze'

@@ -413,7 +413,14 @@ export function AppLayout() {
 
   const unread = minhasNotifs.filter((n) => !n.lida).length
 
+  const logisticaLinks: NavItem[] = [
+    { to: '/embarcador/mapa-logistica', label: 'Mapa da Logística', icon: <IconMap /> },
+    { to: '/embarcador/mapa-logistica/feed', label: 'Feed', icon: <IconGrid /> },
+    { to: '/embarcador/mapa-logistica/perfil', label: 'Meu perfil', icon: <IconUsers /> },
+  ]
+
   const links = useMemo(() => {
+    if (user?.role === 'logistica') return logisticaLinks
     if (isSuper) {
       return [
         ...minervaLinks,
@@ -436,7 +443,8 @@ export function AppLayout() {
     return () => window.clearInterval(id)
   }, [])
 
-  const roleLabel = isSuper ? 'Super Usuário' : 'Transportador'
+  const roleLabel =
+    isSuper ? 'Super Usuário' : user?.role === 'logistica' ? 'Empresa · Logística' : 'Transportador'
 
   return (
     <div className="app-shell">

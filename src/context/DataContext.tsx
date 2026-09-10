@@ -100,6 +100,7 @@ import {
   syncPortalAccounts,
   vincularContasAosTransportadores,
 } from '../lib/portalAuth'
+import { autenticar as autenticarLogistica, saveSessao as saveSessaoLogistica } from '../logistica/lib/auth'
 import {
   atualizarLogoTransportadorRemoto,
   carregarTransportadoresDoSupabase,
@@ -2057,7 +2058,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setAuthPersistEnabled(opts.persistSession)
     }
     const result = await portalLogin(identificador, password)
-    if (!result.ok) return { ok: false, error: result.erro }
+    if (!result.ok) {
+      const logi = await autenticarLogistica(identificador, password)
+      if (!logi.ok || logi.sessao.isSuper) {
+        return { ok: false, error: result.erro }
+      }
+      setUser({
+        id: logi.sessao.empresaId || logi.sessao.usuario,
+        email: logi.sessao.email,
+        nome: logi.sessao.nome,
+        usuario: logi.sessao.usuario,
+        role: 'logistica',
+        transportador_id: null,
+        is_superuser: false,
+        permissoes_modulos: { mapa_logistica: 'editar' },
+      })
+      return { ok: true }
+    }
     let { account, isSuperuser, permissoes } = result
 
     // Garante vínculo conta ↔ transportadora (ex.: Ultrafrio sem transportador_id)
@@ -2124,7 +2141,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return { ok: true }
   }, [])
 
-  const logout = useCallback(() => setUser(null), [])
+  const logout = useCallback(() => {
+    saveSessaoLogistica(null)
+    setUser(null)
+  }, [])
 
   const refreshPermissoes = useCallback(() => {
     setUser((prev) => {

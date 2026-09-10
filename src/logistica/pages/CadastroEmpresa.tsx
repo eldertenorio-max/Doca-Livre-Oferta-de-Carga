@@ -5,7 +5,8 @@ import { useAuth } from '../lib/AuthContext'
 import { LOGO_DOCA_LIVRE_SRC } from '../lib/brandAssets'
 import { slugEmpresaUnico } from '../lib/cadastroStore'
 import { planoPublicoPorId } from '../lib/planosPublicos'
-import { rotaInicial } from '../lib/rotasApp'
+import { rotasLogistica } from '../lib/rotasApp'
+import { useData } from '../../context/DataContext'
 import { CATEGORIAS, NIVEIS_INTEGRACAO, SUBCATEGORIAS_POR_CATEGORIA, categoriaPorId } from '../lib/categorias'
 import { consultarCnpj, maskCnpj, somenteDigitosCnpj } from '../lib/cnpj'
 import { UFS_BR, geocodificarEndereco } from '../lib/geo'
@@ -27,7 +28,8 @@ const STEPS: { id: StepId; label: string }[] = [
 ]
 
 export function CadastroEmpresaPage() {
-  const { sessao, cadastrar } = useAuth()
+  const { cadastrar } = useAuth()
+  const { user, login } = useData()
   const [params] = useSearchParams()
   const planoEscolhido = planoPublicoPorId(params.get('plano'))
   const [step, setStep] = useState<StepId>('empresa')
@@ -125,8 +127,8 @@ export function CadastroEmpresaPage() {
     [nomeFantasia, cnpj, catLabel, papelHierarquia, nivelHierarquia, superior, endereco, numero, cidade, uf],
   )
 
-  if (sessao) {
-    return <Navigate to={rotaInicial()} replace />
+  if (user?.role === 'logistica') {
+    return <Navigate to={rotasLogistica.mapa} replace />
   }
 
   function validateStep(id: StepId): string | null {
@@ -259,6 +261,10 @@ export function CadastroEmpresaPage() {
         nivelHierarquia: nivelHierarquia as NivelHierarquia,
         superior,
       })
+      const res = await login(usuario.trim(), senha)
+      if (!res.ok) {
+        throw new Error(res.error || 'Empresa cadastrada. Entre pelo login do Oferta de Carga.')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha no cadastro')
     } finally {
@@ -289,8 +295,8 @@ export function CadastroEmpresaPage() {
             </p>
           ) : (
             <p className="cadastro-step-desc">
-              Depois do cadastro você entra no perfil, no feed e no mapa ilimitado.{' '}
-              <Link to="/">Voltar ao mapa</Link>
+              Depois do cadastro você entra com o mesmo login do Oferta de Carga, no mapa da logística.{' '}
+              <Link to="/login">Já tenho conta</Link>
             </p>
           )}
 

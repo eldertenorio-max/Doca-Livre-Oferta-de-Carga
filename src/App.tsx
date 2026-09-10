@@ -34,6 +34,8 @@ import { KanbanEmpresasPage as LogisticaKanbanPage } from './logistica/pages/Kan
 import { FeedPage as LogisticaFeedPage } from './logistica/pages/Feed'
 import { PerfilPage as LogisticaEmpresaPerfilPage } from './logistica/pages/Perfil'
 import { EmpresaPage as LogisticaEmpresaPage } from './logistica/pages/Empresa'
+import { CadastroEmpresaPage as LogisticaCadastroEmpresaPage } from './logistica/pages/CadastroEmpresa'
+import { AuthProvider as LogisticaAuthProvider } from './logistica/lib/AuthContext'
 import { MapaFrotaPublicoPage } from './pages/publico/MapaFrotaPublico'
 import { CalcularRotaPublicoPage } from './pages/publico/CalcularRotaPublico'
 import {
@@ -101,6 +103,7 @@ function Protected({ role, children }: { role?: UserRole | UserRole[]; children:
   if (role) {
     const roles = Array.isArray(role) ? role : [role]
     if (!roles.includes(user.role)) {
+      if (user.role === 'logistica') return <Navigate to="/embarcador/mapa-logistica" replace />
       return <Navigate to={user.role === 'transportador' ? '/transportador' : '/embarcador'} replace />
     }
   }
@@ -149,6 +152,14 @@ export default function App() {
       <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/cadastro-transportador" element={<CadastroTransportadorPage />} />
+      <Route
+        path="/cadastro-logistica"
+        element={
+          <LogisticaAuthProvider>
+            <LogisticaCadastroEmpresaPage />
+          </LogisticaAuthProvider>
+        }
+      />
       <Route path="/mapa" element={<PublicoGuard><MapaFrotaPublicoPage /></PublicoGuard>} />
       <Route path="/rota" element={<PublicoGuard><CalcularRotaPublicoPage /></PublicoGuard>} />
       <Route path="/calcular-rota" element={<PublicoGuard><CalcularRotaPublicoPage /></PublicoGuard>} />
@@ -250,15 +261,36 @@ export default function App() {
         />
         <Route
           element={
-            <Protected role={['super']}>
+            <Protected role={['super', 'logistica']}>
               <LogisticaArea />
             </Protected>
           }
         >
           <Route path="/embarcador/mapa-logistica" element={<LogisticaMapaPage />} />
-          <Route path="/embarcador/mapa-logistica/painel" element={<LogisticaPainelPage />} />
-          <Route path="/embarcador/mapa-logistica/hierarquia" element={<LogisticaHierarquiaPage />} />
-          <Route path="/embarcador/mapa-logistica/kanban" element={<LogisticaKanbanPage />} />
+          <Route
+            path="/embarcador/mapa-logistica/painel"
+            element={
+              <Protected role={['super']}>
+                <LogisticaPainelPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="/embarcador/mapa-logistica/hierarquia"
+            element={
+              <Protected role={['super']}>
+                <LogisticaHierarquiaPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="/embarcador/mapa-logistica/kanban"
+            element={
+              <Protected role={['super']}>
+                <LogisticaKanbanPage />
+              </Protected>
+            }
+          />
           <Route path="/embarcador/mapa-logistica/feed" element={<LogisticaFeedPage />} />
           <Route path="/embarcador/mapa-logistica/feed/notificacoes" element={<LogisticaFeedPage />} />
           <Route path="/embarcador/mapa-logistica/perfil" element={<LogisticaEmpresaPerfilPage />} />

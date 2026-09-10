@@ -6,6 +6,8 @@ import { rotasLogistica } from './lib/rotasApp'
 import './styles/logistica-area.css'
 
 function LogisticaNav() {
+  const { user } = useData()
+  const superUser = isSuperSession(user)
   const item = ({ isActive }: { isActive: boolean }) =>
     `logistica-nav__link${isActive ? ' is-on' : ''}`
   return (
@@ -13,18 +15,27 @@ function LogisticaNav() {
       <NavLink to={rotasLogistica.mapa} end className={item}>
         Mapa
       </NavLink>
-      <NavLink to={rotasLogistica.painel} className={item}>
-        Painel
-      </NavLink>
-      <NavLink to={rotasLogistica.kanban} className={item}>
-        Kanban
-      </NavLink>
-      <NavLink to={rotasLogistica.hierarquia} className={item}>
-        Hierarquia
-      </NavLink>
+      {superUser ? (
+        <>
+          <NavLink to={rotasLogistica.painel} className={item}>
+            Painel
+          </NavLink>
+          <NavLink to={rotasLogistica.kanban} className={item}>
+            Kanban
+          </NavLink>
+          <NavLink to={rotasLogistica.hierarquia} className={item}>
+            Hierarquia
+          </NavLink>
+        </>
+      ) : null}
       <NavLink to={rotasLogistica.feed} className={item}>
         Feed
       </NavLink>
+      {!superUser ? (
+        <NavLink to={rotasLogistica.perfil} className={item}>
+          Meu perfil
+        </NavLink>
+      ) : null}
     </nav>
   )
 }

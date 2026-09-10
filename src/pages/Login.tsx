@@ -69,9 +69,11 @@ export function LoginPage() {
 
   if (user) {
     const dest =
-      user.role === 'transportador'
-        ? '/transportador'
-        : '/embarcador'
+      user.role === 'logistica'
+        ? '/embarcador/mapa-logistica'
+        : user.role === 'transportador'
+          ? '/transportador'
+          : '/embarcador'
     return <Navigate to={dest} replace />
   }
 
@@ -588,6 +590,9 @@ export function LoginPage() {
               <LinkRota className="portal-login__link">Calcular rota e pedágio</LinkRota>
               <Link to="/cadastro-transportador" className="portal-login__link">
                 Quero ser transportador
+              </Link>
+              <Link to="/cadastro-logistica" className="portal-login__link">
+                Cadastrar empresa no Mapa da Logística
               </Link>
               <button type="button" className="portal-login__link" onClick={() => goMode('cadastro')}>
                 Cadastrar Embarcador

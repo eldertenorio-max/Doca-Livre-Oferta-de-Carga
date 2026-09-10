@@ -54,7 +54,7 @@ type SessionLike = {
  */
 export function isSuperSession(user: SessionLike | null | undefined): boolean {
   if (!user) return false
-  if (user.role === 'transportador') return false
+  if (user.role === 'transportador' || user.role === 'logistica') return false
   if (user.role === 'super' || Boolean(user.is_superuser)) return true
   return isLocalSuperUser(user.usuario ?? '') || isLocalSuperUser(user.email ?? '')
 }
