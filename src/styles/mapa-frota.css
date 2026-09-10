@@ -22,6 +22,53 @@
   color: #0f172a;
 }
 
+.mapa-frota__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mapa-frota__help {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.mapa-frota__info {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #d0d7de;
+  border-radius: 999px;
+  background: #fff;
+  color: #0f172a;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.mapa-frota__info:hover,
+.mapa-frota__info.is-on {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #f9db00;
+}
+
+.mapa-frota__help-pop {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  z-index: 40;
+  width: min(280px, 72vw);
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-shadow: 0 12px 28px rgb(15 23 42 / 0.16);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #334155;
+}
+
 .mapa-frota__sub {
   margin: 4px 0 0;
   font-size: 0.85rem;

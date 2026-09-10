@@ -5,7 +5,7 @@ import { isSiteMapaFrota, URL_MAPA_LOGISTICA } from '../../lib/siteOfertaDeCarga
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useData } from '../../context/DataContext'
-import { CarroceriaFilterSelect } from '../../components/ui/CarroceriaFilterSelect'
+import { MapaFrotaAjuda } from '../../components/mapa/MapaFrotaAjuda'
 import {
   MapaPubSuggestInput,
   type SugestaoPub,
@@ -826,10 +826,10 @@ export function MapaFrotaPublicoPage() {
       <div className="mapa-frota mapa-pub__shell">
         <header className="mapa-frota__head">
           <div>
-            <h1 className="mapa-frota__title">Mapa da Frota</h1>
-            <p className="mapa-frota__sub">
-              Filtre por cidade, região, raio e tipo. Clique no ponto para ver o veículo.
-            </p>
+            <div className="mapa-frota__title-row">
+              <h1 className="mapa-frota__title">Mapa da Frota</h1>
+              <MapaFrotaAjuda texto="Filtre por cidade, região, raio e tipo. Clique no ponto para ver o veículo." />
+            </div>
             <p className="mapa-pub__creditos">
               {user
                 ? 'Conta logada · buscas ilimitadas'

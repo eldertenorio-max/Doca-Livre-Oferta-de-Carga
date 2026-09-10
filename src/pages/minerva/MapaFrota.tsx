@@ -27,7 +27,7 @@ import { listarFotosVeiculoDisponiveis } from '../../lib/veiculoFotos'
 import {
   parseCarrocerias,
 } from '../../lib/tiposCarroceria'
-import { CarroceriaFilterSelect } from '../../components/ui/CarroceriaFilterSelect'
+import { MapaFrotaAjuda } from '../../components/mapa/MapaFrotaAjuda'
 import { FrotaGaleriaVeiculoModal } from '../../components/mapa/FrotaGaleriaVeiculoModal'
 import { LinkRota } from '../../components/ui/HostLink'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
@@ -1218,10 +1218,10 @@ export function MapaFrotaPage() {
     <div className="mapa-frota animate-fade-up">
       <header className="mapa-frota__head">
         <div>
-          <h1 className="mapa-frota__title">Mapa da Frota</h1>
-          <p className="mapa-frota__sub">
-            Filtre por cidade, região, raio e tipo. Clique no ponto para ver o motorista.
-          </p>
+          <div className="mapa-frota__title-row">
+            <h1 className="mapa-frota__title">Mapa da Frota</h1>
+            <MapaFrotaAjuda texto="Filtre por cidade, região, raio e tipo. Clique no ponto para ver o motorista." />
+          </div>
         </div>
         <div className="mapa-frota__filtros">
           {(
