@@ -1,16 +1,17 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { HashRouter } from 'react-router-dom'
+import { BrowserRouter, HashRouter } from 'react-router-dom'
 import { registerSW } from 'virtual:pwa-register'
 import { DataProvider } from './context/DataContext'
 import App from './App'
+import { isSiteOfertaDeCarga } from './lib/siteOfertaDeCarga'
 import './index.css'
 
 /**
- * Força novo bundle (setas da galeria). Depois do primeiro load limpo,
+ * Força novo bundle. Depois do primeiro load limpo,
  * updates de deploy só no F5 (ver onNeedRefresh).
  */
-const BUILD_ID = 'rota-publico-cache-v149'
+const BUILD_ID = 'rota-publico-cache-v150'
 
 async function forceFreshOnce(): Promise<boolean> {
   const key = `doca-build:${BUILD_ID}`
@@ -43,7 +44,6 @@ async function forceFreshOnce(): Promise<boolean> {
     /* ignore */
   }
 
-  // Evita loop infinito se storage falhar
   try {
     if (sessionStorage.getItem(`reloaded:${BUILD_ID}`)) return false
     sessionStorage.setItem(`reloaded:${BUILD_ID}`, '1')
@@ -51,9 +51,11 @@ async function forceFreshOnce(): Promise<boolean> {
     /* continue */
   }
 
-  const u = new URL(window.location.href)
-  u.searchParams.set('_v', BUILD_ID)
-  window.location.replace(u.toString())
+  if (isSiteOfertaDeCarga()) {
+    window.location.replace(`${window.location.origin}/`)
+  } else {
+    window.location.replace(window.location.pathname + window.location.hash)
+  }
   return true
 }
 
@@ -72,13 +74,15 @@ function boot() {
   })
   void updateSW
 
+  const Router = isSiteOfertaDeCarga() ? BrowserRouter : HashRouter
+
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <HashRouter>
+      <Router>
         <DataProvider>
           <App />
         </DataProvider>
-      </HashRouter>
+      </Router>
     </StrictMode>,
   )
 }

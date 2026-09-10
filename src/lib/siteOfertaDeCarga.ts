@@ -9,7 +9,7 @@ export const URL_SITE_ROTA = `https://${HOST_OFERTA_DE_CARGA}`
 export const URL_SITE_MAPA = `https://${HOST_MAPA_FROTA}`
 export const URL_SISTEMA = `https://${HOST_SISTEMA}`
 export const URL_OFERTA_DE_CARGA = URL_SITE_ROTA
-export const URL_ROTA_PUBLICA = `${URL_SITE_ROTA}/#/rota`
+export const URL_ROTA_PUBLICA = `${URL_SITE_ROTA}/`
 export const URL_MAPA_FROTA = `${URL_SITE_MAPA}/#/mapa`
 
 function hostAtual(): string {
@@ -79,9 +79,10 @@ export function urlSistemaComHash(path: string): string {
   return `${URL_SISTEMA}/#${normPath(path)}`
 }
 
-/** Calculadora pública: sempre ofertadecarga.com.br (exceto no próprio site e no localhost). */
+/** Calculadora pública: sempre ofertadecarga.com.br (sem #/rota). */
 export function hrefRota(): string {
-  if (isSiteOfertaDeCarga() || isLocalDev()) return '/rota'
+  if (isSiteOfertaDeCarga()) return '/'
+  if (isLocalDev()) return '/rota'
   return URL_ROTA_PUBLICA
 }
 

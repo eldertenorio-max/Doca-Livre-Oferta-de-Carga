@@ -59,6 +59,9 @@
         if (h === 'ofertadecarga.com.br') {
           document.title = 'Calcular rota — Oferta de Carga'
           if (canon) canon.setAttribute('href', 'https://ofertadecarga.com.br/')
+          if (location.search || location.hash) {
+            history.replaceState(null, '', '/')
+          }
         } else if (h === 'mapadafrota.com.br') {
           document.title = 'Mapa da Frota — Oferta de Carga'
           if (canon) canon.setAttribute('href', 'https://mapadafrota.com.br/')
@@ -73,7 +76,7 @@
     <script>
       // Força o navegador a procurar SW novo e limpar cache morto (uma vez por build).
       ;(function () {
-        var BUILD = 'rota-publico-cache-v149'
+        var BUILD = 'rota-publico-cache-v150'
         try {
           var stored = localStorage.getItem('doca-html-bust')
           if (stored === BUILD) return
@@ -92,9 +95,14 @@
             if (sessionStorage.getItem('doca-html-reloaded') === BUILD) return
             sessionStorage.setItem('doca-html-reloaded', BUILD)
           } catch (e) {}
+          var host = (location.hostname || '').toLowerCase().replace(/^www\./, '')
+          if (host === 'ofertadecarga.com.br') {
+            location.replace(location.origin + '/')
+            return
+          }
           var u = new URL(location.href)
-          u.searchParams.set('_v', BUILD)
-          location.replace(u.toString())
+          u.searchParams.delete('_v')
+          location.replace(u.pathname + u.hash)
         }).catch(function () {})
       })()
     </script>

@@ -33,6 +33,7 @@ import {
 import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { LinkSistema, LinkMapaFrota } from '../../components/ui/HostLink'
+import { isSiteOfertaDeCarga } from '../../lib/siteOfertaDeCarga'
 import { useData } from '../../context/DataContext'
 import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
 import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
@@ -365,7 +366,7 @@ export function CalcularRotaPublicoPage() {
   return (
     <div className="mapa-pub rota-pub">
       <header className="mapa-pub__top">
-        <Link to="/rota" className="mapa-pub__brand">
+        <Link to={isSiteOfertaDeCarga() ? '/' : '/rota'} className="mapa-pub__brand">
           <img src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
           <span>
             <strong>Oferta de Carga</strong>

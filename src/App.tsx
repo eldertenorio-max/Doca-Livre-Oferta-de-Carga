@@ -102,8 +102,8 @@ export default function App() {
     return (
       <Routes>
         <Route path="/" element={<CalcularRotaPublicoPage />} />
-        <Route path="/rota" element={<CalcularRotaPublicoPage />} />
-        <Route path="/calcular-rota" element={<CalcularRotaPublicoPage />} />
+        <Route path="/rota" element={<Navigate to="/" replace />} />
+        <Route path="/calcular-rota" element={<Navigate to="/" replace />} />
         <Route path="*" element={<RedirectToSistema />} />
       </Routes>
     )
