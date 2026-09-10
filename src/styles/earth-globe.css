@@ -6,6 +6,57 @@
   background: #02040a;
 }
 
+.earth-globe--pick .cesium-widget canvas {
+  cursor: crosshair;
+}
+
+.rota-map-preview.is-picking .leaflet-container {
+  cursor: crosshair;
+}
+
+.rota-map-pick {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 16;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 20px);
+}
+
+.rota-map-pick button {
+  border: 0;
+  border-radius: 10px;
+  padding: 7px 11px;
+  background: rgb(15 23 42 / 0.82);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgb(0 0 0 / 0.28);
+}
+
+.rota-map-pick button:hover {
+  background: #0f172a;
+}
+
+.rota-map-pick button.is-on {
+  background: #ffb300;
+  color: #0f172a;
+}
+
+.rota-map-pick__hint {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgb(2 4 10 / 0.55);
+  color: #e2e8f0;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
 .earth-globe__cesium {
   position: absolute;
   inset: 0;

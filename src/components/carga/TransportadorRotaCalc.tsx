@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowUpDown, Calculator, Fuel, Minus, Plus } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ArrowUpDown, Calculator, Fuel, MapPin, Minus, Plus } from 'lucide-react'
 import { formatCurrency, roundMoney } from '../../lib/businessRules'
 import {
   calcularRotaOperacional,
@@ -15,6 +15,7 @@ import { limparPontosPassagemRota } from '../../lib/rotasSync'
 import type { Carga, PontoPassagemRota } from '../../types'
 import { useData } from '../../context/DataContext'
 import { AddressSuggestInput, PLACEHOLDER_ENDERECO_EXEMPLO } from '../ui/AddressSuggestInput'
+import { labelPorCoordenadas, type SugestaoEndereco } from '../../lib/geocodeEndereco'
 import { VeiculoSuggestInput } from '../ui/VeiculoSuggestInput'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
 import { AnttFretePanel } from './AnttFretePanel'
@@ -38,6 +39,8 @@ type CalcParams = {
   categoriaId?: number | ''
   waypoints?: PontoPassagemRota[]
 }
+
+type Coord = { lat: number; lng: number }
 
 function parseNumBr(raw: string, fallback: number): number {
   const n = Number(String(raw).trim().replace(/\./g, '').replace(',', '.'))
@@ -69,6 +72,10 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
   rotasRef.current = rotas
   const [origem, setOrigem] = useState('')
   const [destino, setDestino] = useState('')
+  const [origemCoords, setOrigemCoords] = useState<Coord | null>(null)
+  const [destinoCoords, setDestinoCoords] = useState<Coord | null>(null)
+  const [pickMode, setPickMode] = useState<'A' | 'B' | null>(null)
+  const pickBusy = useRef(false)
   const [waypoints, setWaypoints] = useState<PontoPassagemRota[]>([])
   const [tipoVeiculoNome, setTipoVeiculoNome] = useState('')
   const [categoriaCargaId, setCategoriaCargaId] = useState<number | ''>('')
@@ -84,23 +91,6 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
   const [dieselAplicado, setDieselAplicado] = useState<number | null>(null)
   const reqId = useRef(0)
   const iniciadoId = useRef<string | null>(null)
-
-  const origemLat = carga?.origem_lat
-  const origemLng = carga?.origem_lng
-  const destinoLat = carga?.destino_lat
-  const destinoLng = carga?.destino_lng
-
-  const origemCoords = useMemo(() => {
-    if (origemLat == null || origemLng == null) return null
-    if (!Number.isFinite(origemLat) || !Number.isFinite(origemLng)) return null
-    return { lat: Number(origemLat), lng: Number(origemLng) }
-  }, [origemLat, origemLng])
-
-  const destinoCoords = useMemo(() => {
-    if (destinoLat == null || destinoLng == null) return null
-    if (!Number.isFinite(destinoLat) || !Number.isFinite(destinoLng)) return null
-    return { lat: Number(destinoLat), lng: Number(destinoLng) }
-  }, [destinoLat, destinoLng])
 
   async function calcular(override?: Partial<CalcParams>) {
     const o = override?.origem ?? origem
@@ -167,6 +157,23 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
     setWaypoints(vias)
     setOrigem(o)
     setDestino(d)
+    setOrigemCoords(
+      carga.origem_lat != null &&
+        carga.origem_lng != null &&
+        Number.isFinite(carga.origem_lat) &&
+        Number.isFinite(carga.origem_lng)
+        ? { lat: Number(carga.origem_lat), lng: Number(carga.origem_lng) }
+        : null,
+    )
+    setDestinoCoords(
+      carga.destino_lat != null &&
+        carga.destino_lng != null &&
+        Number.isFinite(carga.destino_lat) &&
+        Number.isFinite(carga.destino_lng)
+        ? { lat: Number(carga.destino_lat), lng: Number(carga.destino_lng) }
+        : null,
+    )
+    setPickMode(null)
     setTipoVeiculoNome(carga.veiculo || 'Carreta')
     setCategoriaCargaId(carga.antt?.categoria_id ?? '')
     setEixos(ex)
@@ -192,6 +199,41 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
   function trocarPontos() {
     setOrigem(destino)
     setDestino(origem)
+    setOrigemCoords(destinoCoords)
+    setDestinoCoords(origemCoords)
+  }
+
+  function pickOrigem(sug: SugestaoEndereco) {
+    setOrigem(sug.label)
+    if (Number.isFinite(sug.lat) && Number.isFinite(sug.lng)) {
+      setOrigemCoords({ lat: sug.lat, lng: sug.lng })
+    }
+  }
+
+  function pickDestino(sug: SugestaoEndereco) {
+    setDestino(sug.label)
+    if (Number.isFinite(sug.lat) && Number.isFinite(sug.lng)) {
+      setDestinoCoords({ lat: sug.lat, lng: sug.lng })
+    }
+  }
+
+  async function marcarPontoNoMapa(ponto: 'A' | 'B', lat: number, lng: number) {
+    if (pickBusy.current) return
+    pickBusy.current = true
+    try {
+      const label = await labelPorCoordenadas(lat, lng)
+      if (ponto === 'A') {
+        setOrigem(label)
+        setOrigemCoords({ lat, lng })
+        setPickMode(destino.trim() ? null : 'B')
+      } else {
+        setDestino(label)
+        setDestinoCoords({ lat, lng })
+        setPickMode(null)
+      }
+    } finally {
+      pickBusy.current = false
+    }
   }
 
   if (!carga) return null
@@ -240,11 +282,28 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-end">
           <Field label="Ponto A — Origem" className="min-w-0">
-            <AddressSuggestInput
-              value={origem}
-              onChange={setOrigem}
-              placeholder={PLACEHOLDER_ENDERECO_EXEMPLO}
-            />
+            <div className="flex items-center gap-1">
+              <AddressSuggestInput
+                value={origem}
+                onChange={(v) => {
+                  setOrigem(v)
+                  setOrigemCoords(null)
+                }}
+                onPick={pickOrigem}
+                placeholder={PLACEHOLDER_ENDERECO_EXEMPLO}
+                className="min-w-0 flex-1"
+              />
+              <button
+                type="button"
+                title="Marcar origem no mapa"
+                onClick={() => setPickMode(pickMode === 'A' ? null : 'A')}
+                className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-ink/15 ${
+                  pickMode === 'A' ? 'bg-[#0f172a] text-[#ffb300]' : 'bg-white text-ink hover:bg-sand-light'
+                }`}
+              >
+                <MapPin size={16} />
+              </button>
+            </div>
           </Field>
           <button
             type="button"
@@ -255,11 +314,28 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
             <ArrowUpDown size={16} />
           </button>
           <Field label="Ponto B — Destino" className="min-w-0">
-            <AddressSuggestInput
-              value={destino}
-              onChange={setDestino}
-              placeholder={PLACEHOLDER_ENDERECO_EXEMPLO}
-            />
+            <div className="flex items-center gap-1">
+              <AddressSuggestInput
+                value={destino}
+                onChange={(v) => {
+                  setDestino(v)
+                  setDestinoCoords(null)
+                }}
+                onPick={pickDestino}
+                placeholder={PLACEHOLDER_ENDERECO_EXEMPLO}
+                className="min-w-0 flex-1"
+              />
+              <button
+                type="button"
+                title="Marcar destino no mapa"
+                onClick={() => setPickMode(pickMode === 'B' ? null : 'B')}
+                className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-ink/15 ${
+                  pickMode === 'B' ? 'bg-[#0f172a] text-[#ffb300]' : 'bg-white text-ink hover:bg-sand-light'
+                }`}
+              >
+                <MapPin size={16} />
+              </button>
+            </div>
           </Field>
         </div>
 
@@ -286,7 +362,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
           </p>
         )}
 
-        {open && origem.trim().length >= 3 && destino.trim().length >= 3 ? (
+        {open ? (
           <div className="space-y-1.5">
             <p className="text-[12px] font-bold uppercase tracking-wide text-ink">
               Mapa da rota
@@ -302,6 +378,9 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
               eixos={eixos}
               consumoKmL={consumoAplicado ?? consSugNum}
               precoDiesel={dieselAplicado ?? PRECO_DIESEL_SUGERIDO}
+              pickMode={pickMode}
+              onPickModeChange={setPickMode}
+              onPickPonto={marcarPontoNoMapa}
               className="h-[280px] min-h-[280px] w-full"
             />
           </div>

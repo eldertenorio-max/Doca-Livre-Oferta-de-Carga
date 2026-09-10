@@ -1,7 +1,10 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import '../../styles/earth-globe.css'
 
 type CesiumNS = typeof import('cesium')
+type Coord = { lat: number; lng: number }
+
+export type EarthGlobePick = 'A' | 'B'
 
 function cesiumFromPage(): CesiumNS {
   const w = window as Window & { Cesium?: CesiumNS; CESIUM_BASE_URL?: string }
@@ -14,9 +17,25 @@ function cesiumFromPage(): CesiumNS {
   return w.Cesium
 }
 
-export function EarthGlobe() {
+type Props = {
+  pickMode?: EarthGlobePick | null
+  onPick?: (lat: number, lng: number) => void
+  pontoA?: Coord | null
+  pontoB?: Coord | null
+}
+
+export function EarthGlobe({ pickMode = null, onPick, pontoA = null, pontoB = null }: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
   const cesiumRef = useRef<HTMLDivElement>(null)
+  const viewerRef = useRef<import('cesium').Viewer | undefined>(undefined)
+  const CesiumRef = useRef<CesiumNS | undefined>(undefined)
+  const pinARef = useRef<import('cesium').Entity | undefined>(undefined)
+  const pinBRef = useRef<import('cesium').Entity | undefined>(undefined)
+  const pickModeRef = useRef(pickMode)
+  const onPickRef = useRef(onPick)
+  pickModeRef.current = pickMode
+  onPickRef.current = onPick
+  const [cesiumOk, setCesiumOk] = useState(false)
 
   useEffect(() => {
     const host = cesiumRef.current
@@ -35,6 +54,7 @@ export function EarthGlobe() {
     void (async () => {
       const Cesium = cesiumFromPage()
       if (disposed || !host) return
+      CesiumRef.current = Cesium
 
       Cesium.Ion.defaultAccessToken = ''
 
@@ -65,6 +85,7 @@ export function EarthGlobe() {
         viewer.destroy()
         return
       }
+      viewerRef.current = viewer
 
       try {
         viewer.terrainProvider = await Cesium.ArcGISTiledElevationTerrainProvider.fromUrl(
@@ -75,6 +96,7 @@ export function EarthGlobe() {
       }
       if (disposed) {
         viewer.destroy()
+        viewerRef.current = undefined
         return
       }
 
@@ -144,12 +166,34 @@ export function EarthGlobe() {
         })
       }
 
-      handler = new Cesium.ScreenSpaceEventHandler(scene.canvas)
-      handler.setInputAction((click: { position: import('cesium').Cartesian2 }) => {
-        const ray = viewer!.camera.getPickRay(click.position)
-        const hit =
+      const hitDoClique = (position: import('cesium').Cartesian2) => {
+        const ray = viewer!.camera.getPickRay(position)
+        return (
           (ray && scene.globe.pick(ray, scene)) ||
-          viewer!.camera.pickEllipsoid(click.position, scene.globe.ellipsoid)
+          viewer!.camera.pickEllipsoid(position, scene.globe.ellipsoid)
+        )
+      }
+
+      let down: import('cesium').Cartesian2 | undefined
+      handler = new Cesium.ScreenSpaceEventHandler(scene.canvas)
+      handler.setInputAction((c: { position: import('cesium').Cartesian2 }) => {
+        down = Cesium.Cartesian2.clone(c.position)
+      }, Cesium.ScreenSpaceEventType.LEFT_DOWN)
+      handler.setInputAction((c: { position: import('cesium').Cartesian2 }) => {
+        const modo = pickModeRef.current
+        if (!modo || !onPickRef.current) return
+        if (down && Cesium.Cartesian2.distance(down, c.position) > 6) return
+        const hit = hitDoClique(c.position)
+        if (!hit) return
+        const carto = Cesium.Cartographic.fromCartesian(hit)
+        onPickRef.current(
+          Cesium.Math.toDegrees(carto.latitude),
+          Cesium.Math.toDegrees(carto.longitude),
+        )
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK)
+      handler.setInputAction((click: { position: import('cesium').Cartesian2 }) => {
+        if (pickModeRef.current) return
+        const hit = hitDoClique(click.position)
         if (!hit) {
           zoomFator(0.38)
           return
@@ -181,25 +225,74 @@ export function EarthGlobe() {
       applySize()
       resizeObs = new ResizeObserver(applySize)
       resizeObs.observe(host)
+      setCesiumOk(true)
     })().catch(() => {
       /* globo fica no fundo escuro se o Cesium falhar */
     })
 
     return () => {
       disposed = true
+      setCesiumOk(false)
       resizeObs?.disconnect()
       if (onUi) root.querySelector('.earth-globe__nav')?.removeEventListener('click', onUi)
       handler?.destroy()
+      pinARef.current = undefined
+      pinBRef.current = undefined
       viewer?.destroy()
+      viewerRef.current = undefined
     }
   }, [])
+
+  useEffect(() => {
+    const viewer = viewerRef.current
+    const Cesium = CesiumRef.current
+    if (!cesiumOk || !viewer || !Cesium) return
+
+    const upsert = (
+      slot: { current: import('cesium').Entity | undefined },
+      coords: Coord | null,
+      letra: string,
+      cor: import('cesium').Color,
+    ) => {
+      if (slot.current) {
+        viewer.entities.remove(slot.current)
+        slot.current = undefined
+      }
+      if (!coords) return
+      slot.current = viewer.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(coords.lng, coords.lat),
+        point: {
+          pixelSize: 16,
+          color: cor,
+          outlineColor: Cesium.Color.WHITE,
+          outlineWidth: 3,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        },
+        label: {
+          text: letra,
+          font: '700 14px system-ui,sans-serif',
+          fillColor: Cesium.Color.WHITE,
+          outlineColor: Cesium.Color.BLACK,
+          outlineWidth: 4,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          pixelOffset: new Cesium.Cartesian2(0, -22),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        },
+      })
+    }
+
+    upsert(pinARef, pontoA, 'A', Cesium.Color.fromCssColorString('#15803d'))
+    upsert(pinBRef, pontoB, 'B', Cesium.Color.fromCssColorString('#dc2626'))
+  }, [cesiumOk, pontoA, pontoB])
 
   return (
     <div
       ref={rootRef}
-      className="earth-globe"
+      className={`earth-globe${pickMode ? ' earth-globe--pick' : ''}`}
       role="application"
-      aria-label="Globo 3D com satélite. Role para entrar no mapa, arraste para orbitar, botão direito para inclinar, clique duplo para aproximar o ponto."
+      aria-label="Globo 3D com satélite. Role para entrar no mapa, arraste para orbitar, botão direito para inclinar. Use Ponto A e Ponto B para marcar origem e destino."
     >
       <div ref={cesiumRef} className="earth-globe__cesium" />
       <div className="earth-globe__nav" data-pdf-ignore>

@@ -11,6 +11,7 @@ import {
   ChevronUp,
   Fuel,
   Gauge,
+  MapPin,
   Plus,
   RotateCcw,
   Route,
@@ -39,6 +40,7 @@ import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
 import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
 import { RotaMapPreview } from '../../components/carga/RotaMapPreview'
 import type { SugestaoEndereco } from '../../lib/geocodeEndereco'
+import { labelPorCoordenadas } from '../../lib/geocodeEndereco'
 import {
   consultarEstadoCalculosPublicos,
   estadoCalculosPublicos,
@@ -179,6 +181,8 @@ export function CalcularRotaPublicoPage() {
   const [destino, setDestino] = useState('')
   const [origemCoords, setOrigemCoords] = useState<Coord | null>(null)
   const [destinoCoords, setDestinoCoords] = useState<Coord | null>(null)
+  const [pickMode, setPickMode] = useState<'A' | 'B' | null>(null)
+  const pickBusy = useRef(false)
   const [vias, setVias] = useState<Via[]>([])
   const [tipoVeiculo, setTipoVeiculo] = useState<TipoVeiculoUi>('caminhao')
   const [tipoVeiculoNome, setTipoVeiculoNome] = useState('Carreta LS')
@@ -241,6 +245,25 @@ export function CalcularRotaPublicoPage() {
     }
   }
 
+  async function marcarPontoNoMapa(ponto: 'A' | 'B', lat: number, lng: number) {
+    if (pickBusy.current) return
+    pickBusy.current = true
+    try {
+      const label = await labelPorCoordenadas(lat, lng)
+      if (ponto === 'A') {
+        setOrigem(label)
+        setOrigemCoords({ lat, lng })
+        setPickMode(destino.trim() ? null : 'B')
+      } else {
+        setDestino(label)
+        setDestinoCoords({ lat, lng })
+        setPickMode(null)
+      }
+    } finally {
+      pickBusy.current = false
+    }
+  }
+
   function trocarPontos() {
     setOrigem(destino)
     setDestino(origem)
@@ -290,6 +313,7 @@ export function CalcularRotaPublicoPage() {
     setMapId(0)
     setShowResultado(false)
     setSnap(null)
+    setPickMode(null)
   }
 
   async function consumirCalculo(): Promise<boolean> {
@@ -490,6 +514,14 @@ export function CalcularRotaPublicoPage() {
                           placeholder="Origem"
                           className="rota-pub__input"
                         />
+                        <button
+                          type="button"
+                          className={`rota-pub__campo-btn${pickMode === 'A' ? ' is-on' : ''}`}
+                          title="Marcar origem (ponto A) no mapa"
+                          onClick={() => setPickMode(pickMode === 'A' ? null : 'A')}
+                        >
+                          <MapPin size={15} />
+                        </button>
                       </div>
                       <div className="rota-pub__campo">
                         <AddressSuggestInput
@@ -502,6 +534,14 @@ export function CalcularRotaPublicoPage() {
                           placeholder="Destino"
                           className="rota-pub__input"
                         />
+                        <button
+                          type="button"
+                          className={`rota-pub__campo-btn${pickMode === 'B' ? ' is-on' : ''}`}
+                          title="Marcar destino (ponto B) no mapa"
+                          onClick={() => setPickMode(pickMode === 'B' ? null : 'B')}
+                        >
+                          <MapPin size={15} />
+                        </button>
                         <button
                           type="button"
                           className="rota-pub__campo-btn"
@@ -727,6 +767,9 @@ export function CalcularRotaPublicoPage() {
               preferencia={preferencia}
               autoCalcular={false}
               calcularId={mapId}
+              pickMode={pickMode}
+              onPickModeChange={setPickMode}
+              onPickPonto={marcarPontoNoMapa}
               className="h-full min-h-[360px] w-full"
             />
           </div>

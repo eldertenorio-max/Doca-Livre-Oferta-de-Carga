@@ -275,6 +275,11 @@
   color: #0f172a;
 }
 
+.rota-pub__campo-btn.is-on {
+  background: #0f172a;
+  color: #ffb300;
+}
+
 .rota-pub__via {
   display: grid;
   grid-template-columns: 28px 1fr 32px;

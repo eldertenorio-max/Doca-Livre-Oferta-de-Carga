@@ -47,6 +47,10 @@ type Props = {
   resumoAbaixo?: boolean
   /** Mesma preferência da calculadora (QualP / Rotas Brasil). */
   preferencia?: PreferenciaRota
+  /** Clique no mapa para origem (A) ou destino (B). */
+  pickMode?: 'A' | 'B' | null
+  onPickModeChange?: (mode: 'A' | 'B' | null) => void
+  onPickPonto?: (ponto: 'A' | 'B', lat: number, lng: number) => void
 }
 
 function normWaypoint(w: RotaWaypointInput): {
@@ -299,6 +303,9 @@ export function RotaMapPreview({
   calcularId = 0,
   resumoAbaixo = false,
   preferencia = 'eficiente',
+  pickMode = null,
+  onPickModeChange,
+  onPickPonto,
 }: Props) {
   const mapEl = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
@@ -306,6 +313,10 @@ export function RotaMapPreview({
   const reqId = useRef(0)
   const onRotaRef = useRef(onRotaCalculada)
   onRotaRef.current = onRotaCalculada
+  const pickModeRef = useRef(pickMode)
+  pickModeRef.current = pickMode
+  const onPickPontoRef = useRef(onPickPonto)
+  onPickPontoRef.current = onPickPonto
 
   const consumoRef = useRef(consumoKmL)
   const precoRef = useRef(precoDiesel)
@@ -356,6 +367,12 @@ export function RotaMapPreview({
     }).addTo(map)
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
+
+    map.on('click', (e: L.LeafletMouseEvent) => {
+      const modo = pickModeRef.current
+      if (!modo || !onPickPontoRef.current) return
+      onPickPontoRef.current(modo, e.latlng.lat, e.latlng.lng)
+    })
 
     const refresh = () => map.invalidateSize({ animate: false })
     const t1 = window.setTimeout(refresh, 80)
@@ -678,10 +695,44 @@ export function RotaMapPreview({
   return (
     <div>
       <div
-        className={`rota-map-preview relative z-0 isolate overflow-hidden rounded-lg border border-ink/15 bg-[#0b1220] ${showGlobe ? 'rota-map-preview--globe' : ''} ${className}`}
+        className={`rota-map-preview relative z-0 isolate overflow-hidden rounded-lg border border-ink/15 bg-[#0b1220] ${showGlobe ? 'rota-map-preview--globe' : ''} ${pickMode ? 'is-picking' : ''} ${className}`}
       >
         <div ref={mapEl} className="absolute inset-0 z-0" />
-        {showGlobe ? <EarthGlobe /> : null}
+        {showGlobe ? (
+          <EarthGlobe
+            pickMode={pickMode}
+            pontoA={coordsOk(origemCoords) ? origemCoords : null}
+            pontoB={coordsOk(destinoCoords) ? destinoCoords : null}
+            onPick={(lat, lng) => {
+              const modo = pickModeRef.current
+              if (!modo) return
+              onPickPontoRef.current?.(modo, lat, lng)
+            }}
+          />
+        ) : null}
+        {onPickPonto ? (
+          <div className="rota-map-pick" data-pdf-ignore>
+            <button
+              type="button"
+              className={pickMode === 'A' ? 'is-on' : ''}
+              title="Marcar origem (ponto A) no mapa"
+              onClick={() => onPickModeChange?.(pickMode === 'A' ? null : 'A')}
+            >
+              Ponto A
+            </button>
+            <button
+              type="button"
+              className={pickMode === 'B' ? 'is-on' : ''}
+              title="Marcar destino (ponto B) no mapa"
+              onClick={() => onPickModeChange?.(pickMode === 'B' ? null : 'B')}
+            >
+              Ponto B
+            </button>
+            {pickMode ? (
+              <p className="rota-map-pick__hint">Clique no mapa para marcar o ponto {pickMode}</p>
+            ) : null}
+          </div>
+        ) : null}
         {status === 'erro' ? (
           <div
             data-pdf-ignore
@@ -698,7 +749,7 @@ export function RotaMapPreview({
             {mostrarCustos ? 'Calculando trajeto e pedágios…' : 'Calculando trajeto…'}
           </div>
         ) : null}
-        {status === 'idle' && !autoCalcular ? (
+        {status === 'idle' && !autoCalcular && !pickMode ? (
           <div
             data-pdf-ignore
             className="pointer-events-none absolute left-2 right-2 top-2 z-10 rounded-lg bg-black/50 px-3 py-2 text-center text-[11px] font-semibold text-white shadow-md"

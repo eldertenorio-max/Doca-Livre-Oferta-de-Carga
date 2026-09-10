@@ -755,6 +755,20 @@ export async function enderecoPorCoordenadas(
   }
 }
 
+/** Texto do campo origem/destino depois de clicar no mapa. */
+export async function labelPorCoordenadas(lat: number, lng: number): Promise<string> {
+  const rev = await enderecoPorCoordenadas(lat, lng)
+  if (rev.ok) {
+    const display = (rev.display || '').trim()
+    if (display) return display
+    const partes = [rev.dados.endereco, rev.dados.numero, rev.dados.bairro, rev.dados.cidade, rev.dados.uf]
+      .map((p) => (p || '').trim())
+      .filter(Boolean)
+    if (partes.length) return partes.join(', ')
+  }
+  return `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+}
+
 function montarLabelMaps(parts: {
   rua: string
   numero?: string
