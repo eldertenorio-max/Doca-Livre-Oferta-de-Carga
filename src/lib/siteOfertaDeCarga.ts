@@ -10,7 +10,7 @@ export const URL_SITE_MAPA = `https://${HOST_MAPA_FROTA}`
 export const URL_SISTEMA = `https://${HOST_SISTEMA}`
 export const URL_OFERTA_DE_CARGA = URL_SITE_ROTA
 export const URL_ROTA_PUBLICA = `${URL_SITE_ROTA}/`
-export const URL_MAPA_FROTA = `${URL_SITE_MAPA}/#/mapa`
+export const URL_MAPA_FROTA = `${URL_SITE_MAPA}/`
 
 function hostAtual(): string {
   if (typeof window === 'undefined') return ''
@@ -86,8 +86,9 @@ export function hrefRota(): string {
   return URL_ROTA_PUBLICA
 }
 
-/** Mapa da Frota público: sempre mapadafrota.com.br (exceto no próprio site e no localhost). */
+/** Mapa da Frota público: sempre mapadafrota.com.br (sem #/mapa). */
 export function hrefMapaFrota(): string {
-  if (isSiteMapaFrota() || isLocalDev()) return '/mapa'
+  if (isSiteMapaFrota()) return '/'
+  if (isLocalDev()) return '/mapa'
   return URL_MAPA_FROTA
 }

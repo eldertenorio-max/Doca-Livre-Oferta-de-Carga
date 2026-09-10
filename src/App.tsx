@@ -113,7 +113,7 @@ export default function App() {
     return (
       <Routes>
         <Route path="/" element={<MapaFrotaPublicoPage />} />
-        <Route path="/mapa" element={<MapaFrotaPublicoPage />} />
+        <Route path="/mapa" element={<Navigate to="/" replace />} />
         <Route path="*" element={<RedirectToSistema />} />
       </Routes>
     )

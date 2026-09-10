@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { Link, Navigate } from 'react-router-dom'
-import { LinkRota } from '../components/ui/HostLink'
+import { LinkMapaFrota, LinkRota } from '../components/ui/HostLink'
 import { useData } from '../context/DataContext'
 import { LOGO_DOCA_LIVRE_SRC } from '../lib/brandAssets'
 import { ProductMark } from '../components/ProductMark'
@@ -582,9 +582,9 @@ export function LoginPage() {
           )}
           {mode === 'login' && (
             <>
-              <Link to="/mapa" className="portal-login__link">
+              <LinkMapaFrota className="portal-login__link">
                 Ver mapa da frota (sem login)
-              </Link>
+              </LinkMapaFrota>
               <LinkRota className="portal-login__link">Calcular rota e pedágio</LinkRota>
               <Link to="/cadastro-transportador" className="portal-login__link">
                 Quero ser transportador

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { LinkRota, LinkSistema } from '../../components/ui/HostLink'
+import { isSiteMapaFrota } from '../../lib/siteOfertaDeCarga'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useData } from '../../context/DataContext'
@@ -796,7 +797,7 @@ export function MapaFrotaPublicoPage() {
   return (
     <div className="mapa-pub">
       <header className="mapa-pub__top">
-        <Link to="/mapa" className="mapa-pub__brand">
+        <Link to={isSiteMapaFrota() ? '/' : '/mapa'} className="mapa-pub__brand">
           <img src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
           <span>
             <strong>Doca Livre</strong>

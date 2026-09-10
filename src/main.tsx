@@ -4,14 +4,14 @@ import { BrowserRouter, HashRouter } from 'react-router-dom'
 import { registerSW } from 'virtual:pwa-register'
 import { DataProvider } from './context/DataContext'
 import App from './App'
-import { isSiteOfertaDeCarga } from './lib/siteOfertaDeCarga'
+import { isSiteMapaFrota, isSiteOfertaDeCarga } from './lib/siteOfertaDeCarga'
 import './index.css'
 
 /**
  * Força novo bundle. Depois do primeiro load limpo,
  * updates de deploy só no F5 (ver onNeedRefresh).
  */
-const BUILD_ID = 'rota-publico-cache-v150'
+const BUILD_ID = 'rota-publico-cache-v151'
 
 async function forceFreshOnce(): Promise<boolean> {
   const key = `doca-build:${BUILD_ID}`
@@ -51,7 +51,7 @@ async function forceFreshOnce(): Promise<boolean> {
     /* continue */
   }
 
-  if (isSiteOfertaDeCarga()) {
+  if (isSiteOfertaDeCarga() || isSiteMapaFrota()) {
     window.location.replace(`${window.location.origin}/`)
   } else {
     window.location.replace(window.location.pathname + window.location.hash)
@@ -74,7 +74,7 @@ function boot() {
   })
   void updateSW
 
-  const Router = isSiteOfertaDeCarga() ? BrowserRouter : HashRouter
+  const Router = isSiteOfertaDeCarga() || isSiteMapaFrota() ? BrowserRouter : HashRouter
 
   createRoot(document.getElementById('root')!).render(
     <StrictMode>

@@ -1,6 +1,12 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { hrefMapaFrota, hrefRota, hrefSistema, isSiteOfertaDeCarga } from '../../lib/siteOfertaDeCarga'
+import {
+  hrefMapaFrota,
+  hrefRota,
+  hrefSistema,
+  isSiteMapaFrota,
+  isSiteOfertaDeCarga,
+} from '../../lib/siteOfertaDeCarga'
 
 function AbsOrHash({
   href,
@@ -55,7 +61,7 @@ export function LinkRota({ className, children }: { className?: string; children
 export function LinkMapaFrota({ className, children }: { className?: string; children: ReactNode }) {
   const href = hrefMapaFrota()
   return (
-    <AbsOrHash href={href} to="/mapa" className={className}>
+    <AbsOrHash href={href} to={isSiteMapaFrota() ? '/' : '/mapa'} className={className}>
       {children}
     </AbsOrHash>
   )
