@@ -41,6 +41,7 @@ import { CalcularRotaPublicoPage } from './pages/publico/CalcularRotaPublico'
 import {
   devePularSplash,
   isSiteMapaFrota,
+  isSiteMapaLogistica,
   isSiteOfertaDeCarga,
   urlSistemaComHash,
 } from './lib/siteOfertaDeCarga'
@@ -58,9 +59,9 @@ function MinervaToEmbarcadorRedirect() {
   return <Navigate to={next} replace />
 }
 
-function RedirectToSistema() {
+function RedirectToSistema({ to }: { to?: string }) {
   const loc = useLocation()
-  const url = urlSistemaComHash(loc.pathname + loc.search)
+  const url = urlSistemaComHash((to ?? loc.pathname) + loc.search)
   useEffect(() => {
     window.location.replace(url)
   }, [url])
@@ -142,6 +143,22 @@ export default function App() {
           <Route path="/mapa" element={<Navigate to="/" replace />} />
           <Route path="*" element={<RedirectToSistema />} />
         </Routes>
+      </PublicoGuard>
+    )
+  }
+
+  if (isSiteMapaLogistica()) {
+    return (
+      <PublicoGuard>
+        <LogisticaAuthProvider>
+          <Routes>
+            <Route path="/" element={<LogisticaMapaPage publico />} />
+            <Route path="/mapa" element={<Navigate to="/" replace />} />
+            <Route path="/cadastro" element={<RedirectToSistema to="/cadastro-logistica" />} />
+            <Route path="/cadastro-logistica" element={<RedirectToSistema to="/cadastro-logistica" />} />
+            <Route path="*" element={<RedirectToSistema />} />
+          </Routes>
+        </LogisticaAuthProvider>
       </PublicoGuard>
     )
   }

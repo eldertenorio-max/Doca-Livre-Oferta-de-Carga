@@ -85,6 +85,12 @@
           if (location.search || location.hash) {
             history.replaceState(null, '', '/')
           }
+        } else if (h === 'mapadalogistica.com.br') {
+          document.title = 'Mapa da Logística — Doca Livre'
+          if (canon) canon.setAttribute('href', 'https://mapadalogistica.com.br/')
+          if (location.search || location.hash) {
+            history.replaceState(null, '', '/')
+          }
         } else if (h === 'sistema.ofertadecarga.com.br' || h === 'ofertadecargas.docalivre.com.br') {
           document.title = 'Sistema — Oferta de Carga'
           if (canon) canon.setAttribute('href', 'https://ofertadecargas.docalivre.com.br/')
@@ -96,7 +102,7 @@
     <script>
       // Força o navegador a procurar SW novo e limpar cache morto (uma vez por build).
       ;(function () {
-        var BUILD = 'rota-publico-cache-v155'
+        var BUILD = 'rota-publico-cache-v156'
         try {
           var stored = localStorage.getItem('doca-html-bust')
           if (stored === BUILD) return
@@ -116,7 +122,7 @@
             sessionStorage.setItem('doca-html-reloaded', BUILD)
           } catch (e) {}
           var host = (location.hostname || '').toLowerCase().replace(/^www\./, '')
-          if (host === 'ofertadecarga.com.br' || host === 'mapadafrota.com.br') {
+          if (host === 'ofertadecarga.com.br' || host === 'mapadafrota.com.br' || host === 'mapadalogistica.com.br') {
             location.replace(location.origin + '/')
             return
           }

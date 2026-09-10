@@ -32,8 +32,7 @@ import type { CategoriaId, Empresa, NivelIntegracaoId, OrigemCadastro } from '..
 import '../styles/mapa.css'
 import '../styles/mapa-publico.css'
 
-const MAPA_FROTA_URL = 'https://mapadafrota.com.br/#/mapa'
-const CALCULAR_ROTA_URL = 'https://ofertadecarga.com.br/#/rota'
+import { hrefMapaFrota, hrefRota, hrefSistema } from '../../lib/siteOfertaDeCarga'
 
 function escapeHtml(s: string) {
   return s
@@ -472,12 +471,12 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
             </span>
           </Link>
           <div className="mapa-log__head-acoes">
-            <Link className="mapa-log__btn mapa-log__btn--ghost" to="/login">
+            <a className="mapa-log__btn mapa-log__btn--ghost" href={hrefSistema('/login')}>
               Entrar
-            </Link>
-            <Link className="mapa-log__btn mapa-log__btn--solid" to="/cadastro">
+            </a>
+            <a className="mapa-log__btn mapa-log__btn--solid" href={hrefSistema('/cadastro-logistica')}>
               Cadastrar
-            </Link>
+            </a>
           </div>
         </header>
       ) : null}
@@ -791,7 +790,7 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
             </span>
             <a
               className="mapa-log__atalho"
-              href={MAPA_FROTA_URL}
+              href={hrefMapaFrota()}
               target="_blank"
               rel="noreferrer"
             >
@@ -800,7 +799,7 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
             </a>
             <a
               className="mapa-log__atalho"
-              href={CALCULAR_ROTA_URL}
+              href={hrefRota()}
               target="_blank"
               rel="noreferrer"
             >
@@ -862,16 +861,16 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
                       <li key={item}>{item}</li>
                     ))}
                   </ul>
-                  <Link className="mapa-pub__btn mapa-pub__btn--solid" to={`/cadastro?plano=${plano.id}`}>
+                  <a className="mapa-pub__btn mapa-pub__btn--solid" href={hrefSistema(`/cadastro-logistica?plano=${plano.id}`)}>
                     Assinar {plano.nome}
-                  </Link>
+                  </a>
                 </article>
               ))}
             </div>
             <div className="mapa-pub-modal__acoes">
-              <Link className="mapa-pub__btn mapa-pub__btn--ghost" to="/login">
+              <a className="mapa-pub__btn mapa-pub__btn--ghost" href={hrefSistema('/login')}>
                 Já tenho conta
-              </Link>
+              </a>
               <button type="button" className="mapa-pub-modal__fechar" onClick={() => setShowPaywall(false)}>
                 Continuar só olhando o mapa
               </button>

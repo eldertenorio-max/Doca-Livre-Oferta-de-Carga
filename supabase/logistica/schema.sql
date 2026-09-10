@@ -1,7 +1,5 @@
--- Doca Livre — Mapa da Logística
--- Tabelas atuais no projeto zbjhaupxhriedfsgtlbj.
--- Quando unificar: rode este arquivo no SQL Editor do Oferta de Carga
--- e copie os dados; depois aponte VITE_LOGISTICA_* para o mesmo projeto do Oferta.
+-- Tabelas do Mapa da Logística no projeto do Oferta (imnlbbfgaztfhwndfxwb).
+-- Prefira supabase/logistica/completo.sql (schema + feed + bucket).
 
 create extension if not exists pgcrypto;
 

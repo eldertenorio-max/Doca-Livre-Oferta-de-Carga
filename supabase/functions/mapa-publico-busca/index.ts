@@ -20,6 +20,8 @@ const ORIGENS_OK = new Set([
   'https://www.ofertadecarga.com.br',
   'https://mapadafrota.com.br',
   'https://www.mapadafrota.com.br',
+  'https://mapadalogistica.com.br',
+  'https://www.mapadalogistica.com.br',
   'https://ofertadecargas.docalivre.com.br',
   'http://localhost:5173',
   'http://127.0.0.1:5173',

@@ -39,6 +39,19 @@ export function isSiteMapaFrota(hostname = hostAtual()): boolean {
   return hostCanonico(hostname) === HOST_MAPA_FROTA
 }
 
+/** Home do mapa da logística: mapadalogistica.com.br (e www). */
+export function isSiteMapaLogistica(hostname = hostAtual()): boolean {
+  return hostCanonico(hostname) === HOST_MAPA_LOGISTICA
+}
+
+export function isSitePublicoLimpo(hostname = hostAtual()): boolean {
+  return (
+    isSiteOfertaDeCarga(hostname) ||
+    isSiteMapaFrota(hostname) ||
+    isSiteMapaLogistica(hostname)
+  )
+}
+
 /** Sistema: ofertadecargas.docalivre.com.br. */
 export function isSiteSistema(hostname = hostAtual()): boolean {
   const h = hostCanonico(hostname)
@@ -63,7 +76,7 @@ export function isPublicSitePath(): boolean {
 }
 
 export function devePularSplash(): boolean {
-  return isPublicSitePath() || isSiteOfertaDeCarga() || isSiteMapaFrota()
+  return isPublicSitePath() || isSitePublicoLimpo()
 }
 
 function normPath(path: string): string {
@@ -94,4 +107,10 @@ export function hrefMapaFrota(): string {
   if (isSiteMapaFrota()) return '/'
   if (isLocalDev()) return '/mapa'
   return URL_MAPA_FROTA
+}
+
+/** Mapa da Logística público: sempre mapadalogistica.com.br. */
+export function hrefMapaLogistica(): string {
+  if (isSiteMapaLogistica()) return '/'
+  return URL_MAPA_LOGISTICA
 }

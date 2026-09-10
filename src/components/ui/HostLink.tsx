@@ -2,9 +2,11 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   hrefMapaFrota,
+  hrefMapaLogistica,
   hrefRota,
   hrefSistema,
   isSiteMapaFrota,
+  isSiteMapaLogistica,
   isSiteOfertaDeCarga,
 } from '../../lib/siteOfertaDeCarga'
 
@@ -62,6 +64,15 @@ export function LinkMapaFrota({ className, children }: { className?: string; chi
   const href = hrefMapaFrota()
   return (
     <AbsOrHash href={href} to={isSiteMapaFrota() ? '/' : '/mapa'} className={className}>
+      {children}
+    </AbsOrHash>
+  )
+}
+
+export function LinkMapaLogistica({ className, children }: { className?: string; children: ReactNode }) {
+  const href = hrefMapaLogistica()
+  return (
+    <AbsOrHash href={href} to={isSiteMapaLogistica() ? '/' : href} className={className}>
       {children}
     </AbsOrHash>
   )
