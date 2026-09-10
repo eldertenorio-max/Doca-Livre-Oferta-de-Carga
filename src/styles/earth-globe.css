@@ -1,0 +1,65 @@
+.earth-globe {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 42%, #1e3a5f 0%, #0b1220 58%, #060910 100%);
+}
+
+.earth-globe__space {
+  position: relative;
+  width: min(58vmin, 380px);
+  height: min(58vmin, 380px);
+}
+
+.earth-globe__sphere {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-image: url('/earth-globe.jpg');
+  background-size: 200% 100%;
+  background-position: 28% 50%;
+  animation: earth-globe-spin 56s linear infinite;
+  box-shadow:
+    inset -22px -8px 36px rgba(0, 0, 0, 0.55),
+    inset 14px 10px 22px rgba(255, 255, 255, 0.18),
+    0 0 0 2px rgba(147, 197, 253, 0.22),
+    0 0 48px rgba(56, 189, 248, 0.28);
+}
+
+.earth-globe__shine {
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 32% 28%,
+    rgba(255, 255, 255, 0.38) 0%,
+    rgba(255, 255, 255, 0.08) 28%,
+    transparent 52%
+  );
+  pointer-events: none;
+}
+
+@keyframes earth-globe-spin {
+  from {
+    background-position: 28% 50%;
+  }
+  to {
+    background-position: 228% 50%;
+  }
+}
+
+.rota-map-preview--globe .leaflet-container,
+.rota-map-preview--globe .leaflet-control-container {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .earth-globe__sphere {
+    animation: none;
+  }
+}

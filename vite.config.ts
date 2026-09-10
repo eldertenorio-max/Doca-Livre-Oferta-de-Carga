@@ -24,6 +24,7 @@ export default defineConfig({
         'og-image.png',
         'og-square.png',
         'logo-doca-livre.png',
+        'earth-globe.jpg',
       ],
       manifest: {
         name: 'Doca Livre — Oferta de Carga',
@@ -68,7 +69,7 @@ export default defineConfig({
       workbox: {
         // HashRouter: a navegação é sempre /index.html. Não precachear HTML —
         // senão o SW entrega o site velho e o usuário acha que não atualizou.
-        globPatterns: ['**/*.{js,css,ico,png,svg,woff2,webp}'],
+        globPatterns: ['**/*.{js,css,ico,png,svg,jpg,jpeg,woff2,webp}'],
         globIgnores: ['**/index.html'],
         navigateFallbackAllowlist: [],
         importScripts: ['push-sw.js'],

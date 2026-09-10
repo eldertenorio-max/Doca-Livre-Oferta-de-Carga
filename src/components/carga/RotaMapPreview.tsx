@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css'
 import { formatCurrency } from '../../lib/businessRules'
 import { eixosDoVeiculo, estimarCustosRota, type PreferenciaRota } from '../../lib/anttFrete'
 import { geocodificarConsulta } from '../../lib/geocodeEndereco'
+import { EarthGlobe } from '../ui/EarthGlobe'
 import {
   calcularPedagioNaRota,
   rotaOsrmComGeometria,
@@ -313,6 +314,7 @@ export function RotaMapPreview({
 
   const lastManualId = useRef(0)
   const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'erro' | 'circular'>('idle')
+  const showGlobe = status === 'idle' || status === 'loading'
   const [msg, setMsg] = useState(
     autoCalcular
       ? 'Informe origem e destino para ver o trajeto'
@@ -338,8 +340,15 @@ export function RotaMapPreview({
     const map = L.map(el, {
       center: [-14.2, -51.9],
       zoom: 4,
+      minZoom: 3,
       zoomControl: true,
       attributionControl: false,
+      worldCopyJump: false,
+      maxBounds: [
+        [-85, -180],
+        [85, 180],
+      ],
+      maxBoundsViscosity: 1,
     })
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
@@ -669,27 +678,30 @@ export function RotaMapPreview({
   return (
     <div>
       <div
-        className={`rota-map-preview relative z-0 isolate overflow-hidden rounded-lg border border-ink/15 bg-[#f4f6f8] ${className}`}
+        className={`rota-map-preview relative z-0 isolate overflow-hidden rounded-lg border border-ink/15 bg-[#0b1220] ${showGlobe ? 'rota-map-preview--globe' : ''} ${className}`}
       >
         <div ref={mapEl} className="absolute inset-0 z-0" />
-        {status === 'loading' || status === 'erro' || (status === 'idle' && autoCalcular) ? (
+        {showGlobe ? <EarthGlobe /> : null}
+        {status === 'erro' ? (
           <div
             data-pdf-ignore
             className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-white/75 px-3 text-center"
           >
-            <p
-              className={`text-xs font-semibold ${
-                status === 'erro' ? 'text-red-700' : 'text-ink-muted'
-              }`}
-            >
-              {status === 'loading' ? (mostrarCustos ? 'Calculando trajeto e pedágios…' : 'Calculando trajeto…') : msg}
-            </p>
+            <p className="text-xs font-semibold text-red-700">{msg}</p>
+          </div>
+        ) : null}
+        {status === 'loading' ? (
+          <div
+            data-pdf-ignore
+            className="pointer-events-none absolute bottom-3 left-2 right-2 z-10 rounded-lg bg-black/45 px-3 py-2 text-center text-[11px] font-semibold text-white shadow-md"
+          >
+            {mostrarCustos ? 'Calculando trajeto e pedágios…' : 'Calculando trajeto…'}
           </div>
         ) : null}
         {status === 'idle' && !autoCalcular ? (
           <div
             data-pdf-ignore
-            className="pointer-events-none absolute left-2 right-2 top-2 z-10 rounded-lg bg-white/95 px-3 py-2 text-center text-[11px] font-semibold text-ink-muted shadow-md ring-1 ring-ink/10"
+            className="pointer-events-none absolute left-2 right-2 top-2 z-10 rounded-lg bg-black/50 px-3 py-2 text-center text-[11px] font-semibold text-white shadow-md"
           >
             {msg}
           </div>
@@ -702,7 +714,7 @@ export function RotaMapPreview({
             {msg}
           </div>
         ) : null}
-        {!resumoAbaixo && (
+        {!resumoAbaixo && !showGlobe && (
           <div
             data-pdf-ignore
             className="pointer-events-none absolute bottom-2 right-2 z-20 min-w-[132px] max-w-[min(100%,220px)] rounded-lg bg-white/95 px-2.5 py-2 text-[11px] text-ink shadow-md ring-1 ring-ink/10"
