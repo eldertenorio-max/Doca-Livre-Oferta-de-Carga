@@ -1,12 +1,14 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import cesium from 'vite-plugin-cesium'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    cesium(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: false,
@@ -70,14 +72,13 @@ export default defineConfig({
         // HashRouter: a navegação é sempre /index.html. Não precachear HTML —
         // senão o SW entrega o site velho e o usuário acha que não atualizou.
         globPatterns: ['**/*.{js,css,ico,png,svg,jpg,jpeg,woff2,webp}'],
-        globIgnores: ['**/index.html'],
+        globIgnores: ['**/index.html', '**/cesium/**'],
         navigateFallbackAllowlist: [],
         importScripts: ['push-sw.js'],
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
-        // Bundle JS ~2.1 MB; default Workbox é 2 MiB e derruba o build no Render
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.mode === 'navigate',
@@ -111,6 +112,14 @@ export default defineConfig({
             options: {
               cacheName: 'ibge-bairros-shp',
               expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/services\.arcgisonline\.com\/.*\/tile\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'esri-world-imagery',
+              expiration: { maxEntries: 400, maxAgeSeconds: 60 * 60 * 24 * 14 },
             },
           },
         ],

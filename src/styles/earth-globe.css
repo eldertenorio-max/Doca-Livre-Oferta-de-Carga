@@ -4,18 +4,28 @@
   z-index: 2;
   overflow: hidden;
   background: #02040a;
-  touch-action: none;
 }
 
-.earth-globe__canvas {
-  display: block;
+.earth-globe__cesium {
+  position: absolute;
+  inset: 0;
+}
+
+.earth-globe .cesium-viewer,
+.earth-globe .cesium-viewer-cesiumWidgetContainer,
+.earth-globe .cesium-widget,
+.earth-globe .cesium-widget canvas {
   width: 100%;
   height: 100%;
-  cursor: grab;
 }
 
-.earth-globe__canvas:active {
-  cursor: grabbing;
+.earth-globe .cesium-viewer-bottom {
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.earth-globe .cesium-credit-logoContainer {
+  display: none;
 }
 
 .earth-globe__nav {
@@ -26,11 +36,6 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-.rota-pub .earth-globe__nav {
-  right: 16px;
-  bottom: 58px;
 }
 
 .earth-globe__nav button {
