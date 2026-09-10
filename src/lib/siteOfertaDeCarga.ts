@@ -1,13 +1,16 @@
-/** Calculadora pública (a tela da foto). */
+/** Calculadora pública. */
 export const HOST_OFERTA_DE_CARGA = 'ofertadecarga.com.br'
+/** Mapa da Frota público. */
+export const HOST_MAPA_FROTA = 'mapadafrota.com.br'
 /** Sistema (login, kanban, cadastro) — já no ar no Render. */
 export const HOST_SISTEMA = 'ofertadecargas.docalivre.com.br'
 
 export const URL_SITE_ROTA = `https://${HOST_OFERTA_DE_CARGA}`
+export const URL_SITE_MAPA = `https://${HOST_MAPA_FROTA}`
 export const URL_SISTEMA = `https://${HOST_SISTEMA}`
 export const URL_OFERTA_DE_CARGA = URL_SITE_ROTA
 export const URL_ROTA_PUBLICA = `${URL_SITE_ROTA}/#/rota`
-export const URL_MAPA_FROTA = `${URL_SISTEMA}/#/mapa`
+export const URL_MAPA_FROTA = `${URL_SITE_MAPA}/#/mapa`
 
 function hostAtual(): string {
   if (typeof window === 'undefined') return ''
@@ -28,7 +31,12 @@ export function isSiteOfertaDeCarga(hostname = hostAtual()): boolean {
   return hostCanonico(hostname) === HOST_OFERTA_DE_CARGA
 }
 
-/** Sistema: ofertadecargas.docalivre.com.br (e o subdomínio novo, se existir). */
+/** Home do mapa da frota: mapadafrota.com.br (e www). */
+export function isSiteMapaFrota(hostname = hostAtual()): boolean {
+  return hostCanonico(hostname) === HOST_MAPA_FROTA
+}
+
+/** Sistema: ofertadecargas.docalivre.com.br. */
 export function isSiteSistema(hostname = hostAtual()): boolean {
   const h = hostCanonico(hostname)
   return (
@@ -52,7 +60,7 @@ export function isPublicSitePath(): boolean {
 }
 
 export function devePularSplash(): boolean {
-  return isPublicSitePath() || isSiteOfertaDeCarga()
+  return isPublicSitePath() || isSiteOfertaDeCarga() || isSiteMapaFrota()
 }
 
 function normPath(path: string): string {
@@ -60,7 +68,7 @@ function normPath(path: string): string {
   return trimmed.startsWith('/') ? trimmed : `/${trimmed}`
 }
 
-/** Login / cadastro / app: no site da calculadora, aponta para o sistema no Doca Livre. */
+/** Login / cadastro / app: nos sites públicos, aponta para o sistema no Doca Livre. */
 export function hrefSistema(path: string): string {
   const p = normPath(path)
   if (isLocalDev() || isSiteSistema()) return p
@@ -77,7 +85,8 @@ export function hrefRota(): string {
   return URL_ROTA_PUBLICA
 }
 
+/** Mapa da Frota público: sempre mapadafrota.com.br (exceto no próprio site e no localhost). */
 export function hrefMapaFrota(): string {
-  if (isSiteOfertaDeCarga()) return URL_MAPA_FROTA
-  return '/mapa'
+  if (isSiteMapaFrota() || isLocalDev()) return '/mapa'
+  return URL_MAPA_FROTA
 }

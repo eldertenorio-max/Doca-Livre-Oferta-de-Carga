@@ -28,7 +28,12 @@ import { MapaFrotaPage } from './pages/minerva/MapaFrota'
 import { MapaLogisticaPage } from './pages/minerva/MapaLogistica'
 import { MapaFrotaPublicoPage } from './pages/publico/MapaFrotaPublico'
 import { CalcularRotaPublicoPage } from './pages/publico/CalcularRotaPublico'
-import { devePularSplash, isSiteOfertaDeCarga, urlSistemaComHash } from './lib/siteOfertaDeCarga'
+import {
+  devePularSplash,
+  isSiteMapaFrota,
+  isSiteOfertaDeCarga,
+  urlSistemaComHash,
+} from './lib/siteOfertaDeCarga'
 import { PerfilPage } from './pages/Perfil'
 import { PwaInstallBanner } from './components/PwaInstallBanner'
 import { PushEnableBanner } from './components/PushEnableBanner'
@@ -99,6 +104,16 @@ export default function App() {
         <Route path="/" element={<CalcularRotaPublicoPage />} />
         <Route path="/rota" element={<CalcularRotaPublicoPage />} />
         <Route path="/calcular-rota" element={<CalcularRotaPublicoPage />} />
+        <Route path="*" element={<RedirectToSistema />} />
+      </Routes>
+    )
+  }
+
+  if (isSiteMapaFrota()) {
+    return (
+      <Routes>
+        <Route path="/" element={<MapaFrotaPublicoPage />} />
+        <Route path="/mapa" element={<MapaFrotaPublicoPage />} />
         <Route path="*" element={<RedirectToSistema />} />
       </Routes>
     )
