@@ -156,6 +156,12 @@
   height: 100%;
 }
 
+.rota-map-preview--globe .leaflet-container,
+.rota-map-preview--globe .leaflet-control-container {
+  opacity: 0;
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .earth-globe__hint {
     display: none;
