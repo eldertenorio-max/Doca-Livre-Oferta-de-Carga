@@ -789,7 +789,10 @@ export function AppLayout() {
           </nav>
         </aside>
 
-        <main className="main-panel">
+        <main
+          className="main-panel"
+          style={{ ['--brand-logo-url' as string]: `url("${LOGO_DOCA_LIVRE_SRC}")` }}
+        >
           <Outlet />
         </main>
       </div>

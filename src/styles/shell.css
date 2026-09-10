@@ -159,13 +159,12 @@
 
 .app-topbar-logo {
   display: block;
-  height: 34px;
+  height: 40px;
   width: auto;
-  max-width: min(180px, 36vw);
+  max-width: min(240px, 48vw);
   object-fit: contain;
   object-position: left center;
-  flex-shrink: 1;
-  min-width: 72px;
+  flex-shrink: 0;
 }
 
 /* Topbar: “Oferta de carga” em uma linha, sem quebrar nem cortar */
@@ -177,10 +176,10 @@
   text-overflow: clip;
   line-height: 1.1;
   font-family: 'Segoe UI', system-ui, sans-serif;
-  font-size: 0.92rem;
-  font-weight: 800;
+  font-size: 0.95rem;
+  font-weight: 700;
   letter-spacing: -0.02em;
-  color: #000000;
+  color: #475569;
   flex-shrink: 0;
 }
 
@@ -811,10 +810,24 @@ a.sidebar-section:first-of-type {
   inset: 0;
   pointer-events: none;
   background:
-    url('/logo-doca-livre.png') center 42% / min(420px, 70%) no-repeat,
-    radial-gradient(circle at center, rgb(249 219 0 / 0.04) 0%, transparent 55%);
-  opacity: 0.07;
+    var(--brand-logo-url, url('/logo-doca-livre.png')) center 38% / min(380px, 62%) no-repeat;
+  opacity: 0.09;
   z-index: 0;
+}
+
+.main-panel::after {
+  content: 'Bem Vindo';
+  position: absolute;
+  left: 50%;
+  top: calc(38% + min(130px, 18vh));
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 0;
+  font-size: clamp(1.35rem, 2.4vw, 1.85rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #94a3b8;
+  opacity: 0.45;
 }
 
 .main-panel > * {
@@ -855,8 +868,8 @@ a.sidebar-section:first-of-type {
   }
 
   .app-topbar-logo {
-    height: 26px;
-    max-width: 72px;
+    height: 36px;
+    max-width: min(200px, 52vw);
   }
 
   .app-topbar-wms,
@@ -1009,8 +1022,8 @@ a.sidebar-section:first-of-type {
 
 @media (max-width: 480px) {
   .app-topbar-logo {
-    max-width: 64px;
-    height: 24px;
+    height: 32px;
+    max-width: min(168px, 50vw);
   }
 
   .app-topbar-brand .product-mark {
