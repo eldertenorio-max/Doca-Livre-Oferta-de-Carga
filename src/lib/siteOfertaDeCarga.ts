@@ -1,7 +1,7 @@
 /** Calculadora pública (a tela da foto). */
 export const HOST_OFERTA_DE_CARGA = 'ofertadecarga.com.br'
-/** Sistema (login, kanban, cadastro). */
-export const HOST_SISTEMA = 'sistema.ofertadecarga.com.br'
+/** Sistema (login, kanban, cadastro) — já no ar no Render. */
+export const HOST_SISTEMA = 'ofertadecargas.docalivre.com.br'
 
 export const URL_SITE_ROTA = `https://${HOST_OFERTA_DE_CARGA}`
 export const URL_SISTEMA = `https://${HOST_SISTEMA}`
@@ -28,12 +28,12 @@ export function isSiteOfertaDeCarga(hostname = hostAtual()): boolean {
   return hostCanonico(hostname) === HOST_OFERTA_DE_CARGA
 }
 
-/** Sistema: sistema.ofertadecarga.com.br (e hosts antigos enquanto o DNS troca). */
+/** Sistema: ofertadecargas.docalivre.com.br (e o subdomínio novo, se existir). */
 export function isSiteSistema(hostname = hostAtual()): boolean {
   const h = hostCanonico(hostname)
   return (
     h === HOST_SISTEMA ||
-    h === 'ofertadecargas.docalivre.com.br' ||
+    h === 'sistema.ofertadecarga.com.br' ||
     h.endsWith('.onrender.com')
   )
 }
@@ -60,7 +60,7 @@ function normPath(path: string): string {
   return trimmed.startsWith('/') ? trimmed : `/${trimmed}`
 }
 
-/** Login / cadastro / app: no site da calculadora, aponta para o subdomínio do sistema. */
+/** Login / cadastro / app: no site da calculadora, aponta para o sistema no Doca Livre. */
 export function hrefSistema(path: string): string {
   const p = normPath(path)
   if (isLocalDev() || isSiteSistema()) return p

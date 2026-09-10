@@ -49,7 +49,7 @@ function RedirectToSistema() {
   }, [url])
   return (
     <p style={{ padding: 24, fontWeight: 700 }}>
-      Abrindo o sistema em sistema.ofertadecarga.com.br…
+      Abrindo o sistema em ofertadecargas.docalivre.com.br…
     </p>
   )
 }

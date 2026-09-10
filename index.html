@@ -59,9 +59,9 @@
         if (h === 'ofertadecarga.com.br') {
           document.title = 'Calcular rota — Oferta de Carga'
           if (canon) canon.setAttribute('href', 'https://ofertadecarga.com.br/')
-        } else if (h === 'sistema.ofertadecarga.com.br') {
+        } else if (h === 'sistema.ofertadecarga.com.br' || h === 'ofertadecargas.docalivre.com.br') {
           document.title = 'Sistema — Oferta de Carga'
-          if (canon) canon.setAttribute('href', 'https://sistema.ofertadecarga.com.br/')
+          if (canon) canon.setAttribute('href', 'https://ofertadecargas.docalivre.com.br/')
         }
       })()
     </script>
@@ -70,7 +70,7 @@
     <script>
       // Força o navegador a procurar SW novo e limpar cache morto (uma vez por build).
       ;(function () {
-        var BUILD = 'rota-publico-cache-v147'
+        var BUILD = 'rota-publico-cache-v148'
         try {
           var stored = localStorage.getItem('doca-html-bust')
           if (stored === BUILD) return
