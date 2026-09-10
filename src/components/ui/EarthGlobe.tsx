@@ -1,174 +1,260 @@
 import { useEffect, useRef } from 'react'
 import '../../styles/earth-globe.css'
 
-const LON0 = 28
-const LAT0 = 50
-const SCALE0 = 1
-const SCALE_MIN = 0.72
-const SCALE_MAX = 2.6
-const LAT_MIN = 18
-const LAT_MAX = 82
-
 export function EarthGlobe() {
   const rootRef = useRef<HTMLDivElement>(null)
-  const spaceRef = useRef<HTMLDivElement>(null)
-  const sphereRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const root = rootRef.current
-    const space = spaceRef.current
-    const sphere = sphereRef.current
-    if (!root || !space || !sphere) return
-
-    const st = {
-      lon: LON0,
-      lat: LAT0,
-      scale: SCALE0,
-      dragging: false,
-      lastX: 0,
-      lastY: 0,
-      pointerId: -1,
-      spinning: true,
-      pinch: 0,
-    }
+    const el = rootRef.current
+    if (!el) return
+    let disposed = false
+    let raf = 0
+    let renderer: import('three').WebGLRenderer | undefined
+    let controls: { dispose: () => void; update: () => void; autoRotate: boolean } | undefined
+    let resizeObs: ResizeObserver | undefined
 
     const reduced =
       typeof window.matchMedia === 'function' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (reduced) st.spinning = false
 
-    const wrapLon = () => {
-      st.lon = ((st.lon % 200) + 200) % 200
-    }
+    void (async () => {
+      const THREE = await import('three')
+      const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js')
+      if (disposed || !el) return
 
-    const paint = () => {
-      wrapLon()
-      sphere.style.backgroundPosition = `${st.lon}% ${st.lat}%`
-      space.style.transform = `scale(${st.scale})`
-    }
+      const scene = new THREE.Scene()
+      scene.background = new THREE.Color(0x02040a)
 
-    paint()
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' })
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+      renderer.outputColorSpace = THREE.SRGBColorSpace
+      renderer.domElement.className = 'earth-globe__canvas'
+      if (disposed) {
+        renderer.dispose()
+        return
+      }
+      el.appendChild(renderer.domElement)
 
-    let raf = 0
-    const tick = () => {
-      if (st.spinning && !st.dragging && st.pinch < 2) {
-        st.lon += 0.035
-        paint()
+      const camera = new THREE.PerspectiveCamera(42, 1, 0.05, 200)
+      camera.position.set(1.85, 0.72, 2.55)
+
+      const orbit = new OrbitControls(camera, renderer.domElement)
+      orbit.enableDamping = true
+      orbit.dampingFactor = 0.07
+      orbit.minDistance = 1.12
+      orbit.maxDistance = 7.5
+      orbit.enablePan = true
+      orbit.panSpeed = 0.55
+      orbit.rotateSpeed = 0.55
+      orbit.zoomSpeed = 1.15
+      orbit.autoRotate = !reduced
+      orbit.autoRotateSpeed = 0.28
+      orbit.minPolarAngle = 0.08
+      orbit.maxPolarAngle = Math.PI - 0.08
+      orbit.mouseButtons = {
+        LEFT: THREE.MOUSE.ROTATE,
+        MIDDLE: THREE.MOUSE.DOLLY,
+        RIGHT: THREE.MOUSE.PAN,
+      }
+      orbit.touches = {
+        ONE: THREE.TOUCH.ROTATE,
+        TWO: THREE.TOUCH.DOLLY_PAN,
+      }
+      orbit.addEventListener('start', () => {
+        orbit.autoRotate = false
+      })
+      controls = orbit
+
+      const texLoader = new THREE.TextureLoader()
+      const map = texLoader.load('/earth-globe.jpg')
+      map.colorSpace = THREE.SRGBColorSpace
+      map.anisotropy = renderer.capabilities.getMaxAnisotropy()
+
+      const earth = new THREE.Mesh(
+        new THREE.SphereGeometry(1, 96, 96),
+        new THREE.MeshPhongMaterial({
+          map,
+          specular: new THREE.Color(0x1a2430),
+          shininess: 12,
+          emissive: new THREE.Color(0x050810),
+          emissiveIntensity: 0.35,
+        }),
+      )
+      scene.add(earth)
+
+      const atmosphere = new THREE.Mesh(
+        new THREE.SphereGeometry(1.055, 64, 64),
+        new THREE.ShaderMaterial({
+          vertexShader: `
+            varying vec3 vNormal;
+            void main() {
+              vNormal = normalize(normalMatrix * normal);
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            varying vec3 vNormal;
+            void main() {
+              float intensity = pow(0.62 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 3.2);
+              gl_FragColor = vec4(0.35, 0.62, 1.0, 1.0) * intensity;
+            }
+          `,
+          blending: THREE.AdditiveBlending,
+          side: THREE.BackSide,
+          transparent: true,
+          depthWrite: false,
+        }),
+      )
+      scene.add(atmosphere)
+
+      const starGeo = new THREE.BufferGeometry()
+      const starCount = 2800
+      const starPos = new Float32Array(starCount * 3)
+      for (let i = 0; i < starCount; i += 1) {
+        const r = 28 + Math.random() * 50
+        const theta = Math.random() * Math.PI * 2
+        const phi = Math.acos(2 * Math.random() - 1)
+        starPos[i * 3] = r * Math.sin(phi) * Math.cos(theta)
+        starPos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta)
+        starPos[i * 3 + 2] = r * Math.cos(phi)
+      }
+      starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3))
+      scene.add(
+        new THREE.Points(
+          starGeo,
+          new THREE.PointsMaterial({ color: 0xdfebff, size: 0.045, sizeAttenuation: true }),
+        ),
+      )
+
+      scene.add(new THREE.AmbientLight(0x6b82a8, 0.62))
+      const sun = new THREE.DirectionalLight(0xfff3dd, 1.55)
+      sun.position.set(6.2, 2.4, 3.1)
+      scene.add(sun)
+      const fill = new THREE.DirectionalLight(0x4d6d9a, 0.35)
+      fill.position.set(-4, -1, -2)
+      scene.add(fill)
+
+      const raycaster = new THREE.Raycaster()
+      const pointer = new THREE.Vector2()
+
+      const home = () => {
+        camera.position.set(1.85, 0.72, 2.55)
+        orbit.target.set(0, 0, 0)
+        orbit.autoRotate = !reduced
+        orbit.update()
+      }
+
+      const zoomBy = (factor: number) => {
+        const dir = camera.position.clone().sub(orbit.target)
+        dir.multiplyScalar(factor)
+        const next = orbit.target.clone().add(dir)
+        const dist = next.distanceTo(orbit.target)
+        if (dist < orbit.minDistance) next.copy(orbit.target).add(dir.setLength(orbit.minDistance))
+        if (dist > orbit.maxDistance) next.copy(orbit.target).add(dir.setLength(orbit.maxDistance))
+        camera.position.copy(next)
+        orbit.update()
+      }
+
+      const zoomToEvent = (clientX: number, clientY: number) => {
+        const rect = renderer!.domElement.getBoundingClientRect()
+        pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1
+        pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1
+        raycaster.setFromCamera(pointer, camera)
+        const hit = raycaster.intersectObject(earth)[0]
+        orbit.autoRotate = false
+        if (hit) {
+          const p = hit.point
+          orbit.target.lerp(p, 0.35)
+          const toCam = camera.position.clone().sub(p)
+          const nextLen = Math.max(orbit.minDistance, toCam.length() * 0.62)
+          camera.position.copy(p).add(toCam.setLength(nextLen))
+        } else {
+          zoomBy(0.72)
+        }
+        orbit.update()
+      }
+
+      const onDblClick = (e: MouseEvent) => {
+        e.preventDefault()
+        zoomToEvent(e.clientX, e.clientY)
+      }
+
+      const onContext = (e: Event) => e.preventDefault()
+
+      const onKey = (e: KeyboardEvent) => {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+        if (e.key === '+' || e.key === '=') zoomBy(0.86)
+        if (e.key === '-' || e.key === '_') zoomBy(1.16)
+        if (e.key === 'Home' || e.key === 'h' || e.key === 'H') home()
+      }
+
+      const applySize = () => {
+        const w = Math.max(1, el.clientWidth)
+        const h = Math.max(1, el.clientHeight)
+        renderer!.setSize(w, h, false)
+        camera.aspect = w / h
+        const pub = el.closest('.rota-pub') && window.matchMedia('(min-width: 861px)').matches
+        if (pub) {
+          const shift = Math.min(430, w * 0.36)
+          camera.setViewOffset(w, h, -shift * 0.42, 0, w, h)
+        } else {
+          camera.clearViewOffset()
+        }
+        camera.updateProjectionMatrix()
+      }
+
+      applySize()
+      resizeObs = new ResizeObserver(applySize)
+      resizeObs.observe(el)
+
+      const tick = () => {
+        if (disposed) return
+        orbit.update()
+        renderer!.render(scene, camera)
+        raf = requestAnimationFrame(tick)
       }
       raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
 
-    const stopSpin = () => {
-      st.spinning = false
-    }
-
-    const onPointerDown = (e: PointerEvent) => {
-      if (e.pointerType === 'mouse' && e.button !== 0) return
-      stopSpin()
-      st.dragging = true
-      st.pointerId = e.pointerId
-      st.lastX = e.clientX
-      st.lastY = e.clientY
-      space.classList.add('is-grabbing')
-      root.classList.add('is-grabbing')
-      try {
-        root.setPointerCapture(e.pointerId)
-      } catch {
-        /* ignore */
+      const ui = el.querySelector('.earth-globe__nav')
+      const onUi = (e: Event) => {
+        const btn = (e.target as HTMLElement).closest('[data-earth]') as HTMLElement | null
+        if (!btn) return
+        const act = btn.dataset.earth
+        if (act === 'in') zoomBy(0.82)
+        if (act === 'out') zoomBy(1.2)
+        if (act === 'home') home()
       }
-      e.preventDefault()
-    }
+      ui?.addEventListener('click', onUi)
+      renderer.domElement.addEventListener('dblclick', onDblClick)
+      renderer.domElement.addEventListener('contextmenu', onContext)
+      window.addEventListener('keydown', onKey)
 
-    const onPointerMove = (e: PointerEvent) => {
-      if (!st.dragging || e.pointerId !== st.pointerId) return
-      const dx = e.clientX - st.lastX
-      const dy = e.clientY - st.lastY
-      st.lastX = e.clientX
-      st.lastY = e.clientY
-      st.lon += dx * 0.085
-      st.lat = Math.min(LAT_MAX, Math.max(LAT_MIN, st.lat + dy * 0.045))
-      paint()
-    }
-
-    const endDrag = (e: PointerEvent) => {
-      if (e.pointerId !== st.pointerId && st.pointerId !== -1) return
-      st.dragging = false
-      st.pointerId = -1
-      space.classList.remove('is-grabbing')
-      root.classList.remove('is-grabbing')
-    }
-
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault()
-      stopSpin()
-      const dir = e.deltaY > 0 ? -1 : 1
-      const next = st.scale * (dir > 0 ? 1.08 : 1 / 1.08)
-      st.scale = Math.min(SCALE_MAX, Math.max(SCALE_MIN, next))
-      paint()
-    }
-
-    const onDblClick = (e: MouseEvent) => {
-      e.preventDefault()
-      st.lon = LON0
-      st.lat = LAT0
-      st.scale = SCALE0
-      st.spinning = !reduced
-      paint()
-    }
-
-    const distTouches = (a: Touch, b: Touch) =>
-      Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
-
-    let pinchStart = 0
-    let pinchScale = SCALE0
-
-    const onTouchStart = (e: TouchEvent) => {
-      st.pinch = e.touches.length
-      if (e.touches.length === 2) {
-        stopSpin()
-        st.dragging = false
-        pinchStart = distTouches(e.touches[0], e.touches[1])
-        pinchScale = st.scale
+      const cleanupExtra = () => {
+        ui?.removeEventListener('click', onUi)
+        renderer?.domElement.removeEventListener('dblclick', onDblClick)
+        renderer?.domElement.removeEventListener('contextmenu', onContext)
+        window.removeEventListener('keydown', onKey)
+        map.dispose()
+        earth.geometry.dispose()
+        ;(earth.material as import('three').Material).dispose()
+        atmosphere.geometry.dispose()
+        ;(atmosphere.material as import('three').Material).dispose()
+        starGeo.dispose()
       }
-    }
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length !== 2 || pinchStart <= 0) return
-      e.preventDefault()
-      const d = distTouches(e.touches[0], e.touches[1])
-      st.scale = Math.min(SCALE_MAX, Math.max(SCALE_MIN, pinchScale * (d / pinchStart)))
-      paint()
-    }
-
-    const onTouchEnd = (e: TouchEvent) => {
-      st.pinch = e.touches.length
-      if (e.touches.length < 2) pinchStart = 0
-    }
-
-    root.addEventListener('pointerdown', onPointerDown)
-    root.addEventListener('pointermove', onPointerMove)
-    root.addEventListener('pointerup', endDrag)
-    root.addEventListener('pointercancel', endDrag)
-    root.addEventListener('wheel', onWheel, { passive: false })
-    root.addEventListener('dblclick', onDblClick)
-    root.addEventListener('touchstart', onTouchStart, { passive: true })
-    root.addEventListener('touchmove', onTouchMove, { passive: false })
-    root.addEventListener('touchend', onTouchEnd)
-    root.addEventListener('touchcancel', onTouchEnd)
+      ;(el as HTMLDivElement & { __earthCleanup?: () => void }).__earthCleanup = cleanupExtra
+    })()
 
     return () => {
+      disposed = true
       cancelAnimationFrame(raf)
-      root.removeEventListener('pointerdown', onPointerDown)
-      root.removeEventListener('pointermove', onPointerMove)
-      root.removeEventListener('pointerup', endDrag)
-      root.removeEventListener('pointercancel', endDrag)
-      root.removeEventListener('wheel', onWheel)
-      root.removeEventListener('dblclick', onDblClick)
-      root.removeEventListener('touchstart', onTouchStart)
-      root.removeEventListener('touchmove', onTouchMove)
-      root.removeEventListener('touchend', onTouchEnd)
-      root.removeEventListener('touchcancel', onTouchEnd)
+      resizeObs?.disconnect()
+      controls?.dispose()
+      const extra = (el as HTMLDivElement & { __earthCleanup?: () => void }).__earthCleanup
+      extra?.()
+      if (renderer) {
+        renderer.dispose()
+        renderer.domElement.remove()
+      }
     }
   }, [])
 
@@ -176,13 +262,23 @@ export function EarthGlobe() {
     <div
       ref={rootRef}
       className="earth-globe"
-      role="img"
-      aria-label="Globo terrestre. Arraste para girar, role o mouse para zoom. Clique duas vezes para resetar."
+      role="application"
+      aria-label="Globo 3D. Arraste para orbitar, role para zoom, botão direito para deslocar, clique duplo para aproximar. + e - no teclado, H para visão inicial."
     >
-      <div ref={spaceRef} className="earth-globe__space">
-        <div ref={sphereRef} className="earth-globe__sphere" />
-        <div className="earth-globe__shine" />
+      <div className="earth-globe__nav" data-pdf-ignore>
+        <button type="button" data-earth="in" title="Aproximar" aria-label="Aproximar">
+          +
+        </button>
+        <button type="button" data-earth="out" title="Afastar" aria-label="Afastar">
+          −
+        </button>
+        <button type="button" data-earth="home" title="Visão do espaço" aria-label="Visão do espaço">
+          ⌂
+        </button>
       </div>
+      <p className="earth-globe__hint">
+        Arraste para girar · scroll zoom · botão direito desloca · clique duplo aproxima
+      </p>
     </div>
   )
 }
