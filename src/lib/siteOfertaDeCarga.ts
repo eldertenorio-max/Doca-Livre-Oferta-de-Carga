@@ -4,16 +4,16 @@ export const HOST_OFERTA_DE_CARGA = 'ofertadecarga.com.br'
 export const HOST_MAPA_FROTA = 'mapadafrota.com.br'
 /** Sistema (login, kanban, cadastro) — já no ar no Render. */
 export const HOST_SISTEMA = 'ofertadecargas.docalivre.com.br'
-/** Mapa da Logística (outro produto / outro Render). */
+/** Mapa da Logística (outro produto). */
 export const HOST_MAPA_LOGISTICA = 'mapadalogistica.com.br'
 
 export const URL_SITE_ROTA = `https://${HOST_OFERTA_DE_CARGA}`
 export const URL_SITE_MAPA = `https://${HOST_MAPA_FROTA}`
 export const URL_SISTEMA = `https://${HOST_SISTEMA}`
-export const URL_MAPA_LOGISTICA = `https://${HOST_MAPA_LOGISTICA}/`
 export const URL_OFERTA_DE_CARGA = URL_SITE_ROTA
 export const URL_ROTA_PUBLICA = `${URL_SITE_ROTA}/`
 export const URL_MAPA_FROTA = `${URL_SITE_MAPA}/`
+export const URL_MAPA_LOGISTICA = `https://${HOST_MAPA_LOGISTICA}/`
 
 function hostAtual(): string {
   if (typeof window === 'undefined') return ''

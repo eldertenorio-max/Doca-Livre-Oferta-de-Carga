@@ -92,8 +92,6 @@ const PLANOS_PUBLICOS = [
   },
 ] as const
 
-const LINK_MAPA_LOGISTICA = URL_MAPA_LOGISTICA
-
 type Coord = { lat: number; lng: number }
 type Via = { id: string; endereco: string; lat?: number | null; lng?: number | null }
 
@@ -705,7 +703,7 @@ export function CalcularRotaPublicoPage() {
               <img className="rota-pub__map-logo" src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
               <a
                 className="rota-pub__pill"
-                href={LINK_MAPA_LOGISTICA}
+                href={URL_MAPA_LOGISTICA}
                 target="_blank"
                 rel="noopener noreferrer"
               >

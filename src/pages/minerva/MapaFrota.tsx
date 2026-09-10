@@ -35,8 +35,6 @@ import { URL_MAPA_LOGISTICA } from '../../lib/siteOfertaDeCarga'
 import '../../styles/cadastro.css'
 import '../../styles/mapa-frota.css'
 
-const LINK_MAPA_LOGISTICA = URL_MAPA_LOGISTICA
-
 function pontoTemCarroceria(p: PontoFrota, selecionadas: string[]): boolean {
   if (selecionadas.length === 0) return true
   const doPonto = parseCarrocerias(p.tipoCarroceria).map((x) => x.toLowerCase())
@@ -1736,7 +1734,7 @@ export function MapaFrotaPage() {
             <img className="mapa-pub__map-logo" src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
             <a
               className="mapa-pub__pill"
-              href={LINK_MAPA_LOGISTICA}
+              href={URL_MAPA_LOGISTICA}
               target="_blank"
               rel="noopener noreferrer"
             >

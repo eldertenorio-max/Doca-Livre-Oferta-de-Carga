@@ -43,8 +43,6 @@ const RAIO_GEO_MIN_KM = 10
 const RAIO_GEO_MAX_KM = 500
 const RAIO_GEO_DEFAULT_KM = 150
 
-const LINK_MAPA_LOGISTICA = URL_MAPA_LOGISTICA
-
 const PLANOS_PUBLICOS = [
   {
     id: 'motorista',
@@ -1390,7 +1388,7 @@ export function MapaFrotaPublicoPage() {
               <img className="mapa-pub__map-logo" src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
               <a
                 className="mapa-pub__pill"
-                href={LINK_MAPA_LOGISTICA}
+                href={URL_MAPA_LOGISTICA}
                 target="_blank"
                 rel="noopener noreferrer"
               >
