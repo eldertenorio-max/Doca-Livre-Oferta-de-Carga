@@ -6,15 +6,56 @@ type Coord = { lat: number; lng: number }
 
 export type EarthGlobePick = 'A' | 'B'
 
-function cesiumFromPage(): CesiumNS {
+async function loadCesium(): Promise<CesiumNS> {
   const w = window as Window & { Cesium?: CesiumNS; CESIUM_BASE_URL?: string }
-  if (!w.CESIUM_BASE_URL) {
-    w.CESIUM_BASE_URL = `${import.meta.env.BASE_URL}cesium/`
+  const base = `${import.meta.env.BASE_URL}cesium/`
+  w.CESIUM_BASE_URL = base
+
+  const fromWindow = () => w.Cesium
+  if (fromWindow()?.Viewer) return fromWindow()!
+
+  try {
+    const mod = (await import('cesium')) as CesiumNS & { default?: CesiumNS }
+    const ns = mod.Viewer ? mod : mod.default
+    if (ns?.Viewer) return ns
+  } catch {
+    /* tenta o Cesium.js copiado em /cesium */
   }
-  if (!w.Cesium) {
-    throw new Error('CesiumJS não carregou')
-  }
-  return w.Cesium
+
+  if (fromWindow()?.Viewer) return fromWindow()!
+
+  await new Promise<void>((resolve, reject) => {
+    const hrefCss = `${base}Widgets/widgets.css`
+    if (!document.querySelector(`link[href="${hrefCss}"]`)) {
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = hrefCss
+      document.head.appendChild(link)
+    }
+    const src = `${base}Cesium.js`
+    const prev = document.querySelector(`script[src="${src}"]`) as HTMLScriptElement | null
+    if (fromWindow()?.Viewer) {
+      resolve()
+      return
+    }
+    const onOk = () => resolve()
+    const onErr = () => reject(new Error('CesiumJS não carregou'))
+    if (prev) {
+      prev.addEventListener('load', onOk, { once: true })
+      prev.addEventListener('error', onErr, { once: true })
+      return
+    }
+    const script = document.createElement('script')
+    script.src = src
+    script.async = true
+    script.onload = onOk
+    script.onerror = onErr
+    document.head.appendChild(script)
+  })
+
+  const ready = fromWindow()
+  if (!ready?.Viewer) throw new Error('CesiumJS não carregou')
+  return ready
 }
 
 type Props = {
@@ -22,9 +63,18 @@ type Props = {
   onPick?: (lat: number, lng: number) => void
   pontoA?: Coord | null
   pontoB?: Coord | null
+  onReady?: () => void
+  onError?: () => void
 }
 
-export function EarthGlobe({ pickMode = null, onPick, pontoA = null, pontoB = null }: Props) {
+export function EarthGlobe({
+  pickMode = null,
+  onPick,
+  pontoA = null,
+  pontoB = null,
+  onReady,
+  onError,
+}: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
   const cesiumRef = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<import('cesium').Viewer | undefined>(undefined)
@@ -35,6 +85,10 @@ export function EarthGlobe({ pickMode = null, onPick, pontoA = null, pontoB = nu
   const onPickRef = useRef(onPick)
   pickModeRef.current = pickMode
   onPickRef.current = onPick
+  const onReadyRef = useRef(onReady)
+  const onErrorRef = useRef(onError)
+  onReadyRef.current = onReady
+  onErrorRef.current = onError
   const [cesiumOk, setCesiumOk] = useState(false)
 
   useEffect(() => {
@@ -52,7 +106,7 @@ export function EarthGlobe({ pickMode = null, onPick, pontoA = null, pontoB = nu
       window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
     void (async () => {
-      const Cesium = cesiumFromPage()
+      const Cesium = await loadCesium()
       if (disposed || !host) return
       CesiumRef.current = Cesium
 
@@ -225,9 +279,13 @@ export function EarthGlobe({ pickMode = null, onPick, pontoA = null, pontoB = nu
       applySize()
       resizeObs = new ResizeObserver(applySize)
       resizeObs.observe(host)
-      setCesiumOk(true)
+      requestAnimationFrame(() => viewer?.resize())
+      if (!disposed) {
+        setCesiumOk(true)
+        onReadyRef.current?.()
+      }
     })().catch(() => {
-      /* globo fica no fundo escuro se o Cesium falhar */
+      if (!disposed) onErrorRef.current?.()
     })
 
     return () => {
@@ -283,14 +341,24 @@ export function EarthGlobe({ pickMode = null, onPick, pontoA = null, pontoB = nu
       })
     }
 
-    upsert(pinARef, pontoA, 'A', Cesium.Color.fromCssColorString('#15803d'))
-    upsert(pinBRef, pontoB, 'B', Cesium.Color.fromCssColorString('#dc2626'))
+    upsert(
+      pinARef,
+      pontoA,
+      'A',
+      Cesium.Color.fromCssColorString('#15803d') ?? Cesium.Color.LIME,
+    )
+    upsert(
+      pinBRef,
+      pontoB,
+      'B',
+      Cesium.Color.fromCssColorString('#dc2626') ?? Cesium.Color.RED,
+    )
   }, [cesiumOk, pontoA, pontoB])
 
   return (
     <div
       ref={rootRef}
-      className={`earth-globe${pickMode ? ' earth-globe--pick' : ''}`}
+      className={`earth-globe${pickMode ? ' earth-globe--pick' : ''}${cesiumOk ? '' : ' earth-globe--boot'}`}
       role="application"
       aria-label="Globo 3D com satélite. Role para entrar no mapa, arraste para orbitar, botão direito para inclinar. Use Ponto A e Ponto B para marcar origem e destino."
     >

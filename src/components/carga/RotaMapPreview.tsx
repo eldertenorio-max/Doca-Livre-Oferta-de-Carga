@@ -326,6 +326,7 @@ export function RotaMapPreview({
   const lastManualId = useRef(0)
   const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'erro' | 'circular'>('idle')
   const showGlobe = status === 'idle' || status === 'loading'
+  const [globeReady, setGlobeReady] = useState(false)
   const [msg, setMsg] = useState(
     autoCalcular
       ? 'Informe origem e destino para ver o trajeto'
@@ -361,10 +362,13 @@ export function RotaMapPreview({
       ],
       maxBoundsViscosity: 1,
     })
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap',
-    }).addTo(map)
+    L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      {
+        maxZoom: 19,
+        attribution: 'Tiles © Esri',
+      },
+    ).addTo(map)
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
 
@@ -692,10 +696,14 @@ export function RotaMapPreview({
     preferencia,
   ])
 
+  useEffect(() => {
+    if (!showGlobe) setGlobeReady(false)
+  }, [showGlobe])
+
   return (
-    <div>
+    <div className="h-full w-full">
       <div
-        className={`rota-map-preview relative z-0 isolate overflow-hidden rounded-lg border border-ink/15 bg-[#0b1220] ${showGlobe ? 'rota-map-preview--globe' : ''} ${pickMode ? 'is-picking' : ''} ${className}`}
+        className={`rota-map-preview relative z-0 isolate overflow-hidden rounded-lg border border-ink/15 bg-[#0b1220] ${showGlobe && globeReady ? 'rota-map-preview--globe' : ''} ${pickMode ? 'is-picking' : ''} ${className}`}
       >
         <div ref={mapEl} className="absolute inset-0 z-0" />
         {showGlobe ? (
@@ -703,6 +711,8 @@ export function RotaMapPreview({
             pickMode={pickMode}
             pontoA={coordsOk(origemCoords) ? origemCoords : null}
             pontoB={coordsOk(destinoCoords) ? destinoCoords : null}
+            onReady={() => setGlobeReady(true)}
+            onError={() => setGlobeReady(false)}
             onPick={(lat, lng) => {
               const modo = pickModeRef.current
               if (!modo) return

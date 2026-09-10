@@ -6,6 +6,12 @@
   background: #02040a;
 }
 
+.earth-globe--boot {
+  background: transparent;
+  pointer-events: none;
+  visibility: hidden;
+}
+
 .earth-globe--pick .cesium-widget canvas {
   cursor: crosshair;
 }
@@ -143,10 +149,11 @@
   }
 }
 
-.rota-map-preview--globe .leaflet-container,
-.rota-map-preview--globe .leaflet-control-container {
-  opacity: 0;
-  pointer-events: none;
+.rota-map-preview > .leaflet-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 @media (prefers-reduced-motion: reduce) {
