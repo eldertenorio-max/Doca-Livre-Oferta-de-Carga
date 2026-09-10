@@ -1,12 +1,14 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import cesium from 'vite-plugin-cesium'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    cesium(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: false,
@@ -70,7 +72,7 @@ export default defineConfig({
         // HashRouter: a navegação é sempre /index.html. Não precachear HTML —
         // senão o SW entrega o site velho e o usuário acha que não atualizou.
         globPatterns: ['**/*.{js,css,ico,png,svg,jpg,jpeg,woff2,webp}'],
-        globIgnores: ['**/index.html'],
+        globIgnores: ['**/index.html', '**/cesium/**'],
         navigateFallbackAllowlist: [],
         importScripts: ['push-sw.js'],
         skipWaiting: true,

@@ -141,19 +141,6 @@ export function EarthGlobe({
       }
       viewerRef.current = viewer
 
-      try {
-        viewer.terrainProvider = await Cesium.ArcGISTiledElevationTerrainProvider.fromUrl(
-          'https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer',
-        )
-      } catch {
-        /* relevo 3D da Esri às vezes pede token; o satélite continua carregando ao zoom */
-      }
-      if (disposed) {
-        viewer.destroy()
-        viewerRef.current = undefined
-        return
-      }
-
       const scene = viewer.scene
       scene.globe.enableLighting = false
       scene.globe.showGroundAtmosphere = true
@@ -186,19 +173,30 @@ export function EarthGlobe({
         },
       ]
 
-      const visaoEspaco = () => {
-        viewer!.camera.flyTo({
-          destination: Cesium.Cartesian3.fromDegrees(-47.9, -12.5, 1.85e7),
+      const visaoEspaco = (imediato = false) => {
+        const pose = {
+          destination: Cesium.Cartesian3.fromDegrees(-48, -14, 1.12e7),
           orientation: {
-            heading: Cesium.Math.toRadians(18),
-            pitch: Cesium.Math.toRadians(-38),
+            heading: Cesium.Math.toRadians(8),
+            pitch: Cesium.Math.toRadians(-28),
             roll: 0,
           },
-          duration: reduced ? 0 : 1.4,
-        })
+        }
+        if (imediato || reduced) viewer!.camera.setView(pose)
+        else viewer!.camera.flyTo({ ...pose, duration: 1.15 })
       }
 
-      visaoEspaco()
+      visaoEspaco(true)
+
+      void Cesium.ArcGISTiledElevationTerrainProvider.fromUrl(
+        'https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer',
+      )
+        .then((t) => {
+          if (!disposed && viewerRef.current) viewerRef.current.terrainProvider = t
+        })
+        .catch(() => {
+          /* relevo extra é opcional */
+        })
 
       const altura = () => viewer!.camera.positionCartographic.height
 
@@ -271,7 +269,7 @@ export function EarthGlobe({
         const act = btn.dataset.earth
         if (act === 'in') zoomFator(0.42)
         if (act === 'out') zoomFator(2.35)
-        if (act === 'home') visaoEspaco()
+        if (act === 'home') visaoEspaco(false)
       }
       root.querySelector('.earth-globe__nav')?.addEventListener('click', onUi)
 
@@ -375,7 +373,7 @@ export function EarthGlobe({
         </button>
       </div>
       <p className="earth-globe__hint">
-        Role para entrar no mapa · arraste para girar · botão direito inclina · clique duplo no ponto
+        Role a roda do mouse para puxar o zoom · arraste para girar · + entra no mapa
       </p>
     </div>
   )

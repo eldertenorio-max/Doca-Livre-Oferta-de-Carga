@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css'
 import { formatCurrency } from '../../lib/businessRules'
 import { eixosDoVeiculo, estimarCustosRota, type PreferenciaRota } from '../../lib/anttFrete'
 import { geocodificarConsulta } from '../../lib/geocodeEndereco'
+import { EarthGlobe } from '../ui/EarthGlobe'
 import {
   calcularPedagioNaRota,
   rotaOsrmComGeometria,
@@ -328,6 +329,8 @@ export function RotaMapPreview({
 
   const lastManualId = useRef(0)
   const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'erro' | 'circular'>('idle')
+  const showGlobe = status === 'idle' || status === 'loading'
+  const [globeReady, setGlobeReady] = useState(false)
   const [msg, setMsg] = useState(
     autoCalcular
       ? 'Informe origem e destino para ver o trajeto'
@@ -701,12 +704,30 @@ export function RotaMapPreview({
     preferencia,
   ])
 
+  useEffect(() => {
+    if (!showGlobe) setGlobeReady(false)
+  }, [showGlobe])
+
   return (
     <div className="h-full min-h-[360px] w-full">
       <div
-        className={`rota-map-preview relative z-0 overflow-hidden rounded-lg border border-ink/15 bg-[#dbe4ee] ${pickMode ? 'is-picking' : ''} ${className}`}
+        className={`rota-map-preview relative z-0 overflow-hidden rounded-lg border border-ink/15 bg-[#02040a] ${showGlobe && globeReady ? 'rota-map-preview--globe' : ''} ${pickMode ? 'is-picking' : ''} ${className}`}
       >
         <div ref={mapEl} className="rota-map-preview__map" />
+        {showGlobe ? (
+          <EarthGlobe
+            pickMode={pickMode}
+            pontoA={coordsOk(origemCoords) ? origemCoords : null}
+            pontoB={coordsOk(destinoCoords) ? destinoCoords : null}
+            onReady={() => setGlobeReady(true)}
+            onError={() => setGlobeReady(false)}
+            onPick={(lat, lng) => {
+              const modo = pickModeRef.current
+              if (!modo) return
+              onPickPontoRef.current?.(modo, lat, lng)
+            }}
+          />
+        ) : null}
         {onPickPonto ? (
           <div className="rota-map-pick" data-pdf-ignore>
             <button
@@ -762,7 +783,7 @@ export function RotaMapPreview({
             {msg}
           </div>
         ) : null}
-        {!resumoAbaixo && status !== 'idle' && !esconderCartao && (
+        {!resumoAbaixo && !showGlobe && !esconderCartao && (
           <div
             data-pdf-ignore
             className="pointer-events-none absolute bottom-2 right-2 z-20 min-w-[132px] max-w-[min(100%,220px)] rounded-lg bg-white/95 px-2.5 py-2 text-[11px] text-ink shadow-md ring-1 ring-ink/10"
