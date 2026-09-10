@@ -112,14 +112,15 @@ const VEICULOS: Array<{
 }> = [
   { id: 'caminhao', eixos: 6, tipoCatalogo: 'Carreta LS', label: 'Caminhão', Icon: Truck },
   { id: 'carro', eixos: 2, tipoCatalogo: 'Fiorino', label: 'Carro', Icon: Car },
-  { id: 'onibus', eixos: 3, tipoCatalogo: 'Toco', label: 'Ônibus', Icon: Bus },
-  { id: 'moto', eixos: 2, tipoCatalogo: '', label: 'Moto', Icon: Bike },
+  { id: 'onibus', eixos: 3, tipoCatalogo: 'Ônibus', label: 'Ônibus', Icon: Bus },
+  { id: 'moto', eixos: 2, tipoCatalogo: 'Moto', label: 'Moto', Icon: Bike },
 ]
 
 function iconeDoCatalogo(tipo: string): TipoVeiculoUi {
   const t = tipo.trim().toLowerCase()
-  if (t === 'fiorino') return 'carro'
-  if (t === 'vlc' || t === '3/4') return 'carro'
+  if (/moto|motocicleta|scooter/.test(t)) return 'moto'
+  if (/[oô]nibus|\bbus\b/.test(t)) return 'onibus'
+  if (t === 'fiorino' || t === 'carro' || /autom[oó]vel|passeio/.test(t)) return 'carro'
   return 'caminhao'
 }
 
@@ -265,9 +266,17 @@ export function CalcularRotaPublicoPage() {
 
   function escolherTipoCatalogo(nome: string) {
     setTipoVeiculoNome(nome)
-    if (!tipoCatalogoExato(nome)) return
+    const t = nome.trim().toLowerCase()
+    const doCatalogo = tipoCatalogoExato(nome)
+    const classeExtra = t === 'ônibus' || t === 'onibus' || t === 'moto' || t === 'carro'
+    if (!doCatalogo && !classeExtra) return
     setTipoVeiculo(iconeDoCatalogo(nome))
-    mudarEixos(eixosDoVeiculo(nome))
+    if (doCatalogo) {
+      mudarEixos(eixosDoVeiculo(nome))
+      return
+    }
+    if (t === 'ônibus' || t === 'onibus') mudarEixos(3)
+    else mudarEixos(2)
   }
 
   function limparRota() {
