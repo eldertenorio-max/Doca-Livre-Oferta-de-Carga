@@ -1,4 +1,5 @@
 import { isSupabaseConfigured, supabase } from './supabase'
+import { ritmoPublicoOk } from './publicoProtecao'
 
 const STORAGE_KEY = 'doca-mapa-publico-buscas-v2'
 const VISITOR_KEY = 'doca-mapa-publico-vid'
@@ -130,6 +131,9 @@ async function chamarServidor(
   action: 'status' | 'consume',
 ): Promise<(EstadoBuscasPublicas & { ok: boolean }) | null> {
   if (!isSupabaseConfigured || !supabase) return null
+  if (!ritmoPublicoOk()) {
+    return { ok: false, usadas: LIMITE, restam: 0, esgotado: true }
+  }
   const payload = {
     p_visitor: visitorIdPublico(),
     p_device: await deviceHashPublico(),

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useData } from './context/DataContext'
 import { AppLayout } from './components/layout/AppLayout'
@@ -37,6 +37,8 @@ import {
 import { PerfilPage } from './pages/Perfil'
 import { PwaInstallBanner } from './components/PwaInstallBanner'
 import { PushEnableBanner } from './components/PushEnableBanner'
+import { motivoBloqueioPublico } from './lib/publicoProtecao'
+import { PublicoBloqueio } from './components/publico/PublicoBloqueio'
 import { isSuperSession } from './lib/superUsers'
 import type { UserRole } from './types'
 
@@ -57,6 +59,16 @@ function RedirectToSistema() {
       Abrindo o sistema em ofertadecargas.docalivre.com.br…
     </p>
   )
+}
+
+function PublicoGuard({ children }: { children: React.ReactNode }) {
+  const loc = useLocation()
+  const motivo = useMemo(
+    () => motivoBloqueioPublico(),
+    [loc.pathname, loc.search, loc.hash],
+  )
+  if (motivo) return <PublicoBloqueio motivo={motivo} />
+  return children
 }
 
 function AppBanners() {
@@ -100,22 +112,26 @@ export default function App() {
 
   if (isSiteOfertaDeCarga()) {
     return (
-      <Routes>
-        <Route path="/" element={<CalcularRotaPublicoPage />} />
-        <Route path="/rota" element={<Navigate to="/" replace />} />
-        <Route path="/calcular-rota" element={<Navigate to="/" replace />} />
-        <Route path="*" element={<RedirectToSistema />} />
-      </Routes>
+      <PublicoGuard>
+        <Routes>
+          <Route path="/" element={<CalcularRotaPublicoPage />} />
+          <Route path="/rota" element={<Navigate to="/" replace />} />
+          <Route path="/calcular-rota" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<RedirectToSistema />} />
+        </Routes>
+      </PublicoGuard>
     )
   }
 
   if (isSiteMapaFrota()) {
     return (
-      <Routes>
-        <Route path="/" element={<MapaFrotaPublicoPage />} />
-        <Route path="/mapa" element={<Navigate to="/" replace />} />
-        <Route path="*" element={<RedirectToSistema />} />
-      </Routes>
+      <PublicoGuard>
+        <Routes>
+          <Route path="/" element={<MapaFrotaPublicoPage />} />
+          <Route path="/mapa" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<RedirectToSistema />} />
+        </Routes>
+      </PublicoGuard>
     )
   }
 
@@ -125,9 +141,9 @@ export default function App() {
       <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/cadastro-transportador" element={<CadastroTransportadorPage />} />
-      <Route path="/mapa" element={<MapaFrotaPublicoPage />} />
-      <Route path="/rota" element={<CalcularRotaPublicoPage />} />
-      <Route path="/calcular-rota" element={<CalcularRotaPublicoPage />} />
+      <Route path="/mapa" element={<PublicoGuard><MapaFrotaPublicoPage /></PublicoGuard>} />
+      <Route path="/rota" element={<PublicoGuard><CalcularRotaPublicoPage /></PublicoGuard>} />
+      <Route path="/calcular-rota" element={<PublicoGuard><CalcularRotaPublicoPage /></PublicoGuard>} />
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route
         element={

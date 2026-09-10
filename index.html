@@ -54,6 +54,23 @@
     <title>Doca Livre — Oferta de Carga</title>
     <script>
       ;(function () {
+        var p = (location.pathname + location.search + location.hash).toLowerCase()
+        if (
+          /(?:^|\/)\.env(?:\.|$)/.test(p) ||
+          /(?:^|\/)\.git(?:\/|$)/.test(p) ||
+          /\/wp-admin/.test(p) ||
+          /\/wp-login/.test(p) ||
+          /\/phpmyadmin/.test(p) ||
+          /\/xmlrpc\.php/.test(p) ||
+          /\/phpinfo/.test(p) ||
+          /<script/.test(p) ||
+          /javascript:/.test(p)
+        ) {
+          document.title = 'Acesso bloqueado'
+          document.documentElement.innerHTML =
+            '<body style="margin:0;background:#0b1220;color:#e2e8f0;font-family:system-ui;display:grid;place-items:center;min-height:100dvh"><p style="font-weight:800">Acesso bloqueado</p></body>'
+          return
+        }
         var h = (location.hostname || '').toLowerCase().replace(/^www\./, '')
         var canon = document.querySelector('link[rel="canonical"]')
         if (h === 'ofertadecarga.com.br') {
@@ -79,7 +96,7 @@
     <script>
       // Força o navegador a procurar SW novo e limpar cache morto (uma vez por build).
       ;(function () {
-        var BUILD = 'rota-publico-cache-v153'
+        var BUILD = 'rota-publico-cache-v154'
         try {
           var stored = localStorage.getItem('doca-html-bust')
           if (stored === BUILD) return

@@ -4,6 +4,7 @@ import {
   type EstadoBuscasPublicas,
 } from './mapaPublicoBuscas'
 import { isSupabaseConfigured, supabase } from './supabase'
+import { ritmoPublicoOk } from './publicoProtecao'
 
 const STORAGE_KEY = 'doca-rota-publico-calculos-v1'
 const LIMITE = 2
@@ -96,6 +97,9 @@ async function chamarServidor(
   action: 'status' | 'consume',
 ): Promise<(EstadoBuscasPublicas & { ok: boolean }) | null> {
   if (!isSupabaseConfigured || !supabase) return null
+  if (!ritmoPublicoOk()) {
+    return { ok: false, usadas: LIMITE, restam: 0, esgotado: true }
+  }
   const payload = {
     p_visitor: visitorIdPublico(),
     p_device: await deviceHashPublico(),
