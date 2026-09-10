@@ -770,21 +770,16 @@ export function CalcularRotaPublicoPage() {
               pickMode={pickMode}
               onPickModeChange={setPickMode}
               onPickPonto={marcarPontoNoMapa}
+              esconderCartao={showResultado}
               className="h-full min-h-[360px] w-full"
             />
-          </div>
-        </div>
-      </div>
-
-      {showResultado && calc?.rota ? (
-        <div
-          className="rota-pub-janela"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="rota-pub-result-title"
-          onClick={() => setShowResultado(false)}
-        >
-          <div className="rota-pub-janela__card" onClick={(e) => e.stopPropagation()}>
+            {showResultado && calc?.rota ? (
+              <aside
+                className="rota-pub-janela"
+                role="dialog"
+                aria-labelledby="rota-pub-result-title"
+              >
+          <div className="rota-pub-janela__card">
             <header className="rota-pub-janela__head">
               <div>
                 <p className="rota-pub-janela__kicker">Resultado</p>
@@ -949,8 +944,11 @@ export function CalcularRotaPublicoPage() {
               </LinkMapaFrota>
             </div>
           </div>
+              </aside>
+            ) : null}
+          </div>
         </div>
-      ) : null}
+      </div>
 
       {showPaywall ? (
         <div className="mapa-pub-modal" role="dialog" aria-modal="true" aria-labelledby="rota-pub-pay-title">

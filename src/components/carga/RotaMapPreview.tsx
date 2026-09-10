@@ -51,6 +51,8 @@ type Props = {
   pickMode?: 'A' | 'B' | null
   onPickModeChange?: (mode: 'A' | 'B' | null) => void
   onPickPonto?: (ponto: 'A' | 'B', lat: number, lng: number) => void
+  /** Esconde o cartão flutuante de km/custo (quando o resultado já está ao lado). */
+  esconderCartao?: boolean
 }
 
 function normWaypoint(w: RotaWaypointInput): {
@@ -306,6 +308,7 @@ export function RotaMapPreview({
   pickMode = null,
   onPickModeChange,
   onPickPonto,
+  esconderCartao = false,
 }: Props) {
   const mapEl = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
@@ -775,7 +778,7 @@ export function RotaMapPreview({
             {msg}
           </div>
         ) : null}
-        {!resumoAbaixo && !showGlobe && (
+        {!resumoAbaixo && !showGlobe && !esconderCartao && (
           <div
             data-pdf-ignore
             className="pointer-events-none absolute bottom-2 right-2 z-20 min-w-[132px] max-w-[min(100%,220px)] rounded-lg bg-white/95 px-2.5 py-2 text-[11px] text-ink shadow-md ring-1 ring-ink/10"
