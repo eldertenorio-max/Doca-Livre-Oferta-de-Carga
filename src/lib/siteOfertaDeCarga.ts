@@ -1,13 +1,12 @@
-/** Site público de calcular rota (Registro.br). */
+/** Calculadora pública (a tela da foto). */
 export const HOST_OFERTA_DE_CARGA = 'ofertadecarga.com.br'
 /** Sistema (login, kanban, cadastro). */
 export const HOST_SISTEMA = 'sistema.ofertadecarga.com.br'
 
 export const URL_SITE_ROTA = `https://${HOST_OFERTA_DE_CARGA}`
 export const URL_SISTEMA = `https://${HOST_SISTEMA}`
-/** Calculadora no ar hoje (enquanto o DNS de ofertadecarga.com.br não fecha). */
-export const URL_ROTA_NO_AR = 'https://ofertadecargas.docalivre.com.br/#/rota'
-export const URL_OFERTA_DE_CARGA = URL_ROTA_NO_AR
+export const URL_OFERTA_DE_CARGA = URL_SITE_ROTA
+export const URL_ROTA_PUBLICA = `${URL_SITE_ROTA}/#/rota`
 export const URL_MAPA_FROTA = `${URL_SISTEMA}/#/mapa`
 
 function hostAtual(): string {
@@ -24,7 +23,7 @@ export function isLocalDev(hostname = hostAtual()): boolean {
   return h === 'localhost' || h === '127.0.0.1'
 }
 
-/** Home do calcular rota: ofertadecarga.com.br */
+/** Home do calcular rota: ofertadecarga.com.br (e www). */
 export function isSiteOfertaDeCarga(hostname = hostAtual()): boolean {
   return hostCanonico(hostname) === HOST_OFERTA_DE_CARGA
 }
@@ -61,21 +60,21 @@ function normPath(path: string): string {
   return trimmed.startsWith('/') ? trimmed : `/${trimmed}`
 }
 
-/** Login / cadastro / app: no site da rota, aponta para o subdomínio do sistema. */
+/** Login / cadastro / app: no site da calculadora, aponta para o subdomínio do sistema. */
 export function hrefSistema(path: string): string {
   const p = normPath(path)
-  if (isSiteOfertaDeCarga()) return `${URL_SISTEMA}/#${p}`
-  return p
+  if (isLocalDev() || isSiteSistema()) return p
+  return `${URL_SISTEMA}/#${p}`
 }
 
 export function urlSistemaComHash(path: string): string {
   return `${URL_SISTEMA}/#${normPath(path)}`
 }
 
-/** Calculadora pública: no sistema, aponta para ofertadecarga.com.br. */
+/** Calculadora pública: sempre ofertadecarga.com.br (exceto no próprio site e no localhost). */
 export function hrefRota(): string {
-  if (isSiteOfertaDeCarga() || isLocalDev() || isSiteSistema()) return '/rota'
-  return URL_ROTA_NO_AR
+  if (isSiteOfertaDeCarga() || isLocalDev()) return '/rota'
+  return URL_ROTA_PUBLICA
 }
 
 export function hrefMapaFrota(): string {
