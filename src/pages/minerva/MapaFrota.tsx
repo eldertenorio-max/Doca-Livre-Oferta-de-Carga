@@ -31,11 +31,11 @@ import { CarroceriaFilterSelect } from '../../components/ui/CarroceriaFilterSele
 import { FrotaGaleriaVeiculoModal } from '../../components/mapa/FrotaGaleriaVeiculoModal'
 import { LinkRota } from '../../components/ui/HostLink'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
+import { URL_MAPA_LOGISTICA } from '../../lib/siteOfertaDeCarga'
 import '../../styles/cadastro.css'
 import '../../styles/mapa-frota.css'
 
-const LINK_MAPA_LOGISTICA =
-  'https://doca-livre-mapa-da-log-stica.onrender.com/?_v=mapa-publico-planos-v1#/mapa'
+const LINK_MAPA_LOGISTICA = URL_MAPA_LOGISTICA
 
 function pontoTemCarroceria(p: PontoFrota, selecionadas: string[]): boolean {
   if (selecionadas.length === 0) return true

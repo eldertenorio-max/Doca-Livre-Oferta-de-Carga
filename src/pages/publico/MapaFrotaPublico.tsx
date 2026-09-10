@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { LinkRota, LinkSistema } from '../../components/ui/HostLink'
-import { isSiteMapaFrota } from '../../lib/siteOfertaDeCarga'
+import { isSiteMapaFrota, URL_MAPA_LOGISTICA } from '../../lib/siteOfertaDeCarga'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useData } from '../../context/DataContext'
@@ -43,8 +43,7 @@ const RAIO_GEO_MIN_KM = 10
 const RAIO_GEO_MAX_KM = 500
 const RAIO_GEO_DEFAULT_KM = 150
 
-const LINK_MAPA_LOGISTICA =
-  'https://doca-livre-mapa-da-log-stica.onrender.com/?_v=mapa-publico-planos-v1#/mapa'
+const LINK_MAPA_LOGISTICA = URL_MAPA_LOGISTICA
 
 const PLANOS_PUBLICOS = [
   {

@@ -33,7 +33,7 @@ import {
 import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { LinkSistema, LinkMapaFrota } from '../../components/ui/HostLink'
-import { isSiteOfertaDeCarga } from '../../lib/siteOfertaDeCarga'
+import { isSiteOfertaDeCarga, URL_MAPA_LOGISTICA } from '../../lib/siteOfertaDeCarga'
 import { useData } from '../../context/DataContext'
 import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
 import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
@@ -92,8 +92,7 @@ const PLANOS_PUBLICOS = [
   },
 ] as const
 
-const LINK_MAPA_LOGISTICA =
-  'https://doca-livre-mapa-da-log-stica.onrender.com/?_v=mapa-publico-planos-v1#/mapa'
+const LINK_MAPA_LOGISTICA = URL_MAPA_LOGISTICA
 
 type Coord = { lat: number; lng: number }
 type Via = { id: string; endereco: string; lat?: number | null; lng?: number | null }
