@@ -26,6 +26,14 @@ import { PainelTransportadorPage } from './pages/transportador/Painel'
 import { ConfiguracoesTransportadorPage } from './pages/transportador/Configuracoes'
 import { MapaFrotaPage } from './pages/minerva/MapaFrota'
 import { MapaLogisticaPage } from './pages/minerva/MapaLogistica'
+import { LogisticaArea } from './logistica/LogisticaArea'
+import { MapaPage as LogisticaMapaPage } from './logistica/pages/Mapa'
+import { PainelPage as LogisticaPainelPage } from './logistica/pages/Painel'
+import { HierarquiaPage as LogisticaHierarquiaPage } from './logistica/pages/Hierarquia'
+import { KanbanEmpresasPage as LogisticaKanbanPage } from './logistica/pages/KanbanEmpresas'
+import { FeedPage as LogisticaFeedPage } from './logistica/pages/Feed'
+import { PerfilPage as LogisticaEmpresaPerfilPage } from './logistica/pages/Perfil'
+import { EmpresaPage as LogisticaEmpresaPage } from './logistica/pages/Empresa'
 import { MapaFrotaPublicoPage } from './pages/publico/MapaFrotaPublico'
 import { CalcularRotaPublicoPage } from './pages/publico/CalcularRotaPublico'
 import {
@@ -241,7 +249,23 @@ export default function App() {
           }
         />
         <Route
-          path="/embarcador/mapa-logistica"
+          element={
+            <Protected role={['super']}>
+              <LogisticaArea />
+            </Protected>
+          }
+        >
+          <Route path="/embarcador/mapa-logistica" element={<LogisticaMapaPage />} />
+          <Route path="/embarcador/mapa-logistica/painel" element={<LogisticaPainelPage />} />
+          <Route path="/embarcador/mapa-logistica/hierarquia" element={<LogisticaHierarquiaPage />} />
+          <Route path="/embarcador/mapa-logistica/kanban" element={<LogisticaKanbanPage />} />
+          <Route path="/embarcador/mapa-logistica/feed" element={<LogisticaFeedPage />} />
+          <Route path="/embarcador/mapa-logistica/feed/notificacoes" element={<LogisticaFeedPage />} />
+          <Route path="/embarcador/mapa-logistica/perfil" element={<LogisticaEmpresaPerfilPage />} />
+          <Route path="/embarcador/mapa-logistica/empresa/:slug" element={<LogisticaEmpresaPage />} />
+        </Route>
+        <Route
+          path="/embarcador/malha-radar"
           element={
             <Protected role={['super']}>
               <MapaLogisticaPage />

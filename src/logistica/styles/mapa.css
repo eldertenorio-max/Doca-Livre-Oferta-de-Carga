@@ -1,0 +1,746 @@
+.mapa-log {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: calc(100dvh - var(--app-topbar-h, 54px) - 28px);
+  min-height: 420px;
+}
+
+.mapa-log--publico {
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: 0;
+  gap: 0;
+  box-sizing: border-box;
+  background: #eef2f6;
+}
+
+.mapa-log__brandbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 10px 16px;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.mapa-log__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.mapa-log__brand img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.mapa-log__brand strong {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 900;
+  line-height: 1.1;
+  color: #0f172a;
+}
+
+.mapa-log__brand em {
+  display: block;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.mapa-log__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mapa-log--publico .mapa-log__body {
+  padding: 12px 14px 14px;
+}
+
+.mapa-log--publico .mapa-log__head {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.mapa-log--publico .mapa-log__sub {
+  margin: 0;
+}
+
+.mapa-log__head-acoes {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.mapa-log__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.mapa-log__btn--ghost {
+  background: #e8ecf1;
+  color: #0f172a;
+}
+
+.mapa-log__btn--solid {
+  background: #0f172a;
+  color: #fff;
+}
+
+.mapa-log__assinar {
+  border: 0;
+  border-radius: 8px;
+  background: #facc15;
+  color: #0f172a;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.mapa-log__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.mapa-log__title {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.mapa-log__sub {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: #1a1d21;
+}
+
+.mapa-log__layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) 1fr;
+  gap: 12px;
+}
+
+.mapa-log__lista {
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.mapa-log__search {
+  flex-shrink: 0;
+  padding: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #fff;
+  position: relative;
+  z-index: 6;
+}
+
+.mapa-log__busca-wrap {
+  position: relative;
+}
+
+.mapa-log__input {
+  width: 100%;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 0.88rem;
+  background: #fff;
+}
+
+.mapa-log__input--com-limpar {
+  padding-right: 36px;
+}
+
+.mapa-log__busca-x {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 999px;
+  background: #e8ecf1;
+  color: #0f172a;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mapa-log__btn-limpar {
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.mapa-log__btn-limpar:hover {
+  background: #f8fafc;
+  border-color: #0f172a;
+}
+
+.mapa-log__input:focus {
+  outline: 2px solid #f9db00;
+  border-color: #111827;
+}
+
+.mapa-log__sugestoes {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 0.16);
+  max-height: min(280px, 42vh);
+  overflow: auto;
+}
+
+.mapa-log__sugestao {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.mapa-log__sugestao:hover,
+.mapa-log__sugestao.is-on {
+  background: #f9db00;
+}
+
+.mapa-log__sugestao-texto {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.mapa-log__sugestao-texto mark {
+  background: transparent;
+  color: #0f172a;
+  font-weight: 900;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+
+.mapa-log__sugestao-tipo {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.mapa-log__hint {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.mapa-log__ativos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fffbeb;
+}
+
+.mapa-log__limpar {
+  border: 0;
+  background: transparent;
+  color: #b45309;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.mapa-log__filtros {
+  flex: 0 1 auto;
+  overflow: auto;
+  max-height: 52%;
+  padding: 6px 10px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mapa-log__lista.is-escolha .mapa-log__filtros {
+  display: none;
+}
+
+.mapa-log__lista.is-escolha .mapa-log__result {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #0f172a;
+  background: #f9db00;
+}
+
+.mapa-log__filtro {
+  position: relative;
+}
+
+.mapa-log__filtro-label {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.mapa-log__filtro-lista {
+  position: relative;
+  z-index: 8;
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  box-shadow: 0 8px 20px rgb(15 23 42 / 0.1);
+  max-height: 200px;
+  overflow: auto;
+}
+
+.mapa-log__filtro-vazia {
+  padding: 10px 12px;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.mapa-log__sugestao.is-picked {
+  outline: 1px solid #111;
+}
+
+.mapa-log__grupo {
+  border-bottom: 1px solid #f1f5f9;
+  padding: 4px 0;
+}
+
+.mapa-log__grupo summary {
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  padding: 6px 2px;
+  list-style: none;
+}
+
+.mapa-log__grupo summary::-webkit-details-marker {
+  display: none;
+}
+
+.mapa-log__grupo summary::after {
+  content: '▾';
+  float: right;
+  color: #94a3b8;
+}
+
+.mapa-log__grupo:not([open]) summary::after {
+  content: '▸';
+}
+
+.mapa-log__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 0 8px;
+}
+
+.mapa-log__chip {
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: #fff;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 750;
+  color: #0f172a;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.mapa-log__chip:hover {
+  border-color: #111;
+  background: #f8fafc;
+}
+
+.mapa-log__chip.is-on {
+  background: #111;
+  border-color: #111;
+  color: #f9db00;
+}
+
+.mapa-log__cats {
+  padding: 8px 10px 4px;
+  flex-shrink: 0;
+}
+
+.mapa-log__cats-title {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.mapa-log__cats-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mapa-log__cat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 10px;
+  padding: 7px 8px;
+  cursor: pointer;
+  text-align: left;
+  color: #0f172a;
+}
+
+.mapa-log__cat:hover { background: #f8fafc; }
+
+.mapa-log__cat.is-on {
+  background: #0f172a;
+  color: #fff;
+}
+
+.mapa-log__cat-ico {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.mapa-log__cat-label {
+  flex: 1;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.mapa-log__cat-qtd {
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.mapa-log__result {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #334155;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.mapa-log__empresas {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.mapa-log__emp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid #eef2f6;
+  background: #fff;
+  border-radius: 10px;
+  padding: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.mapa-log__emp:hover,
+.mapa-log__emp.is-on {
+  border-color: #0f172a;
+  background: #f8fafc;
+}
+
+.mapa-log__emp-nome {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.mapa-log__emp-meta {
+  display: block;
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.mapa-log__map-wrap {
+  min-height: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+  position: relative;
+  background: #e2e8f0;
+}
+
+.mapa-log__map {
+  width: 100%;
+  height: 100%;
+  min-height: 360px;
+}
+
+.mapa-log__atalho-wrap {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: max-content;
+  text-decoration: none;
+}
+
+.mapa-log__atalho-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 0;
+  padding: 7px 16px;
+  box-sizing: border-box;
+  box-shadow: 0 8px 18px rgb(0 0 0 / 0.18);
+}
+
+.mapa-log__atalho-logo img {
+  display: block;
+  height: 36px;
+  width: auto;
+}
+
+.mapa-log__atalho {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: #000;
+  color: #f5c400;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  text-align: center;
+  text-decoration: none;
+  box-shadow: 0 8px 18px rgb(0 0 0 / 0.28);
+}
+
+.mapa-log__atalho:hover {
+  color: #ffd24d;
+}
+
+.mapa-log__legenda-wrap {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.mapa-log__info {
+  pointer-events: auto;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #fff;
+  color: #0f172a;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 0.16);
+}
+
+.mapa-log__info:hover,
+.mapa-log__info.is-on {
+  background: #111;
+  border-color: #111;
+  color: #f9db00;
+}
+
+.mapa-log__legenda {
+  pointer-events: auto;
+  background: rgb(255 255 255 / 0.96);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 8px 10px;
+  max-width: min(280px, 70vw);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 0.12);
+}
+
+.mapa-log__legenda strong {
+  display: block;
+  font-size: 0.72rem;
+  margin-bottom: 6px;
+}
+
+.mapa-log__legenda-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.68rem;
+  font-weight: 650;
+  color: #334155;
+  padding: 2px 0;
+}
+
+.pin-empresa__inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  line-height: 1;
+  border: 2px solid #fff;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 0.28);
+}
+
+.pin-empresa__inner.is-selecionada,
+.leaflet-div-icon.pin-empresa.is-selecionada .pin-empresa__inner {
+  outline: 3px solid #facc15;
+  outline-offset: 2px;
+  font-size: 20px;
+}
+
+.mapa-popup {
+  min-width: 220px;
+}
+
+.mapa-popup h3 {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+}
+
+.mapa-popup p {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  color: #475569;
+}
+
+.mapa-popup a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #0f172a;
+  background: #f9db00;
+  border-radius: 8px;
+  padding: 6px 10px;
+  text-decoration: none;
+}
+
+@media (max-width: 900px) {
+  .mapa-log {
+    height: auto;
+  }
+  .mapa-log--publico {
+    height: 100dvh;
+  }
+  .mapa-log__layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 55vh;
+  }
+  .mapa-log__lista {
+    max-height: 42vh;
+  }
+  .mapa-log__lista.is-escolha {
+    max-height: none;
+    min-height: 52vh;
+  }
+}

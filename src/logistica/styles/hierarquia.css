@@ -1,0 +1,284 @@
+.hierarquia {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 28px;
+}
+
+.hierarquia__hero {
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #111 0%, #1a1a1a 55%, #2a2400 100%);
+  color: #fff;
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.18);
+}
+
+.hierarquia__kicker {
+  margin: 0 0 4px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f9db00;
+}
+
+.hierarquia__hero h1 {
+  margin: 0;
+  font-size: 1.55rem;
+  font-weight: 800;
+}
+
+.hierarquia__hero p {
+  margin: 6px 0 0;
+  max-width: 62ch;
+  font-size: 0.86rem;
+  color: #d4d4d8;
+}
+
+.hierarquia__supers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.hierarquia__super {
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px;
+  background: #111;
+  color: #fff;
+  border-radius: 14px;
+  border: 1px solid #2a2a2a;
+}
+
+.hierarquia__super-badge {
+  width: max-content;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f9db00;
+  color: #111;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.hierarquia__super strong {
+  font-size: 1.05rem;
+}
+
+.hierarquia__super span:last-child {
+  font-size: 0.78rem;
+  color: #b0b0b0;
+}
+
+.hierarquia__kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.hierarquia__kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px 16px;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+}
+
+.hierarquia__kpi.is-on {
+  border-color: var(--kpi-cor, #f9db00);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--kpi-cor, #f9db00) 28%, transparent);
+}
+
+.hierarquia__kpi-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  margin-bottom: 4px;
+}
+
+.hierarquia__kpi-rotulo {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.hierarquia__kpi strong {
+  font-size: 1.7rem;
+  line-height: 1;
+  color: #0f172a;
+}
+
+.hierarquia__kpi-detalhe {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.hierarquia__secundarios {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.hierarquia__mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+
+.hierarquia__mini.is-on {
+  border-color: #0f172a;
+  background: #f8fafc;
+}
+
+.hierarquia__mini strong {
+  min-width: 1.4ch;
+}
+
+.hierarquia__cadeia {
+  margin: 0 0 0 auto;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.hierarquia__painel {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 14px 16px 16px;
+}
+
+.hierarquia__filtros {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hierarquia__busca {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  height: 40px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.hierarquia__busca input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  outline: none;
+  min-width: 0;
+}
+
+.hierarquia__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.hierarquia__chip {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: #334155;
+}
+
+.hierarquia__chip.is-on {
+  background: #111;
+  color: #f9db00;
+  border-color: #111;
+}
+
+.hierarquia__meta {
+  margin: 12px 0 8px;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.hierarquia__vazio {
+  margin: 8px 0 0;
+  color: #64748b;
+}
+
+.hierarquia__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.hierarquia__card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  padding: 10px 12px 10px 14px;
+  background: #fff;
+  border: 1px solid #e8ecf1;
+  border-left-width: 5px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.hierarquia__card:hover {
+  background: #f8fafc;
+}
+
+.hierarquia__card-main {
+  display: grid;
+  min-width: 0;
+}
+
+.hierarquia__card-main strong {
+  font-size: 0.92rem;
+}
+
+.hierarquia__card-main span {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.hierarquia__badge {
+  flex-shrink: 0;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  .hierarquia__kpis,
+  .hierarquia__supers {
+    grid-template-columns: 1fr;
+  }
+
+  .hierarquia__cadeia {
+    margin-left: 0;
+  }
+}

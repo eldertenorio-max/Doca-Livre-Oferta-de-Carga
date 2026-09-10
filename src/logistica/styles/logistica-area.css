@@ -1,0 +1,33 @@
+.logistica-area {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - var(--app-topbar-h, 54px) - 28px);
+  min-width: 0;
+}
+
+.logistica-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 0 12px;
+}
+
+.logistica-nav__link {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #d0d7de;
+  background: #fff;
+  color: #0f172a;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.logistica-nav__link:hover,
+.logistica-nav__link.is-on {
+  background: #0f172a;
+  color: #ffb300;
+  border-color: #0f172a;
+}
