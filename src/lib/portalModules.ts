@@ -132,7 +132,8 @@ export function moduloFromPath(pathname: string): OfertaModuloId | null {
   if (p.startsWith('/embarcador/motoristas') || p.startsWith('/transportador/motoristas'))
     return 'motoristas'
   if (p.startsWith('/embarcador/mapa-frota')) return 'mapa_frota'
-  if (p.startsWith('/embarcador/mapa-logistica')) return 'mapa_logistica'
+  if (p.startsWith('/embarcador/mapa-logistica') || p.startsWith('/embarcador/malha-radar'))
+    return 'mapa_logistica'
   if (p.startsWith('/embarcador/grupos')) return 'grupos'
   if (p.startsWith('/embarcador/indicadores')) return 'indicadores'
   if (p.startsWith('/embarcador/configuracoes')) return 'configuracoes'
