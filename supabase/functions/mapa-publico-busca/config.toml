@@ -1,0 +1,2 @@
+[functions.mapa-publico-busca]
+verify_jwt = false

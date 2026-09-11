@@ -71,6 +71,9 @@ export default defineConfig({
         // senão o SW entrega o site velho e o usuário acha que não atualizou.
         globPatterns: ['**/*.{js,css,ico,png,svg,jpg,jpeg,woff2,webp}'],
         globIgnores: ['**/index.html'],
+        // Sem fallback para index.html — ele não entra no precache (evita
+        // "non-precached-url") e a navegação já usa NetworkFirst abaixo.
+        navigateFallback: null as unknown as string,
         navigateFallbackAllowlist: [],
         importScripts: ['push-sw.js'],
         skipWaiting: true,
