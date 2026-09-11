@@ -108,9 +108,16 @@ export function EarthGlobe({
   const pontoBRef = useRef(pontoB)
   pontoARef.current = pontoA
   pontoBRef.current = pontoB
-  const entrarFeitoRef = useRef(0)
+  const saindoRef = useRef(saindo)
+  saindoRef.current = saindo
   const [mapaOk, setMapaOk] = useState(false)
   const [entrando, setEntrando] = useState(false)
+
+  function alvoAtual(): { center: [number, number]; zoom: number } {
+    const a = pontoARef.current
+    const b = pontoBRef.current
+    return { center: centroAlvo(a, b), zoom: zoomAlvo(a, b) }
+  }
 
   useEffect(() => {
     const host = mapEl.current
@@ -283,72 +290,104 @@ export function EarthGlobe({
       window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
     if (entrarId < 1) {
-      if (entrarFeitoRef.current > 0) {
-        entrarFeitoRef.current = 0
-        setEntrando(false)
-        visaoEspaco(map, reduced, reduced)
-      }
+      setEntrando(false)
+      visaoEspaco(map, true, reduced)
       return
     }
-    if (entrarId === entrarFeitoRef.current) return
-    entrarFeitoRef.current = entrarId
+
+    let cancelado = false
     setEntrando(true)
-
-    const a = pontoARef.current
-    const b = pontoBRef.current
-    const center = centroAlvo(a, b)
-    const zoom = zoomAlvo(a, b)
-    let done = false
-    let timer = 0
-    const finish = () => {
-      if (done) return
-      done = true
-      window.clearTimeout(timer)
-      setEntrando(false)
-      try {
-        map.scrollZoom.enable()
-      } catch {
-        /* ignore */
-      }
-      onEntradaFimRef.current?.()
-    }
-
-    timer = window.setTimeout(finish, reduced ? 40 : 4200)
     try {
       map.scrollZoom.disable()
     } catch {
       /* ignore */
     }
-    map.stop()
 
-    if (reduced) {
-      map.jumpTo({ center, zoom, pitch: 0, bearing: 0 })
-      finish()
-      return () => window.clearTimeout(timer)
+    const esperar = (ms: number) =>
+      new Promise<void>((resolve) => {
+        let ok = false
+        const fim = () => {
+          if (ok) return
+          ok = true
+          map.off('moveend', fim)
+          window.clearTimeout(t)
+          resolve()
+        }
+        const t = window.setTimeout(fim, ms + 120)
+        map.once('moveend', fim)
+      })
+
+    const ir = async (
+      opts: { zoom?: number; pitch?: number; bearing?: number; duration: number },
+    ) => {
+      if (cancelado || saindoRef.current) return
+      const { center, zoom } = alvoAtual()
+      map.stop()
+      map.easeTo({
+        center,
+        zoom: opts.zoom ?? zoom,
+        pitch: opts.pitch,
+        bearing: opts.bearing,
+        duration: reduced ? 0 : opts.duration,
+        easing: (t) => t * (2 - t),
+        essential: true,
+      })
+      await esperar(reduced ? 20 : opts.duration)
     }
 
-    map.flyTo({
-      center,
-      zoom,
-      pitch: 48,
-      bearing: 10,
-      duration: 2800,
-      curve: 1.62,
-      essential: true,
-    })
-    const achatar = () => {
-      map.easeTo({ pitch: 0, bearing: 0, duration: 520, essential: true })
-      map.once('moveend', finish)
-    }
-    map.once('moveend', achatar)
+    void (async () => {
+      const { center, zoom } = alvoAtual()
+      if (reduced) {
+        map.jumpTo({ center, zoom, pitch: 0, bearing: 0 })
+        onEntradaFimRef.current?.()
+        setEntrando(false)
+        return
+      }
+
+      // Já começa a andar sozinho: espaço → continente → trecho da rota.
+      await ir({ zoom: 3.05, pitch: 16, bearing: 22, duration: 700 })
+      await ir({ zoom: 4.35, pitch: 28, bearing: -10, duration: 900 })
+      await ir({ zoom: 5.7, pitch: 42, bearing: 14, duration: 1100 })
+      await ir({ zoom, pitch: 38, bearing: -6, duration: 1200 })
+
+      let lado = 1
+      while (!cancelado && !saindoRef.current) {
+        const z = alvoAtual().zoom
+        lado *= -1
+        await ir({
+          zoom: z + (lado > 0 ? 0.18 : 0),
+          pitch: 36 + (lado > 0 ? 8 : 0),
+          bearing: (map.getBearing() + lado * 16 + 360) % 360,
+          duration: 1700,
+        })
+      }
+
+      if (cancelado) return
+      map.stop()
+      map.easeTo({ pitch: 0, bearing: 0, duration: 420, essential: true })
+      await esperar(450)
+      try {
+        map.scrollZoom.enable()
+      } catch {
+        /* ignore */
+      }
+      setEntrando(false)
+      onEntradaFimRef.current?.()
+    })()
 
     return () => {
-      window.clearTimeout(timer)
-      map.off('moveend', achatar)
-      map.off('moveend', finish)
-      if (!done) entrarFeitoRef.current = 0
+      cancelado = true
+      map.stop()
     }
   }, [entrarId, mapaOk])
+
+  useEffect(() => {
+    if (!saindo) return
+    const map = mapRef.current
+    if (!map || !mapaOk) return
+    map.stop()
+    map.easeTo({ pitch: 0, bearing: 0, duration: 380, essential: true })
+  }, [saindo, mapaOk])
 
   return (
     <div

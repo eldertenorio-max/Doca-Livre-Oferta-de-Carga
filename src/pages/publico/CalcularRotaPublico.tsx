@@ -40,7 +40,7 @@ import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
 import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
 import { RotaMapPreview } from '../../components/carga/RotaMapPreview'
 import type { SugestaoEndereco } from '../../lib/geocodeEndereco'
-import { labelPorCoordenadas } from '../../lib/geocodeEndereco'
+import { geocodificarConsulta, labelPorCoordenadas } from '../../lib/geocodeEndereco'
 import {
   consultarEstadoCalculosPublicos,
   estadoCalculosPublicos,
@@ -342,11 +342,30 @@ export function CalcularRotaPublicoPage() {
       setErro('Informe origem e destino.')
       return
     }
-    if (!(await consumirCalculo())) return
-    const id = ++reqId.current
-    setEntrarId((n) => n + 1)
-    setBusy(true)
     setErro('')
+    setEntrarId((n) => n + 1)
+    setMapId((n) => n + 1)
+    const oTxt = origem
+    const dTxt = destino
+    const oHint = origemCoords
+    const dHint = destinoCoords
+    void (async () => {
+      if (!oHint) {
+        const g = await geocodificarConsulta(oTxt)
+        if (g.ok) setOrigemCoords(g.coords)
+      }
+      if (!dHint) {
+        const g = await geocodificarConsulta(dTxt)
+        if (g.ok) setDestinoCoords(g.coords)
+      }
+    })()
+    if (!(await consumirCalculo())) {
+      setEntrarId(0)
+      setMapId(0)
+      return
+    }
+    const id = ++reqId.current
+    setBusy(true)
     const waypoints = vias
       .map((v) => ({
         endereco: v.endereco.trim(),
@@ -379,6 +398,7 @@ export function CalcularRotaPublicoPage() {
       setShowResultado(false)
       setSnap(null)
       setEntrarId(0)
+      setMapId(0)
       return
     }
     setCalc(res.data)
@@ -393,7 +413,6 @@ export function CalcularRotaPublicoPage() {
       preferencia,
     })
     setShowResultado(true)
-    setMapId((n) => n + 1)
   }
 
   const logado = Boolean(user)

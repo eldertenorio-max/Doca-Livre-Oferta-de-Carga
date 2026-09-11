@@ -333,7 +333,7 @@ export function RotaMapPreview({
   const lastManualId = useRef(0)
   const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'erro' | 'circular'>('idle')
   const [mergulhoId, setMergulhoId] = useState(0)
-  const [entradaFim, setEntradaFim] = useState(false)
+  const mergulhoEmRef = useRef(0)
   const [globeSaindo, setGlobeSaindo] = useState(false)
   const [globeVisivel, setGlobeVisivel] = useState(true)
   const showGlobe = globeVisivel
@@ -500,7 +500,7 @@ export function RotaMapPreview({
             icon: baseODestinoIcon(),
             title: 'Origem e destino (retorno à base)',
           }).addTo(layer)
-          map.setView([oCoords.lat, oCoords.lng], 12)
+          map.setView([oCoords.lat, oCoords.lng], 12, { animate: true, duration: 0.9 })
           window.setTimeout(() => map.invalidateSize(), 60)
           setMeta(null)
           setStatus('circular')
@@ -676,7 +676,12 @@ export function RotaMapPreview({
             .addTo(layer)
         }
 
-        map.fitBounds(line.getBounds(), { padding: [36, 36], maxZoom: 12 })
+        map.fitBounds(line.getBounds(), {
+          padding: [36, 36],
+          maxZoom: 12,
+          animate: true,
+          duration: 1.1,
+        })
         window.setTimeout(() => map.invalidateSize(), 60)
 
         setMeta({
@@ -714,7 +719,7 @@ export function RotaMapPreview({
   useEffect(() => {
     if (status === 'idle' && entrarId < 1) {
       setMergulhoId(0)
-      setEntradaFim(false)
+      mergulhoEmRef.current = 0
       setGlobeSaindo(false)
       setGlobeVisivel(true)
     }
@@ -722,36 +727,36 @@ export function RotaMapPreview({
 
   useEffect(() => {
     if (entrarId < 1) return
+    mergulhoEmRef.current = Date.now()
     setGlobeVisivel(true)
     setGlobeSaindo(false)
-    setEntradaFim(false)
     setMergulhoId(entrarId)
   }, [entrarId])
 
   useEffect(() => {
     if (status === 'loading' && globeVisivel && mergulhoId < 1) {
-      setEntradaFim(false)
+      mergulhoEmRef.current = Date.now()
       setMergulhoId((n) => n + 1)
     }
-    if (status === 'erro') setEntradaFim(true)
   }, [status, globeVisivel, mergulhoId])
 
   useEffect(() => {
-    if (mergulhoId < 1 || entradaFim) return
-    const t = window.setTimeout(() => setEntradaFim(true), 4500)
+    const mapaPronto = status === 'ok' || status === 'circular' || status === 'erro'
+    if (!mapaPronto || !globeVisivel || globeSaindo) return
+    const ja = Date.now() - (mergulhoEmRef.current || Date.now())
+    const espera = Math.max(0, 2200 - ja)
+    const t = window.setTimeout(() => setGlobeSaindo(true), espera)
     return () => window.clearTimeout(t)
-  }, [mergulhoId, entradaFim])
+  }, [status, globeVisivel, globeSaindo])
 
   useEffect(() => {
-    const mapaPronto = status === 'ok' || status === 'circular' || status === 'erro'
-    if (!mapaPronto || !entradaFim || !globeVisivel) return
-    setGlobeSaindo(true)
+    if (!globeSaindo) return
     const t = window.setTimeout(() => {
       setGlobeVisivel(false)
       setGlobeReady(false)
-    }, 680)
+    }, 720)
     return () => window.clearTimeout(t)
-  }, [status, entradaFim, globeVisivel])
+  }, [globeSaindo])
 
   useEffect(() => {
     if (!showGlobe) setGlobeReady(false)
@@ -770,11 +775,10 @@ export function RotaMapPreview({
             pontoB={coordsOk(destinoCoords) ? destinoCoords : null}
             entrarId={mergulhoId}
             saindo={globeSaindo}
-            onEntradaFim={() => setEntradaFim(true)}
             onReady={() => setGlobeReady(true)}
             onError={() => {
               setGlobeReady(false)
-              setEntradaFim(true)
+              setGlobeSaindo(true)
             }}
             onPick={(lat, lng) => {
               const modo = pickModeRef.current

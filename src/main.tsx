@@ -7,7 +7,7 @@ import App from './App'
 import { isSitePublicoLimpo } from './lib/siteOfertaDeCarga'
 import './index.css'
 
-const BUILD_ID = 'rota-publico-cache-v182'
+const BUILD_ID = 'rota-publico-cache-v183'
 
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (e) => {
