@@ -11,7 +11,14 @@ import './index.css'
  * Força novo bundle. Depois do primeiro load limpo,
  * updates de deploy só no F5 (ver onNeedRefresh).
  */
-const BUILD_ID = 'rota-publico-cache-v174'
+const BUILD_ID = 'rota-publico-cache-v175'
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('unhandledrejection', (e) => {
+    const m = e.reason instanceof Error ? e.reason.message : String(e.reason || '')
+    if (m.includes('message channel closed')) e.preventDefault()
+  })
+}
 
 async function forceFreshOnce(): Promise<boolean> {
   const key = `doca-build:${BUILD_ID}`
@@ -60,19 +67,14 @@ async function forceFreshOnce(): Promise<boolean> {
 }
 
 function boot() {
-  const updateSW = registerSW({
+  registerSW({
     immediate: true,
-    onNeedRefresh() {
-      void updateSW(true)
-    },
     onRegisteredSW(_url, reg) {
       if (!reg) return
-      if (reg.waiting) void updateSW(true)
       void reg.update()
       window.setInterval(() => void reg.update(), 60_000)
     },
   })
-  void updateSW
 
   const Router = isSitePublicoLimpo() ? BrowserRouter : HashRouter
 
