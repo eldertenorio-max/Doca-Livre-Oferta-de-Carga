@@ -15,9 +15,9 @@ const TILES_PERTO =
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 
 const CENTRO_INICIAL: [number, number] = [-40, -8]
-/** Zoom alto o bastante para o planeta encostar nas margens, sem sumir no espaço. */
+/** Tamanho travado da visão inicial (planeta grande, com um pouco de espaço). */
 const ZOOM_INICIAL = 2.45
-const ZOOM_MIN = 1.85
+const ZOOM_MIN = 2.2
 const ZOOM_MAX = 19
 
 type Props = {
@@ -46,18 +46,10 @@ function ativarGlobo(map: maplibregl.Map) {
   map.setProjection({ type: 'globe' })
 }
 
-/** Zoom para o planeta ocupar quase toda a área (perto das margens). */
-function zoomParaMargens(map: maplibregl.Map): number {
-  const el = map.getContainer()
-  const menor = Math.min(el.clientWidth || 520, el.clientHeight || 520)
-  const z = ZOOM_INICIAL + Math.log2(Math.max(menor, 280) / 520)
-  return Math.min(2.95, Math.max(ZOOM_MIN, z))
-}
-
 function visaoEspaco(map: maplibregl.Map, imediato: boolean, reduced: boolean) {
   const pose = {
     center: CENTRO_INICIAL,
-    zoom: zoomParaMargens(map),
+    zoom: ZOOM_INICIAL,
     bearing: 0,
     pitch: 0,
   }
@@ -210,10 +202,6 @@ export function EarthGlobe({
 
     resizeObs = new ResizeObserver(() => {
       map.resize()
-      if (map.getZoom() <= ZOOM_INICIAL + 0.35) {
-        ativarGlobo(map)
-        visaoEspaco(map, true, true)
-      }
     })
     resizeObs.observe(host)
 

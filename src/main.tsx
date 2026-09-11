@@ -11,7 +11,7 @@ import './index.css'
  * Força novo bundle. Depois do primeiro load limpo,
  * updates de deploy só no F5 (ver onNeedRefresh).
  */
-const BUILD_ID = 'rota-publico-cache-v177'
+const BUILD_ID = 'rota-publico-cache-v178'
 
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (e) => {
