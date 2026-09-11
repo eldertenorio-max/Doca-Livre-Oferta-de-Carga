@@ -58,7 +58,7 @@
   color: #64748b;
 }
 
-.mapa-log__body {
+.mapa-log:not(.mapa-log--malha) .mapa-log__body {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -552,7 +552,7 @@
   color: #64748b;
 }
 
-.mapa-log__map-wrap {
+.mapa-log:not(.mapa-log--malha) .mapa-log__map-wrap {
   min-height: 0;
   border: 1px solid #e2e8f0;
   border-radius: 14px;

@@ -86,19 +86,23 @@
   font-variant-numeric: tabular-nums;
 }
 
-.mapa-log__body {
-  display: grid;
-  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
-  gap: 12px;
+.mapa-log--malha .mapa-log__body {
+  display: flex;
+  flex-direction: row;
   align-items: stretch;
+  gap: 12px;
   min-width: 0;
   flex: 1;
 }
 
+.mapa-log--malha .mapa-log__side,
 .mapa-log__side {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex: 0 0 300px;
+  width: 300px;
+  max-width: 300px;
   max-height: min(72vh, 820px);
   overflow: auto;
   padding-right: 2px;
@@ -267,8 +271,10 @@
   color: #94a3b8;
 }
 
+.mapa-log--malha .mapa-log__map-wrap,
 .mapa-log__map-wrap {
   position: relative;
+  flex: 1 1 auto;
   min-width: 0;
   min-height: min(72vh, 820px);
   height: min(72vh, 820px);

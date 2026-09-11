@@ -155,7 +155,7 @@ export function MapaLogisticaPage() {
   }, [snap, camadas, aba])
 
   return (
-    <div className="mapa-log animate-fade-up">
+    <div className="mapa-log mapa-log--malha animate-fade-up">
       <header className="mapa-log__hero">
         <div>
           <p className="mapa-log__eyebrow">Embarcador · Inteligência de frete</p>
