@@ -6,6 +6,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useData } from '../../context/DataContext'
 import { MapaFrotaAjuda } from '../../components/mapa/MapaFrotaAjuda'
+import { CarroceriaFilterSelect } from '../../components/ui/CarroceriaFilterSelect'
 import {
   MapaPubSuggestInput,
   type SugestaoPub,

@@ -28,6 +28,7 @@ import {
   parseCarrocerias,
 } from '../../lib/tiposCarroceria'
 import { MapaFrotaAjuda } from '../../components/mapa/MapaFrotaAjuda'
+import { CarroceriaFilterSelect } from '../../components/ui/CarroceriaFilterSelect'
 import { FrotaGaleriaVeiculoModal } from '../../components/mapa/FrotaGaleriaVeiculoModal'
 import { LinkRota, LinkMapaLogistica } from '../../components/ui/HostLink'
 import '../../styles/cadastro.css'
