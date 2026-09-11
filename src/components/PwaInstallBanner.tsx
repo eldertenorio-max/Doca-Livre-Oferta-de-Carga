@@ -89,8 +89,7 @@ export function PwaInstallBanner() {
     window.addEventListener('doca-pwa-install-ready', onReady)
 
     const onBip = (e: Event) => {
-      // Só intercepta no celular; no desktop o Chrome loga preventDefault no console.
-      if (!window.matchMedia('(max-width: 860px)').matches) return
+      if (!/Android/i.test(navigator.userAgent)) return
       e.preventDefault()
       showNative(e as BeforeInstallPromptEvent)
     }

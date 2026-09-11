@@ -11,12 +11,14 @@ import './index.css'
  * Força novo bundle. Depois do primeiro load limpo,
  * updates de deploy só no F5 (ver onNeedRefresh).
  */
-const BUILD_ID = 'rota-publico-cache-v176'
+const BUILD_ID = 'rota-publico-cache-v177'
 
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (e) => {
     const m = e.reason instanceof Error ? e.reason.message : String(e.reason || '')
-    if (m.includes('message channel closed')) e.preventDefault()
+    if (m.includes('message channel closed') || m.includes('non-precached-url')) {
+      e.preventDefault()
+    }
   })
 }
 

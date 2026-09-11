@@ -981,11 +981,19 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
           patch.senha_hash = localSenha
         }
         // else: remoto já tem senha diferente → não sobrescrever
+        const usuarioOcupado = remote.some(
+          (r) => r.id !== found.id && normLogin(r.usuario) === normLogin(String(patch.usuario || '')),
+        )
+        const emailOcupado = remote.some(
+          (r) => r.id !== found.id && normLogin(r.email) === normLogin(String(patch.email || '')),
+        )
+        if (usuarioOcupado) delete patch.usuario
+        if (emailOcupado) delete patch.email
         const { error: upErr } = await supabase
           .from('usuarios')
           .update(patch)
           .eq('id', found.id)
-        if (upErr) {
+        if (upErr && !/duplicate key|unique constraint/i.test(upErr.message)) {
           console.warn('[portalAuth] update usuario falhou:', upErr.message)
         }
         continue

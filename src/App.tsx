@@ -82,6 +82,11 @@ function PublicoGuard({ children }: { children: React.ReactNode }) {
   return children
 }
 
+function ehCelular() {
+  if (typeof navigator === 'undefined') return false
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+}
+
 function AppBanners() {
   const location = useLocation()
   if (
@@ -90,13 +95,14 @@ function AppBanners() {
     isSiteMapaLogistica() ||
     location.pathname === '/mapa' ||
     location.pathname === '/rota' ||
-    location.pathname === '/calcular-rota'
+    location.pathname === '/calcular-rota' ||
+    location.pathname.startsWith('/embarcador/mapa')
   ) {
     return null
   }
   return (
     <>
-      <PwaInstallBanner />
+      {ehCelular() ? <PwaInstallBanner /> : null}
       <PushEnableBanner />
     </>
   )
