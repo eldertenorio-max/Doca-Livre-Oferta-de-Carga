@@ -278,11 +278,58 @@ export function EarthGlobe({
       resizeObs = new ResizeObserver(applySize)
       resizeObs.observe(host)
       requestAnimationFrame(() => viewer?.resize())
+
+      // Se a cena travar/quebrar (ex.: GPU não desenha nada), volta pro mapa 2D.
+      scene.renderError.addEventListener((_s: unknown, err: unknown) => {
+        console.error('[EarthGlobe] renderError', err)
+        if (!disposed) {
+          setCesiumOk(false)
+          onErrorRef.current?.()
+        }
+      })
+
+      // Vigia: alguns navegadores/placas de vídeo criam o WebGL mas não
+      // desenham o globo (tela preta, sem erro). Se depois de alguns
+      // segundos o canvas continuar praticamente todo preto, assume que o
+      // 3D falhou e volta pro mapa 2D em vez de deixar um retângulo preto.
+      const checarDesenho = () => {
+        if (disposed || !viewer) return
+        try {
+          const canvas = viewer.canvas
+          const gl = (canvas.getContext('webgl2') ||
+            canvas.getContext('webgl')) as WebGLRenderingContext | null
+          if (!gl) return
+          const w = gl.drawingBufferWidth
+          const h = gl.drawingBufferHeight
+          if (!w || !h) return
+          const pontos: Array<[number, number]> = [
+            [Math.floor(w / 2), Math.floor(h / 2)],
+            [Math.floor(w * 0.3), Math.floor(h * 0.4)],
+            [Math.floor(w * 0.7), Math.floor(h * 0.4)],
+            [Math.floor(w * 0.5), Math.floor(h * 0.65)],
+          ]
+          const pixel = new Uint8Array(4)
+          const tudoPreto = pontos.every(([x, y]) => {
+            gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel)
+            return pixel[0] <= 3 && pixel[1] <= 4 && pixel[2] <= 10
+          })
+          if (tudoPreto) {
+            console.error('[EarthGlobe] globo não desenhou nada (canvas preto) — usando mapa 2D')
+            if (!disposed) setCesiumOk(false)
+            onErrorRef.current?.()
+          }
+        } catch (e) {
+          console.error('[EarthGlobe] falha ao checar canvas', e)
+        }
+      }
+      window.setTimeout(checarDesenho, 2600)
+
       if (!disposed) {
         setCesiumOk(true)
         onReadyRef.current?.()
       }
-    })().catch(() => {
+    })().catch((e) => {
+      console.error('[EarthGlobe] falha ao iniciar Cesium', e)
       if (!disposed) onErrorRef.current?.()
     })
 
