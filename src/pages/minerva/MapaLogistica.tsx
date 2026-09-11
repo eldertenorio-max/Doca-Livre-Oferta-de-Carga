@@ -45,7 +45,8 @@ export function MapaLogisticaPage() {
   useEffect(() => {
     if (aba !== 'radar') return
     if (!mapEl.current || mapRef.current) return
-    const map = L.map(mapEl.current, {
+    const el = mapEl.current
+    const map = L.map(el, {
       center: [-14.2, -51.9],
       zoom: 4,
       zoomControl: true,
@@ -58,7 +59,16 @@ export function MapaLogisticaPage() {
     }).addTo(map)
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
+    const refresh = () => map.invalidateSize({ animate: false })
+    const t1 = window.setTimeout(refresh, 80)
+    const t2 = window.setTimeout(refresh, 360)
+    const ro =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => refresh()) : null
+    ro?.observe(el.parentElement ?? el)
     return () => {
+      window.clearTimeout(t1)
+      window.clearTimeout(t2)
+      ro?.disconnect()
       map.remove()
       mapRef.current = null
       layerRef.current = null

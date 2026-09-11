@@ -498,7 +498,12 @@ export function AreaAtendimentoView() {
     }).addTo(map)
     labelsRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
-    window.setTimeout(() => map.invalidateSize(), 200)
+    const refresh = () => map.invalidateSize({ animate: false })
+    const t1 = window.setTimeout(refresh, 80)
+    const t2 = window.setTimeout(refresh, 360)
+    const ro =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => refresh()) : null
+    ro?.observe(mapEl.current.parentElement ?? mapEl.current)
 
     void (async () => {
       try {
@@ -537,6 +542,9 @@ export function AreaAtendimentoView() {
     })()
 
     return () => {
+      window.clearTimeout(t1)
+      window.clearTimeout(t2)
+      ro?.disconnect()
       map.remove()
       mapRef.current = null
       ufsLayerRef.current = null
