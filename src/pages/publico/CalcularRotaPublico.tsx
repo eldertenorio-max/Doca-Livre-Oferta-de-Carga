@@ -44,6 +44,7 @@ import { labelPorCoordenadas } from '../../lib/geocodeEndereco'
 import {
   consultarEstadoCalculosPublicos,
   estadoCalculosPublicos,
+  isRotaPublicoIlimitado,
   registrarCalculoPublico,
   ROTA_PUBLICO_LIMITE_CALCULOS,
 } from '../../lib/rotaPublicoCalculos'
@@ -199,8 +200,9 @@ export function CalcularRotaPublicoPage() {
   const [erro, setErro] = useState('')
   const [calc, setCalc] = useState<AnttCalculo | null>(null)
   const [mapId, setMapId] = useState(0)
+  const ilimitado = Boolean(user) || isRotaPublicoIlimitado()
   const [restam, setRestam] = useState(() =>
-    user ? ROTA_PUBLICO_LIMITE_CALCULOS : estadoCalculosPublicos().restam,
+    ilimitado ? ROTA_PUBLICO_LIMITE_CALCULOS : estadoCalculosPublicos().restam,
   )
   const [showPaywall, setShowPaywall] = useState(false)
   const [showResultado, setShowResultado] = useState(false)
@@ -212,11 +214,11 @@ export function CalcularRotaPublicoPage() {
   }, [])
 
   useEffect(() => {
-    if (user) setRestam(ROTA_PUBLICO_LIMITE_CALCULOS)
-  }, [user])
+    if (ilimitado) setRestam(ROTA_PUBLICO_LIMITE_CALCULOS)
+  }, [ilimitado])
 
   useEffect(() => {
-    if (user) return
+    if (ilimitado) return
     let alive = true
     void consultarEstadoCalculosPublicos().then((estado) => {
       if (!alive) return
@@ -225,7 +227,7 @@ export function CalcularRotaPublicoPage() {
     return () => {
       alive = false
     }
-  }, [user])
+  }, [ilimitado])
 
   useEffect(() => {
     setConsumo(fmtConsumo(consumoPadraoKmL(eixos)))
@@ -317,7 +319,7 @@ export function CalcularRotaPublicoPage() {
   }
 
   async function consumirCalculo(): Promise<boolean> {
-    if (userRef.current) return true
+    if (userRef.current || isRotaPublicoIlimitado()) return true
     if (cotaBusyRef.current) return false
     cotaBusyRef.current = true
     try {
@@ -431,7 +433,7 @@ export function CalcularRotaPublicoPage() {
       </header>
 
       <div className="mapa-frota mapa-pub__shell">
-        {!user && restam === 0 ? (
+        {!ilimitado && restam === 0 ? (
           <div className="mapa-pub__cta-esgotado">
             <span>Para calcular mais rotas hoje, assine o Doca Livre.</span>
             <button type="button" onClick={() => setShowPaywall(true)}>
@@ -448,7 +450,7 @@ export function CalcularRotaPublicoPage() {
                 <h1>Calcular rota</h1>
               </div>
               <p className="rota-pub__badge">
-                {user
+                {ilimitado
                   ? 'Ilimitado'
                   : restam > 0
                     ? `${restam} de ${ROTA_PUBLICO_LIMITE_CALCULOS} grátis`
@@ -727,9 +729,9 @@ export function CalcularRotaPublicoPage() {
                   <button
                     type="button"
                     className="rota-pub__calc"
-                    disabled={busy || (!user && restam === 0)}
+                    disabled={busy || (!ilimitado && restam === 0)}
                     onClick={() => {
-                      if (!user && restam === 0) {
+                      if (!ilimitado && restam === 0) {
                         setShowPaywall(true)
                         return
                       }
