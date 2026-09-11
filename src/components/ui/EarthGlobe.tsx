@@ -15,8 +15,9 @@ const TILES_PERTO =
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 
 const CENTRO_INICIAL: [number, number] = [-40, -8]
-const ZOOM_INICIAL = 0.15
-const ZOOM_MIN = 0
+/** Zoom alto o bastante para o planeta encostar nas margens, sem sumir no espaço. */
+const ZOOM_INICIAL = 2.45
+const ZOOM_MIN = 1.85
 const ZOOM_MAX = 19
 
 type Props = {
@@ -43,6 +44,25 @@ function criarPinEl(letra: string, cor: string) {
 
 function ativarGlobo(map: maplibregl.Map) {
   map.setProjection({ type: 'globe' })
+}
+
+/** Zoom para o planeta ocupar quase toda a área (perto das margens). */
+function zoomParaMargens(map: maplibregl.Map): number {
+  const el = map.getContainer()
+  const menor = Math.min(el.clientWidth || 520, el.clientHeight || 520)
+  const z = ZOOM_INICIAL + Math.log2(Math.max(menor, 280) / 520)
+  return Math.min(2.95, Math.max(ZOOM_MIN, z))
+}
+
+function visaoEspaco(map: maplibregl.Map, imediato: boolean, reduced: boolean) {
+  const pose = {
+    center: CENTRO_INICIAL,
+    zoom: zoomParaMargens(map),
+    bearing: 0,
+    pitch: 0,
+  }
+  if (imediato || reduced) map.jumpTo(pose)
+  else map.flyTo({ ...pose, duration: 1000 })
 }
 
 export function EarthGlobe({
@@ -143,7 +163,7 @@ export function EarthGlobe({
     const pronto = () => {
       if (disposed) return
       ativarGlobo(map)
-      map.jumpTo({ center: CENTRO_INICIAL, zoom: ZOOM_INICIAL, pitch: 0, bearing: 0 })
+      visaoEspaco(map, true, reduced)
       map.resize()
       setMapaOk(true)
       onReadyRef.current?.()
@@ -184,20 +204,16 @@ export function EarthGlobe({
       const act = btn.dataset.earth
       if (act === 'in') map.flyTo({ zoom: Math.min(ZOOM_MAX, map.getZoom() + 1.6), duration: 400 })
       if (act === 'out') map.flyTo({ zoom: Math.max(ZOOM_MIN, map.getZoom() - 1.6), duration: 400 })
-      if (act === 'home')
-        map.flyTo({
-          center: CENTRO_INICIAL,
-          zoom: ZOOM_INICIAL,
-          bearing: 0,
-          pitch: 0,
-          duration: reduced ? 0 : 1000,
-        })
+      if (act === 'home') visaoEspaco(map, false, reduced)
     }
     root.querySelector('.earth-globe__nav')?.addEventListener('click', onUi)
 
     resizeObs = new ResizeObserver(() => {
       map.resize()
-      if (map.getZoom() < 2) ativarGlobo(map)
+      if (map.getZoom() <= ZOOM_INICIAL + 0.35) {
+        ativarGlobo(map)
+        visaoEspaco(map, true, true)
+      }
     })
     resizeObs.observe(host)
 
