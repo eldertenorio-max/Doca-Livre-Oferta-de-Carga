@@ -71,7 +71,9 @@ export function isPublicSitePath(): boolean {
     path === '/rota' ||
     path.startsWith('/rota/') ||
     path === '/calcular-rota' ||
-    path.startsWith('/calcular-rota/')
+    path.startsWith('/calcular-rota/') ||
+    path === '/diego-lab' ||
+    path.startsWith('/diego-lab/')
   )
 }
 

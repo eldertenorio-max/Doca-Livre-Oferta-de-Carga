@@ -3,48 +3,33 @@ import { ritmoPublicoOk } from './publicoProtecao'
 import { isLocalDev } from './siteOfertaDeCarga'
 
 const STORAGE_KEY = 'doca-rota-publico-calculos-v1'
-const TESTE_KEY = 'doca-publico-teste-ilimitado'
 const LIMITE = 2
 const ILIMITADO = { usadas: 0, restam: LIMITE, esgotado: false } as const
 
-function ativarTestePelaUrl() {
-  if (typeof window === 'undefined') return
-  try {
-    const hash = window.location.hash || ''
-    const hashQ = hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : ''
-    const q = new URLSearchParams(`${window.location.search.replace(/^\?/, '')}&${hashQ}`)
-    if (q.get('teste') !== 'ilimitado') return
-    localStorage.setItem(TESTE_KEY, '1')
-    const nextSearch = new URLSearchParams(window.location.search)
-    nextSearch.delete('teste')
-    const search = nextSearch.toString()
-    const nextHash = hash.includes('?')
-      ? `${hash.slice(0, hash.indexOf('?'))}${(() => {
-          const hq = new URLSearchParams(hashQ)
-          hq.delete('teste')
-          const s = hq.toString()
-          return s ? `?${s}` : ''
-        })()}`
-      : hash
-    window.history.replaceState(
-      null,
-      '',
-      `${window.location.pathname}${search ? `?${search}` : ''}${nextHash}`,
-    )
-  } catch {
-    /* ignore */
-  }
-}
+/** Caminho do laboratório (não aparece no site público). */
+export const ROTA_LAB_PATH = '/diego-lab'
+/** Query do laboratório: ?lab=diego */
+export const ROTA_LAB_QUERY = 'diego'
 
-/** Só neste aparelho: ?teste=ilimitado ou localhost. */
-export function isRotaPublicoIlimitado(): boolean {
-  ativarTestePelaUrl()
-  if (isLocalDev()) return true
+function urlLabAtiva(): boolean {
+  if (typeof window === 'undefined') return false
   try {
-    return localStorage.getItem(TESTE_KEY) === '1'
+    const { pathname, search, hash } = window.location
+    const hashPath = (hash.replace(/^#/, '').split('?')[0] || '').toLowerCase()
+    const path = `${pathname}${hashPath}`.toLowerCase()
+    if (path.includes(ROTA_LAB_PATH)) return true
+    const hashQ = hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : ''
+    const q = new URLSearchParams(`${search.replace(/^\?/, '')}&${hashQ}`)
+    return q.get('lab') === ROTA_LAB_QUERY
   } catch {
     return false
   }
+}
+
+/** Só no link de laboratório (ou localhost). O site normal continua com cota. */
+export function isRotaPublicoIlimitado(): boolean {
+  if (isLocalDev()) return true
+  return urlLabAtiva()
 }
 
 type Registro = {

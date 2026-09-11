@@ -140,6 +140,7 @@ export default function App() {
       <PublicoGuard>
         <Routes>
           <Route path="/" element={<CalcularRotaPublicoPage />} />
+          <Route path="/diego-lab" element={<CalcularRotaPublicoPage />} />
           <Route path="/rota" element={<Navigate to="/" replace />} />
           <Route path="/calcular-rota" element={<Navigate to="/" replace />} />
           <Route path="*" element={<RedirectToSistema />} />
@@ -193,6 +194,7 @@ export default function App() {
       <Route path="/mapa" element={<PublicoGuard><MapaFrotaPublicoPage /></PublicoGuard>} />
       <Route path="/rota" element={<PublicoGuard><CalcularRotaPublicoPage /></PublicoGuard>} />
       <Route path="/calcular-rota" element={<PublicoGuard><CalcularRotaPublicoPage /></PublicoGuard>} />
+      <Route path="/diego-lab" element={<PublicoGuard><CalcularRotaPublicoPage /></PublicoGuard>} />
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route
         element={
