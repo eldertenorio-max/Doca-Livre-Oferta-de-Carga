@@ -33,6 +33,23 @@
   visibility: hidden;
 }
 
+.earth-globe--entrando .earth-globe__hint,
+.earth-globe--entrando .earth-globe__nav {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.earth-globe--entrando .earth-globe__stars {
+  opacity: 0;
+  transition: opacity 1.6s ease;
+}
+
+.earth-globe--saindo {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.65s ease;
+}
+
 .earth-globe--pick .maplibregl-canvas {
   cursor: crosshair;
 }

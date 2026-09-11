@@ -44,6 +44,8 @@ type Props = {
   autoCalcular?: boolean
   /** Incrementar para disparar o cálculo (quando autoCalcular=false). */
   calcularId?: number
+  /** Incrementar ao clicar em Calcular para mergulhar o globo no mapa. */
+  entrarId?: number
   /** Se true, mostra km/tempo (e custos) num resumo abaixo do mapa, em vez do cartão flutuante. */
   resumoAbaixo?: boolean
   /** Mesma preferência da calculadora (QualP / Rotas Brasil). */
@@ -304,6 +306,7 @@ export function RotaMapPreview({
   mostrarCustos = true,
   autoCalcular = true,
   calcularId = 0,
+  entrarId = 0,
   resumoAbaixo = false,
   preferencia = 'eficiente',
   pickMode = null,
@@ -329,7 +332,11 @@ export function RotaMapPreview({
 
   const lastManualId = useRef(0)
   const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'erro' | 'circular'>('idle')
-  const showGlobe = status === 'idle' || status === 'loading'
+  const [mergulhoId, setMergulhoId] = useState(0)
+  const [entradaFim, setEntradaFim] = useState(false)
+  const [globeSaindo, setGlobeSaindo] = useState(false)
+  const [globeVisivel, setGlobeVisivel] = useState(true)
+  const showGlobe = globeVisivel
   const [globeReady, setGlobeReady] = useState(false)
   const [msg, setMsg] = useState(
     autoCalcular
@@ -705,13 +712,55 @@ export function RotaMapPreview({
   ])
 
   useEffect(() => {
+    if (status === 'idle' && entrarId < 1) {
+      setMergulhoId(0)
+      setEntradaFim(false)
+      setGlobeSaindo(false)
+      setGlobeVisivel(true)
+    }
+  }, [status, entrarId])
+
+  useEffect(() => {
+    if (entrarId < 1) return
+    setGlobeVisivel(true)
+    setGlobeSaindo(false)
+    setEntradaFim(false)
+    setMergulhoId(entrarId)
+  }, [entrarId])
+
+  useEffect(() => {
+    if (status === 'loading' && globeVisivel && mergulhoId < 1) {
+      setEntradaFim(false)
+      setMergulhoId((n) => n + 1)
+    }
+    if (status === 'erro') setEntradaFim(true)
+  }, [status, globeVisivel, mergulhoId])
+
+  useEffect(() => {
+    if (mergulhoId < 1 || entradaFim) return
+    const t = window.setTimeout(() => setEntradaFim(true), 4500)
+    return () => window.clearTimeout(t)
+  }, [mergulhoId, entradaFim])
+
+  useEffect(() => {
+    const mapaPronto = status === 'ok' || status === 'circular' || status === 'erro'
+    if (!mapaPronto || !entradaFim || !globeVisivel) return
+    setGlobeSaindo(true)
+    const t = window.setTimeout(() => {
+      setGlobeVisivel(false)
+      setGlobeReady(false)
+    }, 680)
+    return () => window.clearTimeout(t)
+  }, [status, entradaFim, globeVisivel])
+
+  useEffect(() => {
     if (!showGlobe) setGlobeReady(false)
   }, [showGlobe])
 
   return (
     <div className="h-full min-h-[360px] w-full">
       <div
-        className={`rota-map-preview relative z-0 overflow-hidden rounded-lg border border-ink/15 bg-[#02040a] ${showGlobe && globeReady ? 'rota-map-preview--globe' : ''} ${pickMode ? 'is-picking' : ''} ${className}`}
+        className={`rota-map-preview relative z-0 overflow-hidden rounded-lg border border-ink/15 bg-[#02040a] ${showGlobe && globeReady && !globeSaindo ? 'rota-map-preview--globe' : ''} ${pickMode ? 'is-picking' : ''} ${className}`}
       >
         <div ref={mapEl} className="rota-map-preview__map" />
         {showGlobe ? (
@@ -719,8 +768,14 @@ export function RotaMapPreview({
             pickMode={pickMode}
             pontoA={coordsOk(origemCoords) ? origemCoords : null}
             pontoB={coordsOk(destinoCoords) ? destinoCoords : null}
+            entrarId={mergulhoId}
+            saindo={globeSaindo}
+            onEntradaFim={() => setEntradaFim(true)}
             onReady={() => setGlobeReady(true)}
-            onError={() => setGlobeReady(false)}
+            onError={() => {
+              setGlobeReady(false)
+              setEntradaFim(true)
+            }}
             onPick={(lat, lng) => {
               const modo = pickModeRef.current
               if (!modo) return
@@ -759,15 +814,19 @@ export function RotaMapPreview({
             <p className="text-xs font-semibold text-red-700">{msg}</p>
           </div>
         ) : null}
-        {status === 'loading' ? (
+        {status === 'loading' || (mergulhoId > 0 && globeVisivel && !globeSaindo && status === 'idle') ? (
           <div
             data-pdf-ignore
             className="pointer-events-none absolute bottom-3 left-2 right-2 z-10 rounded-lg bg-black/45 px-3 py-2 text-center text-[11px] font-semibold text-white shadow-md"
           >
-            {mostrarCustos ? 'Calculando trajeto e pedágios…' : 'Calculando trajeto…'}
+            {status === 'loading'
+              ? mostrarCustos
+                ? 'Calculando trajeto e pedágios…'
+                : 'Calculando trajeto…'
+              : 'Entrando no mapa…'}
           </div>
         ) : null}
-        {status === 'idle' && !autoCalcular && !pickMode ? (
+        {status === 'idle' && !autoCalcular && !pickMode && mergulhoId < 1 ? (
           <div
             data-pdf-ignore
             className="pointer-events-none absolute left-2 right-2 top-2 z-10 rounded-lg bg-black/50 px-3 py-2 text-center text-[11px] font-semibold text-white shadow-md"

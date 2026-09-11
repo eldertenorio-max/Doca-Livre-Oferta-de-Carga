@@ -200,6 +200,7 @@ export function CalcularRotaPublicoPage() {
   const [erro, setErro] = useState('')
   const [calc, setCalc] = useState<AnttCalculo | null>(null)
   const [mapId, setMapId] = useState(0)
+  const [entrarId, setEntrarId] = useState(0)
   const ilimitado = Boolean(user) || isRotaPublicoIlimitado()
   const [restam, setRestam] = useState(() =>
     ilimitado ? ROTA_PUBLICO_LIMITE_CALCULOS : estadoCalculosPublicos().restam,
@@ -316,6 +317,7 @@ export function CalcularRotaPublicoPage() {
     setShowResultado(false)
     setSnap(null)
     setPickMode(null)
+    setEntrarId(0)
   }
 
   async function consumirCalculo(): Promise<boolean> {
@@ -342,6 +344,7 @@ export function CalcularRotaPublicoPage() {
     }
     if (!(await consumirCalculo())) return
     const id = ++reqId.current
+    setEntrarId((n) => n + 1)
     setBusy(true)
     setErro('')
     const waypoints = vias
@@ -375,6 +378,7 @@ export function CalcularRotaPublicoPage() {
       setCalc(null)
       setShowResultado(false)
       setSnap(null)
+      setEntrarId(0)
       return
     }
     setCalc(res.data)
@@ -769,6 +773,7 @@ export function CalcularRotaPublicoPage() {
               preferencia={preferencia}
               autoCalcular={false}
               calcularId={mapId}
+              entrarId={entrarId}
               pickMode={pickMode}
               onPickModeChange={setPickMode}
               onPickPonto={marcarPontoNoMapa}

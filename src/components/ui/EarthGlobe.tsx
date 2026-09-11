@@ -25,8 +25,29 @@ type Props = {
   onPick?: (lat: number, lng: number) => void
   pontoA?: Coord | null
   pontoB?: Coord | null
+  /** Incrementa para mergulhar do espaço até o mapa. 0 = volta à órbita. */
+  entrarId?: number
+  saindo?: boolean
+  onEntradaFim?: () => void
   onReady?: () => void
   onError?: () => void
+}
+
+function centroAlvo(a?: Coord | null, b?: Coord | null): [number, number] {
+  if (a && b) return [(a.lng + b.lng) / 2, (a.lat + b.lat) / 2]
+  if (a) return [a.lng, a.lat]
+  if (b) return [b.lng, b.lat]
+  return CENTRO_INICIAL
+}
+
+function zoomAlvo(a?: Coord | null, b?: Coord | null): number {
+  if (!a || !b) return 7.6
+  const span = Math.max(Math.abs(a.lat - b.lat), Math.abs(a.lng - b.lng))
+  if (span > 18) return 4.8
+  if (span > 8) return 5.8
+  if (span > 3) return 6.8
+  if (span > 1) return 8
+  return 9.2
 }
 
 function criarPinEl(letra: string, cor: string) {
@@ -62,6 +83,9 @@ export function EarthGlobe({
   onPick,
   pontoA = null,
   pontoB = null,
+  entrarId = 0,
+  saindo = false,
+  onEntradaFim,
   onReady,
   onError,
 }: Props) {
@@ -78,7 +102,15 @@ export function EarthGlobe({
   const onErrorRef = useRef(onError)
   onReadyRef.current = onReady
   onErrorRef.current = onError
+  const onEntradaFimRef = useRef(onEntradaFim)
+  onEntradaFimRef.current = onEntradaFim
+  const pontoARef = useRef(pontoA)
+  const pontoBRef = useRef(pontoB)
+  pontoARef.current = pontoA
+  pontoBRef.current = pontoB
+  const entrarFeitoRef = useRef(0)
   const [mapaOk, setMapaOk] = useState(false)
+  const [entrando, setEntrando] = useState(false)
 
   useEffect(() => {
     const host = mapEl.current
@@ -242,10 +274,86 @@ export function EarthGlobe({
     }
   }, [mapaOk, pontoA, pontoB])
 
+  useEffect(() => {
+    const map = mapRef.current
+    if (!mapaOk || !map) return
+
+    const reduced =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    if (entrarId < 1) {
+      if (entrarFeitoRef.current > 0) {
+        entrarFeitoRef.current = 0
+        setEntrando(false)
+        visaoEspaco(map, reduced, reduced)
+      }
+      return
+    }
+    if (entrarId === entrarFeitoRef.current) return
+    entrarFeitoRef.current = entrarId
+    setEntrando(true)
+
+    const a = pontoARef.current
+    const b = pontoBRef.current
+    const center = centroAlvo(a, b)
+    const zoom = zoomAlvo(a, b)
+    let done = false
+    let timer = 0
+    const finish = () => {
+      if (done) return
+      done = true
+      window.clearTimeout(timer)
+      setEntrando(false)
+      try {
+        map.scrollZoom.enable()
+      } catch {
+        /* ignore */
+      }
+      onEntradaFimRef.current?.()
+    }
+
+    timer = window.setTimeout(finish, reduced ? 40 : 4200)
+    try {
+      map.scrollZoom.disable()
+    } catch {
+      /* ignore */
+    }
+    map.stop()
+
+    if (reduced) {
+      map.jumpTo({ center, zoom, pitch: 0, bearing: 0 })
+      finish()
+      return () => window.clearTimeout(timer)
+    }
+
+    map.flyTo({
+      center,
+      zoom,
+      pitch: 48,
+      bearing: 10,
+      duration: 2800,
+      curve: 1.62,
+      essential: true,
+    })
+    const achatar = () => {
+      map.easeTo({ pitch: 0, bearing: 0, duration: 520, essential: true })
+      map.once('moveend', finish)
+    }
+    map.once('moveend', achatar)
+
+    return () => {
+      window.clearTimeout(timer)
+      map.off('moveend', achatar)
+      map.off('moveend', finish)
+      if (!done) entrarFeitoRef.current = 0
+    }
+  }, [entrarId, mapaOk])
+
   return (
     <div
       ref={rootRef}
-      className={`earth-globe${pickMode ? ' earth-globe--pick' : ''}${mapaOk ? '' : ' earth-globe--boot'}`}
+      className={`earth-globe${pickMode ? ' earth-globe--pick' : ''}${mapaOk ? '' : ' earth-globe--boot'}${entrando ? ' earth-globe--entrando' : ''}${saindo ? ' earth-globe--saindo' : ''}`}
       role="application"
       aria-label="Globo 3D com satélite. Role para entrar no mapa, arraste para girar. Use Ponto A e Ponto B para marcar origem e destino."
     >
