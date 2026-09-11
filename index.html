@@ -110,36 +110,12 @@
           e.preventDefault()
         }
       })
-      // Força o navegador a procurar SW novo e limpar cache morto (uma vez por build).
+      // Marca o build. Não recarrega a página — isso deixava a 1ª visita em branco.
       ;(function () {
-        var BUILD = 'rota-publico-cache-v178'
+        var BUILD = 'rota-publico-cache-v179'
         try {
-          var stored = localStorage.getItem('doca-html-bust')
-          if (stored === BUILD) return
           localStorage.setItem('doca-html-bust', BUILD)
         } catch (e) {}
-        if (!('serviceWorker' in navigator)) return
-        navigator.serviceWorker.getRegistrations().then(function (regs) {
-          return Promise.all(regs.map(function (r) { return r.unregister() }))
-        }).then(function () {
-          if (!('caches' in window)) return
-          return caches.keys().then(function (keys) {
-            return Promise.all(keys.map(function (k) { return caches.delete(k) }))
-          })
-        }).then(function () {
-          try {
-            if (sessionStorage.getItem('doca-html-reloaded') === BUILD) return
-            sessionStorage.setItem('doca-html-reloaded', BUILD)
-          } catch (e) {}
-          var host = (location.hostname || '').toLowerCase().replace(/^www\./, '')
-          if (host === 'ofertadecarga.com.br' || host === 'mapadafrota.com.br' || host === 'mapadalogistica.com.br') {
-            location.replace(location.origin + '/')
-            return
-          }
-          var u = new URL(location.href)
-          u.searchParams.delete('_v')
-          location.replace(u.pathname + u.hash)
-        }).catch(function () {})
       })()
     </script>
     <div id="root"></div>
