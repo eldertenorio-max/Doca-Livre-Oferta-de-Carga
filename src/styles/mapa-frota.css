@@ -1149,6 +1149,23 @@
   overflow: hidden;
 }
 
+.frota-bubble__icon[data-grupo='passeio'] { background: #dbeafe; }
+.frota-bubble__icon[data-grupo='utilitario'] { background: #cffafe; }
+.frota-bubble__icon[data-grupo='fiorino'] { background: #ccfbf1; }
+.frota-bubble__icon[data-grupo='van'] { background: #e0e7ff; }
+.frota-bubble__icon[data-grupo='hr'] { background: #ecfccb; }
+.frota-bubble__icon[data-grupo='vuc'] { background: #dcfce7; }
+.frota-bubble__icon[data-grupo='leve'] { background: #fef9c3; }
+.frota-bubble__icon[data-grupo='toco'] { background: #ffedd5; }
+.frota-bubble__icon[data-grupo='truck'] { background: #fee2e2; }
+.frota-bubble__icon[data-grupo='bitruck'] { background: #ffe4e6; }
+.frota-bubble__icon[data-grupo='carreta'] { background: #ede9fe; }
+.frota-bubble__icon[data-grupo='carreta_ls'] { background: #ede9fe; }
+.frota-bubble__icon[data-grupo='vanderleia'] { background: #fae8ff; }
+.frota-bubble__icon[data-grupo='bitrem'] { background: #e0f2fe; }
+.frota-bubble__icon[data-grupo='rodotrem'] { background: #dbeafe; }
+.frota-bubble__icon[data-grupo='outros'] { background: #f1f5f9; }
+
 .frota-bubble__icon svg {
   width: 100%;
   height: 100%;
