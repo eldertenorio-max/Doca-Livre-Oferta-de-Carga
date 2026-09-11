@@ -3,7 +3,28 @@
   inset: 0;
   z-index: 2;
   overflow: hidden;
-  background: #02040a;
+  background: #000008;
+}
+
+.earth-globe__stars {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(1px 1px at 8% 18%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 22% 72%, #dbeafe 50%, transparent 51%),
+    radial-gradient(1px 1px at 41% 12%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 63% 81%, #e0f2fe 50%, transparent 51%),
+    radial-gradient(1.4px 1.4px at 78% 28%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 91% 64%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 14% 48%, #bfdbfe 50%, transparent 51%),
+    radial-gradient(1px 1px at 33% 91%, #fff 50%, transparent 51%),
+    radial-gradient(1.2px 1.2px at 52% 39%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 71% 7%, #e0f2fe 50%, transparent 51%),
+    radial-gradient(1px 1px at 86% 88%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 5% 86%, #dbeafe 50%, transparent 51%);
+  opacity: 0.85;
 }
 
 .earth-globe--boot {
@@ -66,6 +87,8 @@
 .earth-globe__map {
   position: absolute;
   inset: 0;
+  z-index: 1;
+  background: transparent;
 }
 
 .earth-globe .maplibregl-map,

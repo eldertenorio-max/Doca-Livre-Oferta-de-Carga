@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import maplibregl from 'maplibre-gl'
+import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '../../styles/earth-globe.css'
 
@@ -7,13 +7,16 @@ type Coord = { lat: number; lng: number }
 
 export type EarthGlobePick = 'A' | 'B'
 
-const SATELITE_TILES = [
-  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-]
+/** Foto de satélite (Sentinel-2) — no espaço fica parecido com o Google Earth. */
+const TILES_ESPACO =
+  'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg'
+/** Satélite de alta resolução para quando o zoom entra no chão. */
+const TILES_PERTO =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 
-const CENTRO_INICIAL: [number, number] = [-48, -14]
-const ZOOM_INICIAL = 1.35
-const ZOOM_MIN = 0.6
+const CENTRO_INICIAL: [number, number] = [-40, -8]
+const ZOOM_INICIAL = 0.15
+const ZOOM_MIN = 0
 const ZOOM_MAX = 19
 
 type Props = {
@@ -36,6 +39,10 @@ function criarPinEl(letra: string, cor: string) {
       font-family="system-ui,sans-serif" fill="${cor}">${letra}</text>
   </svg>`
   return el
+}
+
+function ativarGlobo(map: maplibregl.Map) {
+  map.setProjection({ type: 'globe' })
 }
 
 export function EarthGlobe({
@@ -82,19 +89,37 @@ export function EarthGlobe({
           version: 8,
           projection: { type: 'globe' },
           sources: {
-            satelite: {
+            espaco: {
               type: 'raster',
-              tiles: SATELITE_TILES,
+              tiles: [TILES_ESPACO],
+              tileSize: 256,
+              maxzoom: 13,
+              attribution: 'Sentinel-2 cloudless © EOX',
+            },
+            perto: {
+              type: 'raster',
+              tiles: [TILES_PERTO],
               tileSize: 256,
               maxzoom: 19,
               attribution: 'Esri, Maxar, Earthstar Geographics',
             },
           },
-          layers: [{ id: 'satelite', type: 'raster', source: 'satelite' }],
+          layers: [
+            { id: 'espaco', type: 'raster', source: 'espaco' },
+            {
+              id: 'perto',
+              type: 'raster',
+              source: 'perto',
+              minzoom: 6,
+            },
+          ],
           sky: {
+            'sky-color': '#000010',
+            'horizon-color': '#1a4a8a',
+            'fog-color': '#0b1c3a',
             'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 5, 1, 7, 0],
           },
-          light: { anchor: 'map', position: [1.5, 90, 80] },
+          light: { anchor: 'viewport', position: [1.15, 210, 30] },
         },
         center: CENTRO_INICIAL,
         zoom: ZOOM_INICIAL,
@@ -106,6 +131,7 @@ export function EarthGlobe({
         pitchWithRotate: false,
         doubleClickZoom: false,
         renderWorldCopies: false,
+        fadeDuration: reduced ? 0 : 300,
       })
     } catch (e) {
       console.error('[EarthGlobe] falha ao criar mapa', e)
@@ -114,45 +140,25 @@ export function EarthGlobe({
     }
     mapRef.current = map
 
-    const checarDesenho = () => {
+    const pronto = () => {
       if (disposed) return
-      try {
-        const canvas = map.getCanvas()
-        const gl = (canvas.getContext('webgl2') ||
-          canvas.getContext('webgl')) as WebGLRenderingContext | null
-        if (!gl) return
-        const w = gl.drawingBufferWidth
-        const h = gl.drawingBufferHeight
-        if (!w || !h) return
-        const pontos: Array<[number, number]> = [
-          [Math.floor(w / 2), Math.floor(h / 2)],
-          [Math.floor(w * 0.3), Math.floor(h * 0.4)],
-          [Math.floor(w * 0.7), Math.floor(h * 0.4)],
-        ]
-        const pixel = new Uint8Array(4)
-        const tudoPreto = pontos.every(([x, y]) => {
-          gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel)
-          return pixel[0] <= 3 && pixel[1] <= 4 && pixel[2] <= 10
-        })
-        if (tudoPreto) {
-          console.error('[EarthGlobe] globo não desenhou nada (canvas preto) — usando mapa 2D')
-          onErrorRef.current?.()
-        }
-      } catch (e) {
-        console.error('[EarthGlobe] falha ao checar canvas', e)
-      }
+      ativarGlobo(map)
+      map.jumpTo({ center: CENTRO_INICIAL, zoom: ZOOM_INICIAL, pitch: 0, bearing: 0 })
+      map.resize()
+      setMapaOk(true)
+      onReadyRef.current?.()
     }
+
+    map.on('style.load', () => {
+      if (disposed) return
+      ativarGlobo(map)
+    })
 
     map.on('error', (e) => {
       console.error('[EarthGlobe] erro do mapa', e?.error || e)
     })
 
-    map.on('load', () => {
-      if (disposed) return
-      setMapaOk(true)
-      onReadyRef.current?.()
-      window.setTimeout(checarDesenho, 1400)
-    })
+    map.on('load', pronto)
 
     map.on('mousedown', (e) => {
       down = { x: e.point.x, y: e.point.y }
@@ -189,7 +195,10 @@ export function EarthGlobe({
     }
     root.querySelector('.earth-globe__nav')?.addEventListener('click', onUi)
 
-    resizeObs = new ResizeObserver(() => map.resize())
+    resizeObs = new ResizeObserver(() => {
+      map.resize()
+      if (map.getZoom() < 2) ativarGlobo(map)
+    })
     resizeObs.observe(host)
 
     return () => {
@@ -236,6 +245,7 @@ export function EarthGlobe({
       role="application"
       aria-label="Globo 3D com satélite. Role para entrar no mapa, arraste para girar. Use Ponto A e Ponto B para marcar origem e destino."
     >
+      <div className="earth-globe__stars" aria-hidden />
       <div ref={mapEl} className="earth-globe__map" />
       <div className="earth-globe__nav" data-pdf-ignore>
         <button type="button" data-earth="in" title="Entrar no mapa" aria-label="Entrar no mapa">
@@ -249,7 +259,7 @@ export function EarthGlobe({
         </button>
       </div>
       <p className="earth-globe__hint">
-        Role a roda do mouse para puxar o zoom · arraste para girar · + entra no mapa
+        Role a roda do mouse para puxar o zoom · arraste para girar o planeta
       </p>
     </div>
   )
