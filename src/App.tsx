@@ -84,7 +84,14 @@ function PublicoGuard({ children }: { children: React.ReactNode }) {
 
 function AppBanners() {
   const location = useLocation()
-  if (location.pathname === '/mapa' || location.pathname === '/rota' || location.pathname === '/calcular-rota') {
+  if (
+    isSiteOfertaDeCarga() ||
+    isSiteMapaFrota() ||
+    isSiteMapaLogistica() ||
+    location.pathname === '/mapa' ||
+    location.pathname === '/rota' ||
+    location.pathname === '/calcular-rota'
+  ) {
     return null
   }
   return (

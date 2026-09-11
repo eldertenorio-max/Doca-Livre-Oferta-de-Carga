@@ -9,16 +9,7 @@ type BeforeInstallPromptEvent = Event & {
 
 const DISMISS_KEY = 'doca-livre-pwa-install-dismissed'
 
-/** Captura cedo: o evento pode disparar antes do React montar. */
 let earlyDeferred: BeforeInstallPromptEvent | null = null
-
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault()
-    earlyDeferred = e as BeforeInstallPromptEvent
-    window.dispatchEvent(new CustomEvent('doca-pwa-install-ready'))
-  })
-}
 
 function isStandalone(): boolean {
   if (typeof window === 'undefined') return false
@@ -98,6 +89,8 @@ export function PwaInstallBanner() {
     window.addEventListener('doca-pwa-install-ready', onReady)
 
     const onBip = (e: Event) => {
+      // Só intercepta no celular; no desktop o Chrome loga preventDefault no console.
+      if (!window.matchMedia('(max-width: 860px)').matches) return
       e.preventDefault()
       showNative(e as BeforeInstallPromptEvent)
     }
