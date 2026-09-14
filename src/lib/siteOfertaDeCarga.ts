@@ -110,11 +110,15 @@ export function queryFreteMinimo(params?: {
   km?: number | null
   eixos?: number
   cat?: number | ''
+  pedagio?: number | null
 }) {
   const q = new URLSearchParams()
   if (params?.km != null && params.km > 0) q.set('km', String(Math.round(params.km * 10) / 10))
   if (params?.eixos) q.set('eixos', String(params.eixos))
   if (params?.cat) q.set('cat', String(params.cat))
+  if (params?.pedagio != null && params.pedagio > 0) {
+    q.set('pedagio', String(Math.round(params.pedagio * 100) / 100))
+  }
   const s = q.toString()
   return s ? `?${s}` : ''
 }
@@ -124,6 +128,7 @@ export function hrefFreteMinimo(params?: {
   km?: number | null
   eixos?: number
   cat?: number | ''
+  pedagio?: number | null
 }) {
   const qs = queryFreteMinimo(params)
   if (isSiteOfertaDeCarga() || isLocalDev() || isSiteSistema()) return `/frete-minimo${qs}`

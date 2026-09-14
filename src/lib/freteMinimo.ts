@@ -12,6 +12,7 @@ export type FreteMinimoEntrada = {
   margemPct: number
   icmsPct: number
   toneladas: number | null
+  pedagio: number
   dataCalculo: string
 }
 
@@ -46,6 +47,7 @@ export type FreteMinimoResultado = {
   icmsValor: number
   toneladas: number | null
   porTonelada: number | null
+  pedagio: number
   total: number
   totalPorKm: number
   comparativoTabelas: FreteMinimoComparativo[]
@@ -106,7 +108,8 @@ export function calcularFreteMinimo(
   const margemValor = roundMoney(piso.valor * (margemPct / 100))
   const base = roundMoney(piso.valor + margemValor)
   const icmsValor = roundMoney(base * (icmsPct / 100))
-  const total = roundMoney(base + icmsValor)
+  const pedagio = Math.max(0, Number.isFinite(p.pedagio) ? p.pedagio : 0)
+  const total = roundMoney(base + icmsValor + pedagio)
   const porTonelada = toneladas ? roundMoney(total / toneladas) : null
   const tab = TABELAS_FRETE_MINIMO.find((t) => t.id === p.tabela) ?? TABELAS_FRETE_MINIMO[0]
   const comparativoTabelas: FreteMinimoComparativo[] = TABELAS_FRETE_MINIMO.map((t) => {
@@ -140,6 +143,7 @@ export function calcularFreteMinimo(
       icmsValor,
       toneladas,
       porTonelada,
+      pedagio: roundMoney(pedagio),
       total,
       totalPorKm: roundMoney(total / p.km),
       comparativoTabelas,

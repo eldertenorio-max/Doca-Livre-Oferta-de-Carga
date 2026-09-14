@@ -68,17 +68,19 @@ export function LinkFreteMinimo({
   km,
   eixos,
   cat,
+  pedagio,
 }: {
   className?: string
   children: ReactNode
   km?: number | null
   eixos?: number
   cat?: number | ''
+  pedagio?: number | null
 }) {
-  const qs = queryFreteMinimo({ km, eixos, cat })
+  const qs = queryFreteMinimo({ km, eixos, cat, pedagio })
   const to = `/frete-minimo${qs}`
   return (
-    <AbsOrHash href={hrefFreteMinimo({ km, eixos, cat })} to={to} className={className}>
+    <AbsOrHash href={hrefFreteMinimo({ km, eixos, cat, pedagio })} to={to} className={className}>
       {children}
     </AbsOrHash>
   )

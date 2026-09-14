@@ -88,7 +88,18 @@
   outline: 0;
 }
 
-.frete-min__km-btn {
+.frete-min__prefix {
+  flex-shrink: 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #64748b;
+}
+
+.frete-min__hint {
+  font-size: 0.68rem;
+  font-weight: 650;
+  color: #94a3b8;
+}
   flex-shrink: 0;
   border: 0;
   border-radius: 10px;

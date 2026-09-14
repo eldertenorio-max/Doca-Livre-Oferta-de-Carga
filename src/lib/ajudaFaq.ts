@@ -87,7 +87,7 @@ export const AJUDA_FAQ: AjudaFaqItem[] = [
     id: 'frete-minimo',
     pergunta: 'Como usar a calculadora de frete mínimo?',
     resposta:
-      'No painel, toque em “Calculadora de Frete” (logo abaixo de Calcular rota). Abre a página da calculadora de piso ANTT. Informe os km — ou use os km da rota já calculada — eixos, tabela A–D e o tipo de carga. Opcional: retorno vazio, margem, ICMS e toneladas. O resultado é o piso da Resolução ANTT nº 6.084/2026; pedágio não entra nesse valor.',
+      'No painel, toque em “Calculadora de Frete” (logo abaixo de Calcular rota). Abre a página da calculadora de piso ANTT. Informe os km — ou use os km da rota já calculada — eixos, tabela A–D e o tipo de carga. Opcional: pedágio (R$), retorno vazio, margem, ICMS e toneladas. O piso da Resolução ANTT nº 6.084/2026 não inclui pedágio; o valor informado é somado à parte no total.',
   },
   {
     id: 'contato',

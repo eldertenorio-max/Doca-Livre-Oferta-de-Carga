@@ -28,6 +28,10 @@ export function FreteMinimoPublicoPage() {
     const n = Number(sp.get('cat'))
     return Number.isFinite(n) && n > 0 ? n : 5
   }, [sp])
+  const pedagioRota = useMemo(() => {
+    const n = Number(String(sp.get('pedagio') || '').replace(',', '.'))
+    return Number.isFinite(n) && n > 0 ? n : null
+  }, [sp])
 
   return (
     <div className="mapa-pub rota-pub frete-min-pagina">
@@ -72,6 +76,7 @@ export function FreteMinimoPublicoPage() {
           <FreteMinimoCalc
             pagina
             kmRota={kmRota}
+            pedagioRota={pedagioRota}
             eixosInicial={eixosInicial}
             categoriaInicial={categoriaInicial}
             onPedirRota={() => navigate(isSiteOfertaDeCarga() ? '/' : '/rota')}

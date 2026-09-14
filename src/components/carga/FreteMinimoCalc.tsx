@@ -16,6 +16,7 @@ import '../../styles/frete-minimo.css'
 
 type Props = {
   kmRota?: number | null
+  pedagioRota?: number | null
   eixosInicial?: number
   categoriaInicial?: number | ''
   onPedirRota?: () => void
@@ -35,8 +36,13 @@ function fmtCoef(n: number, casas = 4) {
   return n.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas })
 }
 
+function formatarDinheiro(n: number): string {
+  return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 export function FreteMinimoCalc({
   kmRota = null,
+  pedagioRota = null,
   eixosInicial = 5,
   categoriaInicial = 5,
   onPedirRota,
@@ -58,6 +64,9 @@ export function FreteMinimoCalc({
   const [margem, setMargem] = useState('0')
   const [icms, setIcms] = useState('12')
   const [toneladas, setToneladas] = useState('')
+  const [pedagio, setPedagio] = useState(() =>
+    pedagioRota != null && pedagioRota > 0 ? formatarDinheiro(pedagioRota) : '',
+  )
   const [erro, setErro] = useState('')
   const [res, setRes] = useState<FreteMinimoResultado | null>(null)
   const [animKey, setAnimKey] = useState(0)
@@ -78,6 +87,7 @@ export function FreteMinimoCalc({
       margemPct: parseNumeroBr(margem) || 0,
       icmsPct: parseNumeroBr(icms) || 0,
       toneladas: parseNumeroBr(toneladas),
+      pedagio: parseNumeroBr(pedagio) || 0,
       dataCalculo,
     })
     if (!out.ok) {
@@ -94,6 +104,7 @@ export function FreteMinimoCalc({
   }
 
   const kmRotaOk = kmRota != null && kmRota > 0
+  const pedagioRotaOk = pedagioRota != null && pedagioRota > 0
   const classe = [
     'frete-min',
     variante === 'sistema' ? 'frete-min--sistema' : '',
@@ -193,6 +204,32 @@ export function FreteMinimoCalc({
           value={dataCalculo}
           onChange={(e) => setDataCalculo(e.target.value)}
         />
+      </label>
+
+      <label className="frete-min__label">
+        Pedágio (R$)
+        <div className="frete-min__km">
+          <span className="frete-min__prefix" aria-hidden>
+            R$
+          </span>
+          <input
+            value={pedagio}
+            onChange={(e) => setPedagio(e.target.value)}
+            inputMode="decimal"
+            placeholder="0,00"
+            aria-label="Valor do pedágio"
+          />
+          {pedagioRotaOk ? (
+            <button
+              type="button"
+              className="frete-min__km-btn"
+              onClick={() => setPedagio(formatarDinheiro(pedagioRota ?? 0))}
+            >
+              Usar da rota
+            </button>
+          ) : null}
+        </div>
+        <small className="frete-min__hint">Opcional. Não entra no piso ANTT — vale-pedágio à parte.</small>
       </label>
 
       <button
@@ -360,6 +397,15 @@ function FreteMinimoResultadoPainel({ res }: { res: FreteMinimoResultado | null 
             <b>{formatCurrency(res.icmsValor)}</b>
           </li>
         ) : null}
+        {res.pedagio > 0 ? (
+          <li>
+            <span>
+              Pedágio
+              <em>informado · não entra no piso ANTT</em>
+            </span>
+            <b>{formatCurrency(res.pedagio)}</b>
+          </li>
+        ) : null}
         <li className="is-total">
           <span>Total</span>
           <b>{formatCurrency(res.total)}</b>
@@ -406,6 +452,12 @@ function FreteMinimoResultadoPainel({ res }: { res: FreteMinimoResultado | null 
             </b>
           </span>
         ) : null}
+        {res.pedagio > 0 ? (
+          <span>
+            Pedágio
+            <b>{formatCurrency(res.pedagio)}</b>
+          </span>
+        ) : null}
       </div>
 
       {eixosDif ? (
@@ -430,8 +482,8 @@ function FreteMinimoResultadoPainel({ res }: { res: FreteMinimoResultado | null 
       </div>
 
       <p className="frete-min__formula">
-        Fórmula: CCD × km{res.retornoVazio ? ' × 1,92' : ''} + CC. Pedágio e combustível não entram
-        neste piso (Lei 13.703/2018).
+        Fórmula do piso: CCD × km{res.retornoVazio ? ' × 1,92' : ''} + CC. O pedágio informado é
+        somado à parte e não faz parte do piso ANTT (Lei 13.703/2018). Combustível também não entra.
       </p>
       <p className="frete-min__out-fonte">{res.fonte}</p>
     </div>

@@ -694,6 +694,7 @@ export function CalcularRotaPublicoPage() {
               km={calc?.rota.distancia_km ?? null}
               eixos={eixos}
               cat={categoriaCargaId}
+              pedagio={calc?.rota.pedagio ?? null}
             >
               <Calculator size={20} strokeWidth={2.4} />
               Calculadora de Frete
