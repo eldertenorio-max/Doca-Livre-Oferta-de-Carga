@@ -39,6 +39,7 @@ import { useData } from '../../context/DataContext'
 import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
 import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
 import { RotaMapPreview } from '../../components/carga/RotaMapPreview'
+import { MapaFrotaAjuda } from '../../components/mapa/MapaFrotaAjuda'
 import type { SugestaoEndereco } from '../../lib/geocodeEndereco'
 import { geocodificarConsulta, labelPorCoordenadas } from '../../lib/geocodeEndereco'
 import {
@@ -964,7 +965,14 @@ export function CalcularRotaPublicoPage() {
                     })}
                 </ul>
               )}
-              <p className="mapa-frota__sub">{calc.fonte}</p>
+              <div className="rota-pub__fonte">
+                <span>Resolução ANTT</span>
+                <MapaFrotaAjuda
+                  texto={calc.fonte}
+                  ariaLabel="Fonte da resolução e da rota"
+                  abrirAcima
+                />
+              </div>
               <LinkMapaFrota className="mapa-pub__btn mapa-pub__btn--ghost">
                 Ver frota disponível
               </LinkMapaFrota>

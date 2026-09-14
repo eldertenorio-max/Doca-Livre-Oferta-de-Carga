@@ -20,7 +20,9 @@ import { VeiculoSuggestInput } from '../ui/VeiculoSuggestInput'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
 import { AnttFretePanel } from './AnttFretePanel'
 import { RotaMapPreview } from './RotaMapPreview'
+import { MapaFrotaAjuda } from '../mapa/MapaFrotaAjuda'
 import { LinkMapaFrota, LinkMapaLogistica } from '../ui/HostLink'
+import '../../styles/mapa-frota.css'
 
 type Props = {
   carga: Carga | null
@@ -642,7 +644,14 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
                   ))}
                 </ul>
               )}
-              <p className="pt-2 text-[10px] text-ink-muted">{calc.fonte}</p>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <span className="text-[11px] font-extrabold text-ink-muted">Resolução ANTT</span>
+                <MapaFrotaAjuda
+                  texto={calc.fonte}
+                  ariaLabel="Fonte da resolução e da rota"
+                  abrirAcima
+                />
+              </div>
             </div>
           </div>
         )}

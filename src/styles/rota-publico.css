@@ -841,6 +841,20 @@
   line-height: 1.35;
 }
 
+.rota-pub__fonte {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.rota-pub__fonte > span {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #64748b;
+}
+
 .rota-pub__resumo h3 {
   margin: 6px 0 0;
   font-size: 0.68rem;

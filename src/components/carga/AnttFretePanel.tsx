@@ -11,6 +11,8 @@ import {
 } from '../../lib/anttFrete'
 import type { AnttInfoCarga } from '../../types'
 import { Button, Field, inputClass } from '../ui/Modal'
+import { MapaFrotaAjuda } from '../mapa/MapaFrotaAjuda'
+import '../../styles/mapa-frota.css'
 
 type WaypointAntt = {
   endereco: string
@@ -175,9 +177,13 @@ export function AnttFretePanel({
             · Vale-Pedágio Res. 6.024/2023 · RNTRC do transportador.
           </p>
           {calc?.fonte ? (
-            <p className="mt-1 text-[10px] font-semibold text-ink-muted">
-              Fonte dos dados: {calc.fonte}
-            </p>
+            <div className="mt-1 flex items-center gap-2">
+              <span className="text-[10px] font-extrabold text-ink-muted">Resolução ANTT</span>
+              <MapaFrotaAjuda
+                texto={calc.fonte}
+                ariaLabel="Fonte da resolução e da rota"
+              />
+            </div>
           ) : null}
         </div>
         <Button

@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { Info } from 'lucide-react'
 
-export function MapaFrotaAjuda({ texto }: { texto: string }) {
+export function MapaFrotaAjuda({
+  texto,
+  ariaLabel = 'Como usar o mapa',
+  abrirAcima = false,
+}: {
+  texto: string
+  ariaLabel?: string
+  abrirAcima?: boolean
+}) {
   const [aberto, setAberto] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
 
@@ -15,13 +23,13 @@ export function MapaFrotaAjuda({ texto }: { texto: string }) {
   }, [aberto])
 
   return (
-    <div className="mapa-frota__help" ref={wrapRef}>
+    <div className={`mapa-frota__help${abrirAcima ? ' mapa-frota__help--up' : ''}`} ref={wrapRef}>
       <button
         type="button"
         className={`mapa-frota__info${aberto ? ' is-on' : ''}`}
-        aria-label="Como usar o mapa"
+        aria-label={ariaLabel}
         aria-expanded={aberto}
-        title="Como usar o mapa"
+        title={ariaLabel}
         onClick={() => setAberto((v) => !v)}
       >
         <Info size={16} strokeWidth={2.4} />
