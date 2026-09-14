@@ -168,6 +168,9 @@ export default function App() {
           <Routes>
             <Route path="/" element={<LogisticaMapaPage publico />} />
             <Route path="/mapa" element={<Navigate to="/" replace />} />
+            <Route path="/app" element={<Navigate to="/" replace />} />
+            <Route path="/app/mapa" element={<Navigate to="/" replace />} />
+            <Route path="/app/*" element={<Navigate to="/" replace />} />
             <Route path="/cadastro" element={<RedirectToSistema to="/cadastro-logistica" />} />
             <Route path="/cadastro-logistica" element={<RedirectToSistema to="/cadastro-logistica" />} />
             <Route path="*" element={<RedirectToSistema />} />
