@@ -15,9 +15,18 @@ export type FreteMinimoEntrada = {
   dataCalculo: string
 }
 
+export type FreteMinimoComparativo = {
+  id: TabelaAntt
+  letra: string
+  titulo: string
+  valor: number | null
+}
+
 export type FreteMinimoResultado = {
   km: number
   tabela: TabelaAntt
+  tabelaTitulo: string
+  tabelaSub: string
   categoriaId: number
   categoriaLabel: string
   eixos: number
@@ -26,7 +35,11 @@ export type FreteMinimoResultado = {
   dataCalculo: string
   ccd: number
   cc: number
+  fatorRetorno: number
+  deslocamento: number
+  cargaDescarga: number
   piso: number
+  pisoPorKm: number
   margemPct: number
   margemValor: number
   icmsPct: number
@@ -34,6 +47,8 @@ export type FreteMinimoResultado = {
   toneladas: number | null
   porTonelada: number | null
   total: number
+  totalPorKm: number
+  comparativoTabelas: FreteMinimoComparativo[]
   fonte: string
 }
 
@@ -85,17 +100,27 @@ export function calcularFreteMinimo(
   const margemPct = p.extras ? Math.max(0, p.margemPct) : 0
   const icmsPct = p.extras ? Math.max(0, p.icmsPct) : 0
   const toneladas = p.extras && p.toneladas != null && p.toneladas > 0 ? p.toneladas : null
+  const fatorRetorno = p.retornoVazio ? 1.92 : 1
+  const deslocamento = roundMoney(piso.ccd * p.km * fatorRetorno)
+  const cargaDescarga = piso.cc
   const margemValor = roundMoney(piso.valor * (margemPct / 100))
   const base = roundMoney(piso.valor + margemValor)
   const icmsValor = roundMoney(base * (icmsPct / 100))
   const total = roundMoney(base + icmsValor)
   const porTonelada = toneladas ? roundMoney(total / toneladas) : null
+  const tab = TABELAS_FRETE_MINIMO.find((t) => t.id === p.tabela) ?? TABELAS_FRETE_MINIMO[0]
+  const comparativoTabelas: FreteMinimoComparativo[] = TABELAS_FRETE_MINIMO.map((t) => {
+    const outro = calcularPisoAntt(t.id, cat.id, p.eixos, p.km, p.retornoVazio)
+    return { id: t.id, letra: t.letra, titulo: t.titulo, valor: outro?.valor ?? null }
+  })
 
   return {
     ok: true,
     data: {
       km: p.km,
       tabela: p.tabela,
+      tabelaTitulo: tab.titulo,
+      tabelaSub: tab.sub,
       categoriaId: cat.id,
       categoriaLabel: cat.label,
       eixos: p.eixos,
@@ -104,7 +129,11 @@ export function calcularFreteMinimo(
       dataCalculo: p.dataCalculo,
       ccd: piso.ccd,
       cc: piso.cc,
+      fatorRetorno,
+      deslocamento,
+      cargaDescarga,
       piso: piso.valor,
+      pisoPorKm: roundMoney(piso.valor / p.km),
       margemPct,
       margemValor,
       icmsPct,
@@ -112,6 +141,8 @@ export function calcularFreteMinimo(
       toneladas,
       porTonelada,
       total,
+      totalPorKm: roundMoney(total / p.km),
+      comparativoTabelas,
       fonte: ANTT_FONTE,
     },
   }

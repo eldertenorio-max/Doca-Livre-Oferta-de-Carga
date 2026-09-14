@@ -330,6 +330,15 @@
   background: #1e293b;
 }
 
+.frete-min--pagina .frete-min__calc {
+  background: #f9db00;
+  color: #111;
+}
+
+.frete-min--pagina .frete-min__calc:hover {
+  background: #ffe34d;
+}
+
 .frete-min__out {
   display: flex;
   flex-direction: column;
@@ -386,17 +395,315 @@
 }
 
 .frete-min--pagina {
-  padding: 8px 8px 4px;
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(320px, 1.05fr);
+  gap: 16px;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
   border-bottom: 0;
 }
 
+.frete-min__col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow:
+    0 22px 50px rgb(15 23 42 / 0.16),
+    0 0 0 1px rgb(255 255 255 / 0.7);
+}
+
+.frete-min__col--form {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 8px 16px;
+}
+
+.frete-min__col--out {
+  background: #f7f7f4;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.frete-min__col--out.is-filled {
+  background:
+    linear-gradient(160deg, #111111 0%, #1a1a1a 52%, #2a2400 100%);
+  color: #fff;
+}
+
 .frete-min__pagina-titulo {
-  margin: 8px 8px 12px;
-  font-size: 1.35rem;
+  margin: 16px 16px 4px;
+  font-size: 1.42rem;
   font-weight: 800;
   letter-spacing: -0.03em;
   color: #0f172a;
-  text-align: center;
+  text-align: left;
+}
+
+.frete-min--pagina .frete-min__body {
+  padding: 8px 16px 8px;
+}
+
+.frete-min__vazio,
+.frete-min__resultado {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 100%;
+  padding: 28px 28px 24px;
+}
+
+.frete-min__vazio {
+  justify-content: center;
+}
+
+.frete-min__vazio strong {
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #111;
+  line-height: 1.15;
+}
+
+.frete-min__vazio p:last-child {
+  margin: 0;
+  max-width: 36ch;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.frete-min__resultado {
+  animation: frete-min-reveal 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes frete-min-reveal {
+  from {
+    opacity: 0;
+    transform: translateX(36px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.frete-min__resultado-label {
+  margin: 4px 0 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+.frete-min__resultado-total {
+  font-size: clamp(1.8rem, 4.2vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  animation: frete-min-pop 0.45s 0.12s both;
+}
+
+@keyframes frete-min-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frete-min__resultado,
+  .frete-min__resultado-total {
+    animation: none;
+  }
+}
+
+.frete-min__resultado-sub {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #f9db00;
+}
+
+.frete-min__conta {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.frete-min__conta li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+}
+
+.frete-min__conta span {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.frete-min__conta em {
+  display: block;
+  margin-top: 2px;
+  font-style: normal;
+  font-size: 0.68rem;
+  font-weight: 650;
+  color: #94a3b8;
+}
+
+.frete-min__conta b {
+  flex-shrink: 0;
+  font-size: 0.88rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.frete-min__conta li.is-total {
+  border-bottom: 0;
+  padding-top: 4px;
+}
+
+.frete-min__conta li.is-total span,
+.frete-min__conta li.is-total b {
+  color: #f9db00;
+  font-size: 0.95rem;
+}
+
+.frete-min__fatos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.frete-min__fatos span {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.06);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.frete-min__fatos b {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.frete-min__fatos i {
+  display: block;
+  font-style: normal;
+  font-size: 0.68rem;
+  font-weight: 650;
+  color: #cbd5e1;
+}
+
+.frete-min__aviso {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgb(249 219 0 / 0.12);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: #f9db00;
+}
+
+.frete-min__comp {
+  margin-top: 6px;
+}
+
+.frete-min__comp p {
+  margin: 0 0 8px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #f9db00;
+}
+
+.frete-min__comp ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.frete-min__comp li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.06);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+.frete-min__comp li.is-on {
+  background: #f9db00;
+  color: #111;
+}
+
+.frete-min__comp b {
+  font-variant-numeric: tabular-nums;
+}
+
+.frete-min__formula {
+  margin: 8px 0 0;
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.45;
+  color: #94a3b8;
+}
+
+.frete-min__out-wrap {
+  margin-top: 12px;
+}
+
+.frete-min__out-wrap .frete-min__resultado {
+  border-radius: 16px;
+  background:
+    linear-gradient(160deg, #111111 0%, #1a1a1a 52%, #2a2400 100%);
+  color: #fff;
+}
+
+@media (max-width: 900px) {
+  .frete-min--pagina {
+    grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
+  }
+
+  .frete-min__col {
+    max-height: none;
+  }
+
+  .frete-min__col--form,
+  .frete-min__col--out {
+    overflow: visible;
+  }
 }
 
 @media (max-width: 420px) {
@@ -406,7 +713,13 @@
     font-size: 0.9rem;
   }
 
-  .frete-min__extras {
+  .frete-min__extras,
+  .frete-min__fatos {
     grid-template-columns: 1fr;
+  }
+
+  .frete-min__vazio,
+  .frete-min__resultado {
+    padding: 20px 16px 18px;
   }
 }
