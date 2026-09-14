@@ -33,7 +33,7 @@ import {
 } from '../../lib/anttFrete'
 import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
-import { LinkSistema, LinkMapaFrota, LinkMapaLogistica } from '../../components/ui/HostLink'
+import { LinkSistema, LinkMapaFrota, LinkMapaLogistica, LinkFreteMinimo } from '../../components/ui/HostLink'
 import { isSiteOfertaDeCarga } from '../../lib/siteOfertaDeCarga'
 import { lerPerfilLocal } from '../../lib/perfilLocal'
 import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
@@ -41,7 +41,6 @@ import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
 import { MapaFrotaAjuda } from '../../components/mapa/MapaFrotaAjuda'
 import { RotaResultadoAcoes, RotaFaleConosco } from '../../components/carga/RotaResultadoAcoes'
 import { RotaMapErroBoundary } from '../../components/carga/RotaMapErroBoundary'
-import { FreteMinimoCalc } from '../../components/carga/FreteMinimoCalc'
 import type { SugestaoEndereco } from '../../lib/geocodeEndereco'
 import { geocodificarConsulta, labelPorCoordenadas } from '../../lib/geocodeEndereco'
 import {
@@ -689,13 +688,14 @@ export function CalcularRotaPublicoPage() {
                     : 'Esgotado hoje'}
               </p>
             </div>
-            <FreteMinimoCalc
-              kmRota={calc?.rota.distancia_km ?? null}
-              eixosInicial={eixos}
-              categoriaInicial={categoriaCargaId}
-              onPedirRota={() => setFormAberto(true)}
-              inicialAberto
-            />
+            <LinkFreteMinimo
+              className="rota-pub__frete-link"
+              km={calc?.rota.distancia_km ?? null}
+              eixos={eixos}
+              cat={categoriaCargaId}
+            >
+              Frete mínimo
+            </LinkFreteMinimo>
             <div className={`mapa-frota__search${formAberto ? '' : ' is-collapsed'}`}>
               <div className="rota-pub__card-top">
                 <button

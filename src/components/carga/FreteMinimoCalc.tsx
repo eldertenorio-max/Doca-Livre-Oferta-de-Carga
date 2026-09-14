@@ -20,7 +20,8 @@ type Props = {
   onPedirRota?: () => void
   /** Card com borda — calculadora do sistema. */
   variante?: 'publico' | 'sistema'
-  inicialAberto?: boolean
+  /** Formulário direto, sem accordion (página própria). */
+  pagina?: boolean
 }
 
 function fmtDataBr(iso: string) {
@@ -35,10 +36,9 @@ export function FreteMinimoCalc({
   categoriaInicial = 5,
   onPedirRota,
   variante = 'publico',
-  inicialAberto = false,
+  pagina = false,
 }: Props) {
-  const [aberto, setAberto] = useState(inicialAberto)
-  const [km, setKm] = useState('')
+  const [km, setKm] = useState(() => (kmRota && kmRota > 0 ? formatarKm(kmRota) : ''))
   const [eixos, setEixos] = useState(() => {
     if (EIXOS_ANTT.includes(eixosInicial as (typeof EIXOS_ANTT)[number])) return eixosInicial
     return 5
@@ -83,26 +83,21 @@ export function FreteMinimoCalc({
   }
 
   const kmRotaOk = kmRota != null && kmRota > 0
+  const classe = [
+    'frete-min',
+    variante === 'sistema' ? 'frete-min--sistema' : '',
+    pagina ? 'frete-min--pagina' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
-    <section className={`frete-min${variante === 'sistema' ? ' frete-min--sistema' : ''}`}>
-      <button
-        type="button"
-        className="frete-min__toggle"
-        aria-expanded={aberto}
-        onClick={() => setAberto((v) => !v)}
-      >
-        <span className="frete-min__toggle-title">Frete mínimo</span>
-        <span className={`frete-min__resumo${res ? ' is-ok' : ''}`}>
-          {res ? formatCurrency(res.total) : 'Piso ANTT'}
-        </span>
-        <span className={`frete-min__chevron${aberto ? ' is-open' : ''}`} aria-hidden>
-          ▾
-        </span>
-      </button>
+    <section className={classe}>
+      {pagina ? (
+        <h1 className="frete-min__pagina-titulo">Calculadora de frete mínimo</h1>
+      ) : null}
 
-      {aberto ? (
-        <div className="frete-min__body">
+      <div className="frete-min__body">
           <label className="frete-min__label">
             Km rodados
             <div className="frete-min__km">
@@ -304,7 +299,6 @@ export function FreteMinimoCalc({
             </div>
           ) : null}
         </div>
-      ) : null}
     </section>
   )
 }

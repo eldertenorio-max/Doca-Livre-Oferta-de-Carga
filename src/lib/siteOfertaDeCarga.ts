@@ -73,7 +73,9 @@ export function isPublicSitePath(): boolean {
     path === '/calcular-rota' ||
     path.startsWith('/calcular-rota/') ||
     path === '/diego-lab' ||
-    path.startsWith('/diego-lab/')
+    path.startsWith('/diego-lab/') ||
+    path === '/frete-minimo' ||
+    path.startsWith('/frete-minimo/')
   )
 }
 
@@ -102,6 +104,30 @@ export function hrefRota(): string {
   if (isSiteOfertaDeCarga()) return '/'
   if (isLocalDev()) return '/rota'
   return URL_ROTA_PUBLICA
+}
+
+export function queryFreteMinimo(params?: {
+  km?: number | null
+  eixos?: number
+  cat?: number | ''
+}) {
+  const q = new URLSearchParams()
+  if (params?.km != null && params.km > 0) q.set('km', String(Math.round(params.km * 10) / 10))
+  if (params?.eixos) q.set('eixos', String(params.eixos))
+  if (params?.cat) q.set('cat', String(params.cat))
+  const s = q.toString()
+  return s ? `?${s}` : ''
+}
+
+/** Página da calculadora de piso ANTT. */
+export function hrefFreteMinimo(params?: {
+  km?: number | null
+  eixos?: number
+  cat?: number | ''
+}) {
+  const qs = queryFreteMinimo(params)
+  if (isSiteOfertaDeCarga() || isLocalDev() || isSiteSistema()) return `/frete-minimo${qs}`
+  return `${URL_SITE_ROTA}/frete-minimo${qs}`
 }
 
 /** Mapa da Frota público: sempre mapadafrota.com.br (sem #/mapa). */

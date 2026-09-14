@@ -38,6 +38,7 @@ import { CadastroEmpresaPage as LogisticaCadastroEmpresaPage } from './logistica
 import { AuthProvider as LogisticaAuthProvider } from './logistica/lib/AuthContext'
 import { MapaFrotaPublicoPage } from './pages/publico/MapaFrotaPublico'
 import { CalcularRotaPublicoPage } from './pages/publico/CalcularRotaPublico'
+import { FreteMinimoPublicoPage } from './pages/publico/FreteMinimoPublico'
 import {
   devePularSplash,
   isSiteMapaFrota,
@@ -96,6 +97,7 @@ function AppBanners() {
     location.pathname === '/mapa' ||
     location.pathname === '/rota' ||
     location.pathname === '/calcular-rota' ||
+    location.pathname === '/frete-minimo' ||
     location.pathname.startsWith('/embarcador/mapa')
   ) {
     return null
@@ -143,6 +145,7 @@ export default function App() {
           <Route path="/diego-lab" element={<CalcularRotaPublicoPage />} />
           <Route path="/rota" element={<Navigate to="/" replace />} />
           <Route path="/calcular-rota" element={<Navigate to="/" replace />} />
+          <Route path="/frete-minimo" element={<FreteMinimoPublicoPage />} />
           <Route path="*" element={<RedirectToSistema />} />
         </Routes>
       </PublicoGuard>
@@ -197,6 +200,7 @@ export default function App() {
       <Route path="/mapa" element={<PublicoGuard><MapaFrotaPublicoPage /></PublicoGuard>} />
       <Route path="/rota" element={<PublicoGuard><CalcularRotaPublicoPage /></PublicoGuard>} />
       <Route path="/calcular-rota" element={<PublicoGuard><CalcularRotaPublicoPage /></PublicoGuard>} />
+      <Route path="/frete-minimo" element={<PublicoGuard><FreteMinimoPublicoPage /></PublicoGuard>} />
       <Route path="/diego-lab" element={<PublicoGuard><CalcularRotaPublicoPage /></PublicoGuard>} />
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route

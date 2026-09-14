@@ -83,6 +83,8 @@
             var hq = hash.indexOf('?') >= 0 ? hash.slice(hash.indexOf('?')) : ''
             if (!hp || hp === 'rota' || hp === 'calcular-rota' || hp === 'diego-lab') {
               history.replaceState(null, '', '/' + (hq || location.search || ''))
+            } else if (hp === 'frete-minimo') {
+              history.replaceState(null, '', '/frete-minimo' + (hq || location.search || ''))
             }
           }
         } else if (h === 'mapadafrota.com.br') {
@@ -132,7 +134,7 @@
       })
       // Marca o build. Não recarrega a página — isso deixava a 1ª visita em branco.
       ;(function () {
-        var BUILD = 'rota-publico-cache-v208'
+        var BUILD = 'rota-publico-cache-v209'
         try {
           localStorage.setItem('doca-html-bust', BUILD)
         } catch (e) {}

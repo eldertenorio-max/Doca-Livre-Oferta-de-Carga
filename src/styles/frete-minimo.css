@@ -364,12 +364,18 @@
   color: #94a3b8;
 }
 
-.frete-min--sistema {
-  margin: 0;
-  padding: 10px 12px 12px;
-  border: 1px solid #e8edf3;
-  border-radius: 16px;
-  background: #fff;
+.frete-min--pagina {
+  padding: 8px 8px 4px;
+  border-bottom: 0;
+}
+
+.frete-min__pagina-titulo {
+  margin: 8px 8px 12px;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+  text-align: center;
 }
 
 @media (max-width: 420px) {

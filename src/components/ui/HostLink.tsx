@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  hrefFreteMinimo,
   hrefMapaFrota,
   hrefMapaLogistica,
   hrefRota,
@@ -8,6 +9,7 @@ import {
   isSiteMapaFrota,
   isSiteMapaLogistica,
   isSiteOfertaDeCarga,
+  queryFreteMinimo,
 } from '../../lib/siteOfertaDeCarga'
 
 function AbsOrHash({
@@ -55,6 +57,28 @@ export function LinkRota({ className, children }: { className?: string; children
   const href = hrefRota()
   return (
     <AbsOrHash href={href} to={isSiteOfertaDeCarga() ? '/' : '/rota'} className={className}>
+      {children}
+    </AbsOrHash>
+  )
+}
+
+export function LinkFreteMinimo({
+  className,
+  children,
+  km,
+  eixos,
+  cat,
+}: {
+  className?: string
+  children: ReactNode
+  km?: number | null
+  eixos?: number
+  cat?: number | ''
+}) {
+  const qs = queryFreteMinimo({ km, eixos, cat })
+  const to = `/frete-minimo${qs}`
+  return (
+    <AbsOrHash href={hrefFreteMinimo({ km, eixos, cat })} to={to} className={className}>
       {children}
     </AbsOrHash>
   )

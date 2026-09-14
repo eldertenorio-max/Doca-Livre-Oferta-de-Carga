@@ -20,11 +20,10 @@ import { VeiculoSuggestInput } from '../ui/VeiculoSuggestInput'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
 import { AnttFretePanel } from './AnttFretePanel'
 import { RotaMapPreview } from './RotaMapPreview'
-import { FreteMinimoCalc } from './FreteMinimoCalc'
 import { RotaMapErroBoundary } from './RotaMapErroBoundary'
 import { MapaFrotaAjuda } from '../mapa/MapaFrotaAjuda'
 import { RotaResultadoAcoes, RotaFaleConosco } from './RotaResultadoAcoes'
-import { LinkMapaFrota, LinkMapaLogistica } from '../ui/HostLink'
+import { LinkMapaFrota, LinkMapaLogistica, LinkFreteMinimo } from '../ui/HostLink'
 import '../../styles/mapa-frota.css'
 
 type Props = {
@@ -304,12 +303,14 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
             Mapa da Frota
           </LinkMapaFrota>
         </div>
-        <FreteMinimoCalc
-          kmRota={calc?.rota.distancia_km ?? null}
-          eixosInicial={eixos}
-          categoriaInicial={categoriaCargaId}
-          variante="sistema"
-        />
+        <LinkFreteMinimo
+          className="block rounded-xl border border-ink/10 bg-white px-4 py-3 text-[0.72rem] font-extrabold uppercase tracking-[0.08em] text-ink-muted no-underline hover:text-ink"
+          km={calc?.rota.distancia_km ?? null}
+          eixos={eixos}
+          cat={categoriaCargaId}
+        >
+          Frete mínimo
+        </LinkFreteMinimo>
         <AnttFretePanel
           origem={origem || carga.origem}
           destino={destino || carga.destino}

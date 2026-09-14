@@ -10,6 +10,12 @@ const CalcularRotaPublicoPage = lazy(() =>
   })),
 )
 
+const FreteMinimoPublicoPage = lazy(() =>
+  import('./pages/publico/FreteMinimoPublico').then((m) => ({
+    default: m.FreteMinimoPublicoPage,
+  })),
+)
+
 const MapaFrotaPublicoPage = lazy(() =>
   import('./pages/publico/MapaFrotaPublico').then((m) => ({
     default: m.MapaFrotaPublicoPage,
@@ -117,6 +123,7 @@ export default function PublicApp() {
           <Route path="/diego-lab" element={<CalcularRotaPublicoPage />} />
           <Route path="/rota" element={<RedirectKeepSearch to="/" />} />
           <Route path="/calcular-rota" element={<RedirectKeepSearch to="/" />} />
+          <Route path="/frete-minimo" element={<FreteMinimoPublicoPage />} />
           <Route path="*" element={<RedirectToSistema />} />
         </Routes>
       </Suspense>
