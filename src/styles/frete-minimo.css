@@ -138,9 +138,9 @@
 }
 
 .frete-min__eixo.is-on {
-  background: #071433;
-  box-shadow: 0 8px 18px rgb(7 20 51 / 0.28);
-  color: #fff;
+  background: #111;
+  box-shadow: 0 8px 18px rgb(0 0 0 / 0.22);
+  color: #f9db00;
   transform: translateY(-1px);
 }
 
@@ -170,7 +170,7 @@
 }
 
 .frete-min__tab.is-on {
-  background: #071433;
+  background: #111;
   box-shadow: none;
   color: #fff;
 }
@@ -214,7 +214,7 @@
 }
 
 .frete-min__tab.is-on small {
-  color: #fdba74;
+  color: #f9db00;
 }
 
 .frete-min__select,
@@ -337,7 +337,7 @@
   padding: 14px;
   border-radius: 16px;
   background:
-    linear-gradient(135deg, #071433 0%, #1636a0 70%, #c2410c 160%);
+    linear-gradient(135deg, #111111 0%, #1a1a1a 55%, #2a2400 100%);
   color: #fff;
 }
 
@@ -347,7 +347,7 @@
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #fdba74;
+  color: #f9db00;
 }
 
 .frete-min__out strong {

@@ -72,7 +72,7 @@
   min-width: 0;
   padding: 18px 16px 16px;
   background:
-    linear-gradient(135deg, #071433 0%, #1636a0 62%, #ea580c 160%);
+    linear-gradient(135deg, #111111 0%, #1a1a1a 55%, #2a2400 100%);
   color: #fff;
 }
 
@@ -82,7 +82,7 @@
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #fdba74;
+  color: #f9db00;
 }
 
 .rota-pub__frete-link {
@@ -158,8 +158,8 @@
   margin: 0;
   padding: 6px 10px;
   border-radius: 999px;
-  background: #fff;
-  color: #c2410c;
+  background: #f9db00;
+  color: #111;
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.01em;
@@ -556,7 +556,7 @@
   justify-content: center;
   gap: 0;
   border-radius: 14px;
-  background: #0b1b4a;
+  background: #111;
   color: #fff;
   overflow: hidden;
 }
@@ -608,7 +608,7 @@
 .rota-pub__eixos button {
   border: 0;
   background: transparent;
-  color: #fdba74;
+  color: #f9db00;
   width: 28px;
   height: 16px;
   display: grid;
@@ -803,8 +803,8 @@
   width: 100%;
   border: 0;
   border-radius: 14px;
-  background: linear-gradient(180deg, #1636a0 0%, #0b1b4a 100%);
-  color: #fff;
+  background: #111;
+  color: #f9db00;
   padding: 14px;
   font: inherit;
   font-size: 0.94rem;
@@ -812,11 +812,11 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   cursor: pointer;
-  box-shadow: 0 10px 22px rgb(11 27 74 / 0.28);
+  box-shadow: 0 10px 22px rgb(0 0 0 / 0.22);
 }
 
 .rota-pub__calc:hover:not(:disabled) {
-  background: linear-gradient(180deg, #1d4ed8 0%, #12245c 100%);
+  background: #1a1a1a;
 }
 
 .rota-pub__calc:disabled {
@@ -837,10 +837,10 @@
 .rota-pub__ver-resultado {
   width: 100%;
   margin-top: 8px;
-  border: 1.5px solid #1636a0;
+  border: 1.5px solid #111;
   border-radius: 12px;
   background: #fff;
-  color: #1636a0;
+  color: #111;
   padding: 10px;
   font: inherit;
   font-size: 0.82rem;
@@ -849,7 +849,7 @@
 }
 
 .rota-pub__ver-resultado:hover {
-  background: #eef2ff;
+  background: #fffbeb;
 }
 
 .rota-pub-janela {
@@ -889,7 +889,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 16px 16px 12px;
-  background: linear-gradient(135deg, #071433 0%, #1636a0 72%);
+  background: linear-gradient(135deg, #111111 0%, #1a1a1a 55%, #2a2400 100%);
   color: #fff;
 }
 
@@ -899,7 +899,7 @@
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #fdba74;
+  color: #f9db00;
 }
 
 .rota-pub-janela__head h2 {
@@ -1025,7 +1025,7 @@
   gap: 10px;
   padding: 12px 14px;
   border-radius: 16px;
-  background: linear-gradient(135deg, #0b1b4a 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #111111 0%, #1a1a1a 55%, #2a2400 100%);
   color: #fff;
 }
 
@@ -1034,7 +1034,7 @@
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #fdba74;
+  color: #f9db00;
 }
 
 .rota-pub__total strong {
@@ -1070,7 +1070,7 @@
   margin-top: 3px;
   font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
-  color: #0b1b4a;
+  color: #111;
 }
 
 .rota-pub__linha {
