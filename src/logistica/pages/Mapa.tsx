@@ -486,13 +486,6 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
         </header>
       ) : null}
       <div className="mapa-log__body">
-        <header className="mapa-log__head">
-          <MapaFrotaAjuda
-            texto="Clique no campo, digite e escolha a sugestão. O mapa mostra só as empresas selecionadas."
-            ariaLabel="Como usar o mapa"
-          />
-        </header>
-
       <div className="mapa-log__layout">
         <aside className={`mapa-log__lista${escolhaDeUnidade ? ' is-escolha' : ''}`}>
           <div className="mapa-log__search">
@@ -786,6 +779,12 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
         </aside>
 
         <div className="mapa-log__map-wrap">
+          <div className="mapa-log__map-help">
+            <MapaFrotaAjuda
+              texto="Clique no campo, digite e escolha a sugestão. O mapa mostra só as empresas selecionadas."
+              ariaLabel="Como usar o mapa"
+            />
+          </div>
           <div ref={mapEl} className="mapa-log__map" />
           <div className="mapa-log__legenda-wrap" ref={legendaWrapRef}>
             {legendaAberta ? (
