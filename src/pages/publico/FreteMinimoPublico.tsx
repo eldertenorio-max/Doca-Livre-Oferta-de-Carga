@@ -38,10 +38,7 @@ export function FreteMinimoPublicoPage() {
       <header className="mapa-pub__top">
         <LinkRota className="mapa-pub__brand">
           <img src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
-          <span>
-            <strong>Oferta de Carga</strong>
-            <em>Frete mínimo ANTT</em>
-          </span>
+          <strong>Oferta de carga</strong>
         </LinkRota>
         <div className="mapa-pub__top-actions">
           <LinkRota className="mapa-pub__btn mapa-pub__btn--ghost">Calcular rota</LinkRota>

@@ -797,10 +797,7 @@ export function MapaFrotaPublicoPage() {
       <header className="mapa-pub__top">
         <Link to={isSiteMapaFrota() ? '/' : '/mapa'} className="mapa-pub__brand">
           <img src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
-          <span>
-            <strong>Doca Livre</strong>
-            <em>Oferta de carga</em>
-          </span>
+          <strong>Mapa da Frota</strong>
         </Link>
         <div className="mapa-pub__top-actions">
           <LinkMapaLogistica className="mapa-pub__btn mapa-pub__btn--ghost">

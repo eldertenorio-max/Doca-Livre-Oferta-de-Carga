@@ -36,26 +36,27 @@
 }
 
 .mapa-log__brand img {
-  width: 40px;
+  display: block;
   height: 40px;
+  width: auto;
+  max-width: min(220px, 46vw);
   object-fit: contain;
+  object-position: left center;
   flex-shrink: 0;
 }
 
 .mapa-log__brand strong {
-  display: block;
-  font-size: 0.92rem;
-  font-weight: 900;
+  display: inline-block;
+  white-space: nowrap;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #475569;
   line-height: 1.1;
-  color: #0f172a;
 }
 
 .mapa-log__brand em {
-  display: block;
-  font-size: 0.72rem;
-  font-style: normal;
-  font-weight: 700;
-  color: #64748b;
+  display: none;
 }
 
 .mapa-log:not(.mapa-log--malha) .mapa-log__body {

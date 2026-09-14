@@ -465,10 +465,7 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
         <header className="mapa-log__brandbar">
           <Link to={basePath} className="mapa-log__brand">
             <img src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
-            <span>
-              <strong>Doca Livre</strong>
-              <em>Mapa da Logística</em>
-            </span>
+            <strong>Mapa da Logística</strong>
           </Link>
           <div className="mapa-log__head-acoes">
             <a className="mapa-log__btn mapa-log__btn--ghost" href={hrefMapaFrota()}>
