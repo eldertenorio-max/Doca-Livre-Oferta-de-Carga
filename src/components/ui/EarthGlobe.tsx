@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import * as maplibregl from 'maplibre-gl'
+import type { Map as MlMap, Marker as MlMarker } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import '../../styles/earth-globe.css'
 
@@ -63,11 +63,16 @@ function criarPinEl(letra: string, cor: string) {
   return el
 }
 
-function ativarGlobo(map: maplibregl.Map) {
+function ativarGlobo(map: MlMap) {
   map.setProjection({ type: 'globe' })
 }
 
-function visaoEspaco(map: maplibregl.Map, imediato: boolean, reduced: boolean) {
+function apiMapLibre(mod: typeof import('maplibre-gl')) {
+  const n = mod as typeof import('maplibre-gl') & { default?: typeof import('maplibre-gl') }
+  return n.Map ? n : n.default ?? n
+}
+
+function visaoEspaco(map: MlMap, imediato: boolean, reduced: boolean) {
   const pose = {
     center: CENTRO_INICIAL,
     zoom: ZOOM_INICIAL,
@@ -91,9 +96,10 @@ export function EarthGlobe({
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
   const mapEl = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<maplibregl.Map | undefined>(undefined)
-  const markerARef = useRef<maplibregl.Marker | undefined>(undefined)
-  const markerBRef = useRef<maplibregl.Marker | undefined>(undefined)
+  const mapRef = useRef<MlMap | undefined>(undefined)
+  const markerARef = useRef<MlMarker | undefined>(undefined)
+  const markerBRef = useRef<MlMarker | undefined>(undefined)
+  const libRef = useRef<typeof import('maplibre-gl') | undefined>(undefined)
   const pickModeRef = useRef(pickMode)
   const onPickRef = useRef(onPick)
   pickModeRef.current = pickMode
@@ -127,122 +133,140 @@ export function EarthGlobe({
     let resizeObs: ResizeObserver | undefined
     let onUi: ((e: Event) => void) | undefined
     let down: { x: number; y: number } | undefined
+    let map: MlMap | undefined
 
     const reduced =
       typeof window.matchMedia === 'function' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-    let map: maplibregl.Map
-    try {
-      map = new maplibregl.Map({
-        container: host,
-        style: {
-          version: 8,
-          projection: { type: 'globe' },
-          sources: {
-            espaco: {
-              type: 'raster',
-              tiles: [TILES_ESPACO],
-              tileSize: 256,
-              maxzoom: 13,
-              attribution: 'Sentinel-2 cloudless © EOX',
-            },
-            perto: {
-              type: 'raster',
-              tiles: [TILES_PERTO],
-              tileSize: 256,
-              maxzoom: 19,
-              attribution: 'Esri, Maxar, Earthstar Geographics',
-            },
-          },
-          layers: [
-            { id: 'espaco', type: 'raster', source: 'espaco' },
-            {
-              id: 'perto',
-              type: 'raster',
-              source: 'perto',
-              minzoom: 6,
-            },
-          ],
-          sky: {
-            'sky-color': '#000010',
-            'horizon-color': '#1a4a8a',
-            'fog-color': '#0b1c3a',
-            'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 5, 1, 7, 0],
-          },
-          light: { anchor: 'viewport', position: [1.15, 210, 30] },
-        },
-        center: CENTRO_INICIAL,
-        zoom: ZOOM_INICIAL,
-        minZoom: ZOOM_MIN,
-        maxZoom: ZOOM_MAX,
-        attributionControl: false,
-        dragRotate: true,
-        touchPitch: false,
-        pitchWithRotate: false,
-        doubleClickZoom: false,
-        renderWorldCopies: false,
-        fadeDuration: reduced ? 0 : 300,
-      })
-    } catch (e) {
-      console.error('[EarthGlobe] falha ao criar mapa', e)
-      onErrorRef.current?.()
-      return
-    }
-    mapRef.current = map
-
-    const pronto = () => {
-      if (disposed) return
-      ativarGlobo(map)
-      visaoEspaco(map, true, reduced)
-      map.resize()
-      setMapaOk(true)
-      onReadyRef.current?.()
-    }
-
-    map.on('style.load', () => {
-      if (disposed) return
-      ativarGlobo(map)
-    })
-
-    map.on('error', (e) => {
-      console.error('[EarthGlobe] erro do mapa', e?.error || e)
-    })
-
-    map.on('load', pronto)
-
-    map.on('mousedown', (e) => {
-      down = { x: e.point.x, y: e.point.y }
-    })
-    map.on('click', (e) => {
-      const modo = pickModeRef.current
-      if (!modo || !onPickRef.current) return
-      if (down) {
-        const dist = Math.hypot(e.point.x - down.x, e.point.y - down.y)
-        if (dist > 6) return
+    void (async () => {
+      let maplibre: typeof import('maplibre-gl')
+      try {
+        maplibre = apiMapLibre(await import('maplibre-gl'))
+      } catch (e) {
+        console.error('[EarthGlobe] falha ao carregar mapa', e)
+        if (!disposed) onErrorRef.current?.()
+        return
       }
-      onPickRef.current(e.lngLat.lat, e.lngLat.lng)
-    })
-    map.on('dblclick', (e) => {
-      if (pickModeRef.current) return
-      const next = Math.min(ZOOM_MAX, map.getZoom() + 2.2)
-      map.flyTo({ center: e.lngLat, zoom: next, duration: reduced ? 0 : 900 })
-    })
+      if (disposed) return
+      libRef.current = maplibre
 
-    onUi = (e: Event) => {
-      const btn = (e.target as HTMLElement).closest('[data-earth]') as HTMLElement | null
-      if (!btn) return
-      const act = btn.dataset.earth
-      if (act === 'in') map.flyTo({ zoom: Math.min(ZOOM_MAX, map.getZoom() + 1.6), duration: 400 })
-      if (act === 'out') map.flyTo({ zoom: Math.max(ZOOM_MIN, map.getZoom() - 1.6), duration: 400 })
-      if (act === 'home') visaoEspaco(map, false, reduced)
-    }
-    root.querySelector('.earth-globe__nav')?.addEventListener('click', onUi)
+      try {
+        map = new maplibre.Map({
+          container: host,
+          style: {
+            version: 8,
+            projection: { type: 'globe' },
+            sources: {
+              espaco: {
+                type: 'raster',
+                tiles: [TILES_ESPACO],
+                tileSize: 256,
+                maxzoom: 13,
+                attribution: 'Sentinel-2 cloudless © EOX',
+              },
+              perto: {
+                type: 'raster',
+                tiles: [TILES_PERTO],
+                tileSize: 256,
+                maxzoom: 19,
+                attribution: 'Esri, Maxar, Earthstar Geographics',
+              },
+            },
+            layers: [
+              { id: 'espaco', type: 'raster', source: 'espaco' },
+              {
+                id: 'perto',
+                type: 'raster',
+                source: 'perto',
+                minzoom: 6,
+              },
+            ],
+            sky: {
+              'sky-color': '#000010',
+              'horizon-color': '#1a4a8a',
+              'fog-color': '#0b1c3a',
+              'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 5, 1, 7, 0],
+            },
+            light: { anchor: 'viewport', position: [1.15, 210, 30] },
+          },
+          center: CENTRO_INICIAL,
+          zoom: ZOOM_INICIAL,
+          minZoom: ZOOM_MIN,
+          maxZoom: ZOOM_MAX,
+          attributionControl: false,
+          dragRotate: true,
+          touchPitch: false,
+          pitchWithRotate: false,
+          doubleClickZoom: false,
+          renderWorldCopies: false,
+          fadeDuration: reduced ? 0 : 300,
+        })
+      } catch (e) {
+        console.error('[EarthGlobe] falha ao criar mapa', e)
+        if (!disposed) onErrorRef.current?.()
+        return
+      }
+      if (disposed) {
+        map.remove()
+        return
+      }
+      mapRef.current = map
 
-    resizeObs = new ResizeObserver(() => {
-      map.resize()
-    })
-    resizeObs.observe(host)
+      const pronto = () => {
+        if (disposed || !map) return
+        ativarGlobo(map)
+        visaoEspaco(map, true, reduced)
+        map.resize()
+        setMapaOk(true)
+        onReadyRef.current?.()
+      }
+
+      map.on('style.load', () => {
+        if (disposed || !map) return
+        ativarGlobo(map)
+      })
+
+      map.on('error', (e) => {
+        console.error('[EarthGlobe] erro do mapa', e?.error || e)
+      })
+
+      map.on('load', pronto)
+
+      map.on('mousedown', (e) => {
+        down = { x: e.point.x, y: e.point.y }
+      })
+      map.on('click', (e) => {
+        const modo = pickModeRef.current
+        if (!modo || !onPickRef.current) return
+        if (down) {
+          const dist = Math.hypot(e.point.x - down.x, e.point.y - down.y)
+          if (dist > 6) return
+        }
+        onPickRef.current(e.lngLat.lat, e.lngLat.lng)
+      })
+      map.on('dblclick', (e) => {
+        if (pickModeRef.current || !map) return
+        const next = Math.min(ZOOM_MAX, map.getZoom() + 2.2)
+        map.flyTo({ center: e.lngLat, zoom: next, duration: reduced ? 0 : 900 })
+      })
+
+      onUi = (e: Event) => {
+        if (!map) return
+        const btn = (e.target as HTMLElement).closest('[data-earth]') as HTMLElement | null
+        if (!btn) return
+        const act = btn.dataset.earth
+        if (act === 'in') map.flyTo({ zoom: Math.min(ZOOM_MAX, map.getZoom() + 1.6), duration: 400 })
+        if (act === 'out') map.flyTo({ zoom: Math.max(ZOOM_MIN, map.getZoom() - 1.6), duration: 400 })
+        if (act === 'home') visaoEspaco(map, false, reduced)
+      }
+      root.querySelector('.earth-globe__nav')?.addEventListener('click', onUi)
+
+      resizeObs = new ResizeObserver(() => {
+        map?.resize()
+      })
+      resizeObs.observe(host)
+    })()
 
     return () => {
       disposed = true
@@ -251,7 +275,7 @@ export function EarthGlobe({
       if (onUi) root.querySelector('.earth-globe__nav')?.removeEventListener('click', onUi)
       markerARef.current?.remove()
       markerBRef.current?.remove()
-      map.remove()
+      mapRef.current?.remove()
       mapRef.current = undefined
     }
   }, [])
@@ -265,7 +289,9 @@ export function EarthGlobe({
       markerARef.current = undefined
     }
     if (pontoA) {
-      markerARef.current = new maplibregl.Marker({ element: criarPinEl('A', '#15803d') })
+      const Marker = libRef.current?.Marker
+      if (!Marker) return
+      markerARef.current = new Marker({ element: criarPinEl('A', '#15803d') })
         .setLngLat([pontoA.lng, pontoA.lat])
         .addTo(map)
     }
@@ -275,7 +301,9 @@ export function EarthGlobe({
       markerBRef.current = undefined
     }
     if (pontoB) {
-      markerBRef.current = new maplibregl.Marker({ element: criarPinEl('B', '#dc2626') })
+      const Marker = libRef.current?.Marker
+      if (!Marker) return
+      markerBRef.current = new Marker({ element: criarPinEl('B', '#dc2626') })
         .setLngLat([pontoB.lng, pontoB.lat])
         .addTo(map)
     }

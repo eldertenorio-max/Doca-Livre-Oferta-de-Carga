@@ -309,11 +309,12 @@ function aplicarTilePlano(
 ): L.TileLayer {
   const cfg = MAPA_VISTAS.find((x) => x.id === plano)
   if (atual) map.removeLayer(atual)
-  const layer = L.tileLayer(cfg?.url || MAPA_VISTAS[1].url!, {
+  const opts: L.TileLayerOptions = {
     maxZoom: 19,
     attribution: cfg?.options?.attribution || '© OpenStreetMap',
-    subdomains: cfg?.options?.subdomains,
-  })
+  }
+  if (cfg?.options?.subdomains) opts.subdomains = cfg.options.subdomains
+  const layer = L.tileLayer(cfg?.url || MAPA_VISTAS[1].url!, opts)
   layer.addTo(map)
   layer.bringToBack()
   return layer
@@ -380,11 +381,11 @@ export function RotaMapPreview({
   )
   const [meta, setMeta] = useState<MetaRota | null>(null)
 
-  const viasNorm = waypoints
+  const viasNorm = (Array.isArray(waypoints) ? waypoints : [])
     .map(normWaypoint)
     .filter(
       (w) =>
-        w.endereco.length >= 3 ||
+        (w.endereco || '').length >= 3 ||
         (w.lat != null && w.lng != null),
     )
   const viasKey = viasNorm
@@ -395,22 +396,28 @@ export function RotaMapPreview({
   useEffect(() => {
     if (!mapEl.current || mapRef.current) return
     const el = mapEl.current
-    const map = L.map(el, {
-      center: [-14.2, -51.9],
-      zoom: 4,
-      minZoom: 3,
-      zoomControl: true,
-      attributionControl: false,
-      worldCopyJump: false,
-      maxBounds: [
-        [-85, -180],
-        [85, 180],
-      ],
-      maxBoundsViscosity: 1,
-    })
-    baseLayerRef.current = aplicarTilePlano(map, null, planoRef.current)
-    layerRef.current = L.layerGroup().addTo(map)
-    mapRef.current = map
+    let map: L.Map
+    try {
+      map = L.map(el, {
+        center: [-14.2, -51.9],
+        zoom: 4,
+        minZoom: 3,
+        zoomControl: true,
+        attributionControl: false,
+        worldCopyJump: false,
+        maxBounds: [
+          [-85, -180],
+          [85, 180],
+        ],
+        maxBoundsViscosity: 1,
+      })
+      baseLayerRef.current = aplicarTilePlano(map, null, planoRef.current)
+      layerRef.current = L.layerGroup().addTo(map)
+      mapRef.current = map
+    } catch (e) {
+      console.error('[RotaMapPreview] falha ao criar mapa', e)
+      return
+    }
 
     map.on('click', (e: L.LeafletMouseEvent) => {
       const modo = pickModeRef.current
@@ -566,7 +573,7 @@ export function RotaMapPreview({
           evitarPedagios: preferencia === 'evitar_pedagio',
         })
         if (id !== reqId.current) return
-        if (!rota?.polyline.length) {
+        if (!rota?.polyline?.length) {
           layer.clearLayers()
           setStatus('erro')
           setMeta(null)
@@ -593,7 +600,7 @@ export function RotaMapPreview({
               precoDiesel: precoRef.current,
             })
             const pedagio =
-              pedRes.pracas.length > 0 ? pedRes.pedagio : custos.pedagio
+              pedRes.pracas?.length ? pedRes.pedagio : custos.pedagio
             const combustivel = custos.combustivel
             ped = {
               pedagio,
@@ -740,7 +747,7 @@ export function RotaMapPreview({
           combustivel: ped.combustivel,
           custo: ped.custo,
           eixos,
-          pracas: ped.pracas.length,
+          pracas: ped.pracas?.length ?? 0,
         })
         setStatus('ok')
         setMsg('')

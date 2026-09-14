@@ -40,6 +40,7 @@ import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
 import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
 import { MapaFrotaAjuda } from '../../components/mapa/MapaFrotaAjuda'
 import { RotaResultadoAcoes } from '../../components/carga/RotaResultadoAcoes'
+import { RotaMapErroBoundary } from '../../components/carga/RotaMapErroBoundary'
 import type { SugestaoEndereco } from '../../lib/geocodeEndereco'
 import { geocodificarConsulta, labelPorCoordenadas } from '../../lib/geocodeEndereco'
 import {
@@ -637,7 +638,7 @@ export function CalcularRotaPublicoPage() {
                     <div className="rota-pub__field">
                       <div className="rota-pub__field-head">
                         <span>Tipo de veículo</span>
-                        <em>{TIPOS_VEICULO.length} cadastrados</em>
+                        <em>{(TIPOS_VEICULO ?? []).length} cadastrados</em>
                       </div>
                       <VeiculoSuggestInput
                         value={tipoVeiculoNome}
@@ -658,7 +659,7 @@ export function CalcularRotaPublicoPage() {
                         }}
                       >
                         <option value="">Selecione a categoria da carga</option>
-                        {CATEGORIAS_ANTT.map((c) => (
+                        {(CATEGORIAS_ANTT ?? []).map((c) => (
                           <option key={c.id} value={c.id}>
                             {c.label}
                           </option>
@@ -790,6 +791,7 @@ export function CalcularRotaPublicoPage() {
           </aside>
 
           <div className="mapa-frota__map-wrap">
+              <RotaMapErroBoundary>
             <Suspense
               fallback={
                 <div
@@ -799,7 +801,7 @@ export function CalcularRotaPublicoPage() {
                 />
               }
             >
-            <RotaMapPreview
+                <RotaMapPreview
               key={formId}
               origem={origem}
               destino={destino}
@@ -820,6 +822,7 @@ export function CalcularRotaPublicoPage() {
               className="h-full min-h-[360px] w-full"
             />
             </Suspense>
+              </RotaMapErroBoundary>
             {showResultado && calc?.rota ? (
               <aside
                 className="rota-pub-janela"

@@ -20,6 +20,7 @@ import { VeiculoSuggestInput } from '../ui/VeiculoSuggestInput'
 import { Button, Field, Modal, inputClass } from '../ui/Modal'
 import { AnttFretePanel } from './AnttFretePanel'
 import { RotaMapPreview } from './RotaMapPreview'
+import { RotaMapErroBoundary } from './RotaMapErroBoundary'
 import { MapaFrotaAjuda } from '../mapa/MapaFrotaAjuda'
 import { RotaResultadoAcoes } from './RotaResultadoAcoes'
 import { LinkMapaFrota, LinkMapaLogistica } from '../ui/HostLink'
@@ -370,6 +371,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
             <p className="text-[12px] font-bold uppercase tracking-wide text-ink">
               Mapa da rota
             </p>
+            <RotaMapErroBoundary>
             <RotaMapPreview
               key={`calc-map-${carga.id}`}
               origem={origem}
@@ -386,6 +388,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
               onPickPonto={marcarPontoNoMapa}
               className="h-[280px] min-h-[280px] w-full"
             />
+            </RotaMapErroBoundary>
           </div>
         ) : null}
 

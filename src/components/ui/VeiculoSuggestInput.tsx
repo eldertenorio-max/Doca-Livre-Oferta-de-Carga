@@ -41,11 +41,11 @@ export function VeiculoSuggestInput({
   const flat = useMemo(() => {
     const q = value.trim().toLowerCase()
     const exact = gruposAtivos.some((g) =>
-      VEICULOS_POR_GRUPO[g].some((t) => t.toLowerCase() === q),
+      (VEICULOS_POR_GRUPO[g] ?? []).some((t) => t.toLowerCase() === q),
     )
     const out: FlatOpt[] = []
     for (const grupo of gruposAtivos) {
-      for (const item of VEICULOS_POR_GRUPO[grupo]) {
+      for (const item of VEICULOS_POR_GRUPO[grupo] ?? []) {
         if (!q || exact || item.toLowerCase().includes(q)) {
           out.push({ grupo, item })
         }
@@ -53,7 +53,7 @@ export function VeiculoSuggestInput({
     }
     if (out.length === 0) {
       for (const grupo of gruposAtivos) {
-        for (const item of VEICULOS_POR_GRUPO[grupo]) {
+        for (const item of VEICULOS_POR_GRUPO[grupo] ?? []) {
           out.push({ grupo, item })
         }
       }
