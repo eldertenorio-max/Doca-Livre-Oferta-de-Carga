@@ -676,12 +676,14 @@ export function CalcularRotaPublicoPage() {
             <div className="rota-pub__hero">
               <div>
                 <p className="rota-pub__kicker">Pedágio · km · combustível</p>
-                <h1>Calcular rota</h1>
-                {!ilimitado ? (
-                  <button type="button" className="rota-pub__beneficios" onClick={() => setShowPaywall(true)}>
-                    Conheça os benefícios
-                  </button>
-                ) : null}
+                <div className="rota-pub__hero-tit">
+                  <h1>Calcular rota</h1>
+                  {!ilimitado ? (
+                    <button type="button" className="rota-pub__beneficios" onClick={() => setShowPaywall(true)}>
+                      Conheça os benefícios
+                    </button>
+                  ) : null}
+                </div>
               </div>
               <p className="rota-pub__badge">
                 {ilimitado
@@ -733,7 +735,7 @@ export function CalcularRotaPublicoPage() {
 
               {formAberto ? (
                 <>
-                <div className="mapa-frota__search-body rota-pub__form">
+                <div className={`mapa-frota__search-body rota-pub__form${vias.length > 0 || rotasSalvas.length > 0 ? ' is-long' : ''}`}>
                   <div className="rota-pub__ab">
                     <div className="rota-pub__rail" aria-hidden>
                       <span className="rota-pub__pin rota-pub__pin--a">A</span>
@@ -817,19 +819,19 @@ export function CalcularRotaPublicoPage() {
                     </div>
                   </div>
 
+                  {pickMode ? (
                   <button
                     type="button"
-                    className={`rota-pub__no-mapa${pickMode ? ' is-on' : ''}`}
+                    className="rota-pub__no-mapa is-on"
                     title="Clique no mapa para marcar origem e destino"
                     onClick={iniciarMarcacaoNoMapa}
                   >
                     <MapPin size={15} />
                     {pickMode === 'A'
                       ? 'Clique no mapa para marcar a origem'
-                      : pickMode === 'B'
-                        ? 'Clique no mapa para marcar o destino'
-                        : 'Marcar origem e destino no mapa'}
+                      : 'Clique no mapa para marcar o destino'}
                   </button>
+                  ) : null}
 
                   {rotasSalvas.length > 0 ? (
                     <div className="rota-pub__salvas">
@@ -951,7 +953,7 @@ export function CalcularRotaPublicoPage() {
                           className={`rota-pub__tipo${tipoVeiculo === id ? ' is-on' : ''}`}
                           onClick={() => escolherVeiculo(id)}
                         >
-                          <Icon size={24} strokeWidth={2.2} />
+                          <Icon size={16} strokeWidth={2.2} />
                           <small>{label}</small>
                         </button>
                       ))}
@@ -970,12 +972,22 @@ export function CalcularRotaPublicoPage() {
                     </div>
                   </div>
 
-                  <p className="rota-pub__sec">Custo</p>
+                  <div className="rota-pub__sec-line">
+                    <p className="rota-pub__sec">Custo</p>
+                    <label className={`rota-pub__volta${idaEVolta ? ' is-on' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={idaEVolta}
+                        onChange={(e) => setIdaEVolta(e.target.checked)}
+                      />
+                      <span>Calcular volta</span>
+                    </label>
+                  </div>
                   <div className="rota-pub__grid">
                     <label className="rota-pub__box">
                       <span>Consumo</span>
                       <span className="rota-pub__box-row">
-                        <Gauge size={16} />
+                        <Gauge size={14} />
                         <input
                           value={consumo}
                           onChange={(e) => setConsumo(e.target.value)}
@@ -997,18 +1009,7 @@ export function CalcularRotaPublicoPage() {
                           placeholder="0,00"
                           aria-label="Preço do diesel"
                         />
-                        <Fuel size={16} />
-                      </span>
-                    </label>
-                    <label className={`rota-pub__box rota-pub__volta${idaEVolta ? ' is-on' : ''}`}>
-                      <input
-                        type="checkbox"
-                        checked={idaEVolta}
-                        onChange={(e) => setIdaEVolta(e.target.checked)}
-                      />
-                      <span>
-                        Calcular volta
-                        <small>Soma pedágio e combustível da ida e da volta</small>
+                        <Fuel size={14} />
                       </span>
                     </label>
                   </div>

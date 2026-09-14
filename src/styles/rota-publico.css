@@ -11,6 +11,14 @@
   overflow: hidden;
 }
 
+.rota-pub.mapa-pub .mapa-pub__top {
+  padding: 6px 10px;
+}
+
+.rota-pub.mapa-pub .mapa-pub__brand img {
+  height: 32px;
+}
+
 .rota-pub .mapa-frota,
 .rota-pub .mapa-pub__shell,
 .rota-pub .mapa-frota__layout {
@@ -19,9 +27,26 @@
   overflow: hidden;
 }
 
+.rota-pub .mapa-pub__cta-esgotado {
+  padding: 6px 10px;
+  gap: 6px;
+  border-radius: 8px;
+}
+
+.rota-pub .mapa-pub__cta-esgotado span {
+  min-width: 0;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.rota-pub .mapa-pub__cta-esgotado button {
+  padding: 5px 10px;
+  font-size: 0.72rem;
+}
+
 .rota-pub .mapa-pub__shell.mapa-frota {
-  padding: 10px 12px 12px;
-  gap: 8px;
+  padding: 6px 8px 8px;
+  gap: 6px;
 }
 
 .rota-pub .mapa-frota__layout {
@@ -35,17 +60,17 @@
 
 .rota-pub.mapa-pub .mapa-frota__lista.rota-pub__panel,
 .rota-pub .mapa-frota__lista.rota-pub__panel {
-  --rp-gap: clamp(4px, 0.65dvh, 8px);
-  --rp-ctrl: clamp(32px, 4.2dvh, 40px);
-  --rp-block: clamp(42px, 5.6dvh, 56px);
+  --rp-gap: clamp(2px, 0.4dvh, 5px);
+  --rp-ctrl: clamp(28px, 3.5dvh, 36px);
+  --rp-block: clamp(34px, 4.2dvh, 44px);
   position: absolute;
-  left: 14px;
-  top: 14px;
-  bottom: 14px;
+  left: 10px;
+  top: 10px;
+  bottom: 10px;
   z-index: 20;
   display: flex;
   flex-direction: column;
-  width: min(392px, calc(100% - 28px));
+  width: min(392px, calc(100% - 20px));
   overflow: hidden;
   max-width: 100%;
   min-width: 0;
@@ -66,7 +91,7 @@
   flex-direction: column;
   background: transparent;
   border-bottom: 0;
-  padding: 6px 10px 8px;
+  padding: 2px 8px 4px;
   overflow: hidden;
 }
 
@@ -75,18 +100,24 @@
 .rota-pub .mapa-frota__search-body.rota-pub__form {
   flex: 1;
   min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+  overflow: hidden;
   gap: var(--rp-gap);
-  padding-bottom: 14px;
+  padding-bottom: 4px;
   max-width: 100%;
   min-width: 0;
 }
 
+.rota-pub .mapa-frota__search-body.rota-pub__form.is-long {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .rota-pub .mapa-frota__search-body.rota-pub__form > * {
   flex-shrink: 0;
+}
+
+.rota-pub .mapa-frota__search-body.rota-pub__form > .rota-pub__sec {
+  display: none;
 }
 
 .rota-pub__hero {
@@ -96,19 +127,27 @@
   gap: 10px;
   min-width: 0;
   flex-shrink: 0;
-  padding: clamp(8px, 1.1dvh, 12px) 14px;
+  padding: clamp(6px, 0.8dvh, 10px) 12px;
   background:
     linear-gradient(135deg, #111111 0%, #1a1a1a 55%, #2a2400 100%);
   color: #fff;
 }
 
 .rota-pub__kicker {
-  margin: 0 0 2px;
-  font-size: 0.62rem;
+  margin: 0;
+  font-size: 0.58rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #f9db00;
+}
+
+.rota-pub__hero-tit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .rota-pub__frete-link {
@@ -117,10 +156,10 @@
   justify-content: center;
   gap: 6px;
   flex-shrink: 0;
-  margin: 4px 12px 6px;
-  padding: 5px 12px;
-  min-height: 32px;
-  font-size: 0.78rem;
+  margin: 4px 10px;
+  padding: 4px 10px;
+  min-height: 28px;
+  font-size: 0.74rem;
   font-weight: 800;
   letter-spacing: -0.01em;
   color: #111;
@@ -195,7 +234,7 @@
 
 .rota-pub__hero h1 {
   margin: 0;
-  font-size: clamp(1.05rem, 2.1dvh, 1.28rem);
+  font-size: clamp(0.98rem, 1.8dvh, 1.18rem);
   font-weight: 800;
   line-height: 1.1;
   letter-spacing: -0.03em;
@@ -204,17 +243,18 @@
 
 .rota-pub__beneficios {
   display: inline-flex;
-  margin-top: 8px;
-  padding: 5px 10px;
+  margin: 0;
+  padding: 3px 8px;
   border: 0;
   border-radius: 999px;
   background: #f9db00;
   color: #111;
   font: inherit;
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 800;
   letter-spacing: 0.01em;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .rota-pub__beneficios:hover {
@@ -255,8 +295,8 @@
 .rota-pub__reset {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   border: 0;
   border-radius: 10px;
   background: #fff7ed;
@@ -273,10 +313,18 @@
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--rp-gap, 6px);
-  padding: 8px 2px 4px;
+  gap: 4px;
+  padding: 4px 2px 2px;
   border-top: 1px solid #eef2f6;
   background: rgb(255 255 255 / 0.97);
+}
+
+.rota-pub__sec-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
 }
 
 .rota-pub__sec {
@@ -299,7 +347,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 10px 0;
+  padding: 4px 0;
 }
 
 .rota-pub__pin {
@@ -377,9 +425,9 @@
   width: 100%;
   border: 0;
   background: transparent;
-  padding: 8px 4px;
+  padding: 6px 4px;
   font: inherit;
-  font-size: 0.84rem;
+  font-size: 0.8rem;
   font-weight: 700;
   color: #0f172a;
   outline: none;
@@ -526,15 +574,12 @@
 .rota-pub__field {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 0;
   min-width: 0;
 }
 
 .rota-pub__field-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+  display: none;
 }
 
 .rota-pub__field-head span {
@@ -597,9 +642,9 @@
   justify-content: center;
   gap: 4px;
   min-width: 0;
-  height: var(--rp-block, 52px);
+  height: var(--rp-block, 40px);
   border: 1px solid #e8edf3;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #f8fafc;
   color: #64748b;
   cursor: pointer;
@@ -721,10 +766,10 @@
 .rota-pub__box {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   min-height: 0;
   min-width: 0;
-  padding: 2px 0 4px;
+  padding: 0;
   border: 0;
   border-radius: 14px;
   background: transparent;
@@ -744,8 +789,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: var(--rp-ctrl, 36px);
-  padding: 4px 8px;
+  min-height: var(--rp-ctrl, 32px);
+  padding: 2px 8px;
   border: 1.5px solid #94a3b8;
   border-radius: 10px;
   background: #fff;
@@ -780,26 +825,24 @@
   flex-shrink: 0;
 }
 
-.rota-pub__box.rota-pub__volta {
-  position: relative;
-  grid-column: 1 / -1;
-  display: flex;
+.rota-pub__volta {
+  display: inline-flex;
   flex-direction: row;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   cursor: pointer;
-  min-height: var(--rp-ctrl, 40px);
-  padding: 6px 10px;
-  border: 1px solid #e8edf3;
-  background: #f8fafc;
+  margin: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
   user-select: none;
+  flex-shrink: 0;
 }
 
 .rota-pub__volta > span {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  font-size: 0.84rem;
+  display: inline;
+  font-size: 0.72rem;
   font-weight: 800;
   color: #0f172a;
   text-transform: none;
@@ -813,8 +856,8 @@
 .rota-pub__volta input[type='checkbox'] {
   -webkit-appearance: checkbox;
   appearance: auto;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   margin: 0;
   flex-shrink: 0;
   accent-color: #ea580c;
@@ -823,34 +866,33 @@
 
 .rota-pub__volta.is-on,
 .rota-pub__volta:has(input:checked) {
-  background: #fff7ed;
-  border-color: #fdba74;
+  background: transparent;
 }
 
 .rota-pub__prefs {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+  gap: 4px;
 }
 
 .rota-pub__pref {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  min-height: var(--rp-block, 52px);
+  gap: 4px;
+  min-height: 32px;
   border: 1px solid #e8edf3;
   background: #f8fafc;
-  border-radius: 12px;
-  padding: 6px 4px;
+  border-radius: 10px;
+  padding: 4px 4px;
   font: inherit;
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   font-weight: 800;
   color: #64748b;
   cursor: pointer;
   text-align: center;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .rota-pub__pref.is-on {
@@ -878,9 +920,9 @@
   border-radius: 14px;
   background: #111;
   color: #f9db00;
-  padding: 8px 10px;
+  padding: 6px 10px;
   font: inherit;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
