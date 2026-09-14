@@ -296,13 +296,13 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
     <Modal open={open} onClose={onClose} title={`Calcular rota · Carga ${carga.numero}`} wide>
       <div className="space-y-4">
         <LinkFreteMinimo
-          className="inline-flex w-full items-center justify-center gap-2.5 rounded-[14px] bg-[#f9db00] px-[18px] py-3.5 text-base font-extrabold text-[#111] no-underline hover:bg-[#ffe34d]"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#f9db00] px-3.5 py-2 text-sm font-extrabold text-[#111] no-underline hover:bg-[#ffe34d]"
           km={calc?.rota.distancia_km ?? null}
           eixos={eixos}
           cat={categoriaCargaId}
           pedagio={calc?.rota.pedagio ?? null}
         >
-          <Calculator size={20} strokeWidth={2.4} />
+          <Calculator size={16} strokeWidth={2.4} />
           Calculadora de Frete
         </LinkFreteMinimo>
         <AnttFretePanel

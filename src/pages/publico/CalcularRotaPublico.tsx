@@ -698,7 +698,7 @@ export function CalcularRotaPublicoPage() {
               cat={categoriaCargaId}
               pedagio={calc?.rota.pedagio ?? null}
             >
-              <Calculator size={20} strokeWidth={2.4} />
+              <Calculator size={16} strokeWidth={2.4} />
               Calculadora de Frete
             </LinkFreteMinimo>
             <div className={`mapa-frota__search${formAberto ? '' : ' is-collapsed'}`}>
