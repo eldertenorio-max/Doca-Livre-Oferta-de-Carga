@@ -21,7 +21,11 @@ export function AjudaWhatsFabs({ origem, destino, className }: Props) {
           className="rota-map-ajuda__help"
           title="Ajuda e suporte"
           aria-label="Ajuda e suporte"
-          onClick={() => setAjuda(true)}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            setAjuda(true)
+          }}
         >
           <SuporteIcon size={52} />
         </button>
