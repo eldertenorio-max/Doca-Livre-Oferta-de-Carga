@@ -58,6 +58,25 @@
   cursor: crosshair;
 }
 
+.rota-map-whats {
+  position: absolute;
+  left: 12px;
+  bottom: 14px;
+  z-index: 45;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 8px 20px rgb(15 23 42 / 0.28);
+  text-decoration: none;
+}
+
+.rota-map-whats:hover {
+  transform: scale(1.06);
+}
+
 .rota-map-pick {
   position: absolute;
   top: 10px;

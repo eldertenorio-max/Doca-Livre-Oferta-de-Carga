@@ -13,6 +13,8 @@ import { abrirRelatorioRota } from '../../lib/rotaRelatorioPdf'
 import { chaveRota, limparPontosPassagemRota, newPontoPassagemId, newRotaId } from '../../lib/rotasSync'
 import type { Rota } from '../../types'
 import { LinkSistema } from '../ui/HostLink'
+import { WhatsAppIconOnGreen } from '../ui/WhatsAppIcon'
+import { hrefWhatsappSuporte } from '../../lib/whatsappSuporte'
 import '../../styles/rota-resultado-acoes.css'
 
 type Props = RotaResultadoPayload & {
@@ -234,6 +236,15 @@ export function RotaResultadoAcoes(props: Props) {
           </button>
         )}
       </div>
+      <a
+        className="rota-resultado-acoes__fale"
+        href={hrefWhatsappSuporte({ origem: payload.origem, destino: payload.destino })}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <WhatsAppIconOnGreen size={18} />
+        Fale conosco
+      </a>
       {msg ? (
         <p className={`rota-resultado-acoes__msg${msg.erro ? ' is-erro' : ''}`}>
           {msg.texto}

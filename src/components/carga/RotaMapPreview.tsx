@@ -5,6 +5,8 @@ import { formatCurrency } from '../../lib/businessRules'
 import { eixosDoVeiculo, estimarCustosRota, type PreferenciaRota } from '../../lib/anttFrete'
 import { geocodificarConsulta } from '../../lib/geocodeEndereco'
 import { EarthGlobe } from '../ui/EarthGlobe'
+import { WhatsAppIcon } from '../ui/WhatsAppIcon'
+import { hrefWhatsappSuporte } from '../../lib/whatsappSuporte'
 import { RotaMapaTipoPicker } from './RotaMapaTipoPicker'
 import {
   calcularPedagioNaRota,
@@ -820,6 +822,20 @@ export function RotaMapPreview({
       >
         <div ref={mapEl} className="rota-map-preview__map" />
         <RotaMapaTipoPicker valor={vista} onChange={escolherVista} />
+        <a
+          className="rota-map-whats"
+          href={hrefWhatsappSuporte({
+            origem: origem.trim() || undefined,
+            destino: destino.trim() || undefined,
+          })}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Fale conosco no WhatsApp"
+          aria-label="Fale conosco no WhatsApp"
+          data-pdf-ignore
+        >
+          <WhatsAppIcon size={28} />
+        </a>
         {showGlobe ? (
           <EarthGlobe
             pickMode={pickMode}
