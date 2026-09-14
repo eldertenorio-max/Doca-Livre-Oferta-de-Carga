@@ -330,6 +330,63 @@ export function CalcularRotaPublicoPage() {
     setDestinoCoords(origemCoords)
   }
 
+  function coordsDaVia(via: Via): Coord | null {
+    if (via.lat == null || via.lng == null) return null
+    if (!Number.isFinite(via.lat) || !Number.isFinite(via.lng)) return null
+    return { lat: via.lat, lng: via.lng }
+  }
+
+  function moverVia(idx: number, dir: -1 | 1) {
+    const dest = idx + dir
+    if (dest >= 0 && dest < vias.length) {
+      setVias((lista) => {
+        const next = [...lista]
+        const atual = next[idx]
+        next[idx] = next[dest]
+        next[dest] = atual
+        return next
+      })
+      return
+    }
+    const via = vias[idx]
+    if (!via) return
+    if (dir < 0) {
+      const oTxt = origem
+      const oC = origemCoords
+      setOrigem(via.endereco)
+      setOrigemCoords(coordsDaVia(via))
+      setVias((lista) =>
+        lista.map((x, i) =>
+          i === idx
+            ? {
+                ...x,
+                endereco: oTxt,
+                lat: oC?.lat ?? null,
+                lng: oC?.lng ?? null,
+              }
+            : x,
+        ),
+      )
+      return
+    }
+    const dTxt = destino
+    const dC = destinoCoords
+    setDestino(via.endereco)
+    setDestinoCoords(coordsDaVia(via))
+    setVias((lista) =>
+      lista.map((x, i) =>
+        i === idx
+          ? {
+              ...x,
+              endereco: dTxt,
+              lat: dC?.lat ?? null,
+              lng: dC?.lng ?? null,
+            }
+          : x,
+      ),
+    )
+  }
+
   function mudarEixos(proximo: number) {
     const n = Math.min(9, Math.max(2, proximo))
     if (n === eixos) return
@@ -723,7 +780,7 @@ export function CalcularRotaPublicoPage() {
                 <>
                 <div className={`mapa-frota__search-body rota-pub__form${vias.length > 0 || rotasSalvas.length > 0 ? ' is-long' : ''}`}>
                   <div className="rota-pub__ab">
-                    <div className="rota-pub__rail" aria-hidden>
+                    <div className="rota-pub__rail">
                       <span className="rota-pub__pin rota-pub__pin--a">A</span>
                       <span className="rota-pub__dots" />
                       <button
@@ -734,6 +791,12 @@ export function CalcularRotaPublicoPage() {
                       >
                         <ArrowUpDown size={14} />
                       </button>
+                      {vias.map((via, idx) => (
+                        <span key={via.id} className="rota-pub__rail-via">
+                          <span className="rota-pub__dots" />
+                          <span className="rota-pub__pin rota-pub__pin--via">{idx + 1}</span>
+                        </span>
+                      ))}
                       <span className="rota-pub__dots" />
                       <span className="rota-pub__pin rota-pub__pin--b">B</span>
                     </div>
@@ -766,6 +829,66 @@ export function CalcularRotaPublicoPage() {
                           <MapPin size={15} />
                         </button>
                       </div>
+                      {vias.map((via, idx) => (
+                        <div key={via.id} className="rota-pub__via">
+                          <div className="rota-pub__campo">
+                            <AddressSuggestInput
+                              value={via.endereco}
+                              onChange={(v) =>
+                                setVias((lista) =>
+                                  lista.map((x) => {
+                                    if (x.id !== via.id) return x
+                                    if (v === x.endereco) return x
+                                    return { ...x, endereco: v, lat: null, lng: null }
+                                  }),
+                                )
+                              }
+                              onPick={(sug) =>
+                                setVias((lista) =>
+                                  lista.map((x) =>
+                                    x.id === via.id
+                                      ? {
+                                          ...x,
+                                          endereco: sug.label,
+                                          lat: Number.isFinite(sug.lat) ? sug.lat : null,
+                                          lng: Number.isFinite(sug.lng) ? sug.lng : null,
+                                        }
+                                      : x,
+                                  ),
+                                )
+                              }
+                              placeholder="Ponto de passagem"
+                              className="rota-pub__input"
+                            />
+                          </div>
+                          <div className="rota-pub__via-ord">
+                            <button
+                              type="button"
+                              title={idx === 0 ? 'Trocar com a origem' : 'Subir ponto'}
+                              aria-label={idx === 0 ? 'Trocar com a origem' : 'Subir ponto'}
+                              onClick={() => moverVia(idx, -1)}
+                            >
+                              <ChevronUp size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              title={idx === vias.length - 1 ? 'Trocar com o destino' : 'Descer ponto'}
+                              aria-label={idx === vias.length - 1 ? 'Trocar com o destino' : 'Descer ponto'}
+                              onClick={() => moverVia(idx, 1)}
+                            >
+                              <ChevronDown size={14} />
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            className="rota-pub__via-del"
+                            title="Remover ponto"
+                            onClick={() => setVias((lista) => lista.filter((x) => x.id !== via.id))}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
                       <div className="rota-pub__campo">
                         <AddressSuggestInput
                           value={destino}
@@ -850,50 +973,6 @@ export function CalcularRotaPublicoPage() {
                       ))}
                     </div>
                   ) : null}
-
-                  {vias.map((via, idx) => (
-                    <div key={via.id} className="rota-pub__via">
-                      <span className="rota-pub__pin rota-pub__pin--via">{idx + 1}</span>
-                      <div className="rota-pub__campo">
-                        <AddressSuggestInput
-                          value={via.endereco}
-                          onChange={(v) =>
-                            setVias((lista) =>
-                              lista.map((x) => {
-                                if (x.id !== via.id) return x
-                                if (v === x.endereco) return x
-                                return { ...x, endereco: v, lat: null, lng: null }
-                              }),
-                            )
-                          }
-                          onPick={(sug) =>
-                            setVias((lista) =>
-                              lista.map((x) =>
-                                x.id === via.id
-                                  ? {
-                                      ...x,
-                                      endereco: sug.label,
-                                      lat: Number.isFinite(sug.lat) ? sug.lat : null,
-                                      lng: Number.isFinite(sug.lng) ? sug.lng : null,
-                                    }
-                                  : x,
-                              ),
-                            )
-                          }
-                          placeholder="Ponto de passagem"
-                          className="rota-pub__input"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        className="rota-pub__via-del"
-                        title="Remover ponto"
-                        onClick={() => setVias((lista) => lista.filter((x) => x.id !== via.id))}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
 
                   <p className="rota-pub__sec">Veículo</p>
                   <div className="rota-pub__catalogo">
