@@ -1,0 +1,50 @@
+import { useState } from 'react'
+import { CircleHelp } from 'lucide-react'
+import { WhatsAppIcon } from '../ui/WhatsAppIcon'
+import { hrefWhatsappSuporte } from '../../lib/whatsappSuporte'
+import { AjudaSuporteModal } from './AjudaSuporteModal'
+import '../../styles/earth-globe.css'
+
+type Props = {
+  origem?: string
+  destino?: string
+  className?: string
+}
+
+export function AjudaWhatsFabs({ origem, destino, className }: Props) {
+  const [ajuda, setAjuda] = useState(false)
+  return (
+    <>
+      <div className={`rota-map-ajuda${className ? ` ${className}` : ''}`} data-pdf-ignore>
+        <button
+          type="button"
+          className="rota-map-ajuda__help"
+          title="Ajuda e suporte"
+          aria-label="Ajuda e suporte"
+          onClick={() => setAjuda(true)}
+        >
+          <CircleHelp size={26} strokeWidth={2.2} />
+        </button>
+        <a
+          className="rota-map-whats"
+          href={hrefWhatsappSuporte({
+            origem: (origem || '').trim() || undefined,
+            destino: (destino || '').trim() || undefined,
+          })}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Fale conosco no WhatsApp"
+          aria-label="Fale conosco no WhatsApp"
+        >
+          <WhatsAppIcon size={30} />
+        </a>
+      </div>
+      <AjudaSuporteModal
+        open={ajuda}
+        onClose={() => setAjuda(false)}
+        origem={origem}
+        destino={destino}
+      />
+    </>
+  )
+}

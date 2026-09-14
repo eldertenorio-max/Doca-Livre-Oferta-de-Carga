@@ -5,11 +5,8 @@ import { formatCurrency } from '../../lib/businessRules'
 import { eixosDoVeiculo, estimarCustosRota, type PreferenciaRota } from '../../lib/anttFrete'
 import { geocodificarConsulta } from '../../lib/geocodeEndereco'
 import { EarthGlobe } from '../ui/EarthGlobe'
-import { WhatsAppIcon } from '../ui/WhatsAppIcon'
-import { hrefWhatsappSuporte } from '../../lib/whatsappSuporte'
 import { RotaMapaTipoPicker } from './RotaMapaTipoPicker'
-import { AjudaSuporteModal } from './AjudaSuporteModal'
-import { CircleHelp } from 'lucide-react'
+import { AjudaWhatsFabs } from './AjudaWhatsFabs'
 import {
   calcularPedagioNaRota,
   rotaOsrmComGeometria,
@@ -370,7 +367,6 @@ export function RotaMapPreview({
   onPickPontoRef.current = onPickPonto
   const onClickRotaRef = useRef(onClickRota)
   onClickRotaRef.current = onClickRota
-  const [ajudaAberta, setAjudaAberta] = useState(false)
 
   const consumoRef = useRef(consumoKmL)
   const precoRef = useRef(precoDiesel)
@@ -872,40 +868,7 @@ export function RotaMapPreview({
         <div className="rota-map-topo" data-pdf-ignore>
           <RotaMapaTipoPicker valor={vista} onChange={escolherVista} />
         </div>
-        {mostrarSuporte ? (
-          <>
-            <div className="rota-map-ajuda" data-pdf-ignore>
-              <button
-                type="button"
-                className="rota-map-ajuda__help"
-                title="Ajuda e suporte"
-                aria-label="Ajuda e suporte"
-                onClick={() => setAjudaAberta(true)}
-              >
-                <CircleHelp size={26} strokeWidth={2.2} />
-              </button>
-              <a
-                className="rota-map-whats"
-                href={hrefWhatsappSuporte({
-                  origem: origem.trim() || undefined,
-                  destino: destino.trim() || undefined,
-                })}
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Fale conosco no WhatsApp"
-                aria-label="Fale conosco no WhatsApp"
-              >
-                <WhatsAppIcon size={30} />
-              </a>
-            </div>
-            <AjudaSuporteModal
-              open={ajudaAberta}
-              onClose={() => setAjudaAberta(false)}
-              origem={origem}
-              destino={destino}
-            />
-          </>
-        ) : null}
+        {mostrarSuporte ? <AjudaWhatsFabs origem={origem} destino={destino} /> : null}
         {!showGlobe ? (
           <div className="rota-map-zoom" data-pdf-ignore>
             <button

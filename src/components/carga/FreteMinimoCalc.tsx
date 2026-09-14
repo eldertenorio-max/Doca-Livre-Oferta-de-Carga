@@ -11,6 +11,7 @@ import {
   type FreteMinimoResultado,
 } from '../../lib/freteMinimo'
 import type { TabelaAntt } from '../../lib/anttFrete'
+import { AjudaWhatsFabs } from './AjudaWhatsFabs'
 import '../../styles/frete-minimo.css'
 
 type Props = {
@@ -299,6 +300,7 @@ export function FreteMinimoCalc({
             </div>
           ) : null}
         </div>
+        {pagina ? <AjudaWhatsFabs className="rota-map-ajuda--form" /> : null}
     </section>
   )
 }

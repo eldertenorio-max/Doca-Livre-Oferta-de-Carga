@@ -1294,7 +1294,8 @@
 
 .rota-pub .rota-map-ajuda {
   left: calc(14px + min(392px, 100% - 28px) + 10px);
-  top: 42%;
+  top: auto;
+  bottom: 20px;
 }
 
 @media (max-width: 860px) {

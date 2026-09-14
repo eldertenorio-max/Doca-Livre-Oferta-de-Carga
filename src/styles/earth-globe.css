@@ -80,7 +80,8 @@
 .rota-map-ajuda {
   position: absolute;
   left: 10px;
-  top: 38%;
+  top: auto;
+  bottom: 20px;
   z-index: 40;
   display: flex;
   flex-direction: column;
@@ -88,8 +89,22 @@
   pointer-events: none;
 }
 
-.rota-map-ajuda > * {
+.rota-map-ajuda--form {
+  position: relative;
+  left: auto;
+  right: auto;
+  top: auto;
+  bottom: auto;
+  flex-direction: column;
+  align-items: center;
+  margin: 8px 0 12px;
   pointer-events: auto;
+}
+
+.rota-pub .rota-map-ajuda--form {
+  left: auto;
+  bottom: auto;
+  top: auto;
 }
 
 .rota-map-ajuda__help {
