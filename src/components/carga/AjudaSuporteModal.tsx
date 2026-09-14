@@ -86,89 +86,91 @@ export function AjudaSuporteModal({ open, onClose, origem, destino }: Props) {
           />
         </label>
 
-        <div className="ajuda-suporte__lista">
-          {itens.length === 0 ? (
-            <p className="ajuda-suporte__vazio">Nenhuma pergunta encontrada para “{busca.trim()}”.</p>
-          ) : (
-            itens.map((item) => {
-              const on = aberta === item.id
-              return (
-                <article key={item.id} className={`ajuda-faq${on ? ' is-open' : ''}`}>
-                  <button
-                    type="button"
-                    className="ajuda-faq__btn"
-                    aria-expanded={on}
-                    onClick={() => setAberta(on ? null : item.id)}
-                  >
-                    <span className="ajuda-faq__icon" aria-hidden>
-                      ?
-                    </span>
-                    <span className="ajuda-faq__q">{item.pergunta}</span>
-                    <ChevronDown size={18} className="ajuda-faq__chev" aria-hidden />
-                  </button>
-                  {on ? <p className="ajuda-faq__a">{item.resposta}</p> : null}
-                </article>
-              )
-            })
-          )}
+        <div className="ajuda-suporte__body">
+          <div className="ajuda-suporte__lista">
+            {itens.length === 0 ? (
+              <p className="ajuda-suporte__vazio">Nenhuma pergunta encontrada para “{busca.trim()}”.</p>
+            ) : (
+              itens.map((item) => {
+                const on = aberta === item.id
+                return (
+                  <article key={item.id} className={`ajuda-faq${on ? ' is-open' : ''}`}>
+                    <button
+                      type="button"
+                      className="ajuda-faq__btn"
+                      aria-expanded={on}
+                      onClick={() => setAberta(on ? null : item.id)}
+                    >
+                      <span className="ajuda-faq__icon" aria-hidden>
+                        ?
+                      </span>
+                      <span className="ajuda-faq__q">{item.pergunta}</span>
+                      <ChevronDown size={18} className="ajuda-faq__chev" aria-hidden />
+                    </button>
+                    {on ? <p className="ajuda-faq__a">{item.resposta}</p> : null}
+                  </article>
+                )
+              })
+            )}
+          </div>
+
+          <section className="ajuda-suporte__contato" aria-labelledby="ajuda-contato-title">
+            <h3 id="ajuda-contato-title">Não encontrou? Fale com a gente</h3>
+            <p>
+              Relate um problema para <strong>{EMAIL_SUPORTE_DOCA}</strong> ou chame no WhatsApp.
+            </p>
+            <a
+              className="ajuda-suporte__whats"
+              href={hrefWhatsappSuporte({
+                origem,
+                destino,
+                problema: true,
+              })}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <WhatsAppIconOnGreen size={18} />
+              Chamar no WhatsApp
+            </a>
+
+            <form
+              className="ajuda-suporte__form"
+              onSubmit={(e) => {
+                e.preventDefault()
+                enviarEmail()
+              }}
+            >
+              <label>
+                Seu nome
+                <input value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="name" />
+              </label>
+              <label>
+                Seu e-mail
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  placeholder="para respondermos"
+                />
+              </label>
+              <label>
+                Relato
+                <textarea
+                  rows={4}
+                  value={mensagem}
+                  onChange={(e) => setMensagem(e.target.value)}
+                  placeholder="Descreva o problema ou a dúvida…"
+                />
+              </label>
+              {aviso ? <p className="ajuda-suporte__aviso">{aviso}</p> : null}
+              <button type="submit" className="ajuda-suporte__mail">
+                <Mail size={16} />
+                Enviar e-mail
+              </button>
+            </form>
+          </section>
         </div>
-
-        <section className="ajuda-suporte__contato" aria-labelledby="ajuda-contato-title">
-          <h3 id="ajuda-contato-title">Não encontrou? Fale com a gente</h3>
-          <p>
-            Relate um problema para <strong>{EMAIL_SUPORTE_DOCA}</strong> ou chame no WhatsApp.
-          </p>
-          <a
-            className="ajuda-suporte__whats"
-            href={hrefWhatsappSuporte({
-              origem,
-              destino,
-              problema: true,
-            })}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <WhatsAppIconOnGreen size={18} />
-            Chamar no WhatsApp
-          </a>
-
-          <form
-            className="ajuda-suporte__form"
-            onSubmit={(e) => {
-              e.preventDefault()
-              enviarEmail()
-            }}
-          >
-            <label>
-              Seu nome
-              <input value={nome} onChange={(e) => setNome(e.target.value)} autoComplete="name" />
-            </label>
-            <label>
-              Seu e-mail
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                placeholder="para respondermos"
-              />
-            </label>
-            <label>
-              Relato
-              <textarea
-                rows={4}
-                value={mensagem}
-                onChange={(e) => setMensagem(e.target.value)}
-                placeholder="Descreva o problema ou a dúvida…"
-              />
-            </label>
-            {aviso ? <p className="ajuda-suporte__aviso">{aviso}</p> : null}
-            <button type="submit" className="ajuda-suporte__mail">
-              <Mail size={16} />
-              Enviar e-mail
-            </button>
-          </form>
-        </section>
       </div>
     </div>,
     document.body,
