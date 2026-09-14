@@ -732,6 +732,7 @@ export function CalcularRotaPublicoPage() {
               </div>
 
               {formAberto ? (
+                <>
                 <div className="mapa-frota__search-body rota-pub__form">
                   <div className="rota-pub__ab">
                     <div className="rota-pub__rail" aria-hidden>
@@ -1012,6 +1013,8 @@ export function CalcularRotaPublicoPage() {
                     </label>
                   </div>
 
+                </div>
+                <div className="rota-pub__rodape">
                   <p className="rota-pub__sec">Preferência</p>
                   <div className="rota-pub__prefs" role="radiogroup" aria-label="Preferência de rota">
                     {PREFS.map(([id, label, Icon]) => (
@@ -1059,6 +1062,7 @@ export function CalcularRotaPublicoPage() {
                     </button>
                   ) : null}
                 </div>
+                </>
               ) : null}
             </div>
           </aside>

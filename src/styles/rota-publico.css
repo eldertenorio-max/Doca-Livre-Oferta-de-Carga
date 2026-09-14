@@ -75,8 +75,18 @@
 .rota-pub .mapa-frota__search-body.rota-pub__form {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   gap: var(--rp-gap);
+  padding-bottom: 14px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.rota-pub .mapa-frota__search-body.rota-pub__form > * {
+  flex-shrink: 0;
 }
 
 .rota-pub__hero {
@@ -259,10 +269,14 @@
   background: #ffedd5;
 }
 
-.rota-pub__form {
+.rota-pub__rodape {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
   gap: var(--rp-gap, 6px);
-  max-width: 100%;
-  min-width: 0;
+  padding: 8px 2px 4px;
+  border-top: 1px solid #eef2f6;
+  background: rgb(255 255 255 / 0.97);
 }
 
 .rota-pub__sec {
@@ -1356,8 +1370,8 @@
   }
 
   .rota-pub .rota-map-ajuda {
-    left: 10px;
-    top: auto;
+    left: auto;
+    right: 8px;
     bottom: 14px;
   }
 }
