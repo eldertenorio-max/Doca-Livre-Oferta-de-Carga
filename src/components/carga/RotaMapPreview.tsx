@@ -377,6 +377,8 @@ export function RotaMapPreview({
   const [status, setStatus] = useState<'idle' | 'loading' | 'ok' | 'erro' | 'circular'>('idle')
   const [mergulhoId, setMergulhoId] = useState(0)
   const mergulhoEmRef = useRef(0)
+  /** True só no mergulho disparado pelo Calcular — não quando o usuário escolhe o globo. */
+  const autoSairGloboRef = useRef(false)
   const [globeSaindo, setGlobeSaindo] = useState(false)
   const [globeVisivel, setGlobeVisivel] = useState(true)
   const showGlobe = vista === 'globo' && globeVisivel
@@ -459,6 +461,8 @@ export function RotaMapPreview({
   }, [plano])
 
   function escolherVista(next: MapaVista) {
+    autoSairGloboRef.current = false
+    mergulhoEmRef.current = 0
     setVista(next)
     saveMapaVista(next)
     if (next === 'globo') {
@@ -821,6 +825,7 @@ export function RotaMapPreview({
   useEffect(() => {
     if (entrarId < 1) return
     if (vistaRef.current !== 'globo') return
+    autoSairGloboRef.current = true
     mergulhoEmRef.current = Date.now()
     setGlobeVisivel(true)
     setGlobeSaindo(false)
@@ -829,6 +834,7 @@ export function RotaMapPreview({
 
   useEffect(() => {
     if (status === 'loading' && vista === 'globo' && globeVisivel && mergulhoId < 1) {
+      autoSairGloboRef.current = true
       mergulhoEmRef.current = Date.now()
       setMergulhoId((n) => n + 1)
     }
@@ -837,6 +843,7 @@ export function RotaMapPreview({
   useEffect(() => {
     const mapaPronto = status === 'ok' || status === 'circular' || status === 'erro'
     if (!mapaPronto || vista !== 'globo' || !globeVisivel || globeSaindo) return
+    if (!autoSairGloboRef.current) return
     const ja = Date.now() - (mergulhoEmRef.current || Date.now())
     const espera = Math.max(0, 2200 - ja)
     const t = window.setTimeout(() => setGlobeSaindo(true), espera)
@@ -845,7 +852,12 @@ export function RotaMapPreview({
 
   useEffect(() => {
     if (!globeSaindo) return
+    if (!autoSairGloboRef.current) {
+      setGlobeSaindo(false)
+      return
+    }
     const t = window.setTimeout(() => {
+      autoSairGloboRef.current = false
       setGlobeVisivel(false)
       setGlobeReady(false)
       const p = planoRef.current
