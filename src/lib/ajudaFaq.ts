@@ -84,6 +84,12 @@ export const AJUDA_FAQ: AjudaFaqItem[] = [
       'No site público há um limite diário de cálculos grátis. Quando acaba, você pode assinar o Doca Livre para calcular sem limite, ou esperar o dia seguinte. Quem está logado no sistema não tem esse teto.',
   },
   {
+    id: 'frete-minimo',
+    pergunta: 'Como usar a calculadora de frete mínimo?',
+    resposta:
+      'No painel, abra “Frete mínimo” (logo abaixo de Calcular rota). Informe os km — ou use os km da rota já calculada — eixos, tabela A–D e o tipo de carga. Opcional: retorno vazio, margem, ICMS e toneladas. O resultado é o piso da Resolução ANTT nº 6.084/2026; pedágio não entra nesse valor.',
+  },
+  {
     id: 'contato',
     pergunta: 'Como falo com o suporte do Doca Livre?',
     resposta:

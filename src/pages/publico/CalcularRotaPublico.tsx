@@ -41,6 +41,7 @@ import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
 import { MapaFrotaAjuda } from '../../components/mapa/MapaFrotaAjuda'
 import { RotaResultadoAcoes, RotaFaleConosco } from '../../components/carga/RotaResultadoAcoes'
 import { RotaMapErroBoundary } from '../../components/carga/RotaMapErroBoundary'
+import { FreteMinimoCalc } from '../../components/carga/FreteMinimoCalc'
 import type { SugestaoEndereco } from '../../lib/geocodeEndereco'
 import { geocodificarConsulta, labelPorCoordenadas } from '../../lib/geocodeEndereco'
 import {
@@ -688,6 +689,13 @@ export function CalcularRotaPublicoPage() {
                     : 'Esgotado hoje'}
               </p>
             </div>
+            <FreteMinimoCalc
+              kmRota={calc?.rota.distancia_km ?? null}
+              eixosInicial={eixos}
+              categoriaInicial={categoriaCargaId}
+              onPedirRota={() => setFormAberto(true)}
+              inicialAberto
+            />
             <div className={`mapa-frota__search${formAberto ? '' : ' is-collapsed'}`}>
               <div className="rota-pub__card-top">
                 <button

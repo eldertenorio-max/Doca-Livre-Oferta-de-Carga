@@ -9,7 +9,7 @@ import { roundMoney } from './businessRules'
 import { geocodificarConsulta } from './geocodeEndereco'
 
 export type { TabelaAntt }
-export { TABELAS_ANTT, CATEGORIAS_ANTT, ANTT_FONTE } from './anttCoeficientes'
+export { TABELAS_ANTT, CATEGORIAS_ANTT, ANTT_FONTE, EIXOS_ANTT } from './anttCoeficientes'
 
 export type AnttPisoCategoria = {
   id: number
