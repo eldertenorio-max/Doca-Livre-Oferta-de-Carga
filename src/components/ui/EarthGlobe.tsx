@@ -20,11 +20,14 @@ const ZOOM_INICIAL = 2.45
 const ZOOM_MIN = 2.2
 const ZOOM_MAX = 19
 
+export type EarthGlobeVia = Coord & { n: number }
+
 type Props = {
   pickMode?: EarthGlobePick | null
   onPick?: (lat: number, lng: number) => void
   pontoA?: Coord | null
   pontoB?: Coord | null
+  vias?: EarthGlobeVia[]
   /** Incrementa para mergulhar do espaço até o mapa. 0 = volta à órbita. */
   entrarId?: number
   saindo?: boolean
@@ -33,16 +36,40 @@ type Props = {
   onError?: () => void
 }
 
-function centroAlvo(a?: Coord | null, b?: Coord | null): [number, number] {
-  if (a && b) return [(a.lng + b.lng) / 2, (a.lat + b.lat) / 2]
-  if (a) return [a.lng, a.lat]
-  if (b) return [b.lng, b.lat]
-  return CENTRO_INICIAL
+function pontosAlvo(
+  a?: Coord | null,
+  b?: Coord | null,
+  vias?: EarthGlobeVia[],
+): Coord[] {
+  const pts: Coord[] = []
+  if (a) pts.push(a)
+  if (b) pts.push(b)
+  for (const v of vias ?? []) {
+    if (Number.isFinite(v.lat) && Number.isFinite(v.lng)) pts.push(v)
+  }
+  return pts
 }
 
-function zoomAlvo(a?: Coord | null, b?: Coord | null): number {
-  if (!a || !b) return 7.6
-  const span = Math.max(Math.abs(a.lat - b.lat), Math.abs(a.lng - b.lng))
+function centroAlvo(pts: Coord[]): [number, number] {
+  if (pts.length === 0) return CENTRO_INICIAL
+  const lat = pts.reduce((s, p) => s + p.lat, 0) / pts.length
+  const lng = pts.reduce((s, p) => s + p.lng, 0) / pts.length
+  return [lng, lat]
+}
+
+function zoomAlvo(pts: Coord[]): number {
+  if (pts.length === 0) return ZOOM_INICIAL
+  if (pts.length === 1) return 7.6
+  let span = 0
+  for (let i = 0; i < pts.length; i++) {
+    for (let j = i + 1; j < pts.length; j++) {
+      span = Math.max(
+        span,
+        Math.abs(pts[i].lat - pts[j].lat),
+        Math.abs(pts[i].lng - pts[j].lng),
+      )
+    }
+  }
   if (span > 18) return 4.8
   if (span > 8) return 5.8
   if (span > 3) return 6.8
@@ -88,6 +115,7 @@ export function EarthGlobe({
   onPick,
   pontoA = null,
   pontoB = null,
+  vias = [],
   entrarId = 0,
   saindo = false,
   onEntradaFim,
@@ -99,6 +127,7 @@ export function EarthGlobe({
   const mapRef = useRef<MlMap | undefined>(undefined)
   const markerARef = useRef<MlMarker | undefined>(undefined)
   const markerBRef = useRef<MlMarker | undefined>(undefined)
+  const markersViaRef = useRef<MlMarker[]>([])
   const libRef = useRef<typeof import('maplibre-gl') | undefined>(undefined)
   const pickModeRef = useRef(pickMode)
   const onPickRef = useRef(onPick)
@@ -112,17 +141,19 @@ export function EarthGlobe({
   onEntradaFimRef.current = onEntradaFim
   const pontoARef = useRef(pontoA)
   const pontoBRef = useRef(pontoB)
+  const viasRef = useRef(vias)
   pontoARef.current = pontoA
   pontoBRef.current = pontoB
+  viasRef.current = vias
   const saindoRef = useRef(saindo)
   saindoRef.current = saindo
   const [mapaOk, setMapaOk] = useState(false)
   const [entrando, setEntrando] = useState(false)
+  const viasKey = vias.map((v) => `${v.n}:${v.lat}:${v.lng}`).join('|')
 
   function alvoAtual(): { center: [number, number]; zoom: number } {
-    const a = pontoARef.current
-    const b = pontoBRef.current
-    return { center: centroAlvo(a, b), zoom: zoomAlvo(a, b) }
+    const pts = pontosAlvo(pontoARef.current, pontoBRef.current, viasRef.current)
+    return { center: centroAlvo(pts), zoom: zoomAlvo(pts) }
   }
 
   useEffect(() => {
@@ -275,6 +306,8 @@ export function EarthGlobe({
       if (onUi) root.querySelector('.earth-globe__nav')?.removeEventListener('click', onUi)
       markerARef.current?.remove()
       markerBRef.current?.remove()
+      markersViaRef.current.forEach((m) => m.remove())
+      markersViaRef.current = []
       mapRef.current?.remove()
       mapRef.current = undefined
     }
@@ -307,7 +340,19 @@ export function EarthGlobe({
         .setLngLat([pontoB.lng, pontoB.lat])
         .addTo(map)
     }
-  }, [mapaOk, pontoA, pontoB])
+
+    markersViaRef.current.forEach((m) => m.remove())
+    markersViaRef.current = []
+    for (const via of vias) {
+      const Marker = libRef.current?.Marker
+      if (!Marker) break
+      if (!Number.isFinite(via.lat) || !Number.isFinite(via.lng)) continue
+      const m = new Marker({ element: criarPinEl(String(via.n), '#2563eb') })
+        .setLngLat([via.lng, via.lat])
+        .addTo(map)
+      markersViaRef.current.push(m)
+    }
+  }, [mapaOk, pontoA, pontoB, viasKey])
 
   useEffect(() => {
     const map = mapRef.current

@@ -870,9 +870,11 @@ export function CalcularRotaPublicoPage() {
                           value={via.endereco}
                           onChange={(v) =>
                             setVias((lista) =>
-                              lista.map((x) =>
-                                x.id === via.id ? { ...x, endereco: v, lat: null, lng: null } : x,
-                              ),
+                              lista.map((x) => {
+                                if (x.id !== via.id) return x
+                                if (v === x.endereco) return x
+                                return { ...x, endereco: v, lat: null, lng: null }
+                              }),
                             )
                           }
                           onPick={(sug) =>
@@ -882,8 +884,8 @@ export function CalcularRotaPublicoPage() {
                                   ? {
                                       ...x,
                                       endereco: sug.label,
-                                      lat: sug.lat,
-                                      lng: sug.lng,
+                                      lat: Number.isFinite(sug.lat) ? sug.lat : null,
+                                      lng: Number.isFinite(sug.lng) ? sug.lng : null,
                                     }
                                   : x,
                               ),

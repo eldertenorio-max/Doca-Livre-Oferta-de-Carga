@@ -89,6 +89,68 @@ function coordsOk(c?: RotaCoords | null): c is RotaCoords {
   return Boolean(c && Number.isFinite(c.lat) && Number.isFinite(c.lng))
 }
 
+function viasComCoord(
+  vias: Array<{ endereco: string; lat: number | null; lng: number | null }>,
+): Array<{ lat: number; lng: number; n: number; endereco: string }> {
+  const out: Array<{ lat: number; lng: number; n: number; endereco: string }> = []
+  vias.forEach((w, i) => {
+    if (w.lat == null || w.lng == null) return
+    if (!Number.isFinite(w.lat) || !Number.isFinite(w.lng)) return
+    out.push({ lat: w.lat, lng: w.lng, n: i + 1, endereco: w.endereco })
+  })
+  return out
+}
+
+function desenharPinsConhecidos(
+  layer: L.LayerGroup,
+  map: L.Map,
+  opts: {
+    origem: string
+    destino: string
+    origemCoords?: RotaCoords | null
+    destinoCoords?: RotaCoords | null
+    vias: Array<{ endereco: string; lat: number | null; lng: number | null }>
+  },
+) {
+  const bounds: L.LatLngTuple[] = []
+  if (coordsOk(opts.origemCoords)) {
+    L.marker([opts.origemCoords.lat, opts.origemCoords.lng], {
+      icon: origemIcon(),
+      title: `Origem: ${opts.origem}`,
+    }).addTo(layer)
+    bounds.push([opts.origemCoords.lat, opts.origemCoords.lng])
+  }
+  for (const via of viasComCoord(opts.vias)) {
+    L.marker([via.lat, via.lng], {
+      icon: viaIcon(via.n),
+      title: `Passagem ${via.n}: ${via.endereco}`,
+    })
+      .bindPopup(
+        `<div class="rota-map-popup"><p class="rota-map-popup__tit">Passagem ${via.n}</p><p>${escHtml(via.endereco)}</p></div>`,
+        { className: 'rota-map-popup-wrap', maxWidth: 280 },
+      )
+      .addTo(layer)
+    bounds.push([via.lat, via.lng])
+  }
+  if (coordsOk(opts.destinoCoords)) {
+    L.marker([opts.destinoCoords.lat, opts.destinoCoords.lng], {
+      icon: destinoIcon(),
+      title: `Destino: ${opts.destino}`,
+    }).addTo(layer)
+    bounds.push([opts.destinoCoords.lat, opts.destinoCoords.lng])
+  }
+  if (bounds.length === 1) {
+    map.setView(bounds[0], 10, { animate: true, duration: 0.6 })
+  } else if (bounds.length > 1) {
+    map.fitBounds(L.latLngBounds(bounds), {
+      padding: [36, 36],
+      maxZoom: 11,
+      animate: true,
+      duration: 0.7,
+    })
+  }
+}
+
 function mesmaPosicao(a: RotaCoords, b: RotaCoords, tol = 0.0002): boolean {
   return Math.abs(a.lat - b.lat) < tol && Math.abs(a.lng - b.lng) < tol
 }
@@ -494,6 +556,13 @@ export function RotaMapPreview({
       lastManualId.current = 0
       reqId.current += 1
       layer.clearLayers()
+      desenharPinsConhecidos(layer, map, {
+        origem: o,
+        destino: d,
+        origemCoords,
+        destinoCoords,
+        vias: viasNorm,
+      })
       setStatus('idle')
       setMeta(null)
       setMsg(msgIdle)
@@ -507,6 +576,13 @@ export function RotaMapPreview({
     if (o.length < 5 || d.length < 5) {
       reqId.current += 1
       layer.clearLayers()
+      desenharPinsConhecidos(layer, map, {
+        origem: o,
+        destino: d,
+        origemCoords,
+        destinoCoords,
+        vias: viasNorm,
+      })
       setStatus('idle')
       setMeta(null)
       setMsg(msgIdle)
@@ -906,6 +982,7 @@ export function RotaMapPreview({
             pickMode={pickMode}
             pontoA={coordsOk(origemCoords) ? origemCoords : null}
             pontoB={coordsOk(destinoCoords) ? destinoCoords : null}
+            vias={viasComCoord(viasNorm).map((v) => ({ lat: v.lat, lng: v.lng, n: v.n }))}
             entrarId={mergulhoId}
             saindo={globeSaindo}
             onReady={() => setGlobeReady(true)}
