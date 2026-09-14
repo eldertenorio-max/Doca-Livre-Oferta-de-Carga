@@ -133,81 +133,9 @@ export async function copiarOuCompartilharRota(
   }
 }
 
-function slugArquivo(s: string): string {
-  const t = s
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^\w]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 40)
-  return t || 'rota'
-}
-
 export async function exportarPlanilhaRota(p: RotaResultadoPayload) {
-  const XLSX = await import('xlsx')
-  const r = p.calc.rota
-  const resumo = [
-    ['Campo', 'Valor'],
-    ['Origem', p.origem],
-    ...((p.vias ?? []).map((v, i) => [`Passagem ${i + 1}`, v.endereco]) as [string, string][]),
-    ['Destino', p.destino],
-    ['Veículo', p.tipoVeiculo || ''],
-    ['Eixos', String(p.calc.eixos)],
-    ['Eixos ANTT', String(p.calc.eixos_utilizados)],
-    ['Categoria', p.calc.categoria_label || ''],
-    ['Trecho', p.idaEVolta ? 'Ida e volta' : 'Só ida'],
-    ['Preferência', rotuloPreferenciaRota(p.preferencia)],
-    ['Distância (km)', r.distancia_km],
-    ['Tempo', r.duracao_label],
-    ['Pedágio', r.pedagio],
-    ['Pedágio / eixo', r.pedagio_por_eixo],
-    ['Vale-pedágio', r.vale_pedagio ?? r.pedagio],
-    ['Combustível', r.combustivel],
-    ['Consumo (km/l)', r.consumo_km_l ?? ''],
-    ['Diesel (R$/L)', r.preco_diesel ?? ''],
-    ['Litros', r.litros ?? ''],
-    ['Custo total', r.custo_total],
-    ['Piso ANTT', p.calc.piso_selecionado ?? ''],
-    ['Fonte', p.calc.fonte],
-  ]
-  const pracas = [
-    ['Ordem', 'Praça', 'km', 'min', 'Valor', 'Carro', 'Free flow', 'lat', 'lng'],
-    ...(r.pracas ?? [])
-      .slice()
-      .sort((a, b) => (a.ordem ?? a.km_ate ?? 0) - (b.ordem ?? b.km_ate ?? 0))
-      .map((pr, i) => [
-        pr.ordem ?? i + 1,
-        pr.nome,
-        pr.km_ate ?? '',
-        pr.min_ate ?? '',
-        pr.valor,
-        pr.valor_carro ?? '',
-        pr.free_flow ? 'sim' : '',
-        pr.lat ?? '',
-        pr.lng ?? '',
-      ]),
-  ]
-
-  const wsResumo = XLSX.utils.aoa_to_sheet(resumo)
-  wsResumo['!cols'] = [{ wch: 18 }, { wch: 52 }]
-  const wsPracas = XLSX.utils.aoa_to_sheet(pracas)
-  wsPracas['!cols'] = [
-    { wch: 8 },
-    { wch: 36 },
-    { wch: 10 },
-    { wch: 8 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 12 },
-  ]
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo')
-  XLSX.utils.book_append_sheet(wb, wsPracas, 'Pracas')
-  const nome = `rota-${slugArquivo(p.origem)}-${slugArquivo(p.destino)}.xlsx`
-  XLSX.writeFile(wb, nome)
+  const { exportarPlanilhaRota: gerar } = await import('./rotaPlanilha')
+  return gerar(p)
 }
 
 const LOCAL_KEY = 'doca-rotas-salvas-calc'
