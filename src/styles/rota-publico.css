@@ -788,9 +788,8 @@
   border-bottom: 1px solid #f1f5f9;
 }
 
-.rota-pub-janela__acoes .rota-resultado-acoes__btn {
-  width: 32px;
-  height: 32px;
+.rota-pub-janela__acoes .rota-resultado-acoes {
+  width: 100%;
 }
 
 .rota-pub__resumo {

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { FileSpreadsheet, FileText, MapPin, Save, Share2 } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { FileSpreadsheet, FileText, Save, Share2 } from 'lucide-react'
 import {
   copiarOuCompartilharRota,
   exportarPlanilhaRota,
@@ -27,20 +27,69 @@ type Props = RotaResultadoPayload & {
 
 function IconeWaze() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
         d="M12 3.2c4.7 0 8.4 3.4 8.4 8.1 0 2.4-.9 4.4-2.4 6.1-.4.4-.8 1.3-.6 2 .3 1.1-.4 2.2-1.5 2.4-.4.1-.8 0-1.1-.2-.6-.4-1.3-.6-2.8-.6s-2.2.2-2.8.6c-.3.2-.7.3-1.1.2-1.1-.2-1.8-1.3-1.5-2.4.2-.7-.2-1.6-.6-2C4.5 15.7 3.6 13.7 3.6 11.3 3.6 6.6 7.3 3.2 12 3.2Z"
-        fill="currentColor"
+        fill="#33CCFF"
       />
-      <circle cx="9.1" cy="11.2" r="1.35" fill="#fff" />
-      <circle cx="14.9" cy="11.2" r="1.35" fill="#fff" />
+      <circle cx="9.1" cy="11.2" r="1.4" fill="#fff" />
+      <circle cx="14.9" cy="11.2" r="1.4" fill="#fff" />
+      <circle cx="9.1" cy="11.35" r="0.55" fill="#0f172a" />
+      <circle cx="14.9" cy="11.35" r="0.55" fill="#0f172a" />
       <path
         d="M9.4 15.1c.7.7 1.6 1.1 2.6 1.1s1.9-.4 2.6-1.1"
         stroke="#fff"
-        strokeWidth="1.4"
+        strokeWidth="1.5"
         strokeLinecap="round"
       />
     </svg>
+  )
+}
+
+function IconeGoogleMaps() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden>
+      <path
+        d="M12 2.2c-3.9 0-7.1 3.1-7.1 7.2 0 5.3 7.1 12.4 7.1 12.4s7.1-7.1 7.1-12.4c0-4.1-3.2-7.2-7.1-7.2Z"
+        fill="#EA4335"
+      />
+      <circle cx="12" cy="9.3" r="3.15" fill="#fff" />
+      <path d="M12 6.4c.7 0 1.3.2 1.8.6L12 9.3V6.4Z" fill="#FBBC04" />
+      <path d="M13.8 7c.5.5.8 1.2.8 2 0 .4-.1.8-.3 1.1L12 9.3l1.8-2.3Z" fill="#34A853" />
+      <path d="M12 6.4c-.7 0-1.3.2-1.8.6L12 9.3V6.4Z" fill="#4285F4" />
+    </svg>
+  )
+}
+
+function AcaoExterna({
+  href,
+  title,
+  className,
+  children,
+}: {
+  href: string | null
+  title: string
+  className: string
+  children: ReactNode
+}) {
+  if (href) {
+    return (
+      <a
+        className={className}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={title}
+        aria-label={title}
+      >
+        {children}
+      </a>
+    )
+  }
+  return (
+    <button type="button" className={className} title={title} aria-label={title} disabled>
+      {children}
+    </button>
   )
 }
 
@@ -160,89 +209,59 @@ export function RotaResultadoAcoes(props: Props) {
   return (
     <div className={`rota-resultado-acoes${props.className ? ` ${props.className}` : ''}`}>
       <div className="rota-resultado-acoes__bar" role="toolbar" aria-label="Ações da rota">
-        <button
-          type="button"
-          className="rota-resultado-acoes__btn"
-          title="Exportar para planilha"
-          aria-label="Exportar para planilha"
-          onClick={() => void exportar()}
+        <AcaoExterna
+          href={mapsUrl}
+          title="Abrir rota no Google Maps"
+          className="rota-resultado-acoes__btn rota-resultado-acoes__btn--maps"
         >
-          <FileSpreadsheet size={20} strokeWidth={1.8} />
-        </button>
-        <button
-          type="button"
-          className="rota-resultado-acoes__btn"
-          title="Salvar rota"
-          aria-label="Salvar rota"
-          disabled={busy === 'salvar'}
-          onClick={() => void salvar()}
+          <IconeGoogleMaps />
+        </AcaoExterna>
+        <AcaoExterna
+          href={wazeUrl}
+          title="Abrir rota no Waze"
+          className="rota-resultado-acoes__btn rota-resultado-acoes__btn--waze"
         >
-          <Save size={20} strokeWidth={1.8} />
-        </button>
+          <IconeWaze />
+        </AcaoExterna>
         <button
           type="button"
-          className="rota-resultado-acoes__btn"
-          title="Abrir relatório da rota"
-          aria-label="Abrir relatório da rota"
-          disabled={busy === 'relatorio'}
-          onClick={() => void relatorio()}
-        >
-          <FileText size={20} strokeWidth={1.8} />
-        </button>
-        <button
-          type="button"
-          className="rota-resultado-acoes__btn"
+          className="rota-resultado-acoes__btn rota-resultado-acoes__btn--share"
           title="Compartilhar rota"
           aria-label="Compartilhar rota"
           disabled={busy === 'share'}
           onClick={() => void compartilhar()}
         >
-          <Share2 size={20} strokeWidth={1.8} />
+          <Share2 size={26} strokeWidth={2.1} />
         </button>
-        {wazeUrl ? (
-          <a
-            className="rota-resultado-acoes__btn"
-            href={wazeUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Abrir rota no Waze"
-            aria-label="Abrir rota no Waze"
-          >
-            <IconeWaze />
-          </a>
-        ) : (
-          <button
-            type="button"
-            className="rota-resultado-acoes__btn"
-            title="Abrir rota no Waze"
-            aria-label="Abrir rota no Waze"
-            disabled
-          >
-            <IconeWaze />
-          </button>
-        )}
-        {mapsUrl ? (
-          <a
-            className="rota-resultado-acoes__btn"
-            href={mapsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Abrir rota no Google Maps"
-            aria-label="Abrir rota no Google Maps"
-          >
-            <MapPin size={20} strokeWidth={1.8} />
-          </a>
-        ) : (
-          <button
-            type="button"
-            className="rota-resultado-acoes__btn"
-            title="Abrir rota no Google Maps"
-            aria-label="Abrir rota no Google Maps"
-            disabled
-          >
-            <MapPin size={20} strokeWidth={1.8} />
-          </button>
-        )}
+        <button
+          type="button"
+          className="rota-resultado-acoes__btn rota-resultado-acoes__btn--save"
+          title="Salvar rota"
+          aria-label="Salvar rota"
+          disabled={busy === 'salvar'}
+          onClick={() => void salvar()}
+        >
+          <Save size={26} strokeWidth={2.1} />
+        </button>
+        <button
+          type="button"
+          className="rota-resultado-acoes__btn rota-resultado-acoes__btn--pdf"
+          title="Abrir relatório da rota"
+          aria-label="Abrir relatório da rota"
+          disabled={busy === 'relatorio'}
+          onClick={() => void relatorio()}
+        >
+          <FileText size={26} strokeWidth={2.1} />
+        </button>
+        <button
+          type="button"
+          className="rota-resultado-acoes__btn rota-resultado-acoes__btn--excel"
+          title="Exportar para planilha"
+          aria-label="Exportar para planilha"
+          onClick={() => void exportar()}
+        >
+          <FileSpreadsheet size={26} strokeWidth={2.1} />
+        </button>
       </div>
       <a
         className="rota-resultado-acoes__fale"
