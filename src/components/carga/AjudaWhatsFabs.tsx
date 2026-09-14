@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CircleHelp } from 'lucide-react'
+import { SuporteIcon } from '../ui/SuporteIcon'
 import { WhatsAppIcon } from '../ui/WhatsAppIcon'
 import { hrefWhatsappSuporte } from '../../lib/whatsappSuporte'
 import { AjudaSuporteModal } from './AjudaSuporteModal'
@@ -23,7 +23,7 @@ export function AjudaWhatsFabs({ origem, destino, className }: Props) {
           aria-label="Ajuda e suporte"
           onClick={() => setAjuda(true)}
         >
-          <CircleHelp size={26} strokeWidth={2.2} />
+          <SuporteIcon size={52} />
         </button>
         <a
           className="rota-map-whats"

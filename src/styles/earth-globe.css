@@ -113,17 +113,18 @@
   flex-shrink: 0;
   width: 52px;
   height: 52px;
+  padding: 0;
   border: 0;
   border-radius: 50%;
-  background: #0f172a;
-  color: #fff;
+  overflow: hidden;
+  background: #ea580c;
   box-shadow: 0 2px 8px rgb(15 23 42 / 0.28);
   cursor: pointer;
 }
 
 .rota-map-ajuda__help:hover {
   transform: scale(1.06);
-  color: #ffb300;
+  filter: brightness(1.08);
 }
 
 .rota-map-whats {
