@@ -676,22 +676,8 @@ export function CalcularRotaPublicoPage() {
             <div className="rota-pub__hero">
               <div>
                 <p className="rota-pub__kicker">Pedágio · km · combustível</p>
-                <div className="rota-pub__hero-tit">
-                  <h1>Calcular rota</h1>
-                  {!ilimitado ? (
-                    <button type="button" className="rota-pub__beneficios" onClick={() => setShowPaywall(true)}>
-                      Conheça os benefícios
-                    </button>
-                  ) : null}
-                </div>
+                <h1>Calcular rota</h1>
               </div>
-              <p className="rota-pub__badge">
-                {ilimitado
-                  ? 'Ilimitado'
-                  : restam > 0
-                    ? `${restam} de ${ROTA_PUBLICO_LIMITE_CALCULOS} grátis`
-                    : 'Esgotado hoje'}
-              </p>
             </div>
             <LinkFreteMinimo
               className="rota-pub__frete-link"
