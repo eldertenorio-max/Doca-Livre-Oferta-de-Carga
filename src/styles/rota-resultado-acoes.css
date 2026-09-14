@@ -1,0 +1,65 @@
+.rota-resultado-acoes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.rota-resultado-acoes__bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #eceff3;
+  box-shadow: inset 0 0 0 1px rgb(15 23 42 / 0.04);
+}
+
+.rota-resultado-acoes__btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #9aa3af;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.rota-resultado-acoes__btn:hover:not(:disabled),
+.rota-resultado-acoes__btn:focus-visible {
+  color: #4b5563;
+  background: rgb(255 255 255 / 0.7);
+  outline: none;
+}
+
+.rota-resultado-acoes__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.rota-resultado-acoes__btn svg {
+  display: block;
+}
+
+.rota-resultado-acoes__msg {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #475569;
+  text-align: center;
+}
+
+.rota-resultado-acoes__msg.is-erro {
+  color: #b91c1c;
+}
+
+.rota-resultado-acoes__msg a {
+  color: inherit;
+  font-weight: 800;
+}

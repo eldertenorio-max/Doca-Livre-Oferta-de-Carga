@@ -12,6 +12,7 @@ import {
 import type { AnttInfoCarga } from '../../types'
 import { Button, Field, inputClass } from '../ui/Modal'
 import { MapaFrotaAjuda } from '../mapa/MapaFrotaAjuda'
+import { RotaResultadoAcoes } from './RotaResultadoAcoes'
 import '../../styles/mapa-frota.css'
 
 type WaypointAntt = {
@@ -253,6 +254,18 @@ export function AnttFretePanel({
           {erro}
         </p>
       )}
+
+      {calc?.rota ? (
+        <RotaResultadoAcoes
+          origem={origem}
+          destino={destino}
+          vias={waypoints}
+          origemCoords={origemCoords}
+          destinoCoords={destinoCoords}
+          calc={calc}
+          tipoVeiculo={veiculo}
+        />
+      ) : null}
 
       {calc && (
         <div className="grid gap-3 lg:grid-cols-2">

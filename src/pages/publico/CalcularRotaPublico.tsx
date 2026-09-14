@@ -40,6 +40,7 @@ import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
 import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
 import { RotaMapPreview } from '../../components/carga/RotaMapPreview'
 import { MapaFrotaAjuda } from '../../components/mapa/MapaFrotaAjuda'
+import { RotaResultadoAcoes } from '../../components/carga/RotaResultadoAcoes'
 import type { SugestaoEndereco } from '../../lib/geocodeEndereco'
 import { geocodificarConsulta, labelPorCoordenadas } from '../../lib/geocodeEndereco'
 import {
@@ -155,7 +156,9 @@ const PREF_LABEL: Record<PreferenciaRota, string> = {
 type ResultadoSnap = {
   origem: string
   destino: string
-  vias: string[]
+  vias: { endereco: string; lat?: number | null; lng?: number | null }[]
+  origemCoords: Coord | null
+  destinoCoords: Coord | null
   tipoVeiculo: string
   classe: string
   eixos: number
@@ -406,7 +409,9 @@ export function CalcularRotaPublicoPage() {
     setSnap({
       origem,
       destino,
-      vias: waypoints.map((v) => v.endereco).filter(Boolean),
+      vias: waypoints.filter((v) => v.endereco.trim()),
+      origemCoords,
+      destinoCoords,
       tipoVeiculo: tipoVeiculoNome.trim() || VEICULOS.find((v) => v.id === tipoVeiculo)?.label || '—',
       classe: VEICULOS.find((v) => v.id === tipoVeiculo)?.label ?? '',
       eixos,
@@ -821,6 +826,19 @@ export function CalcularRotaPublicoPage() {
                 <X size={18} />
               </button>
             </header>
+            <div className="rota-pub-janela__acoes">
+              <RotaResultadoAcoes
+                origem={snap?.origem || origem}
+                destino={snap?.destino || destino}
+                vias={snap?.vias ?? viasValidas}
+                origemCoords={snap?.origemCoords ?? origemCoords}
+                destinoCoords={snap?.destinoCoords ?? destinoCoords}
+                calc={calc}
+                tipoVeiculo={snap?.tipoVeiculo || tipoVeiculoNome}
+                idaEVolta={snap?.idaEVolta ?? idaEVolta}
+                preferencia={snap?.preferencia ?? preferencia}
+              />
+            </div>
             <div className="rota-pub__resumo rota-pub__resumo--janela" aria-live="polite">
               {snap ? (
                 <div className="rota-pub__fatos">
@@ -829,9 +847,9 @@ export function CalcularRotaPublicoPage() {
                     <strong>{snap.origem}</strong>
                   </div>
                   {snap.vias.map((via, i) => (
-                    <div key={`${via}-${i}`} className="rota-pub__fato rota-pub__fato--full">
+                    <div key={`${via.endereco}-${i}`} className="rota-pub__fato rota-pub__fato--full">
                       <small>Passagem {i + 1}</small>
-                      <strong>{via}</strong>
+                      <strong>{via.endereco}</strong>
                     </div>
                   ))}
                   <div className="rota-pub__fato rota-pub__fato--full">

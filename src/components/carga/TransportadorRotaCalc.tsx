@@ -21,6 +21,7 @@ import { Button, Field, Modal, inputClass } from '../ui/Modal'
 import { AnttFretePanel } from './AnttFretePanel'
 import { RotaMapPreview } from './RotaMapPreview'
 import { MapaFrotaAjuda } from '../mapa/MapaFrotaAjuda'
+import { RotaResultadoAcoes } from './RotaResultadoAcoes'
 import { LinkMapaFrota, LinkMapaLogistica } from '../ui/HostLink'
 import '../../styles/mapa-frota.css'
 
@@ -566,6 +567,18 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
         )}
 
         {calc?.rota && (
+          <div className="space-y-3">
+          <RotaResultadoAcoes
+            origem={origem}
+            destino={destino}
+            vias={waypoints}
+            origemCoords={origemCoords}
+            destinoCoords={destinoCoords}
+            calc={calc}
+            tipoVeiculo={tipoVeiculoNome || carga.veiculo}
+            idaEVolta={idaEVolta}
+            preferencia={preferencia}
+          />
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5 rounded-xl border border-ink/10 bg-sand-light/40 px-3 py-3 text-sm">
               <p className="text-[11px] font-extrabold uppercase tracking-wide text-ink">
@@ -653,6 +666,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
                 />
               </div>
             </div>
+          </div>
           </div>
         )}
       </div>

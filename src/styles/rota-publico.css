@@ -781,6 +781,18 @@
   background: rgb(255 255 255 / 0.22);
 }
 
+.rota-pub-janela__acoes {
+  flex-shrink: 0;
+  padding: 10px 12px 8px;
+  background: #fff;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.rota-pub-janela__acoes .rota-resultado-acoes__btn {
+  width: 32px;
+  height: 32px;
+}
+
 .rota-pub__resumo {
   display: flex;
   flex-direction: column;
