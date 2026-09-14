@@ -1160,3 +1160,13 @@
     width: min(300px, calc(100% - 16px));
   }
 }
+
+.rota-pub .mapa-frota__map-wrap:has(.rota-pub-janela) .rota-map-tipos {
+  right: calc(min(380px, calc(100% - 28px)) + 22px);
+}
+
+@media (max-width: 860px) {
+  .rota-pub .mapa-frota__map-wrap:has(.rota-pub-janela) .rota-map-tipos {
+    right: calc(min(300px, calc(100% - 16px)) + 16px);
+  }
+}

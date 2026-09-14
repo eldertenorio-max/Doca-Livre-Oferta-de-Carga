@@ -5,10 +5,19 @@ import { formatCurrency } from '../../lib/businessRules'
 import { eixosDoVeiculo, estimarCustosRota, type PreferenciaRota } from '../../lib/anttFrete'
 import { geocodificarConsulta } from '../../lib/geocodeEndereco'
 import { EarthGlobe } from '../ui/EarthGlobe'
+import { RotaMapaTipoPicker } from './RotaMapaTipoPicker'
 import {
   calcularPedagioNaRota,
   rotaOsrmComGeometria,
 } from '../../lib/anttPedagioAberto'
+import {
+  loadMapaPlano,
+  loadMapaVista,
+  MAPA_VISTAS,
+  saveMapaVista,
+  type MapaPlano,
+  type MapaVista,
+} from '../../lib/mapaBases'
 import '../../styles/earth-globe.css'
 
 type RotaCoords = { lat: number; lng: number }
@@ -291,6 +300,23 @@ type MetaRota = {
   pracas: number
 }
 
+function aplicarTilePlano(
+  map: L.Map,
+  atual: L.TileLayer | null,
+  plano: MapaPlano,
+): L.TileLayer {
+  const cfg = MAPA_VISTAS.find((x) => x.id === plano)
+  if (atual) map.removeLayer(atual)
+  const layer = L.tileLayer(cfg?.url || MAPA_VISTAS[1].url!, {
+    maxZoom: 19,
+    attribution: cfg?.options?.attribution || '© OpenStreetMap',
+    subdomains: cfg?.options?.subdomains,
+  })
+  layer.addTo(map)
+  layer.bringToBack()
+  return layer
+}
+
 export function RotaMapPreview({
   origem,
   destino,
@@ -317,6 +343,13 @@ export function RotaMapPreview({
   const mapEl = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const layerRef = useRef<L.LayerGroup | null>(null)
+  const baseLayerRef = useRef<L.TileLayer | null>(null)
+  const [vista, setVista] = useState<MapaVista>(() => loadMapaVista())
+  const [plano, setPlano] = useState<MapaPlano>(() => loadMapaPlano())
+  const vistaRef = useRef(vista)
+  const planoRef = useRef(plano)
+  vistaRef.current = vista
+  planoRef.current = plano
   const reqId = useRef(0)
   const onRotaRef = useRef(onRotaCalculada)
   onRotaRef.current = onRotaCalculada
@@ -336,7 +369,7 @@ export function RotaMapPreview({
   const mergulhoEmRef = useRef(0)
   const [globeSaindo, setGlobeSaindo] = useState(false)
   const [globeVisivel, setGlobeVisivel] = useState(true)
-  const showGlobe = globeVisivel
+  const showGlobe = vista === 'globo' && globeVisivel
   const [globeReady, setGlobeReady] = useState(false)
   const [msg, setMsg] = useState(
     autoCalcular
@@ -373,17 +406,7 @@ export function RotaMapPreview({
       ],
       maxBoundsViscosity: 1,
     })
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap',
-    }).addTo(map)
-    L.tileLayer(
-      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      {
-        maxZoom: 19,
-        attribution: 'Tiles © Esri',
-      },
-    ).addTo(map)
+    baseLayerRef.current = aplicarTilePlano(map, null, planoRef.current)
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
 
@@ -409,8 +432,32 @@ export function RotaMapPreview({
       map.remove()
       mapRef.current = null
       layerRef.current = null
+      baseLayerRef.current = null
     }
   }, [])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    baseLayerRef.current = aplicarTilePlano(map, baseLayerRef.current, plano)
+  }, [plano])
+
+  function escolherVista(next: MapaVista) {
+    setVista(next)
+    saveMapaVista(next)
+    if (next === 'globo') {
+      setGlobeVisivel(true)
+      setGlobeSaindo(false)
+      setMergulhoId(0)
+    } else {
+      setPlano(next)
+      setGlobeVisivel(false)
+      setGlobeSaindo(false)
+      setMergulhoId(0)
+    }
+    const map = mapRef.current
+    if (map) window.setTimeout(() => map.invalidateSize({ animate: false }), 80)
+  }
 
   useEffect(() => {
     const map = mapRef.current
@@ -717,16 +764,17 @@ export function RotaMapPreview({
   ])
 
   useEffect(() => {
-    if (status === 'idle' && entrarId < 1) {
+    if (status === 'idle' && entrarId < 1 && vista === 'globo') {
       setMergulhoId(0)
       mergulhoEmRef.current = 0
       setGlobeSaindo(false)
       setGlobeVisivel(true)
     }
-  }, [status, entrarId])
+  }, [status, entrarId, vista])
 
   useEffect(() => {
     if (entrarId < 1) return
+    if (vistaRef.current !== 'globo') return
     mergulhoEmRef.current = Date.now()
     setGlobeVisivel(true)
     setGlobeSaindo(false)
@@ -734,26 +782,29 @@ export function RotaMapPreview({
   }, [entrarId])
 
   useEffect(() => {
-    if (status === 'loading' && globeVisivel && mergulhoId < 1) {
+    if (status === 'loading' && vista === 'globo' && globeVisivel && mergulhoId < 1) {
       mergulhoEmRef.current = Date.now()
       setMergulhoId((n) => n + 1)
     }
-  }, [status, globeVisivel, mergulhoId])
+  }, [status, vista, globeVisivel, mergulhoId])
 
   useEffect(() => {
     const mapaPronto = status === 'ok' || status === 'circular' || status === 'erro'
-    if (!mapaPronto || !globeVisivel || globeSaindo) return
+    if (!mapaPronto || vista !== 'globo' || !globeVisivel || globeSaindo) return
     const ja = Date.now() - (mergulhoEmRef.current || Date.now())
     const espera = Math.max(0, 2200 - ja)
     const t = window.setTimeout(() => setGlobeSaindo(true), espera)
     return () => window.clearTimeout(t)
-  }, [status, globeVisivel, globeSaindo])
+  }, [status, vista, globeVisivel, globeSaindo])
 
   useEffect(() => {
     if (!globeSaindo) return
     const t = window.setTimeout(() => {
       setGlobeVisivel(false)
       setGlobeReady(false)
+      const p = planoRef.current
+      setVista(p)
+      saveMapaVista(p)
     }, 720)
     return () => window.clearTimeout(t)
   }, [globeSaindo])
@@ -768,6 +819,7 @@ export function RotaMapPreview({
         className={`rota-map-preview relative z-0 overflow-hidden rounded-lg border border-ink/15 bg-[#02040a] ${showGlobe && globeReady && !globeSaindo ? 'rota-map-preview--globe' : ''} ${pickMode ? 'is-picking' : ''} ${className}`}
       >
         <div ref={mapEl} className="rota-map-preview__map" />
+        <RotaMapaTipoPicker valor={vista} onChange={escolherVista} />
         {showGlobe ? (
           <EarthGlobe
             pickMode={pickMode}
