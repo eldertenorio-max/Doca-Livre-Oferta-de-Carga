@@ -828,21 +828,22 @@ export function RotaMapPreview({
         className={`rota-map-preview relative z-0 overflow-hidden rounded-lg border border-ink/15 bg-[#02040a] ${showGlobe && globeReady && !globeSaindo ? 'rota-map-preview--globe' : ''} ${pickMode ? 'is-picking' : ''} ${className}`}
       >
         <div ref={mapEl} className="rota-map-preview__map" />
-        <RotaMapaTipoPicker valor={vista} onChange={escolherVista} />
-        <a
-          className="rota-map-whats"
-          href={hrefWhatsappSuporte({
-            origem: origem.trim() || undefined,
-            destino: destino.trim() || undefined,
-          })}
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Fale conosco no WhatsApp"
-          aria-label="Fale conosco no WhatsApp"
-          data-pdf-ignore
-        >
-          <WhatsAppIcon size={28} />
-        </a>
+        <div className="rota-map-topo" data-pdf-ignore>
+          <a
+            className="rota-map-whats"
+            href={hrefWhatsappSuporte({
+              origem: origem.trim() || undefined,
+              destino: destino.trim() || undefined,
+            })}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Fale conosco no WhatsApp"
+            aria-label="Fale conosco no WhatsApp"
+          >
+            <WhatsAppIcon size={30} />
+          </a>
+          <RotaMapaTipoPicker valor={vista} onChange={escolherVista} />
+        </div>
         {showGlobe ? (
           <EarthGlobe
             pickMode={pickMode}
