@@ -7,7 +7,7 @@ import App from './App'
 import { isSitePublicoLimpo } from './lib/siteOfertaDeCarga'
 import './index.css'
 
-const BUILD_ID = 'rota-publico-cache-v192'
+const BUILD_ID = 'rota-publico-cache-v193'
 
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (e) => {
@@ -16,6 +16,14 @@ if (typeof window !== 'undefined') {
       e.preventDefault()
     }
   })
+}
+
+function marcarBoot() {
+  try {
+    document.getElementById('root')?.setAttribute('data-booted', '1')
+  } catch {
+    /* ignore */
+  }
 }
 
 /** Limpa cache velho sem recarregar — senão a primeira visita fica tela branca. */
@@ -39,19 +47,35 @@ function limparCacheMorto() {
   })()
 }
 
+async function desligarSwPublico() {
+  if (!('serviceWorker' in navigator)) return
+  try {
+    const regs = await navigator.serviceWorker.getRegistrations()
+    await Promise.all(regs.map((r) => r.unregister()))
+  } catch {
+    /* ignore */
+  }
+}
+
 function boot() {
   limparCacheMorto()
+  marcarBoot()
 
-  registerSW({
-    immediate: true,
-    onRegisteredSW(_url, reg) {
-      if (!reg) return
-      void reg.update()
-      window.setInterval(() => void reg.update(), 60_000)
-    },
-  })
+  const publico = isSitePublicoLimpo()
+  if (publico) {
+    void desligarSwPublico()
+  } else {
+    registerSW({
+      immediate: true,
+      onRegisteredSW(_url, reg) {
+        if (!reg) return
+        void reg.update()
+        window.setInterval(() => void reg.update(), 60_000)
+      },
+    })
+  }
 
-  const Router = isSitePublicoLimpo() ? BrowserRouter : HashRouter
+  const Router = publico ? BrowserRouter : HashRouter
 
   createRoot(document.getElementById('root')!).render(
     <StrictMode>

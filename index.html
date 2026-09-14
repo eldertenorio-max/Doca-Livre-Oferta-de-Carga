@@ -112,13 +112,46 @@
       })
       // Marca o build. Não recarrega a página — isso deixava a 1ª visita em branco.
       ;(function () {
-        var BUILD = 'rota-publico-cache-v192'
+        var BUILD = 'rota-publico-cache-v193'
         try {
           localStorage.setItem('doca-html-bust', BUILD)
         } catch (e) {}
+        var h = (location.hostname || '').toLowerCase().replace(/^www\./, '')
+        var publico =
+          h === 'ofertadecarga.com.br' ||
+          h === 'mapadafrota.com.br' ||
+          h === 'mapadalogistica.com.br'
+        if (publico && 'serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            regs.forEach(function (r) {
+              r.unregister()
+            })
+          })
+        }
+        window.setTimeout(function () {
+          var root = document.getElementById('root')
+          if (!root || root.getAttribute('data-booted') === '1') return
+          var boot = document.getElementById('doca-boot')
+          if (!boot) return
+          boot.innerHTML =
+            '<p style="margin:0 0 10px;font-weight:800">A calculadora não carregou.</p>' +
+            '<button type="button" id="doca-boot-retry" style="border:0;border-radius:10px;padding:10px 14px;background:#0f172a;color:#fff;font-weight:800;cursor:pointer">Tentar de novo</button>'
+          var btn = document.getElementById('doca-boot-retry')
+          if (btn)
+            btn.onclick = function () {
+              location.reload()
+            }
+        }, 12000)
       })()
     </script>
-    <div id="root"></div>
+    <div id="root">
+      <div
+        id="doca-boot"
+        style="min-height:100dvh;display:grid;place-items:center;background:#efe8dc;color:#0f172a;font-family:system-ui,sans-serif;text-align:center;padding:24px"
+      >
+        <p style="margin:0;font-weight:800">Carregando a calculadora de rota…</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

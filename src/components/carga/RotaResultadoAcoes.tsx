@@ -64,9 +64,9 @@ export function RotaResultadoAcoes(props: Props) {
     setMsg({ texto, ...extra })
   }
 
-  function exportar() {
+  async function exportar() {
     try {
-      exportarPlanilhaRota(payload)
+      await exportarPlanilhaRota(payload)
       avisar('Planilha baixada.')
     } catch {
       avisar('Não foi possível gerar a planilha.', { erro: true })
@@ -157,7 +157,7 @@ export function RotaResultadoAcoes(props: Props) {
           className="rota-resultado-acoes__btn"
           title="Exportar para planilha"
           aria-label="Exportar para planilha"
-          onClick={exportar}
+          onClick={() => void exportar()}
         >
           <FileSpreadsheet size={20} strokeWidth={1.8} />
         </button>

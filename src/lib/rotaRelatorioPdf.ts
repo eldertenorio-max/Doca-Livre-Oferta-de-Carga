@@ -1,4 +1,3 @@
-import { jsPDF } from 'jspdf'
 import { LOGO_DOCA_LIVRE_SRC } from './brandAssets'
 import { formatCurrency } from './businessRules'
 import type { RotaResultadoPayload } from './rotaResultadoAcoes'
@@ -56,7 +55,7 @@ export async function gerarPdfRelatorioRota(p: RotaResultadoPayload): Promise<{
   blob: Blob
   filename: string
 }> {
-  const logo = await carregarLogo()
+  const [{ jsPDF }, logo] = await Promise.all([import('jspdf'), carregarLogo()])
   const doc = new jsPDF({ unit: 'pt', format: 'a4' })
   const pageW = doc.internal.pageSize.getWidth()
   const marginX = 40

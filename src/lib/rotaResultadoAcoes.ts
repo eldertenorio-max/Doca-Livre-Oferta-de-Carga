@@ -1,4 +1,3 @@
-import * as XLSX from 'xlsx'
 import { formatCurrency } from './businessRules'
 import type { AnttCalculo, PreferenciaRota } from './anttFrete'
 
@@ -145,7 +144,8 @@ function slugArquivo(s: string): string {
   return t || 'rota'
 }
 
-export function exportarPlanilhaRota(p: RotaResultadoPayload) {
+export async function exportarPlanilhaRota(p: RotaResultadoPayload) {
+  const XLSX = await import('xlsx')
   const r = p.calc.rota
   const resumo = [
     ['Campo', 'Valor'],
