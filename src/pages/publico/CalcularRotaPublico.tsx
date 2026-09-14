@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowUpDown,
@@ -35,10 +35,9 @@ import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { LinkSistema, LinkMapaFrota, LinkMapaLogistica } from '../../components/ui/HostLink'
 import { isSiteOfertaDeCarga } from '../../lib/siteOfertaDeCarga'
-import { useData } from '../../context/DataContext'
+import { lerPerfilLocal } from '../../lib/perfilLocal'
 import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
 import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
-import { RotaMapPreview } from '../../components/carga/RotaMapPreview'
 import { MapaFrotaAjuda } from '../../components/mapa/MapaFrotaAjuda'
 import { RotaResultadoAcoes } from '../../components/carga/RotaResultadoAcoes'
 import type { SugestaoEndereco } from '../../lib/geocodeEndereco'
@@ -53,6 +52,12 @@ import {
 import '../../styles/mapa-frota.css'
 import '../../styles/mapa-publico.css'
 import '../../styles/rota-publico.css'
+
+const RotaMapPreview = lazy(() =>
+  import('../../components/carga/RotaMapPreview').then((m) => ({
+    default: m.RotaMapPreview,
+  })),
+)
 
 const PLANOS_PUBLICOS = [
   {
@@ -175,7 +180,7 @@ function novaVia(): Via {
 }
 
 export function CalcularRotaPublicoPage() {
-  const { user } = useData()
+  const user = lerPerfilLocal()
   const formId = useId()
   const reqId = useRef(0)
   const userRef = useRef(user)
@@ -785,6 +790,15 @@ export function CalcularRotaPublicoPage() {
           </aside>
 
           <div className="mapa-frota__map-wrap">
+            <Suspense
+              fallback={
+                <div
+                  className="h-full min-h-[360px] w-full"
+                  style={{ background: '#efe8dc' }}
+                  aria-hidden
+                />
+              }
+            >
             <RotaMapPreview
               key={formId}
               origem={origem}
@@ -805,6 +819,7 @@ export function CalcularRotaPublicoPage() {
               esconderCartao={showResultado}
               className="h-full min-h-[360px] w-full"
             />
+            </Suspense>
             {showResultado && calc?.rota ? (
               <aside
                 className="rota-pub-janela"

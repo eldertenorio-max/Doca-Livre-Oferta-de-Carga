@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { FileSpreadsheet, FileText, MapPin, Save, Share2 } from 'lucide-react'
-import { useData } from '../../context/DataContext'
 import {
   copiarOuCompartilharRota,
   exportarPlanilhaRota,
@@ -10,8 +9,7 @@ import {
   type RotaResultadoPayload,
 } from '../../lib/rotaResultadoAcoes'
 import { abrirRelatorioRota } from '../../lib/rotaRelatorioPdf'
-import { chaveRota, limparPontosPassagemRota, newPontoPassagemId, newRotaId } from '../../lib/rotasSync'
-import type { Rota } from '../../types'
+import type { Profile, Rota } from '../../types'
 import { LinkSistema } from '../ui/HostLink'
 import { WhatsAppIconOnGreen } from '../ui/WhatsAppIcon'
 import { hrefWhatsappSuporte } from '../../lib/whatsappSuporte'
@@ -19,6 +17,12 @@ import '../../styles/rota-resultado-acoes.css'
 
 type Props = RotaResultadoPayload & {
   className?: string
+  /** No sistema: grava na aba Rotas. No site público fica vazio (só o aparelho). */
+  conta?: {
+    user: Profile | null
+    rotas: Rota[]
+    salvarRota: (r: Rota) => void
+  }
 }
 
 function IconeWaze() {
@@ -41,7 +45,9 @@ function IconeWaze() {
 }
 
 export function RotaResultadoAcoes(props: Props) {
-  const { user, rotas, salvarRota } = useData()
+  const user = props.conta?.user ?? null
+  const rotas = props.conta?.rotas ?? []
+  const salvarRota = props.conta?.salvarRota
   const [msg, setMsg] = useState<{ texto: string; erro?: boolean; login?: boolean } | null>(null)
   const [busy, setBusy] = useState<'relatorio' | 'share' | 'salvar' | null>(null)
 
@@ -73,19 +79,21 @@ export function RotaResultadoAcoes(props: Props) {
     }
   }
 
-  function salvar() {
+  async function salvar() {
     setBusy('salvar')
     try {
-      const vias = limparPontosPassagemRota(
-        (payload.vias ?? []).map((v) => ({
-          id: newPontoPassagemId(),
-          endereco: v.endereco,
-          lat: v.lat ?? null,
-          lng: v.lng ?? null,
-        })),
-      )
-      const descricao = `${payload.origem} → ${payload.destino}`.slice(0, 140)
-      if (user) {
+      if (user && salvarRota) {
+        const { chaveRota, limparPontosPassagemRota, newPontoPassagemId, newRotaId } =
+          await import('../../lib/rotasSync')
+        const vias = limparPontosPassagemRota(
+          (payload.vias ?? []).map((v) => ({
+            id: newPontoPassagemId(),
+            endereco: v.endereco,
+            lat: v.lat ?? null,
+            lng: v.lng ?? null,
+          })),
+        )
+        const descricao = `${payload.origem} → ${payload.destino}`.slice(0, 140)
         const chave = chaveRota({
           origem: payload.origem,
           destino: payload.destino,
@@ -167,7 +175,7 @@ export function RotaResultadoAcoes(props: Props) {
           title="Salvar rota"
           aria-label="Salvar rota"
           disabled={busy === 'salvar'}
-          onClick={salvar}
+          onClick={() => void salvar()}
         >
           <Save size={20} strokeWidth={1.8} />
         </button>

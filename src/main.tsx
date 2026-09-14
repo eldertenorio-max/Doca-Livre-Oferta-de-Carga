@@ -2,10 +2,10 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, HashRouter } from 'react-router-dom'
 import { AppErrorBoundary } from './components/AppErrorBoundary'
-import { isSitePublicoLimpo } from './lib/siteOfertaDeCarga'
+import { isSiteOfertaDeCarga, isSitePublicoLimpo } from './lib/siteOfertaDeCarga'
 import './index.css'
 
-const BUILD_ID = 'rota-publico-cache-v194'
+const BUILD_ID = 'rota-publico-cache-v195'
 
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (e) => {
@@ -62,10 +62,7 @@ async function boot() {
   const Router = publico ? BrowserRouter : HashRouter
 
   try {
-    const [{ DataProvider }, appMod] = await Promise.all([
-      import('./context/DataContext'),
-      publico ? import('./PublicApp') : import('./App'),
-    ])
+    const appMod = await (publico ? import('./PublicApp') : import('./App'))
     if (!publico) {
       const { registerSW } = await import('virtual:pwa-register')
       registerSW({
@@ -84,17 +81,32 @@ async function boot() {
     const App = appMod.default
     const el = document.getElementById('root')
     if (!el) throw new Error('root')
-    createRoot(el).render(
-      <StrictMode>
-        <AppErrorBoundary>
-          <Router>
-            <DataProvider>
+    // Calculadora pública não carrega o Kanban (DataContext ~1 MB).
+    const soCalculadora = publico && isSiteOfertaDeCarga()
+    if (soCalculadora) {
+      createRoot(el).render(
+        <StrictMode>
+          <AppErrorBoundary>
+            <Router>
               <App />
-            </DataProvider>
-          </Router>
-        </AppErrorBoundary>
-      </StrictMode>,
-    )
+            </Router>
+          </AppErrorBoundary>
+        </StrictMode>,
+      )
+    } else {
+      const { DataProvider } = await import('./context/DataContext')
+      createRoot(el).render(
+        <StrictMode>
+          <AppErrorBoundary>
+            <Router>
+              <DataProvider>
+                <App />
+              </DataProvider>
+            </Router>
+          </AppErrorBoundary>
+        </StrictMode>,
+      )
+    }
     marcarBoot()
   } catch (e) {
     console.error('[boot]', e)

@@ -70,7 +70,7 @@ function pontosDaCarga(
 }
 
 export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
-  const { rotas } = useData()
+  const { rotas, user, salvarRota } = useData()
   const rotasRef = useRef(rotas)
   rotasRef.current = rotas
   const [origem, setOrigem] = useState('')
@@ -578,6 +578,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
             tipoVeiculo={tipoVeiculoNome || carga.veiculo}
             idaEVolta={idaEVolta}
             preferencia={preferencia}
+            conta={{ user, rotas, salvarRota }}
           />
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5 rounded-xl border border-ink/10 bg-sand-light/40 px-3 py-3 text-sm">

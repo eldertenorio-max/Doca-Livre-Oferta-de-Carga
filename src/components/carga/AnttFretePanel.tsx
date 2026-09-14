@@ -10,6 +10,7 @@ import {
   type TabelaAntt,
 } from '../../lib/anttFrete'
 import type { AnttInfoCarga } from '../../types'
+import { useData } from '../../context/DataContext'
 import { Button, Field, inputClass } from '../ui/Modal'
 import { MapaFrotaAjuda } from '../mapa/MapaFrotaAjuda'
 import { RotaResultadoAcoes } from './RotaResultadoAcoes'
@@ -50,6 +51,7 @@ export function AnttFretePanel({
   consumoKmL,
   precoDiesel,
 }: Props) {
+  const { user, rotas, salvarRota } = useData()
   const [tabela, setTabela] = useState<TabelaAntt>(value?.tabela ?? 'A')
   const [categoriaId, setCategoriaId] = useState<number | ''>(value?.categoria_id ?? '')
   const [busy, setBusy] = useState(false)
@@ -264,6 +266,7 @@ export function AnttFretePanel({
           destinoCoords={destinoCoords}
           calc={calc}
           tipoVeiculo={veiculo}
+          conta={{ user, rotas, salvarRota }}
         />
       ) : null}
 
