@@ -33,6 +33,8 @@ import '../styles/mapa.css'
 import '../styles/mapa-publico.css'
 
 import { hrefMapaFrota, hrefRota, hrefSistema } from '../../lib/siteOfertaDeCarga'
+import { MapaFrotaAjuda } from '../../components/mapa/MapaFrotaAjuda'
+import '../../styles/mapa-frota.css'
 
 function escapeHtml(s: string) {
   return s
@@ -485,12 +487,10 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
       ) : null}
       <div className="mapa-log__body">
         <header className="mapa-log__head">
-          <div>
-            <h1 className="mapa-log__title">Mapa da Logística</h1>
-            <p className="mapa-log__sub">
-              Clique no campo, digite e escolha a sugestão. O mapa mostra só as empresas selecionadas.
-            </p>
-          </div>
+          <MapaFrotaAjuda
+            texto="Clique no campo, digite e escolha a sugestão. O mapa mostra só as empresas selecionadas."
+            ariaLabel="Como usar o mapa"
+          />
         </header>
 
       <div className="mapa-log__layout">
