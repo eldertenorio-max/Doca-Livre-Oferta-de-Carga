@@ -51,6 +51,11 @@ import {
   ROTA_PUBLICO_LIMITE_CALCULOS,
 } from '../../lib/rotaPublicoCalculos'
 import { lerRotaDaUrl, sincronizarBarraEndereco } from '../../lib/rotaShareUrl'
+import {
+  excluirRotaNesteAparelho,
+  listarRotasNesteAparelho,
+  type RotaSalvaLocal,
+} from '../../lib/rotaResultadoAcoes'
 import '../../styles/mapa-frota.css'
 import '../../styles/mapa-publico.css'
 import '../../styles/rota-publico.css'
@@ -221,6 +226,7 @@ export function CalcularRotaPublicoPage() {
   const [showPaywall, setShowPaywall] = useState(false)
   const [showResultado, setShowResultado] = useState(false)
   const [snap, setSnap] = useState<ResultadoSnap | null>(null)
+  const [rotasSalvas, setRotasSalvas] = useState<RotaSalvaLocal[]>(() => listarRotasNesteAparelho())
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'light')
@@ -562,6 +568,61 @@ export function CalcularRotaPublicoPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  function abrirRotaSalva(r: RotaSalvaLocal) {
+    setOrigem(r.origem)
+    setDestino(r.destino)
+    setOrigemCoords(r.origemCoords ?? null)
+    setDestinoCoords(r.destinoCoords ?? null)
+    setVias(
+      (r.vias ?? [])
+        .filter((v) => (v.endereco || '').trim())
+        .map((v) => ({
+          ...novaVia(),
+          endereco: v.endereco,
+          lat: v.lat ?? null,
+          lng: v.lng ?? null,
+        })),
+    )
+    if (r.tipoVeiculo) {
+      setTipoVeiculoNome(r.tipoVeiculo)
+      setTipoVeiculo(iconeDoCatalogo(r.tipoVeiculo))
+    }
+    if (r.eixos) setEixos(r.eixos)
+    if (r.categoriaId) setCategoriaCargaId(r.categoriaId)
+    if (r.idaEVolta != null) setIdaEVolta(Boolean(r.idaEVolta))
+    if (
+      r.preferencia === 'eficiente' ||
+      r.preferencia === 'curta' ||
+      r.preferencia === 'evitar_pedagio'
+    ) {
+      setPreferencia(r.preferencia)
+    }
+    if (r.consumoKmL) setConsumo(fmtConsumo(r.consumoKmL))
+    if (r.precoDiesel) setPrecoDiesel(fmtDiesel(r.precoDiesel))
+    setFormAberto(false)
+    void calcular({
+      origem: r.origem,
+      destino: r.destino,
+      origemCoords: r.origemCoords ?? null,
+      destinoCoords: r.destinoCoords ?? null,
+      vias: (r.vias ?? []).map((v) => ({
+        id: novaVia().id,
+        endereco: v.endereco,
+        lat: v.lat ?? null,
+        lng: v.lng ?? null,
+      })),
+      eixos: r.eixos,
+      consumoKmL: r.consumoKmL,
+      precoDiesel: r.precoDiesel,
+      idaEVolta: r.idaEVolta,
+      preferencia:
+        r.preferencia === 'curta' || r.preferencia === 'evitar_pedagio'
+          ? r.preferencia
+          : 'eficiente',
+      categoriaId: r.categoriaId ?? null,
+    })
+  }
+
   const logado = Boolean(user)
   const viasValidas = vias.filter((v) => v.endereco.trim().length >= 3)
 
@@ -755,6 +816,38 @@ export function CalcularRotaPublicoPage() {
                         ? 'Clique no mapa para marcar o destino'
                         : 'Marcar origem e destino no mapa'}
                   </button>
+
+                  {rotasSalvas.length > 0 ? (
+                    <div className="rota-pub__salvas">
+                      <p className="rota-pub__sec">Salvas neste aparelho</p>
+                      {rotasSalvas.map((r) => (
+                        <div key={r.id} className="rota-pub__salva">
+                          <button
+                            type="button"
+                            className="rota-pub__salva-abrir"
+                            title="Abrir rota salva"
+                            onClick={() => abrirRotaSalva(r)}
+                          >
+                            <strong>
+                              {r.origem} → {r.destino}
+                            </strong>
+                            <small>
+                              {r.km ? `${r.km} km` : 'Rota'}
+                              {r.tipoVeiculo ? ` · ${r.tipoVeiculo}` : ''}
+                            </small>
+                          </button>
+                          <button
+                            type="button"
+                            className="rota-pub__salva-del"
+                            title="Remover rota salva"
+                            onClick={() => setRotasSalvas(excluirRotaNesteAparelho(r.id))}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
 
                   {vias.map((via, idx) => (
                     <div key={via.id} className="rota-pub__via">
@@ -1020,6 +1113,10 @@ export function CalcularRotaPublicoPage() {
                 tipoVeiculo={snap?.tipoVeiculo || tipoVeiculoNome}
                 idaEVolta={snap?.idaEVolta ?? idaEVolta}
                 preferencia={snap?.preferencia ?? preferencia}
+                onSalvouLocal={() => {
+                  setRotasSalvas(listarRotasNesteAparelho())
+                  setFormAberto(true)
+                }}
               />
             </div>
             <div className="rota-pub__resumo rota-pub__resumo--janela" aria-live="polite">

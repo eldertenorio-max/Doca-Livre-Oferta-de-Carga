@@ -307,6 +307,63 @@
   color: #ffb300;
 }
 
+.rota-pub__salvas {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rota-pub__salva {
+  display: grid;
+  grid-template-columns: 1fr 32px;
+  gap: 6px;
+  align-items: center;
+}
+
+.rota-pub__salva-abrir {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: #f0fdf4;
+  color: #14532d;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rota-pub__salva-abrir strong {
+  overflow: hidden;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.rota-pub__salva-abrir small {
+  color: #166534;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.rota-pub__salva-abrir:hover {
+  background: #dcfce7;
+}
+
+.rota-pub__salva-del {
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
 .rota-pub__via {
   display: grid;
   grid-template-columns: 28px 1fr 32px;

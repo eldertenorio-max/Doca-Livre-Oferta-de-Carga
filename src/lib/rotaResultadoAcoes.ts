@@ -176,39 +176,80 @@ export type RotaSalvaLocal = {
   destinoCoords?: { lat: number; lng: number } | null
   km: number
   custoTotal: number
+  tipoVeiculo?: string
+  idaEVolta?: boolean
+  preferencia?: string
+  eixos?: number
+  categoriaId?: number | null
+  consumoKmL?: number | null
+  precoDiesel?: number | null
+}
+
+export function listarRotasNesteAparelho(): RotaSalvaLocal[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const prev = JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]') as RotaSalvaLocal[]
+    return Array.isArray(prev) ? prev : []
+  } catch {
+    return []
+  }
+}
+
+export function excluirRotaNesteAparelho(id: string): RotaSalvaLocal[] {
+  const next = listarRotasNesteAparelho().filter((x) => x.id !== id)
+  localStorage.setItem(LOCAL_KEY, JSON.stringify(next))
+  return next
 }
 
 export function salvarRotaNesteAparelho(p: RotaResultadoPayload): RotaSalvaLocal {
+  if (typeof window === 'undefined') {
+    throw new Error('Salvar rota só funciona no navegador.')
+  }
+  const origem = (p.origem || '').trim()
+  const destino = (p.destino || '').trim()
+  if (origem.length < 3 || destino.length < 3) {
+    throw new Error('Informe origem e destino para salvar a rota.')
+  }
   const item: RotaSalvaLocal = {
     id:
       typeof crypto !== 'undefined' && 'randomUUID' in crypto
         ? crypto.randomUUID()
         : `rl_${Date.now()}`,
     savedAt: new Date().toISOString(),
-    descricao: `${p.origem} → ${p.destino}`.slice(0, 140),
-    origem: p.origem,
-    destino: p.destino,
+    descricao: `${origem} → ${destino}`.slice(0, 140),
+    origem,
+    destino,
     vias: p.vias ?? [],
     origemCoords: p.origemCoords ?? null,
     destinoCoords: p.destinoCoords ?? null,
     km: p.calc.rota.distancia_km,
     custoTotal: p.calc.rota.custo_total,
+    tipoVeiculo: p.tipoVeiculo,
+    idaEVolta: p.idaEVolta,
+    preferencia: typeof p.preferencia === 'string' ? p.preferencia : undefined,
+    eixos: p.calc.eixos,
+    categoriaId: p.calc.categoria_id,
+    consumoKmL: p.calc.rota.consumo_km_l,
+    precoDiesel: p.calc.rota.preco_diesel,
   }
+  const lista = listarRotasNesteAparelho()
+  const mesma = lista.findIndex(
+    (x) =>
+      x.origem.trim().toLowerCase() === item.origem.toLowerCase() &&
+      x.destino.trim().toLowerCase() === item.destino.toLowerCase(),
+  )
+  const next =
+    mesma >= 0
+      ? lista.map((x, i) => (i === mesma ? { ...item, id: x.id } : x))
+      : [item, ...lista].slice(0, 40)
   try {
-    const prev = JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]') as RotaSalvaLocal[]
-    const lista = Array.isArray(prev) ? prev : []
-    const mesma = lista.findIndex(
-      (x) =>
-        x.origem.trim().toLowerCase() === item.origem.trim().toLowerCase() &&
-        x.destino.trim().toLowerCase() === item.destino.trim().toLowerCase(),
-    )
-    const next =
-      mesma >= 0
-        ? lista.map((x, i) => (i === mesma ? { ...item, id: x.id } : x))
-        : [item, ...lista].slice(0, 40)
     localStorage.setItem(LOCAL_KEY, JSON.stringify(next))
   } catch {
-    /* quota / private mode */
+    throw new Error('Não foi possível salvar neste aparelho. Verifique o modo anônimo ou o espaço do navegador.')
   }
-  return item
+  const gravou = listarRotasNesteAparelho().some((x) => x.id === (mesma >= 0 ? lista[mesma].id : item.id))
+  if (!gravou) {
+    throw new Error('A rota não ficou salva neste aparelho.')
+  }
+  return mesma >= 0 ? { ...item, id: lista[mesma].id } : item
 }

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { FileSpreadsheet, FileText, Save, Share2 } from 'lucide-react'
+import { Check, FileSpreadsheet, FileText, Save, Share2 } from 'lucide-react'
 import {
   copiarOuCompartilharRota,
   exportarPlanilhaRota,
@@ -7,6 +7,7 @@ import {
   salvarRotaNesteAparelho,
   wazeRotaUrl,
   type RotaResultadoPayload,
+  type RotaSalvaLocal,
 } from '../../lib/rotaResultadoAcoes'
 import { abrirRelatorioRota } from '../../lib/rotaRelatorioPdf'
 import type { Profile, Rota } from '../../types'
@@ -23,6 +24,7 @@ type Props = RotaResultadoPayload & {
     rotas: Rota[]
     salvarRota: (r: Rota) => void
   }
+  onSalvouLocal?: (item: RotaSalvaLocal) => void
 }
 
 export function RotaFaleConosco({
@@ -119,6 +121,7 @@ export function RotaResultadoAcoes(props: Props) {
   const salvarRota = props.conta?.salvarRota
   const [msg, setMsg] = useState<{ texto: string; erro?: boolean; login?: boolean } | null>(null)
   const [busy, setBusy] = useState<'relatorio' | 'share' | 'salvar' | null>(null)
+  const [salvaOk, setSalvaOk] = useState(false)
 
   const payload: RotaResultadoPayload = {
     origem: props.origem,
@@ -151,6 +154,9 @@ export function RotaResultadoAcoes(props: Props) {
   async function salvar() {
     setBusy('salvar')
     try {
+      const item = salvarRotaNesteAparelho(payload)
+      props.onSalvouLocal?.(item)
+      setSalvaOk(true)
       if (user && salvarRota) {
         const { chaveRota, limparPontosPassagemRota, newPontoPassagemId, newRotaId } =
           await import('../../lib/rotasSync')
@@ -195,11 +201,11 @@ export function RotaResultadoAcoes(props: Props) {
         salvarRota(rota)
         avisar(`Rota “${rota.descricao}” salva na aba Rotas.`)
       } else {
-        salvarRotaNesteAparelho(payload)
-        avisar('Rota salva neste aparelho.', { login: true })
+        avisar('Rota salva neste aparelho. Abra de novo em Trajeto → Salvas.')
       }
-    } catch {
-      avisar('Não foi possível salvar a rota.', { erro: true })
+    } catch (e) {
+      setSalvaOk(false)
+      avisar(e instanceof Error ? e.message : 'Não foi possível salvar a rota.', { erro: true })
     } finally {
       setBusy(null)
     }
@@ -255,13 +261,13 @@ export function RotaResultadoAcoes(props: Props) {
         </button>
         <button
           type="button"
-          className="rota-resultado-acoes__btn rota-resultado-acoes__btn--save"
-          title="Salvar rota"
-          aria-label="Salvar rota"
+          className={`rota-resultado-acoes__btn rota-resultado-acoes__btn--save${salvaOk ? ' is-ok' : ''}`}
+          title={salvaOk ? 'Rota salva neste aparelho' : 'Salvar rota'}
+          aria-label={salvaOk ? 'Rota salva neste aparelho' : 'Salvar rota'}
           disabled={busy === 'salvar'}
           onClick={() => void salvar()}
         >
-          <Save size={26} strokeWidth={2.1} />
+          {salvaOk ? <Check size={26} strokeWidth={2.4} /> : <Save size={26} strokeWidth={2.1} />}
         </button>
         <button
           type="button"

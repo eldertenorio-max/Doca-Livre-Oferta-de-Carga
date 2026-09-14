@@ -112,6 +112,10 @@
 .rota-resultado-acoes__btn--save:focus-visible {
   background: #ccfbf1;
 }
+.rota-resultado-acoes__btn--save.is-ok {
+  background: #ccfbf1;
+  color: #0f766e;
+}
 .rota-resultado-acoes__btn--pdf:hover:not(:disabled),
 .rota-resultado-acoes__btn--pdf:focus-visible {
   background: #ffe4e6;
@@ -156,9 +160,10 @@
 
 .rota-resultado-acoes__msg {
   margin: 0;
-  font-size: 0.7rem;
+  padding: 6px 8px;
+  font-size: 0.75rem;
   font-weight: 700;
-  color: #475569;
+  color: #0f766e;
   text-align: center;
 }
 
