@@ -677,6 +677,11 @@ export function CalcularRotaPublicoPage() {
               <div>
                 <p className="rota-pub__kicker">Pedágio · km · combustível</p>
                 <h1>Calcular rota</h1>
+                {!ilimitado ? (
+                  <button type="button" className="rota-pub__beneficios" onClick={() => setShowPaywall(true)}>
+                    Conheça os benefícios
+                  </button>
+                ) : null}
               </div>
               <p className="rota-pub__badge">
                 {ilimitado
@@ -1301,10 +1306,11 @@ export function CalcularRotaPublicoPage() {
       {showPaywall ? (
         <div className="mapa-pub-modal" role="dialog" aria-modal="true" aria-labelledby="rota-pub-pay-title">
           <div className="mapa-pub-modal__card mapa-pub-modal__card--planos">
-            <h2 id="rota-pub-pay-title">Escolha um plano</h2>
+            <h2 id="rota-pub-pay-title">{restam === 0 ? 'Escolha um plano' : 'Conheça os benefícios'}</h2>
             <p>
-              Os {ROTA_PUBLICO_LIMITE_CALCULOS} cálculos grátis de hoje acabaram. Amanhã você tem
-              mais dois, ou assine para calcular sem limite.
+              {restam === 0
+                ? `Os ${ROTA_PUBLICO_LIMITE_CALCULOS} cálculos grátis de hoje acabaram. Amanhã você tem mais dois, ou assine para calcular sem limite.`
+                : `Você ainda tem ${restam} de ${ROTA_PUBLICO_LIMITE_CALCULOS} cálculos grátis hoje. Veja os planos para calcular sem limite, usar o mapa da frota e publicar cargas.`}
             </p>
             <div className="mapa-pub-planos">
               {PLANOS_PUBLICOS.map((plano) => (
@@ -1339,7 +1345,7 @@ export function CalcularRotaPublicoPage() {
                 Já tenho conta
               </LinkSistema>
               <button type="button" className="mapa-pub-modal__fechar" onClick={() => setShowPaywall(false)}>
-                Continuar vendo o último cálculo
+                {restam === 0 ? 'Continuar vendo o último cálculo' : 'Continuar com o cálculo grátis'}
               </button>
             </div>
           </div>

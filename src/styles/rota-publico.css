@@ -192,6 +192,25 @@
   min-width: 0;
 }
 
+.rota-pub__beneficios {
+  display: inline-flex;
+  margin-top: 8px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: #f9db00;
+  color: #111;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+}
+
+.rota-pub__beneficios:hover {
+  background: #ffe34d;
+}
+
 .rota-pub__badge {
   display: inline-flex;
   margin: 0;
