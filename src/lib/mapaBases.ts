@@ -31,13 +31,13 @@ export const MAPA_VISTAS: MapaBaseCfg[] = [
     id: 'ruas',
     label: 'Mapa',
     title: 'Mapa de ruas',
-    preview: 'https://a.basemaps.cartocdn.com/rastertiles/voyager/3/2/3.png',
+    preview: 'https://tile.openstreetmap.org/3/2/3.png',
     fallback: '#dbe4ea',
-    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     options: {
       maxZoom: 19,
-      attribution: '© OpenStreetMap © CARTO',
-      subdomains: 'abcd',
+      attribution: '© OpenStreetMap',
+      subdomains: 'abc',
     },
   },
   {
