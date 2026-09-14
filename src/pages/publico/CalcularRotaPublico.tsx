@@ -50,6 +50,7 @@ import {
   registrarCalculoPublico,
   ROTA_PUBLICO_LIMITE_CALCULOS,
 } from '../../lib/rotaPublicoCalculos'
+import { lerRotaDaUrl, sincronizarBarraEndereco } from '../../lib/rotaShareUrl'
 import '../../styles/mapa-frota.css'
 import '../../styles/mapa-publico.css'
 import '../../styles/rota-publico.css'
@@ -195,6 +196,7 @@ export function CalcularRotaPublicoPage() {
   const [pickMode, setPickMode] = useState<'A' | 'B' | null>(null)
   const pickBusy = useRef(false)
   const pickSeq = useRef(false)
+  const hidratouUrl = useRef(false)
   const [vias, setVias] = useState<Via[]>([])
   const [tipoVeiculo, setTipoVeiculo] = useState<TipoVeiculoUi>('caminhao')
   const [tipoVeiculoNome, setTipoVeiculoNome] = useState('Carreta LS')
@@ -390,11 +392,25 @@ export function CalcularRotaPublicoPage() {
     destino?: string
     origemCoords?: Coord | null
     destinoCoords?: Coord | null
+    vias?: Via[]
+    eixos?: number
+    consumoKmL?: number | null
+    precoDiesel?: number | null
+    idaEVolta?: boolean
+    preferencia?: PreferenciaRota
+    categoriaId?: number | null
   }) {
     const oTxt = (opts?.origem ?? origem).trim()
     const dTxt = (opts?.destino ?? destino).trim()
     const oHint = opts?.origemCoords !== undefined ? opts.origemCoords : origemCoords
     const dHint = opts?.destinoCoords !== undefined ? opts.destinoCoords : destinoCoords
+    const ex = opts?.eixos ?? eixos
+    const volta = opts?.idaEVolta ?? idaEVolta
+    const pref = opts?.preferencia ?? preferencia
+    const cat = opts?.categoriaId !== undefined ? opts.categoriaId : categoriaCargaId === '' ? null : categoriaCargaId
+    const consKmL = opts?.consumoKmL ?? parseNumBr(consumo, consumoPadraoKmL(ex))
+    const diesel = opts?.precoDiesel ?? parseNumBr(precoDiesel, PRECO_DIESEL_SUGERIDO)
+    const listaVias = opts?.vias ?? vias
     if (oTxt.length < 3 || dTxt.length < 3) {
       setErro('Informe origem e destino.')
       return
@@ -419,7 +435,7 @@ export function CalcularRotaPublicoPage() {
     }
     const id = ++reqId.current
     setBusy(true)
-    const waypoints = vias
+    const waypoints = listaVias
       .map((v) => ({
         endereco: v.endereco.trim(),
         lat: v.lat,
@@ -433,12 +449,12 @@ export function CalcularRotaPublicoPage() {
     const res = await calcularRotaOperacional({
       origem: oTxt,
       destino: dTxt,
-      eixos,
-      consumoKmL: parseNumBr(consumo, consumoPadraoKmL(eixos)),
-      precoDiesel: parseNumBr(precoDiesel, PRECO_DIESEL_SUGERIDO),
-      idaEVolta,
-      preferencia,
-      categoriaId: categoriaCargaId === '' ? null : categoriaCargaId,
+      eixos: ex,
+      consumoKmL: consKmL,
+      precoDiesel: diesel,
+      idaEVolta: volta,
+      preferencia: pref,
+      categoriaId: cat,
       waypoints,
       origemCoords: oHint,
       destinoCoords: dHint,
@@ -463,12 +479,88 @@ export function CalcularRotaPublicoPage() {
       destinoCoords: dHint,
       tipoVeiculo: tipoVeiculoNome.trim() || VEICULOS.find((v) => v.id === tipoVeiculo)?.label || '—',
       classe: VEICULOS.find((v) => v.id === tipoVeiculo)?.label ?? '',
-      eixos,
-      idaEVolta,
-      preferencia,
+      eixos: ex,
+      idaEVolta: volta,
+      preferencia: pref,
     })
     setShowResultado(true)
+    sincronizarBarraEndereco({
+      origem: oTxt,
+      destino: dTxt,
+      vias: waypoints,
+      origemCoords: oHint,
+      destinoCoords: dHint,
+      tipoVeiculo: tipoVeiculoNome.trim() || undefined,
+      idaEVolta: volta,
+      preferencia: pref,
+      eixos: ex,
+      categoriaId: cat,
+      consumoKmL: consKmL,
+      precoDiesel: diesel,
+    })
   }
+
+  useEffect(() => {
+    if (hidratouUrl.current) return
+    const dados = lerRotaDaUrl()
+    if (!dados) return
+    hidratouUrl.current = true
+    setOrigem(dados.origem)
+    setDestino(dados.destino)
+    setOrigemCoords(dados.origemCoords ?? null)
+    setDestinoCoords(dados.destinoCoords ?? null)
+    if (dados.vias && dados.vias.length > 0) {
+      setVias(
+        dados.vias.map((v) => ({
+          ...novaVia(),
+          endereco: v.endereco,
+          lat: v.lat ?? null,
+          lng: v.lng ?? null,
+        })),
+      )
+    }
+    if (dados.tipoVeiculo) {
+      setTipoVeiculoNome(dados.tipoVeiculo)
+      setTipoVeiculo(iconeDoCatalogo(dados.tipoVeiculo))
+    }
+    if (dados.eixos) {
+      setEixos(dados.eixos)
+    }
+    if (dados.categoriaId) setCategoriaCargaId(dados.categoriaId)
+    if (dados.idaEVolta) setIdaEVolta(true)
+    if (
+      dados.preferencia === 'eficiente' ||
+      dados.preferencia === 'curta' ||
+      dados.preferencia === 'evitar_pedagio'
+    ) {
+      setPreferencia(dados.preferencia)
+    }
+    if (dados.consumoKmL) setConsumo(fmtConsumo(dados.consumoKmL))
+    if (dados.precoDiesel) setPrecoDiesel(fmtDiesel(dados.precoDiesel))
+    void calcular({
+      origem: dados.origem,
+      destino: dados.destino,
+      origemCoords: dados.origemCoords ?? null,
+      destinoCoords: dados.destinoCoords ?? null,
+      vias: (dados.vias ?? []).map((v) => ({
+        id: novaVia().id,
+        endereco: v.endereco,
+        lat: v.lat ?? null,
+        lng: v.lng ?? null,
+      })),
+      eixos: dados.eixos,
+      consumoKmL: dados.consumoKmL,
+      precoDiesel: dados.precoDiesel,
+      idaEVolta: dados.idaEVolta,
+      preferencia:
+        dados.preferencia === 'curta' || dados.preferencia === 'evitar_pedagio'
+          ? dados.preferencia
+          : 'eficiente',
+      categoriaId: dados.categoriaId ?? null,
+    })
+    // Só na abertura do link compartilhado.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const logado = Boolean(user)
   const viasValidas = vias.filter((v) => v.endereco.trim().length >= 3)

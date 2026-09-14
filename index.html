@@ -25,7 +25,7 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Doca Livre — Oferta de Carga" />
     <meta property="og:locale" content="pt_BR" />
-    <meta property="og:url" content="https://ofertadecarga.com.br/" />
+    <!-- Sem og:url fixo: WhatsApp/Windows usavam a home e o link da rota quebrava. -->
     <meta property="og:title" content="Doca Livre — Oferta de Carga" />
     <meta
       property="og:description"
@@ -50,7 +50,6 @@
     />
     <meta name="twitter:image" content="https://ofertadecargas.docalivre.com.br/og-square.png?v=oferta5" />
 
-    <link rel="canonical" href="https://ofertadecarga.com.br/" />
     <title>Doca Livre — Oferta de Carga</title>
     <script>
       ;(function () {
@@ -75,21 +74,42 @@
         var canon = document.querySelector('link[rel="canonical"]')
         if (h === 'ofertadecarga.com.br') {
           document.title = 'Calcular rota — Oferta de Carga'
-          if (canon) canon.setAttribute('href', 'https://ofertadecarga.com.br/')
-          if (location.search || location.hash) {
-            history.replaceState(null, '', '/')
+          if (canon) {
+            canon.setAttribute('href', 'https://ofertadecarga.com.br/' + (location.search || ''))
+          }
+          if (location.hash) {
+            var hash = location.hash.replace(/^#/, '')
+            var hp = hash.split('?')[0].replace(/^\//, '')
+            var hq = hash.indexOf('?') >= 0 ? hash.slice(hash.indexOf('?')) : ''
+            if (!hp || hp === 'rota' || hp === 'calcular-rota' || hp === 'diego-lab') {
+              history.replaceState(null, '', '/' + (hq || location.search || ''))
+            }
           }
         } else if (h === 'mapadafrota.com.br') {
           document.title = 'Mapa da Frota — Oferta de Carga'
-          if (canon) canon.setAttribute('href', 'https://mapadafrota.com.br/')
-          if (location.search || location.hash) {
-            history.replaceState(null, '', '/')
+          if (canon) {
+            canon.setAttribute('href', 'https://mapadafrota.com.br/' + (location.search || ''))
+          }
+          if (location.hash) {
+            var hashF = location.hash.replace(/^#/, '')
+            var hpF = hashF.split('?')[0].replace(/^\//, '')
+            var hqF = hashF.indexOf('?') >= 0 ? hashF.slice(hashF.indexOf('?')) : ''
+            if (!hpF || hpF === 'mapa') {
+              history.replaceState(null, '', '/' + (hqF || location.search || ''))
+            }
           }
         } else if (h === 'mapadalogistica.com.br') {
           document.title = 'Mapa da Logística — Doca Livre'
-          if (canon) canon.setAttribute('href', 'https://mapadalogistica.com.br/')
-          if (location.search || location.hash) {
-            history.replaceState(null, '', '/')
+          if (canon) {
+            canon.setAttribute('href', 'https://mapadalogistica.com.br/' + (location.search || ''))
+          }
+          if (location.hash) {
+            var hashL = location.hash.replace(/^#/, '')
+            var hpL = hashL.split('?')[0].replace(/^\//, '')
+            var hqL = hashL.indexOf('?') >= 0 ? hashL.slice(hashL.indexOf('?')) : ''
+            if (!hpL || hpL === 'mapa' || hpL === 'app' || hpL === 'app/mapa') {
+              history.replaceState(null, '', '/' + (hqL || location.search || ''))
+            }
           }
         } else if (h === 'sistema.ofertadecarga.com.br' || h === 'ofertadecargas.docalivre.com.br') {
           document.title = 'Sistema — Oferta de Carga'
@@ -112,7 +132,7 @@
       })
       // Marca o build. Não recarrega a página — isso deixava a 1ª visita em branco.
       ;(function () {
-        var BUILD = 'rota-publico-cache-v203'
+        var BUILD = 'rota-publico-cache-v204'
         try {
           localStorage.setItem('doca-html-bust', BUILD)
         } catch (e) {}

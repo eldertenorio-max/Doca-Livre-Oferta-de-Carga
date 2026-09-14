@@ -24,6 +24,11 @@ const LogisticaAuthProvider = lazy(() =>
   import('./logistica/lib/AuthContext').then((m) => ({ default: m.AuthProvider })),
 )
 
+function RedirectKeepSearch({ to }: { to: string }) {
+  const loc = useLocation()
+  return <Navigate to={{ pathname: to, search: loc.search }} replace />
+}
+
 function RedirectToSistema({ to }: { to?: string }) {
   const loc = useLocation()
   const url = urlSistemaComHash((to ?? loc.pathname) + loc.search)
@@ -110,8 +115,8 @@ export default function PublicApp() {
         <Routes>
           <Route path="/" element={<CalcularRotaPublicoPage />} />
           <Route path="/diego-lab" element={<CalcularRotaPublicoPage />} />
-          <Route path="/rota" element={<Navigate to="/" replace />} />
-          <Route path="/calcular-rota" element={<Navigate to="/" replace />} />
+          <Route path="/rota" element={<RedirectKeepSearch to="/" />} />
+          <Route path="/calcular-rota" element={<RedirectKeepSearch to="/" />} />
           <Route path="*" element={<RedirectToSistema />} />
         </Routes>
       </Suspense>

@@ -1,5 +1,6 @@
 import { formatCurrency } from './businessRules'
 import type { AnttCalculo, PreferenciaRota } from './anttFrete'
+import { montarUrlRotaPublica, sincronizarBarraEndereco, type RotaShareDados } from './rotaShareUrl'
 
 export type RotaPontoAcao = {
   endereco: string
@@ -78,8 +79,26 @@ export function wazeRotaUrl(p: RotaResultadoPayload): string | null {
   return `https://www.waze.com/ul?q=${encodeURIComponent(q)}&navigate=yes`
 }
 
+function shareDados(p: RotaResultadoPayload): RotaShareDados {
+  return {
+    origem: p.origem,
+    destino: p.destino,
+    vias: p.vias,
+    origemCoords: p.origemCoords,
+    destinoCoords: p.destinoCoords,
+    tipoVeiculo: p.tipoVeiculo,
+    idaEVolta: p.idaEVolta,
+    preferencia: p.preferencia,
+    eixos: p.calc.eixos,
+    categoriaId: p.calc.categoria_id,
+    consumoKmL: p.calc.rota.consumo_km_l,
+    precoDiesel: p.calc.rota.preco_diesel,
+  }
+}
+
 export function textoCompartilharRota(p: RotaResultadoPayload): string {
   const r = p.calc.rota
+  const url = montarUrlRotaPublica(shareDados(p))
   const vias = (p.vias ?? [])
     .map((v) => v.endereco.trim())
     .filter(Boolean)
@@ -97,7 +116,7 @@ export function textoCompartilharRota(p: RotaResultadoPayload): string {
     p.calc.piso_selecionado != null
       ? `Piso ANTT ${formatCurrency(p.calc.piso_selecionado)}`
       : '',
-    typeof window !== 'undefined' ? window.location.href : '',
+    url,
   ]
   return linhas.filter(Boolean).join('\n')
 }
@@ -105,23 +124,29 @@ export function textoCompartilharRota(p: RotaResultadoPayload): string {
 export async function copiarOuCompartilharRota(
   p: RotaResultadoPayload,
 ): Promise<{ ok: true; via: 'share' | 'clipboard' } | { ok: false; erro: string }> {
+  const dados = shareDados(p)
+  sincronizarBarraEndereco(dados)
+  const url = montarUrlRotaPublica(dados)
   const text = textoCompartilharRota(p)
   const title = `Rota: ${p.origem} → ${p.destino}`
-  const url = typeof window !== 'undefined' ? window.location.href : undefined
   const nav = navigator as Navigator & {
     share?: (data: ShareData) => Promise<void>
     canShare?: (data?: ShareData) => boolean
   }
   if (nav.share) {
-    try {
-      const data: ShareData = { title, text, url }
-      if (!nav.canShare || nav.canShare(data)) {
+    const mesmaOrigem = url.startsWith(`${window.location.origin}/`)
+    const tentativas: ShareData[] = mesmaOrigem
+      ? [{ title, text, url }, { title, url }, { title, text }]
+      : [{ title, text }]
+    for (const data of tentativas) {
+      try {
+        if (nav.canShare && !nav.canShare(data)) continue
         await nav.share(data)
         return { ok: true, via: 'share' }
-      }
-    } catch (e) {
-      if (e instanceof Error && e.name === 'AbortError') {
-        return { ok: false, erro: 'Compartilhamento cancelado.' }
+      } catch (e) {
+        if (e instanceof Error && e.name === 'AbortError') {
+          return { ok: false, erro: 'Compartilhamento cancelado.' }
+        }
       }
     }
   }
@@ -129,7 +154,7 @@ export async function copiarOuCompartilharRota(
     await navigator.clipboard.writeText(text)
     return { ok: true, via: 'clipboard' }
   } catch {
-    return { ok: false, erro: 'Não foi possível copiar o resumo da rota.' }
+    return { ok: false, erro: 'Não foi possível copiar o link da rota.' }
   }
 }
 
