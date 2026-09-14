@@ -13,7 +13,7 @@ import { abrirRelatorioRota } from '../../lib/rotaRelatorioPdf'
 import type { Profile, Rota } from '../../types'
 import { LinkSistema } from '../ui/HostLink'
 import { WhatsAppIconOnGreen } from '../ui/WhatsAppIcon'
-import { hrefWhatsappSuporte } from '../../lib/whatsappSuporte'
+import { AjudaSuporteModal } from './AjudaSuporteModal'
 import '../../styles/rota-resultado-acoes.css'
 
 type Props = RotaResultadoPayload & {
@@ -34,16 +34,15 @@ export function RotaFaleConosco({
   origem?: string
   destino?: string
 }) {
+  const [ajuda, setAjuda] = useState(false)
   return (
-    <a
-      className="rota-resultado-acoes__fale"
-      href={hrefWhatsappSuporte({ origem, destino })}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      <WhatsAppIconOnGreen size={18} />
-      Fale conosco
-    </a>
+    <>
+      <button type="button" className="rota-resultado-acoes__fale" onClick={() => setAjuda(true)}>
+        <WhatsAppIconOnGreen size={18} />
+        Fale conosco
+      </button>
+      <AjudaSuporteModal open={ajuda} onClose={() => setAjuda(false)} origem={origem} destino={destino} />
+    </>
   )
 }
 

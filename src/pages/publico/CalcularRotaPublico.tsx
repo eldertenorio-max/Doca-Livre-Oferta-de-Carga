@@ -1080,6 +1080,7 @@ export function CalcularRotaPublicoPage() {
                 if (calc?.rota) setShowResultado(true)
               }}
               esconderCartao={showResultado}
+              mostrarSuporte
               className="h-full min-h-[360px] w-full"
             />
             </Suspense>

@@ -77,6 +77,40 @@
   pointer-events: auto;
 }
 
+.rota-map-ajuda {
+  position: absolute;
+  left: 10px;
+  top: 38%;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.rota-map-ajuda > * {
+  pointer-events: auto;
+}
+
+.rota-map-ajuda__help {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border: 0;
+  border-radius: 50%;
+  background: #0f172a;
+  color: #fff;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.28);
+  cursor: pointer;
+}
+
+.rota-map-ajuda__help:hover {
+  transform: scale(1.06);
+  color: #ffb300;
+}
+
 .rota-map-whats {
   display: grid;
   place-items: center;
@@ -91,12 +125,6 @@
 
 .rota-map-whats:hover {
   transform: scale(1.06);
-}
-
-@media (min-width: 861px) {
-  .rota-map-whats {
-    margin-top: 8px;
-  }
 }
 
 .rota-map-pick {
@@ -237,6 +265,11 @@
 
   .rota-map-preview:has(.rota-map-cartao) .rota-map-zoom {
     bottom: 132px;
+  }
+
+  .rota-map-ajuda {
+    top: auto;
+    bottom: 14px;
   }
 }
 

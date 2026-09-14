@@ -449,6 +449,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
               pickMode={pickMode}
               onPickModeChange={setPickMode}
               onPickPonto={marcarPontoNoMapa}
+              mostrarSuporte
               className="h-[280px] min-h-[280px] w-full"
             />
             </RotaMapErroBoundary>
