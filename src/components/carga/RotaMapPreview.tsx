@@ -402,7 +402,7 @@ export function RotaMapPreview({
         center: [-14.2, -51.9],
         zoom: 4,
         minZoom: 3,
-        zoomControl: true,
+        zoomControl: false,
         attributionControl: false,
         worldCopyJump: false,
         maxBounds: [
@@ -844,6 +844,26 @@ export function RotaMapPreview({
           </a>
           <RotaMapaTipoPicker valor={vista} onChange={escolherVista} />
         </div>
+        {!showGlobe ? (
+          <div className="rota-map-zoom" data-pdf-ignore>
+            <button
+              type="button"
+              title="Aproximar"
+              aria-label="Aproximar"
+              onClick={() => mapRef.current?.zoomIn()}
+            >
+              +
+            </button>
+            <button
+              type="button"
+              title="Afastar"
+              aria-label="Afastar"
+              onClick={() => mapRef.current?.zoomOut()}
+            >
+              −
+            </button>
+          </div>
+        ) : null}
         {showGlobe ? (
           <EarthGlobe
             pickMode={pickMode}
@@ -925,7 +945,7 @@ export function RotaMapPreview({
         {!resumoAbaixo && !showGlobe && !esconderCartao && (
           <div
             data-pdf-ignore
-            className="pointer-events-none absolute bottom-2 right-2 z-20 min-w-[132px] max-w-[min(100%,220px)] rounded-lg bg-white/95 px-2.5 py-2 text-[11px] text-ink shadow-md ring-1 ring-ink/10"
+            className="rota-map-cartao pointer-events-none absolute bottom-2 right-2 z-20 min-w-[132px] max-w-[min(100%,220px)] rounded-lg bg-white/95 px-2.5 py-2 text-[11px] text-ink shadow-md ring-1 ring-ink/10"
           >
             <p className="text-[10px] font-bold uppercase tracking-wide text-ink-muted">Total km</p>
             <p className="text-sm font-extrabold tabular-nums text-ink">
