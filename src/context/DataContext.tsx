@@ -1055,10 +1055,8 @@ function wipeKanbanFields<T extends DataState>(state: T): T {
 }
 
 function loadState(): DataState {
-  // Estado inicial em memória; a fonte da verdade é o Supabase (kanban_sync + tabelas).
-  // Migração única: se ainda houver blob local, usa como base e apaga as chaves.
-  const defaults = defaultState()
   try {
+    const defaults = defaultState()
     const raw =
       localStorage.getItem(STORAGE_KEY) ??
       localStorage.getItem(STORAGE_KEY_LEGACY) ??
@@ -1178,7 +1176,11 @@ function loadState(): DataState {
     }
     return ensureDemoOfertasVisiveis(loaded)
   } catch {
-    return ensureDemoOfertasVisiveis(defaults)
+    try {
+      return ensureDemoOfertasVisiveis(defaultState())
+    } catch {
+      return defaultState()
+    }
   }
 }
 

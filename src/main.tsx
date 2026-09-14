@@ -1,13 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, HashRouter } from 'react-router-dom'
-import { registerSW } from 'virtual:pwa-register'
-import { DataProvider } from './context/DataContext'
-import App from './App'
+import { AppErrorBoundary } from './components/AppErrorBoundary'
 import { isSitePublicoLimpo } from './lib/siteOfertaDeCarga'
 import './index.css'
 
-const BUILD_ID = 'rota-publico-cache-v193'
+const BUILD_ID = 'rota-publico-cache-v194'
 
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (e) => {
@@ -26,7 +24,14 @@ function marcarBoot() {
   }
 }
 
-/** Limpa cache velho sem recarregar — senão a primeira visita fica tela branca. */
+function mostrarFalha(erro: unknown) {
+  const root = document.getElementById('root')
+  if (!root) return
+  const msg = erro instanceof Error ? erro.message : String(erro || 'erro')
+  root.innerHTML = `<div style="min-height:100dvh;display:grid;place-items:center;padding:24px;background:#efe8dc;color:#0f172a;font-family:system-ui;text-align:center"><div><p style="margin:0 0 8px;font-weight:800">A calculadora não abriu.</p><p style="margin:0 0 16px;font-size:13px;color:#475569">${msg.replace(/[<>]/g, '')}</p><button type="button" id="doca-fail-retry" style="border:0;border-radius:10px;padding:10px 14px;background:#0f172a;color:#fff;font-weight:800;cursor:pointer">Tentar de novo</button></div></div>`
+  document.getElementById('doca-fail-retry')?.addEventListener('click', () => location.reload())
+}
+
 function limparCacheMorto() {
   const key = `doca-build:${BUILD_ID}`
   try {
@@ -41,51 +46,60 @@ function limparCacheMorto() {
         const keys = await caches.keys()
         await Promise.all(keys.map((k) => caches.delete(k)))
       }
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(regs.map((r) => r.unregister()))
+      }
     } catch {
       /* ignore */
     }
   })()
 }
 
-async function desligarSwPublico() {
-  if (!('serviceWorker' in navigator)) return
-  try {
-    const regs = await navigator.serviceWorker.getRegistrations()
-    await Promise.all(regs.map((r) => r.unregister()))
-  } catch {
-    /* ignore */
-  }
-}
-
-function boot() {
+async function boot() {
   limparCacheMorto()
-  marcarBoot()
-
   const publico = isSitePublicoLimpo()
-  if (publico) {
-    void desligarSwPublico()
-  } else {
-    registerSW({
-      immediate: true,
-      onRegisteredSW(_url, reg) {
-        if (!reg) return
-        void reg.update()
-        window.setInterval(() => void reg.update(), 60_000)
-      },
-    })
-  }
-
   const Router = publico ? BrowserRouter : HashRouter
 
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <Router>
-        <DataProvider>
-          <App />
-        </DataProvider>
-      </Router>
-    </StrictMode>,
-  )
+  try {
+    const [{ DataProvider }, appMod] = await Promise.all([
+      import('./context/DataContext'),
+      publico ? import('./PublicApp') : import('./App'),
+    ])
+    if (!publico) {
+      const { registerSW } = await import('virtual:pwa-register')
+      registerSW({
+        immediate: true,
+        onRegisteredSW(_url, reg) {
+          if (!reg) return
+          void reg.update()
+          window.setInterval(() => void reg.update(), 60_000)
+        },
+      })
+    } else if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations()
+      await Promise.all(regs.map((r) => r.unregister()))
+    }
+
+    const App = appMod.default
+    const el = document.getElementById('root')
+    if (!el) throw new Error('root')
+    createRoot(el).render(
+      <StrictMode>
+        <AppErrorBoundary>
+          <Router>
+            <DataProvider>
+              <App />
+            </DataProvider>
+          </Router>
+        </AppErrorBoundary>
+      </StrictMode>,
+    )
+    marcarBoot()
+  } catch (e) {
+    console.error('[boot]', e)
+    mostrarFalha(e)
+  }
 }
 
-boot()
+void boot()
