@@ -100,6 +100,8 @@
   font-weight: 650;
   color: #94a3b8;
 }
+
+.frete-min__km-btn {
   flex-shrink: 0;
   border: 0;
   border-radius: 10px;
