@@ -88,23 +88,29 @@
 .rota-pub__frete-link {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 14px 16px;
-  font-size: 0.78rem;
+  justify-content: center;
+  gap: 10px;
+  margin: 12px 16px 14px;
+  padding: 14px 18px;
+  min-height: 52px;
+  font-size: 1rem;
   font-weight: 800;
   letter-spacing: -0.01em;
-  color: #64748b;
+  color: #111;
   text-decoration: none;
-  border-bottom: 1px solid #eef2f6;
+  border: 0;
+  border-radius: 14px;
+  background: #f9db00;
 }
 
 .rota-pub__frete-link svg {
   flex-shrink: 0;
-  color: #c2410c;
+  color: #111;
 }
 
 .rota-pub__frete-link:hover {
-  color: #0f172a;
+  background: #ffe34d;
+  color: #111;
 }
 
 .mapa-pub.rota-pub.frete-min-pagina {
