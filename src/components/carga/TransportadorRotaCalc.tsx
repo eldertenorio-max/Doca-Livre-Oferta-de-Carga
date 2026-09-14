@@ -32,6 +32,8 @@ type Props = {
   onClose: () => void
 }
 
+type Coord = { lat: number; lng: number }
+
 type CalcParams = {
   origem: string
   destino: string
@@ -42,9 +44,9 @@ type CalcParams = {
   pref: PreferenciaRota
   categoriaId?: number | ''
   waypoints?: PontoPassagemRota[]
+  origemCoords?: Coord | null
+  destinoCoords?: Coord | null
 }
-
-type Coord = { lat: number; lng: number }
 
 function parseNumBr(raw: string, fallback: number): number {
   const n = Number(String(raw).trim().replace(/\./g, '').replace(',', '.'))
@@ -80,6 +82,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
   const [destinoCoords, setDestinoCoords] = useState<Coord | null>(null)
   const [pickMode, setPickMode] = useState<'A' | 'B' | null>(null)
   const pickBusy = useRef(false)
+  const pickSeq = useRef(false)
   const [waypoints, setWaypoints] = useState<PontoPassagemRota[]>([])
   const [tipoVeiculoNome, setTipoVeiculoNome] = useState('')
   const [categoriaCargaId, setCategoriaCargaId] = useState<number | ''>('')
@@ -107,6 +110,9 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
     const cat = override?.categoriaId ?? categoriaCargaId
     const vias = override?.waypoints ?? waypoints
 
+    const oC = override?.origemCoords !== undefined ? override.origemCoords : origemCoords
+    const dC = override?.destinoCoords !== undefined ? override.destinoCoords : destinoCoords
+
     if (o.trim().length < 3 || d.trim().length < 3) {
       setErro('Informe origem e destino.')
       return
@@ -126,8 +132,8 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
       tabela: carga?.antt?.tabela ?? 'A',
       categoriaId: cat === '' ? null : cat,
       waypoints: vias,
-      origemCoords,
-      destinoCoords,
+      origemCoords: oC,
+      destinoCoords: dC,
     })
     if (id !== reqId.current) return
     setBusy(false)
@@ -221,20 +227,54 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
     }
   }
 
+  function iniciarMarcacaoNoMapa() {
+    if (pickMode) {
+      pickSeq.current = false
+      setPickMode(null)
+      return
+    }
+    pickSeq.current = true
+    setPickMode('A')
+  }
+
   async function marcarPontoNoMapa(ponto: 'A' | 'B', lat: number, lng: number) {
     if (pickBusy.current) return
     pickBusy.current = true
     try {
       const label = await labelPorCoordenadas(lat, lng)
+      const seq = pickSeq.current
+      let oTxt = origem
+      let dTxt = destino
+      let oC = origemCoords
+      let dC = destinoCoords
       if (ponto === 'A') {
+        oTxt = label
+        oC = { lat, lng }
         setOrigem(label)
-        setOrigemCoords({ lat, lng })
-        setPickMode(destino.trim() ? null : 'B')
+        setOrigemCoords(oC)
+        if (seq || !dTxt.trim()) {
+          setPickMode('B')
+          return
+        }
+        setPickMode(null)
       } else {
+        dTxt = label
+        dC = { lat, lng }
         setDestino(label)
-        setDestinoCoords({ lat, lng })
+        setDestinoCoords(dC)
+        pickSeq.current = false
+        if (!oTxt.trim()) {
+          setPickMode('A')
+          return
+        }
         setPickMode(null)
       }
+      void calcular({
+        origem: oTxt,
+        destino: dTxt,
+        origemCoords: oC,
+        destinoCoords: dC,
+      })
     } finally {
       pickBusy.current = false
     }
@@ -300,7 +340,10 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
               <button
                 type="button"
                 title="Marcar origem no mapa"
-                onClick={() => setPickMode(pickMode === 'A' ? null : 'A')}
+                onClick={() => {
+                  pickSeq.current = false
+                  setPickMode(pickMode === 'A' ? null : 'A')
+                }}
                 className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-ink/15 ${
                   pickMode === 'A' ? 'bg-[#0f172a] text-[#ffb300]' : 'bg-white text-ink hover:bg-sand-light'
                 }`}
@@ -332,7 +375,10 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
               <button
                 type="button"
                 title="Marcar destino no mapa"
-                onClick={() => setPickMode(pickMode === 'B' ? null : 'B')}
+                onClick={() => {
+                  pickSeq.current = false
+                  setPickMode(pickMode === 'B' ? null : 'B')
+                }}
                 className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-ink/15 ${
                   pickMode === 'B' ? 'bg-[#0f172a] text-[#ffb300]' : 'bg-white text-ink hover:bg-sand-light'
                 }`}
@@ -342,6 +388,23 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
             </div>
           </Field>
         </div>
+
+        <button
+          type="button"
+          onClick={iniciarMarcacaoNoMapa}
+          className={`inline-flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-extrabold ${
+            pickMode
+              ? 'border-[#0f172a] bg-[#0f172a] text-[#ffb300]'
+              : 'border-ink/15 bg-white text-ink hover:bg-sand-light'
+          }`}
+        >
+          <MapPin size={16} />
+          {pickMode === 'A'
+            ? 'Clique no mapa para marcar a origem'
+            : pickMode === 'B'
+              ? 'Clique no mapa para marcar o destino'
+              : 'Marcar origem e destino no mapa'}
+        </button>
 
         {waypoints.length > 0 ? (
           <div className="rounded-lg border border-sky-200 bg-sky-50/60 px-3 py-2.5">

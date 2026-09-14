@@ -891,7 +891,7 @@ export function RotaMapPreview({
               title="Marcar origem (ponto A) no mapa"
               onClick={() => onPickModeChange?.(pickMode === 'A' ? null : 'A')}
             >
-              Ponto A
+              Origem
             </button>
             <button
               type="button"
@@ -899,10 +899,12 @@ export function RotaMapPreview({
               title="Marcar destino (ponto B) no mapa"
               onClick={() => onPickModeChange?.(pickMode === 'B' ? null : 'B')}
             >
-              Ponto B
+              Destino
             </button>
             {pickMode ? (
-              <p className="rota-map-pick__hint">Clique no mapa para marcar o ponto {pickMode}</p>
+              <p className="rota-map-pick__hint">
+                Clique no mapa para marcar {pickMode === 'A' ? 'a origem' : 'o destino'}
+              </p>
             ) : null}
           </div>
         ) : null}

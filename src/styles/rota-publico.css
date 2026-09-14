@@ -280,6 +280,33 @@
   color: #ffb300;
 }
 
+.rota-pub__no-mapa {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 2px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: #eef2ff;
+  color: #1e3a8a;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.rota-pub__no-mapa:hover {
+  background: #e0e7ff;
+}
+
+.rota-pub__no-mapa.is-on {
+  background: #0f172a;
+  color: #ffb300;
+}
+
 .rota-pub__via {
   display: grid;
   grid-template-columns: 28px 1fr 32px;
