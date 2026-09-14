@@ -54,7 +54,11 @@
   cursor: crosshair;
 }
 
-.rota-map-preview.is-picking .leaflet-container {
+.rota-map-preview .rota-map-linha {
+  cursor: pointer;
+}
+
+.rota-map-preview.is-picking .rota-map-linha {
   cursor: crosshair;
 }
 

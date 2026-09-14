@@ -67,6 +67,8 @@ type Props = {
   onPickPonto?: (ponto: 'A' | 'B', lat: number, lng: number) => void
   /** Esconde o cartão flutuante de km/custo (quando o resultado já está ao lado). */
   esconderCartao?: boolean
+  /** Clique na linha da rota no mapa (abre o resultado). */
+  onClickRota?: () => void
 }
 
 function normWaypoint(w: RotaWaypointInput): {
@@ -342,6 +344,7 @@ export function RotaMapPreview({
   onPickModeChange,
   onPickPonto,
   esconderCartao = false,
+  onClickRota,
 }: Props) {
   const mapEl = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
@@ -360,6 +363,8 @@ export function RotaMapPreview({
   pickModeRef.current = pickMode
   const onPickPontoRef = useRef(onPickPonto)
   onPickPontoRef.current = onPickPonto
+  const onClickRotaRef = useRef(onClickRota)
+  onClickRotaRef.current = onClickRota
 
   const consumoRef = useRef(consumoKmL)
   const precoRef = useRef(precoDiesel)
@@ -625,20 +630,50 @@ export function RotaMapPreview({
 
         layer.clearLayers()
         const latlngs = rota.polyline.map((p) => [p.lat, p.lng] as L.LatLngExpression)
+        const abrirResultado = (e: L.LeafletMouseEvent) => {
+          if (pickModeRef.current) return
+          L.DomEvent.stopPropagation(e)
+          onClickRotaRef.current?.()
+        }
         L.polyline(latlngs, {
           color: '#fff',
           weight: 10,
           opacity: 0.95,
           lineJoin: 'round',
           lineCap: 'round',
-        }).addTo(layer)
+          className: 'rota-map-linha',
+        })
+          .on('click', abrirResultado)
+          .addTo(layer)
+        const hit = L.polyline(latlngs, {
+          color: '#1d4ed8',
+          weight: 22,
+          opacity: 0,
+          lineJoin: 'round',
+          lineCap: 'round',
+          className: 'rota-map-linha',
+          interactive: true,
+        })
+          .on('click', abrirResultado)
+          .addTo(layer)
         const line = L.polyline(latlngs, {
           color: '#1d4ed8',
           weight: 5.5,
           opacity: 1,
           lineJoin: 'round',
           lineCap: 'round',
-        }).addTo(layer)
+          className: 'rota-map-linha',
+        })
+          .on('click', abrirResultado)
+          .addTo(layer)
+        if (onClickRotaRef.current) {
+          hit.bindTooltip('Ver resultado da rota', {
+            sticky: true,
+            direction: 'top',
+            opacity: 0.92,
+            className: 'rota-map-linha-tip',
+          })
+        }
 
         L.marker([oCoords.lat, oCoords.lng], {
           icon: origemIcon(),

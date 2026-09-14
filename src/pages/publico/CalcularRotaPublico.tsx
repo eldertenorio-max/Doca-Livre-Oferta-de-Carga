@@ -1076,6 +1076,9 @@ export function CalcularRotaPublicoPage() {
               pickMode={pickMode}
               onPickModeChange={setPickMode}
               onPickPonto={marcarPontoNoMapa}
+              onClickRota={() => {
+                if (calc?.rota) setShowResultado(true)
+              }}
               esconderCartao={showResultado}
               className="h-full min-h-[360px] w-full"
             />
