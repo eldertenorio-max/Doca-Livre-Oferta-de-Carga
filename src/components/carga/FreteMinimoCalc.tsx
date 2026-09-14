@@ -133,6 +133,7 @@ export function FreteMinimoCalc({
                   key={n}
                   type="button"
                   className={`frete-min__eixo${eixos === n ? ' is-on' : ''}`}
+                  aria-pressed={eixos === n}
                   onClick={() => setEixos(n)}
                 >
                   {n}
