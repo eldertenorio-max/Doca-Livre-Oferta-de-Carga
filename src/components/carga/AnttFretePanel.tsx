@@ -13,7 +13,7 @@ import type { AnttInfoCarga } from '../../types'
 import { useData } from '../../context/DataContext'
 import { Button, Field, inputClass } from '../ui/Modal'
 import { MapaFrotaAjuda } from '../mapa/MapaFrotaAjuda'
-import { RotaResultadoAcoes } from './RotaResultadoAcoes'
+import { RotaResultadoAcoes, RotaFaleConosco } from './RotaResultadoAcoes'
 import '../../styles/mapa-frota.css'
 
 type WaypointAntt = {
@@ -389,6 +389,7 @@ export function AnttFretePanel({
                 <strong className="text-ink">RNTRC:</strong> o transportador vencedor precisa ter
                 RNTRC ativo (cadastro ANTT). Vale-Pedágio conforme Res. 6.024/2023.
               </p>
+              <RotaFaleConosco origem={origem} destino={destino} />
             </div>
           )}
         </div>

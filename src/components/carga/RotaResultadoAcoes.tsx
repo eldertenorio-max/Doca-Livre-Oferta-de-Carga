@@ -25,6 +25,26 @@ type Props = RotaResultadoPayload & {
   }
 }
 
+export function RotaFaleConosco({
+  origem,
+  destino,
+}: {
+  origem?: string
+  destino?: string
+}) {
+  return (
+    <a
+      className="rota-resultado-acoes__fale"
+      href={hrefWhatsappSuporte({ origem, destino })}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <WhatsAppIconOnGreen size={18} />
+      Fale conosco
+    </a>
+  )
+}
+
 function IconeWaze() {
   return (
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -263,15 +283,6 @@ export function RotaResultadoAcoes(props: Props) {
           <FileSpreadsheet size={26} strokeWidth={2.1} />
         </button>
       </div>
-      <a
-        className="rota-resultado-acoes__fale"
-        href={hrefWhatsappSuporte({ origem: payload.origem, destino: payload.destino })}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <WhatsAppIconOnGreen size={18} />
-        Fale conosco
-      </a>
       {msg ? (
         <p className={`rota-resultado-acoes__msg${msg.erro ? ' is-erro' : ''}`}>
           {msg.texto}

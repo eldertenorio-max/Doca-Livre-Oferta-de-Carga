@@ -22,7 +22,7 @@ import { AnttFretePanel } from './AnttFretePanel'
 import { RotaMapPreview } from './RotaMapPreview'
 import { RotaMapErroBoundary } from './RotaMapErroBoundary'
 import { MapaFrotaAjuda } from '../mapa/MapaFrotaAjuda'
-import { RotaResultadoAcoes } from './RotaResultadoAcoes'
+import { RotaResultadoAcoes, RotaFaleConosco } from './RotaResultadoAcoes'
 import { LinkMapaFrota, LinkMapaLogistica } from '../ui/HostLink'
 import '../../styles/mapa-frota.css'
 
@@ -671,6 +671,7 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
               </div>
             </div>
           </div>
+          <RotaFaleConosco origem={origem} destino={destino} />
           </div>
         )}
       </div>

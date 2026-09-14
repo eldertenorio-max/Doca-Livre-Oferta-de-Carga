@@ -39,7 +39,7 @@ import { lerPerfilLocal } from '../../lib/perfilLocal'
 import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
 import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
 import { MapaFrotaAjuda } from '../../components/mapa/MapaFrotaAjuda'
-import { RotaResultadoAcoes } from '../../components/carga/RotaResultadoAcoes'
+import { RotaResultadoAcoes, RotaFaleConosco } from '../../components/carga/RotaResultadoAcoes'
 import { RotaMapErroBoundary } from '../../components/carga/RotaMapErroBoundary'
 import type { SugestaoEndereco } from '../../lib/geocodeEndereco'
 import { geocodificarConsulta, labelPorCoordenadas } from '../../lib/geocodeEndereco'
@@ -1012,6 +1012,10 @@ export function CalcularRotaPublicoPage() {
               <LinkMapaFrota className="mapa-pub__btn mapa-pub__btn--ghost">
                 Ver frota disponível
               </LinkMapaFrota>
+              <RotaFaleConosco
+                origem={snap?.origem || origem}
+                destino={snap?.destino || destino}
+              />
             </div>
           </div>
               </aside>
