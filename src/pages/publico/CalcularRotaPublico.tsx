@@ -15,6 +15,7 @@ import {
   Plus,
   RotateCcw,
   Route,
+  Calculator,
   Timer,
   Truck,
   Wallet,
@@ -694,7 +695,8 @@ export function CalcularRotaPublicoPage() {
               eixos={eixos}
               cat={categoriaCargaId}
             >
-              Frete mínimo
+              <Calculator size={16} strokeWidth={2.4} />
+              Calculadora de frete mínimo
             </LinkFreteMinimo>
             <div className={`mapa-frota__search${formAberto ? '' : ' is-collapsed'}`}>
               <div className="rota-pub__card-top">

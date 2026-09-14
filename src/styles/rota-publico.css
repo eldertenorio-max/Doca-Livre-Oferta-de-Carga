@@ -86,15 +86,21 @@
 }
 
 .rota-pub__frete-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 14px 16px;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: -0.01em;
   color: #64748b;
   text-decoration: none;
   border-bottom: 1px solid #eef2f6;
+}
+
+.rota-pub__frete-link svg {
+  flex-shrink: 0;
+  color: #c2410c;
 }
 
 .rota-pub__frete-link:hover {
