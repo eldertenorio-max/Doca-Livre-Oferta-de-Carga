@@ -66,12 +66,14 @@
   position: absolute;
   left: 10px;
   top: 10px;
-  bottom: 10px;
+  bottom: auto;
+  max-height: calc(100% - 20px);
   z-index: 20;
   display: flex;
   flex-direction: column;
   width: min(392px, calc(100% - 20px));
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   max-width: 100%;
   min-width: 0;
   border: 0;
@@ -85,31 +87,26 @@
 
 .rota-pub.mapa-pub .mapa-frota__search,
 .rota-pub .mapa-frota__search {
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
   background: transparent;
   border-bottom: 0;
-  padding: 2px 8px 4px;
-  overflow: hidden;
+  padding: 2px 8px 8px;
+  overflow: visible;
 }
 
 .rota-pub.mapa-pub .mapa-frota__search-body,
 .rota-pub .mapa-frota__search-body,
 .rota-pub .mapa-frota__search-body.rota-pub__form {
-  flex: 1;
+  flex: none;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   gap: var(--rp-gap);
   padding-bottom: 4px;
   max-width: 100%;
   min-width: 0;
-}
-
-.rota-pub .mapa-frota__search-body.rota-pub__form.is-long {
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 .rota-pub .mapa-frota__search-body.rota-pub__form > * {
@@ -117,7 +114,7 @@
 }
 
 .rota-pub .mapa-frota__search-body.rota-pub__form > .rota-pub__sec {
-  display: none;
+  display: block;
 }
 
 .rota-pub__hero {
@@ -569,7 +566,11 @@
 }
 
 .rota-pub__field-head {
-  display: none;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 3px;
 }
 
 .rota-pub__field-head span {
@@ -1340,7 +1341,8 @@
   .rota-pub .mapa-frota__lista.rota-pub__panel {
     left: 8px;
     top: 8px;
-    bottom: 8px;
+    bottom: auto;
+    max-height: calc(100% - 16px);
     width: min(392px, calc(100% - 16px));
   }
 
