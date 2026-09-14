@@ -30,7 +30,6 @@ import {
 import { MapaFrotaAjuda } from '../../components/mapa/MapaFrotaAjuda'
 import { CarroceriaFilterSelect } from '../../components/ui/CarroceriaFilterSelect'
 import { FrotaGaleriaVeiculoModal } from '../../components/mapa/FrotaGaleriaVeiculoModal'
-import { LinkRota, LinkMapaLogistica } from '../../components/ui/HostLink'
 import '../../styles/cadastro.css'
 import '../../styles/mapa-frota.css'
 
@@ -1220,10 +1219,6 @@ export function MapaFrotaPage() {
             <div className="mapa-frota__title-row">
               <h1 className="mapa-frota__title">Mapa da Frota</h1>
               <MapaFrotaAjuda texto="Filtre por cidade, região, raio e tipo. Clique no ponto para ver o motorista." />
-              <div className="mapa-frota__produtos">
-                <LinkMapaLogistica className="mapa-frota__prod-link">Mapa da Logística</LinkMapaLogistica>
-                <LinkRota className="mapa-frota__prod-link">Calcular rota</LinkRota>
-              </div>
             </div>
         </div>
         <div className="mapa-frota__filtros">

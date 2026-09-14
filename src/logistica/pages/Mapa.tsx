@@ -491,16 +491,6 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
               Clique no campo, digite e escolha a sugestão. O mapa mostra só as empresas selecionadas.
             </p>
           </div>
-          {!publico ? (
-            <div className="mapa-log__head-acoes">
-              <a className="mapa-log__btn mapa-log__btn--ghost" href={hrefMapaFrota()}>
-                Mapa da Frota
-              </a>
-              <a className="mapa-log__btn mapa-log__btn--ghost" href={hrefRota()}>
-                Calcular rota
-              </a>
-            </div>
-          ) : null}
         </header>
 
       <div className="mapa-log__layout">

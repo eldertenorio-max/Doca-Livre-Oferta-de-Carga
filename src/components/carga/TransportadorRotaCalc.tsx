@@ -23,7 +23,7 @@ import { RotaMapPreview } from './RotaMapPreview'
 import { RotaMapErroBoundary } from './RotaMapErroBoundary'
 import { MapaFrotaAjuda } from '../mapa/MapaFrotaAjuda'
 import { RotaResultadoAcoes, RotaFaleConosco } from './RotaResultadoAcoes'
-import { LinkMapaFrota, LinkMapaLogistica, LinkFreteMinimo } from '../ui/HostLink'
+import { LinkFreteMinimo } from '../ui/HostLink'
 import '../../styles/mapa-frota.css'
 
 type Props = {
@@ -295,14 +295,6 @@ export function TransportadorRotaCalc({ carga, open, onClose }: Props) {
   return (
     <Modal open={open} onClose={onClose} title={`Calcular rota · Carga ${carga.numero}`} wide>
       <div className="space-y-4">
-        <div className="flex flex-wrap gap-2">
-          <LinkMapaLogistica className="inline-flex items-center rounded-lg bg-[#e8ecf1] px-3 py-1.5 text-[0.75rem] font-extrabold text-[#0f172a] no-underline hover:bg-[#0f172a] hover:text-[#ffb300]">
-            Mapa da Logística
-          </LinkMapaLogistica>
-          <LinkMapaFrota className="inline-flex items-center rounded-lg bg-[#e8ecf1] px-3 py-1.5 text-[0.75rem] font-extrabold text-[#0f172a] no-underline hover:bg-[#0f172a] hover:text-[#ffb300]">
-            Mapa da Frota
-          </LinkMapaFrota>
-        </div>
         <LinkFreteMinimo
           className="inline-flex w-full items-center justify-center gap-2.5 rounded-[14px] bg-[#f9db00] px-[18px] py-3.5 text-base font-extrabold text-[#111] no-underline hover:bg-[#ffe34d]"
           km={calc?.rota.distancia_km ?? null}
