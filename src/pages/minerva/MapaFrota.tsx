@@ -1215,11 +1215,8 @@ export function MapaFrotaPage() {
   return (
     <div className="mapa-frota animate-fade-up">
       <header className="mapa-frota__head">
-        <div>
-            <div className="mapa-frota__title-row">
-              <h1 className="mapa-frota__title">Mapa da Frota</h1>
-              <MapaFrotaAjuda texto="Filtre por cidade, região, raio e tipo. Clique no ponto para ver o motorista." />
-            </div>
+        <div className="mapa-frota__title-row">
+          <MapaFrotaAjuda texto="Filtre por cidade, região, raio e tipo. Clique no ponto para ver o motorista." />
         </div>
         <div className="mapa-frota__filtros">
           {(

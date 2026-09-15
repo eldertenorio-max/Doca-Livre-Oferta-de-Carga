@@ -91,7 +91,7 @@
 }
 
 .mapa-pub__creditos {
-  margin: 6px 0 0;
+  margin: 0;
   font-size: 0.78rem;
   font-weight: 700;
   color: #475569;
@@ -130,19 +130,21 @@
 }
 
 .mapa-pub .mapa-frota__lista {
-  overflow: visible;
+  overflow: hidden;
 }
 
-.mapa-pub .mapa-frota__search,
-.mapa-pub .mapa-frota__search-body,
-.mapa-pub .mapa-frota__tab-panel {
-  overflow: visible;
+.mapa-pub .mapa-frota__search:not(.is-collapsed) {
+  min-height: 0;
+}
+
+.mapa-pub .mapa-frota__search-body {
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .mapa-pub .mapa-frota__cats {
   overflow: auto;
   min-height: 0;
-  flex: 1;
 }
 
 .mapa-pub__busca-row {
