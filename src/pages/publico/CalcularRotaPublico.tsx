@@ -1117,7 +1117,7 @@ export function CalcularRotaPublicoPage() {
                           className={`rota-pub__tipo${tipoVeiculo === id ? ' is-on' : ''}`}
                           onClick={() => escolherVeiculo(id)}
                         >
-                          <Icon size={22} strokeWidth={2.2} />
+                          <Icon size={24} strokeWidth={2.2} />
                           <small>{label}</small>
                         </button>
                       ))}

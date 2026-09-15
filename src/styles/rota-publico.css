@@ -62,7 +62,7 @@
 .rota-pub .mapa-frota__lista.rota-pub__panel {
   --rp-gap: clamp(2px, 0.55dvh, 5px);
   --rp-ctrl: clamp(32px, 3.8dvh, 38px);
-  --rp-block: clamp(40px, 4.6dvh, 48px);
+  --rp-block: clamp(48px, 5.4dvh, 56px);
   position: absolute;
   left: 10px;
   top: 10px;
@@ -123,10 +123,7 @@
 }
 
 .rota-pub .mapa-frota__search-body.rota-pub__form > .rota-pub__prefs {
-  flex: 1 1 auto;
-  align-content: stretch;
-  min-height: 38px;
-  max-height: 64px;
+  flex: 0 0 auto;
 }
 
 .rota-pub__hero {
@@ -752,12 +749,12 @@
 }
 
 .rota-pub__tipo svg {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
 }
 
 .rota-pub__tipo small {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 800;
   line-height: 1;
   letter-spacing: 0;
@@ -1019,7 +1016,7 @@
   gap: 8px;
   width: 100%;
   flex: 0 0 auto;
-  margin-top: 2px;
+  margin-top: auto;
   border: 0;
   border-radius: 14px;
   background: #111;
