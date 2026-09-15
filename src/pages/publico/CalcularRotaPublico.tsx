@@ -289,7 +289,7 @@ export function CalcularRotaPublicoPage() {
     }
     pickSeq.current = true
     setShowResultado(false)
-    setFormAberto(false)
+    setFormAberto(true)
     setPickMode('A')
   }
 
@@ -744,6 +744,21 @@ export function CalcularRotaPublicoPage() {
 
   const logado = Boolean(user)
   const viasValidas = vias.filter((v) => v.endereco.trim().length >= 3)
+  const botaoMarcarNoMapa = (
+    <button
+      type="button"
+      className={`rota-pub__no-mapa${pickMode ? ' is-on' : ''}`}
+      title="Marcar origem e destino no mapa"
+      onClick={iniciarMarcacaoNoMapa}
+    >
+      <MapPin size={15} />
+      {pickMode === 'A'
+        ? 'Clique no mapa para marcar a origem'
+        : pickMode === 'B'
+          ? 'Clique no mapa para marcar o destino'
+          : 'Marcar origem e destino no mapa'}
+    </button>
+  )
 
   return (
     <div className="mapa-pub rota-pub">
@@ -848,6 +863,7 @@ export function CalcularRotaPublicoPage() {
                   <RotateCcw size={17} />
                 </button>
               </div>
+              {!formAberto ? botaoMarcarNoMapa : null}
 
               {formAberto ? (
                 <div className={`mapa-frota__search-body rota-pub__form${vias.length > 0 || rotasSalvas.length > 0 ? ' is-long' : ''}`}>
@@ -882,7 +898,7 @@ export function CalcularRotaPublicoPage() {
                           setPickMode(next)
                           if (next) {
                             setShowResultado(false)
-                            setFormAberto(false)
+                            setFormAberto(true)
                           }
                         }}
                       >
@@ -1006,7 +1022,7 @@ export function CalcularRotaPublicoPage() {
                           setPickMode(next)
                           if (next) {
                             setShowResultado(false)
-                            setFormAberto(false)
+                            setFormAberto(true)
                           }
                         }}
                       >
@@ -1023,19 +1039,7 @@ export function CalcularRotaPublicoPage() {
                     </div>
                   </div>
 
-                  {pickMode ? (
-                  <button
-                    type="button"
-                    className="rota-pub__no-mapa is-on"
-                    title="Clique no mapa para marcar origem e destino"
-                    onClick={iniciarMarcacaoNoMapa}
-                  >
-                    <MapPin size={15} />
-                    {pickMode === 'A'
-                      ? 'Clique no mapa para marcar a origem'
-                      : 'Clique no mapa para marcar o destino'}
-                  </button>
-                  ) : null}
+                  {botaoMarcarNoMapa}
 
                   {rotasSalvas.length > 0 ? (
                     <div className="rota-pub__salvas">
