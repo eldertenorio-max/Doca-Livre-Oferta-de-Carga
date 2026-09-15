@@ -122,8 +122,11 @@
   display: block;
 }
 
-.rota-pub .mapa-frota__search-body.rota-pub__form > .rota-pub__calc {
+.rota-pub .mapa-frota__search-body.rota-pub__form > .rota-pub__prefs {
   flex: 1 1 auto;
+  align-content: stretch;
+  min-height: 38px;
+  max-height: 64px;
 }
 
 .rota-pub__hero {
@@ -979,13 +982,14 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  min-height: 32px;
+  min-height: 38px;
+  height: 100%;
   border: 1px solid #e8edf3;
   background: #f8fafc;
   border-radius: 12px;
-  padding: 4px 4px;
+  padding: 6px 4px;
   font: inherit;
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   font-weight: 800;
   color: #64748b;
   cursor: pointer;
@@ -1014,15 +1018,17 @@
   justify-content: center;
   gap: 8px;
   width: 100%;
+  flex: 0 0 auto;
   margin-top: 2px;
   border: 0;
   border-radius: 14px;
   background: #111;
   color: #f9db00;
-  padding: 10px 12px;
-  min-height: 48px;
+  padding: 8px 12px;
+  min-height: 42px;
+  max-height: 42px;
   font: inherit;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
