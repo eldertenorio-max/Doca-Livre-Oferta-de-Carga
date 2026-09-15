@@ -442,10 +442,24 @@
   background: #ffedd5;
 }
 
-.rota-pub__ab-fields {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rp-gap, 6px);
+.rota-pub__ab.is-sorting {
+  user-select: none;
+}
+
+.rota-pub__ab.is-sorting .rota-pub__campo,
+.rota-pub__ab.is-sorting .rota-pub__via,
+.rota-pub__ab.is-sorting .rota-pub__pin {
+  transition: box-shadow 0.12s ease, transform 0.12s ease;
+}
+
+.rota-pub__campo.is-over,
+.rota-pub__via.is-over {
+  box-shadow: 0 0 0 2px #ea580c, inset 0 0 0 1px #ffedd5;
+}
+
+.rota-pub__pin.is-over {
+  transform: scale(1.08);
+  box-shadow: 0 0 0 3px rgb(234 88 12 / 0.35);
 }
 
 .rota-pub__campo {
@@ -592,32 +606,39 @@
 
 .rota-pub__via {
   display: grid;
-  grid-template-columns: 1fr auto 28px;
-  gap: 4px;
+  grid-template-columns: 1fr 36px 32px;
+  gap: 6px;
   align-items: center;
 }
 
-.rota-pub__via-ord {
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
+.rota-pub__via.is-dragging {
+  opacity: 0.48;
 }
 
-.rota-pub__via-ord button {
+.rota-pub__via-drag {
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 16px;
+  width: 36px;
+  height: 36px;
   margin: 0;
   padding: 0;
   border: 0;
-  background: transparent;
-  color: #c2410c;
-  cursor: pointer;
+  border-radius: 10px;
+  background: #fff;
+  color: #64748b;
+  cursor: grab;
+  touch-action: none;
+  flex-shrink: 0;
 }
 
-.rota-pub__via-ord button:hover {
-  color: #9a3412;
+.rota-pub__via-drag:hover {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.rota-pub__via-drag:active,
+.rota-pub__ab.is-sorting .rota-pub__via-drag {
+  cursor: grabbing;
 }
 
 .rota-pub__via-del {

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, lazy, Suspense, Fragment } from 'react'
+import { useEffect, useId, useRef, useState, lazy, Suspense, Fragment, type PointerEvent as ReactPointerEvent } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowUpDown,
@@ -11,6 +11,7 @@ import {
   ChevronUp,
   Fuel,
   Gauge,
+  GripVertical,
   MapPin,
   Plus,
   RotateCcw,
@@ -228,6 +229,18 @@ export function CalcularRotaPublicoPage() {
   const [showResultado, setShowResultado] = useState(false)
   const [snap, setSnap] = useState<ResultadoSnap | null>(null)
   const [rotasSalvas, setRotasSalvas] = useState<RotaSalvaLocal[]>(() => listarRotasNesteAparelho())
+  const [draggingViaId, setDraggingViaId] = useState<string | null>(null)
+  const [overStop, setOverStop] = useState<string | null>(null)
+  const dragViaRef = useRef<string | null>(null)
+  const overStopRef = useRef<string | null>(null)
+  const stopsRef = useRef({
+    origem: '',
+    destino: '',
+    origemCoords: null as Coord | null,
+    destinoCoords: null as Coord | null,
+    vias: [] as Via[],
+  })
+  stopsRef.current = { origem, destino, origemCoords, destinoCoords, vias }
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'light')
@@ -330,61 +343,109 @@ export function CalcularRotaPublicoPage() {
     setDestinoCoords(origemCoords)
   }
 
-  function coordsDaVia(via: Via): Coord | null {
-    if (via.lat == null || via.lng == null) return null
-    if (!Number.isFinite(via.lat) || !Number.isFinite(via.lng)) return null
-    return { lat: via.lat, lng: via.lng }
+  function coordsStop(lat: number | null | undefined, lng: number | null | undefined): Coord | null {
+    if (lat == null || lng == null) return null
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+    return { lat, lng }
   }
 
-  function moverVia(idx: number, dir: -1 | 1) {
-    const dest = idx + dir
-    if (dest >= 0 && dest < vias.length) {
-      setVias((lista) => {
-        const next = [...lista]
-        const atual = next[idx]
-        next[idx] = next[dest]
-        next[dest] = atual
-        return next
-      })
-      return
+  function alvoSobPonteiro(clientY: number) {
+    const nodes = document.querySelectorAll<HTMLElement>('[data-rota-stop]')
+    const seen = new Map<string, DOMRect>()
+    nodes.forEach((n) => {
+      const k = n.getAttribute('data-rota-stop')
+      if (!k) return
+      const r = n.getBoundingClientRect()
+      const prev = seen.get(k)
+      if (!prev || r.height > prev.height) seen.set(k, r)
+    })
+    let best: string | null = null
+    let bestDist = Infinity
+    for (const [k, r] of seen) {
+      const mid = r.top + r.height / 2
+      const dist = Math.abs(mid - clientY)
+      if (dist < bestDist) {
+        bestDist = dist
+        best = k
+      }
     }
-    const via = vias[idx]
-    if (!via) return
-    if (dir < 0) {
-      const oTxt = origem
-      const oC = origemCoords
-      setOrigem(via.endereco)
-      setOrigemCoords(coordsDaVia(via))
-      setVias((lista) =>
-        lista.map((x, i) =>
-          i === idx
-            ? {
-                ...x,
-                endereco: oTxt,
-                lat: oC?.lat ?? null,
-                lng: oC?.lng ?? null,
-              }
-            : x,
-        ),
-      )
-      return
-    }
-    const dTxt = destino
-    const dC = destinoCoords
-    setDestino(via.endereco)
-    setDestinoCoords(coordsDaVia(via))
-    setVias((lista) =>
-      lista.map((x, i) =>
-        i === idx
-          ? {
-              ...x,
-              endereco: dTxt,
-              lat: dC?.lat ?? null,
-              lng: dC?.lng ?? null,
-            }
-          : x,
-      ),
+    return best
+  }
+
+  function moverViaPara(viaId: string, alvo: string) {
+    if (!viaId || viaId === alvo) return
+    const s = stopsRef.current
+    const lista = [
+      {
+        key: 'A',
+        endereco: s.origem,
+        lat: s.origemCoords?.lat ?? null,
+        lng: s.origemCoords?.lng ?? null,
+      },
+      ...s.vias.map((v) => ({
+        key: v.id,
+        endereco: v.endereco,
+        lat: v.lat ?? null,
+        lng: v.lng ?? null,
+      })),
+      {
+        key: 'B',
+        endereco: s.destino,
+        lat: s.destinoCoords?.lat ?? null,
+        lng: s.destinoCoords?.lng ?? null,
+      },
+    ]
+    const from = lista.findIndex((x) => x.key === viaId)
+    const to = lista.findIndex((x) => x.key === alvo)
+    if (from < 0 || to < 0) return
+    const next = [...lista]
+    const [item] = next.splice(from, 1)
+    next.splice(to, 0, item)
+    if (next.length < 2) return
+    const first = next[0]
+    const last = next[next.length - 1]
+    const middle = next.slice(1, -1)
+    setOrigem(first.endereco)
+    setOrigemCoords(coordsStop(first.lat, first.lng))
+    setDestino(last.endereco)
+    setDestinoCoords(coordsStop(last.lat, last.lng))
+    setVias(
+      middle.map((p) => ({
+        id: p.key === 'A' || p.key === 'B' ? novaVia().id : p.key,
+        endereco: p.endereco,
+        lat: p.lat,
+        lng: p.lng,
+      })),
     )
+  }
+
+  function iniciarArrasteVia(e: ReactPointerEvent<HTMLButtonElement>, viaId: string) {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    dragViaRef.current = viaId
+    overStopRef.current = viaId
+    setDraggingViaId(viaId)
+    setOverStop(viaId)
+  }
+
+  function moverArrasteVia(e: ReactPointerEvent<HTMLButtonElement>) {
+    if (!dragViaRef.current) return
+    const alvo = alvoSobPonteiro(e.clientY)
+    if (!alvo) return
+    overStopRef.current = alvo
+    setOverStop(alvo)
+  }
+
+  function soltarArrasteVia() {
+    const from = dragViaRef.current
+    const to = overStopRef.current
+    dragViaRef.current = null
+    overStopRef.current = null
+    setDraggingViaId(null)
+    setOverStop(null)
+    if (from && to) moverViaPara(from, to)
   }
 
   function mudarEixos(proximo: number) {
@@ -790,9 +851,17 @@ export function CalcularRotaPublicoPage() {
 
               {formAberto ? (
                 <div className={`mapa-frota__search-body rota-pub__form${vias.length > 0 || rotasSalvas.length > 0 ? ' is-long' : ''}`}>
-                  <div className="rota-pub__ab">
-                    <span className="rota-pub__pin rota-pub__pin--a">A</span>
-                    <div className="rota-pub__campo">
+                  <div className={`rota-pub__ab${draggingViaId ? ' is-sorting' : ''}`}>
+                    <span
+                      className={`rota-pub__pin rota-pub__pin--a${overStop === 'A' ? ' is-over' : ''}`}
+                      data-rota-stop="A"
+                    >
+                      A
+                    </span>
+                    <div
+                      className={`rota-pub__campo${overStop === 'A' ? ' is-over' : ''}`}
+                      data-rota-stop="A"
+                    >
                       <AddressSuggestInput
                         value={origem}
                         onChange={(v) => {
@@ -839,8 +908,16 @@ export function CalcularRotaPublicoPage() {
                             <span className="rota-pub__dots" />
                           </div>
                         ) : null}
-                        <span className="rota-pub__pin rota-pub__pin--via">{idx + 1}</span>
-                        <div className="rota-pub__via">
+                        <span
+                          className={`rota-pub__pin rota-pub__pin--via${overStop === via.id ? ' is-over' : ''}`}
+                          data-rota-stop={via.id}
+                        >
+                          {idx + 1}
+                        </span>
+                        <div
+                          className={`rota-pub__via${draggingViaId === via.id ? ' is-dragging' : ''}${overStop === via.id ? ' is-over' : ''}`}
+                          data-rota-stop={via.id}
+                        >
                           <div className="rota-pub__campo">
                             <AddressSuggestInput
                               value={via.endereco}
@@ -871,24 +948,18 @@ export function CalcularRotaPublicoPage() {
                               className="rota-pub__input"
                             />
                           </div>
-                          <div className="rota-pub__via-ord">
-                            <button
-                              type="button"
-                              title={idx === 0 ? 'Trocar com a origem' : 'Subir ponto'}
-                              aria-label={idx === 0 ? 'Trocar com a origem' : 'Subir ponto'}
-                              onClick={() => moverVia(idx, -1)}
-                            >
-                              <ChevronUp size={16} />
-                            </button>
-                            <button
-                              type="button"
-                              title={idx === vias.length - 1 ? 'Trocar com o destino' : 'Descer ponto'}
-                              aria-label={idx === vias.length - 1 ? 'Trocar com o destino' : 'Descer ponto'}
-                              onClick={() => moverVia(idx, 1)}
-                            >
-                              <ChevronDown size={16} />
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            className="rota-pub__via-drag"
+                            title="Arrastar para reordenar"
+                            aria-label="Arrastar ponto de passagem para reordenar"
+                            onPointerDown={(e) => iniciarArrasteVia(e, via.id)}
+                            onPointerMove={moverArrasteVia}
+                            onPointerUp={soltarArrasteVia}
+                            onPointerCancel={soltarArrasteVia}
+                          >
+                            <GripVertical size={18} />
+                          </button>
                           <button
                             type="button"
                             className="rota-pub__via-del"
@@ -905,8 +976,16 @@ export function CalcularRotaPublicoPage() {
                         <span className="rota-pub__dots" />
                       </div>
                     ) : null}
-                    <span className="rota-pub__pin rota-pub__pin--b">B</span>
-                    <div className="rota-pub__campo">
+                    <span
+                      className={`rota-pub__pin rota-pub__pin--b${overStop === 'B' ? ' is-over' : ''}`}
+                      data-rota-stop="B"
+                    >
+                      B
+                    </span>
+                    <div
+                      className={`rota-pub__campo${overStop === 'B' ? ' is-over' : ''}`}
+                      data-rota-stop="B"
+                    >
                       <AddressSuggestInput
                         value={destino}
                         onChange={(v) => {
