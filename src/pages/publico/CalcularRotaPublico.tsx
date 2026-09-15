@@ -731,24 +731,22 @@ export function CalcularRotaPublicoPage() {
         <div className="mapa-frota__layout">
           <aside className="mapa-frota__lista rota-pub__panel">
             <div className="rota-pub__hero">
-              <div>
+              <div className="rota-pub__hero-top">
                 <p className="rota-pub__kicker">Pedágio · km · combustível</p>
-                <div className="rota-pub__hero-tit">
-                  <h1>Calcular rota</h1>
-                  {!ilimitado ? (
-                    <button type="button" className="rota-pub__beneficios" onClick={() => setShowPaywall(true)}>
-                      Conheça os benefícios
-                    </button>
-                  ) : null}
-                </div>
+                <p className="rota-pub__badge">
+                  {ilimitado
+                    ? 'Ilimitado'
+                    : restam > 0
+                      ? `${restam} de ${ROTA_PUBLICO_LIMITE_CALCULOS} grátis`
+                      : 'Esgotado hoje'}
+                </p>
               </div>
-              <p className="rota-pub__badge">
-                {ilimitado
-                  ? 'Ilimitado'
-                  : restam > 0
-                    ? `${restam} de ${ROTA_PUBLICO_LIMITE_CALCULOS} grátis`
-                    : 'Esgotado hoje'}
-              </p>
+              <h1>Calcular rota</h1>
+              {!ilimitado ? (
+                <button type="button" className="rota-pub__beneficios" onClick={() => setShowPaywall(true)}>
+                  Conheça os benefícios
+                </button>
+              ) : null}
             </div>
             <LinkFreteMinimo
               className="rota-pub__frete-link"
@@ -757,7 +755,7 @@ export function CalcularRotaPublicoPage() {
               cat={categoriaCargaId}
               pedagio={calc?.rota.pedagio ?? null}
             >
-              <Calculator size={16} strokeWidth={2.4} />
+              <Calculator size={20} strokeWidth={2.4} />
               Calculadora de Frete
             </LinkFreteMinimo>
             <div className={`mapa-frota__search${formAberto ? '' : ' is-collapsed'}`}>
@@ -786,7 +784,7 @@ export function CalcularRotaPublicoPage() {
                   title="Limpar origem e destino"
                   onClick={limparRota}
                 >
-                  <RotateCcw size={15} />
+                  <RotateCcw size={17} />
                 </button>
               </div>
 
@@ -819,7 +817,7 @@ export function CalcularRotaPublicoPage() {
                           }
                         }}
                       >
-                        <MapPin size={15} />
+                        <MapPin size={18} />
                       </button>
                     </div>
                     <div className="rota-pub__join">
@@ -830,7 +828,7 @@ export function CalcularRotaPublicoPage() {
                         title="Inverter origem e destino"
                         onClick={trocarPontos}
                       >
-                        <ArrowUpDown size={14} />
+                        <ArrowUpDown size={16} />
                       </button>
                       <span className="rota-pub__dots" />
                     </div>
@@ -880,7 +878,7 @@ export function CalcularRotaPublicoPage() {
                               aria-label={idx === 0 ? 'Trocar com a origem' : 'Subir ponto'}
                               onClick={() => moverVia(idx, -1)}
                             >
-                              <ChevronUp size={14} />
+                              <ChevronUp size={16} />
                             </button>
                             <button
                               type="button"
@@ -888,7 +886,7 @@ export function CalcularRotaPublicoPage() {
                               aria-label={idx === vias.length - 1 ? 'Trocar com o destino' : 'Descer ponto'}
                               onClick={() => moverVia(idx, 1)}
                             >
-                              <ChevronDown size={14} />
+                              <ChevronDown size={16} />
                             </button>
                           </div>
                           <button
@@ -933,7 +931,7 @@ export function CalcularRotaPublicoPage() {
                           }
                         }}
                       >
-                        <MapPin size={15} />
+                        <MapPin size={18} />
                       </button>
                       <button
                         type="button"
@@ -941,7 +939,7 @@ export function CalcularRotaPublicoPage() {
                         title="Adicionar ponto de passagem"
                         onClick={() => setVias((lista) => [...lista, novaVia()])}
                       >
-                        <Plus size={16} />
+                        <Plus size={18} />
                       </button>
                     </div>
                   </div>
@@ -1036,21 +1034,21 @@ export function CalcularRotaPublicoPage() {
                           className={`rota-pub__tipo${tipoVeiculo === id ? ' is-on' : ''}`}
                           onClick={() => escolherVeiculo(id)}
                         >
-                          <Icon size={16} strokeWidth={2.2} />
+                          <Icon size={22} strokeWidth={2.2} />
                           <small>{label}</small>
                         </button>
                       ))}
                     </div>
                     <div className="rota-pub__eixos">
                       <button type="button" title="Mais eixos" onClick={() => mudarEixos(eixos + 1)}>
-                        <ChevronUp size={16} />
+                        <ChevronUp size={18} />
                       </button>
                       <strong key={eixosTick} className={`rota-pub__eixos-n is-${eixosDir}`}>
                         {eixos}
                       </strong>
                       <span>eixos</span>
                       <button type="button" title="Menos eixos" onClick={() => mudarEixos(eixos - 1)}>
-                        <ChevronDown size={16} />
+                        <ChevronDown size={18} />
                       </button>
                     </div>
                   </div>
@@ -1070,7 +1068,7 @@ export function CalcularRotaPublicoPage() {
                     <label className="rota-pub__box">
                       <span>Consumo</span>
                       <span className="rota-pub__box-row">
-                        <Gauge size={14} />
+                        <Gauge size={16} />
                         <input
                           value={consumo}
                           onChange={(e) => setConsumo(e.target.value)}
@@ -1092,7 +1090,7 @@ export function CalcularRotaPublicoPage() {
                           placeholder="0,00"
                           aria-label="Preço do diesel"
                         />
-                        <Fuel size={14} />
+                        <Fuel size={16} />
                       </span>
                     </label>
                   </div>
@@ -1109,9 +1107,9 @@ export function CalcularRotaPublicoPage() {
                         onClick={() => setPreferencia(id)}
                       >
                         <span className="rota-pub__radio">
-                          {preferencia === id ? <Check size={11} strokeWidth={3} /> : null}
+                          {preferencia === id ? <Check size={12} strokeWidth={3} /> : null}
                         </span>
-                        <Icon size={13} strokeWidth={2.4} />
+                        <Icon size={16} strokeWidth={2.4} />
                         {label}
                       </button>
                     ))}
@@ -1131,7 +1129,7 @@ export function CalcularRotaPublicoPage() {
                       void calcular()
                     }}
                   >
-                    <Route size={18} />
+                    <Route size={22} />
                     {busy ? 'Calculando…' : 'Calcular'}
                   </button>
                   {calc?.rota && !showResultado ? (

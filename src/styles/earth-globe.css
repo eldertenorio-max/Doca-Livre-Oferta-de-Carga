@@ -95,7 +95,7 @@
 }
 
 .rota-pub .rota-map-idle-hint {
-  left: calc(10px + min(392px, 100% - 20px));
+  left: calc(10px + min(400px, 100% - 20px));
 }
 
 @media (max-width: 860px) {
