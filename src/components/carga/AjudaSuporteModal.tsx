@@ -12,9 +12,10 @@ type Props = {
   onClose: () => void
   origem?: string
   destino?: string
+  pagina?: string
 }
 
-export function AjudaSuporteModal({ open, onClose, origem, destino }: Props) {
+export function AjudaSuporteModal({ open, onClose, origem, destino, pagina }: Props) {
   const [busca, setBusca] = useState('')
   const [aberta, setAberta] = useState<string | null>(null)
   const [nome, setNome] = useState('')
@@ -124,7 +125,7 @@ export function AjudaSuporteModal({ open, onClose, origem, destino }: Props) {
               href={hrefWhatsappSuporte({
                 origem,
                 destino,
-                problema: true,
+                pagina,
               })}
               target="_blank"
               rel="noopener noreferrer"

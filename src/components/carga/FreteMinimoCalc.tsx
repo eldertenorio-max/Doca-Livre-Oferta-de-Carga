@@ -299,7 +299,10 @@ export function FreteMinimoCalc({
         <div className="frete-min__col frete-min__col--form">
           <h1 className="frete-min__pagina-titulo">Calculadora de Frete</h1>
           <div className="frete-min__body">{formulario}</div>
-          <AjudaWhatsFabs className="rota-map-ajuda--form" />
+          <AjudaWhatsFabs
+            className="rota-map-ajuda--form"
+            pagina="página da Calculadora de Frete"
+          />
         </div>
         <aside
           ref={outRef}

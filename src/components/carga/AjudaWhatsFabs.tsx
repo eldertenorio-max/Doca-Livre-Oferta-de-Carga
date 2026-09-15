@@ -8,10 +8,11 @@ import '../../styles/earth-globe.css'
 type Props = {
   origem?: string
   destino?: string
+  pagina?: string
   className?: string
 }
 
-export function AjudaWhatsFabs({ origem, destino, className }: Props) {
+export function AjudaWhatsFabs({ origem, destino, pagina, className }: Props) {
   const [ajuda, setAjuda] = useState(false)
   return (
     <>
@@ -34,6 +35,7 @@ export function AjudaWhatsFabs({ origem, destino, className }: Props) {
           href={hrefWhatsappSuporte({
             origem: (origem || '').trim() || undefined,
             destino: (destino || '').trim() || undefined,
+            pagina,
           })}
           target="_blank"
           rel="noopener noreferrer"
@@ -48,6 +50,7 @@ export function AjudaWhatsFabs({ origem, destino, className }: Props) {
         onClose={() => setAjuda(false)}
         origem={origem}
         destino={destino}
+        pagina={pagina}
       />
     </>
   )
