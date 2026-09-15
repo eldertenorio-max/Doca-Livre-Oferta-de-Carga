@@ -834,6 +834,7 @@ export function CalcularRotaPublicoPage() {
               {!formAberto ? botaoMarcarNoMapa : null}
 
               {formAberto ? (
+                <>
                 <div className={`mapa-frota__search-body rota-pub__form${vias.length > 0 || rotasSalvas.length > 0 ? ' is-long' : ''}`}>
                   <div className={`rota-pub__ab${draggingViaId ? ' is-sorting' : ''}`}>
                     <span
@@ -1166,8 +1167,9 @@ export function CalcularRotaPublicoPage() {
                     ))}
                   </div>
 
+                </div>
+                <div className="rota-pub__rodape">
                   {erro ? <p className="rota-pub__erro">{erro}</p> : null}
-
                   <button
                     type="button"
                     className="rota-pub__calc"
@@ -1193,6 +1195,7 @@ export function CalcularRotaPublicoPage() {
                     </button>
                   ) : null}
                 </div>
+                </>
               ) : null}
             </div>
           </aside>
