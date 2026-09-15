@@ -60,9 +60,9 @@
 
 .rota-pub.mapa-pub .mapa-frota__lista.rota-pub__panel,
 .rota-pub .mapa-frota__lista.rota-pub__panel {
-  --rp-gap: clamp(4px, 0.9dvh, 8px);
-  --rp-ctrl: clamp(36px, 4.5dvh, 42px);
-  --rp-block: clamp(44px, 5.6dvh, 56px);
+  --rp-gap: clamp(2px, 0.55dvh, 5px);
+  --rp-ctrl: clamp(32px, 3.8dvh, 38px);
+  --rp-block: clamp(40px, 4.6dvh, 48px);
   position: absolute;
   left: 10px;
   top: 10px;
@@ -93,7 +93,7 @@
   flex-direction: column;
   background: transparent;
   border-bottom: 0;
-  padding: 4px 10px 8px;
+  padding: 2px 10px 4px;
   overflow: hidden;
 }
 
@@ -103,11 +103,15 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
   gap: var(--rp-gap);
-  padding-bottom: 2px;
+  padding-bottom: 0;
   max-width: 100%;
   min-width: 0;
+}
+
+.rota-pub .mapa-frota__search-body.rota-pub__form.is-long {
+  overflow-y: auto;
 }
 
 .rota-pub .mapa-frota__search-body.rota-pub__form > * {
@@ -122,10 +126,10 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 5px;
+  gap: 4px;
   min-width: 0;
   flex-shrink: 0;
-  padding: 10px 14px 8px;
+  padding: 8px 12px 6px;
   background:
     linear-gradient(135deg, #111111 0%, #1a1a1a 55%, #2a2400 100%);
   color: #fff;
@@ -154,10 +158,10 @@
   justify-content: center;
   gap: 7px;
   flex-shrink: 0;
-  margin: 6px 12px 2px;
-  padding: 5px 12px;
-  min-height: 34px;
-  font-size: 0.84rem;
+  margin: 4px 12px 0;
+  padding: 4px 12px;
+  min-height: 30px;
+  font-size: 0.8rem;
   font-weight: 800;
   letter-spacing: -0.01em;
   color: #111;
@@ -232,7 +236,7 @@
 
 .rota-pub__hero h1 {
   margin: 0;
-  font-size: clamp(1.32rem, 2.8dvh, 1.62rem);
+  font-size: clamp(1.2rem, 2.4dvh, 1.48rem);
   font-weight: 900;
   line-height: 1.05;
   letter-spacing: -0.045em;
@@ -303,11 +307,8 @@
 .rota-pub__reset {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 0;
-  border-radius: 10px;
-  background: #fff7ed;
+  width: 28px;
+  height: 28px;
   color: #c2410c;
   cursor: pointer;
   flex-shrink: 0;
@@ -364,8 +365,8 @@
   align-items: center;
   justify-content: center;
   width: 28px;
-  min-height: 22px;
-  padding: 1px 0;
+  min-height: 16px;
+  padding: 0;
 }
 
 .rota-pub__ab > .rota-pub__campo,
@@ -498,8 +499,8 @@
 .rota-pub__campo-btn {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border: 0;
   border-radius: 10px;
   background: #fff;
@@ -521,18 +522,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
-  margin: 6px 0 0;
-  padding: 8px 10px;
+  margin: 0;
+  padding: 5px 8px;
+  min-height: 30px;
   border: 0;
   border-radius: 10px;
   background: #eef2ff;
   color: #1e3a8a;
   font: inherit;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 800;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .rota-pub__no-mapa:hover {
@@ -670,7 +673,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 3px;
+  margin-bottom: 1px;
 }
 
 .rota-pub__field-head span {
@@ -723,7 +726,7 @@
 .rota-pub__tipos {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+  gap: 4px;
 }
 
 .rota-pub__tipo {
@@ -972,7 +975,7 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  min-height: 36px;
+  min-height: 32px;
   border: 1px solid #e8edf3;
   background: #f8fafc;
   border-radius: 12px;
@@ -1012,8 +1015,8 @@
   border-radius: 14px;
   background: #111;
   color: #f9db00;
-  padding: 10px 12px;
-  min-height: 44px;
+  padding: 8px 12px;
+  min-height: 40px;
   font: inherit;
   font-size: 0.84rem;
   font-weight: 800;

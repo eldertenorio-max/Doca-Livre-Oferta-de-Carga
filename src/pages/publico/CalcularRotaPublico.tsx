@@ -751,7 +751,7 @@ export function CalcularRotaPublicoPage() {
       title="Marcar origem e destino no mapa"
       onClick={iniciarMarcacaoNoMapa}
     >
-      <MapPin size={15} />
+      <MapPin size={14} />
       {pickMode === 'A'
         ? 'Clique no mapa para marcar a origem'
         : pickMode === 'B'
