@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Eye, EyeOff, Maximize2, Minimize2 } from 'lucide-react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { formatCurrency } from '../../lib/businessRules'
@@ -379,6 +380,8 @@ type MetaRota = {
   pracas: number
 }
 
+type VisaoCamada = 'tudo' | 'sem-pedagio' | 'sem-rota'
+
 function aplicarTilePlano(
   map: L.Map,
   atual: L.TileLayer | null,
@@ -463,6 +466,8 @@ export function RotaMapPreview({
       : 'Adicione as cidades e clique em Calcular trajeto',
   )
   const [meta, setMeta] = useState<MetaRota | null>(null)
+  const [mapaCheio, setMapaCheio] = useState(false)
+  const [visaoCamada, setVisaoCamada] = useState<VisaoCamada>('tudo')
 
   const viasNorm = (Array.isArray(waypoints) ? waypoints : [])
     .map(normWaypoint)
@@ -965,13 +970,70 @@ export function RotaMapPreview({
     if (!showGlobe) setGlobeReady(false)
   }, [showGlobe])
 
+  useEffect(() => {
+    document.documentElement.classList.toggle('rota-map-is-full', mapaCheio)
+    const prev = document.body.style.overflow
+    if (mapaCheio) document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMapaCheio(false)
+    }
+    if (mapaCheio) window.addEventListener('keydown', onKey)
+    const map = mapRef.current
+    const t = window.setTimeout(() => map?.invalidateSize({ animate: false }), 80)
+    const t2 = window.setTimeout(() => map?.invalidateSize({ animate: false }), 280)
+    return () => {
+      document.documentElement.classList.remove('rota-map-is-full')
+      document.body.style.overflow = prev
+      window.removeEventListener('keydown', onKey)
+      window.clearTimeout(t)
+      window.clearTimeout(t2)
+    }
+  }, [mapaCheio])
+
+  function cicloVisaoCamada() {
+    mapRef.current?.closePopup()
+    setVisaoCamada((v) => (v === 'tudo' ? 'sem-pedagio' : v === 'sem-pedagio' ? 'sem-rota' : 'tudo'))
+  }
+
+  const visaoTitulo =
+    visaoCamada === 'tudo'
+      ? 'Esconder pedágios'
+      : visaoCamada === 'sem-pedagio'
+        ? 'Esconder a rota inteira'
+        : 'Mostrar rota e pedágios'
+
   return (
     <div className="h-full min-h-[360px] w-full">
       <div
-        className={`rota-map-preview relative z-0 overflow-hidden rounded-lg border border-ink/15 bg-[#02040a] ${showGlobe && globeReady && !globeSaindo ? 'rota-map-preview--globe' : ''} ${pickMode ? 'is-picking' : ''} ${className}`}
+        className={`rota-map-preview overflow-hidden rounded-lg border border-ink/15 bg-[#02040a] ${showGlobe && globeReady && !globeSaindo ? 'rota-map-preview--globe' : ''} ${pickMode ? 'is-picking' : ''} ${mapaCheio ? 'is-full' : 'relative z-0'} ${visaoCamada === 'sem-pedagio' ? 'is-hide-pedagio' : ''} ${visaoCamada === 'sem-rota' ? 'is-hide-rota' : ''} ${className}`}
       >
         <div ref={mapEl} className="rota-map-preview__map" />
         <div className="rota-map-topo" data-pdf-ignore>
+          <div className="rota-map-acoes">
+            <button
+              type="button"
+              className={mapaCheio ? 'is-on' : ''}
+              title={mapaCheio ? 'Sair da tela cheia (Esc)' : 'Ver mapa em tela cheia'}
+              aria-label={mapaCheio ? 'Sair da tela cheia' : 'Ver mapa em tela cheia'}
+              aria-pressed={mapaCheio}
+              onClick={() => setMapaCheio((v) => !v)}
+            >
+              {mapaCheio ? <Minimize2 size={18} strokeWidth={2.4} /> : <Maximize2 size={18} strokeWidth={2.4} />}
+            </button>
+            <button
+              type="button"
+              className={visaoCamada !== 'tudo' ? 'is-on' : ''}
+              title={visaoTitulo}
+              aria-label={visaoTitulo}
+              onClick={cicloVisaoCamada}
+            >
+              {visaoCamada === 'tudo' ? (
+                <Eye size={18} strokeWidth={2.4} />
+              ) : (
+                <EyeOff size={18} strokeWidth={2.4} />
+              )}
+            </button>
+          </div>
           <RotaMapaTipoPicker valor={vista} onChange={escolherVista} />
         </div>
         {mostrarSuporte ? <AjudaWhatsFabs origem={origem} destino={destino} /> : null}

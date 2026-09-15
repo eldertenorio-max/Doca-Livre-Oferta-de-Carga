@@ -119,6 +119,59 @@
   pointer-events: auto;
 }
 
+.rota-map-acoes {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+}
+
+.rota-map-acoes button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: rgb(15 23 42 / 0.82);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgb(0 0 0 / 0.28);
+}
+
+.rota-map-acoes button:hover {
+  background: #0f172a;
+  color: #ffb300;
+}
+
+.rota-map-acoes button.is-on {
+  background: #ffb300;
+  color: #0f172a;
+}
+
+.rota-map-preview.is-hide-pedagio .rota-map-pedagio,
+.rota-map-preview.is-hide-rota .rota-map-pedagio,
+.rota-map-preview.is-hide-rota .rota-map-linha {
+  display: none !important;
+}
+
+.rota-map-preview.is-full {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 3600 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+}
+
+html.rota-map-is-full .rota-pub .mapa-frota__lista {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .rota-map-ajuda {
   position: absolute;
   left: 10px;
