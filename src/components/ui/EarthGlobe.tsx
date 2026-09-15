@@ -20,13 +20,15 @@ const ZOOM_INICIAL = 2.45
 const ZOOM_MIN = 2.2
 const ZOOM_MAX = 19
 
-export type EarthGlobeVia = Coord & { n: number }
+export type EarthGlobeVia = Coord & { n: number; label?: string }
 
 type Props = {
   pickMode?: EarthGlobePick | null
   onPick?: (lat: number, lng: number) => void
   pontoA?: Coord | null
   pontoB?: Coord | null
+  labelA?: string
+  labelB?: string
   vias?: EarthGlobeVia[]
   /** Incrementa para mergulhar do espaço até o mapa. 0 = volta à órbita. */
   entrarId?: number
@@ -77,15 +79,25 @@ function zoomAlvo(pts: Coord[]): number {
   return 9.2
 }
 
-function criarPinEl(letra: string, cor: string) {
+function escHtml(s: string) {
+  return s.replace(/[&<>"']/g, (c) =>
+    c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '"' ? '&quot;' : '&#39;',
+  )
+}
+
+function criarPinEl(letra: string, cor: string, nome?: string) {
   const el = document.createElement('div')
   el.className = 'earth-globe__pin'
-  el.innerHTML = `<svg viewBox="0 0 32 42" width="30" height="39" aria-hidden="true">
+  const ref = (nome || '').trim() || letra
+  el.setAttribute('title', ref)
+  el.setAttribute('aria-label', ref)
+  el.innerHTML = `<span class="earth-globe__pin-tip">${escHtml(ref)}</span>
+    <svg viewBox="0 0 32 42" width="30" height="39" aria-hidden="true">
     <path d="M16 2C8.8 2 3 8 3 15.6c0 9.8 13 23.6 13 23.6s13-13.8 13-23.6C29 8 23.2 2 16 2z"
       fill="${cor}" stroke="#fff" stroke-width="2"/>
     <circle cx="16" cy="15.4" r="7.2" fill="#fff"/>
     <text x="16" y="19.4" text-anchor="middle" font-size="10.5" font-weight="800"
-      font-family="system-ui,sans-serif" fill="${cor}">${letra}</text>
+      font-family="system-ui,sans-serif" fill="${cor}">${escHtml(letra)}</text>
   </svg>`
   return el
 }
@@ -115,6 +127,8 @@ export function EarthGlobe({
   onPick,
   pontoA = null,
   pontoB = null,
+  labelA = '',
+  labelB = '',
   vias = [],
   entrarId = 0,
   saindo = false,
@@ -149,7 +163,7 @@ export function EarthGlobe({
   saindoRef.current = saindo
   const [mapaOk, setMapaOk] = useState(false)
   const [entrando, setEntrando] = useState(false)
-  const viasKey = vias.map((v) => `${v.n}:${v.lat}:${v.lng}`).join('|')
+  const viasKey = vias.map((v) => `${v.n}:${v.lat}:${v.lng}:${v.label ?? ''}`).join('|')
 
   function alvoAtual(): { center: [number, number]; zoom: number } {
     const pts = pontosAlvo(pontoARef.current, pontoBRef.current, viasRef.current)
@@ -324,7 +338,7 @@ export function EarthGlobe({
     if (pontoA) {
       const Marker = libRef.current?.Marker
       if (!Marker) return
-      markerARef.current = new Marker({ element: criarPinEl('A', '#15803d') })
+      markerARef.current = new Marker({ element: criarPinEl('A', '#15803d', labelA || 'Origem') })
         .setLngLat([pontoA.lng, pontoA.lat])
         .addTo(map)
     }
@@ -336,7 +350,7 @@ export function EarthGlobe({
     if (pontoB) {
       const Marker = libRef.current?.Marker
       if (!Marker) return
-      markerBRef.current = new Marker({ element: criarPinEl('B', '#dc2626') })
+      markerBRef.current = new Marker({ element: criarPinEl('B', '#dc2626', labelB || 'Destino') })
         .setLngLat([pontoB.lng, pontoB.lat])
         .addTo(map)
     }
@@ -347,12 +361,14 @@ export function EarthGlobe({
       const Marker = libRef.current?.Marker
       if (!Marker) break
       if (!Number.isFinite(via.lat) || !Number.isFinite(via.lng)) continue
-      const m = new Marker({ element: criarPinEl(String(via.n), '#2563eb') })
+      const m = new Marker({
+        element: criarPinEl(String(via.n), '#2563eb', via.label || `Passagem ${via.n}`),
+      })
         .setLngLat([via.lng, via.lat])
         .addTo(map)
       markersViaRef.current.push(m)
     }
-  }, [mapaOk, pontoA, pontoB, viasKey])
+  }, [mapaOk, pontoA, pontoB, labelA, labelB, viasKey])
 
   useEffect(() => {
     const map = mapRef.current

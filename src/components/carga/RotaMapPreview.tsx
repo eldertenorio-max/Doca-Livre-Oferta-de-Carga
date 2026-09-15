@@ -116,8 +116,10 @@ function desenharPinsConhecidos(
   if (coordsOk(opts.origemCoords)) {
     L.marker([opts.origemCoords.lat, opts.origemCoords.lng], {
       icon: origemIcon(),
-      title: `Origem: ${opts.origem}`,
-    }).addTo(layer)
+      title: opts.origem,
+    })
+      .bindTooltip(opts.origem.trim() || 'Origem', TIP_PONTO)
+      .addTo(layer)
     bounds.push([opts.origemCoords.lat, opts.origemCoords.lng])
   }
   for (const via of viasComCoord(opts.vias)) {
@@ -129,14 +131,17 @@ function desenharPinsConhecidos(
         `<div class="rota-map-popup"><p class="rota-map-popup__tit">Passagem ${via.n}</p><p>${escHtml(via.endereco)}</p></div>`,
         { className: 'rota-map-popup-wrap', maxWidth: 280 },
       )
+      .bindTooltip(via.endereco.trim() || `Passagem ${via.n}`, TIP_PONTO)
       .addTo(layer)
     bounds.push([via.lat, via.lng])
   }
   if (coordsOk(opts.destinoCoords)) {
     L.marker([opts.destinoCoords.lat, opts.destinoCoords.lng], {
       icon: destinoIcon(),
-      title: `Destino: ${opts.destino}`,
-    }).addTo(layer)
+      title: opts.destino,
+    })
+      .bindTooltip(opts.destino.trim() || 'Destino', TIP_PONTO)
+      .addTo(layer)
     bounds.push([opts.destinoCoords.lat, opts.destinoCoords.lng])
   }
   if (bounds.length === 1) {
@@ -169,6 +174,13 @@ function escHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) =>
     c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '"' ? '&quot;' : '&#39;',
   )
+}
+
+const TIP_PONTO = {
+  direction: 'top' as const,
+  offset: L.point(0, -36),
+  opacity: 0.96,
+  className: 'rota-map-ponto-tip',
 }
 
 function pinTeardrop(letra: string, fill: string, size = 34) {
@@ -641,8 +653,10 @@ export function RotaMapPreview({
           layer.clearLayers()
           L.marker([oCoords.lat, oCoords.lng], {
             icon: baseODestinoIcon(),
-            title: 'Origem e destino (retorno à base)',
-          }).addTo(layer)
+            title: o || 'Origem e destino',
+          })
+            .bindTooltip(o.trim() || 'Origem e destino', TIP_PONTO)
+            .addTo(layer)
           map.setView([oCoords.lat, oCoords.lng], 12, { animate: true, duration: 0.9 })
           window.setTimeout(() => map.invalidateSize(), 60)
           setMeta(null)
@@ -759,35 +773,38 @@ export function RotaMapPreview({
 
         L.marker([oCoords.lat, oCoords.lng], {
           icon: origemIcon(),
-          title: `Origem: ${o}`,
+          title: o,
         })
           .bindPopup(`<div class="rota-map-popup"><p class="rota-map-popup__tit">Origem</p><p>${escHtml(o)}</p></div>`, {
             className: 'rota-map-popup-wrap',
             maxWidth: 280,
           })
+          .bindTooltip(o.trim() || 'Origem', TIP_PONTO)
           .addTo(layer)
 
         viaCoords.forEach((c, idx) => {
           const viaNome = viasNorm[idx]?.endereco || `Ponto ${idx + 1}`
           L.marker([c.lat, c.lng], {
             icon: viaIcon(idx + 1),
-            title: `Passagem ${idx + 1}: ${viaNome}`,
+            title: viaNome,
           })
             .bindPopup(
               `<div class="rota-map-popup"><p class="rota-map-popup__tit">Passagem ${idx + 1}</p><p>${escHtml(viaNome)}</p></div>`,
               { className: 'rota-map-popup-wrap', maxWidth: 280 },
             )
+            .bindTooltip(viaNome, TIP_PONTO)
             .addTo(layer)
         })
 
         L.marker([dCoords.lat, dCoords.lng], {
           icon: destinoIcon(),
-          title: `Destino: ${d}`,
+          title: d,
         })
           .bindPopup(`<div class="rota-map-popup"><p class="rota-map-popup__tit">Destino</p><p>${escHtml(d)}</p></div>`, {
             className: 'rota-map-popup-wrap',
             maxWidth: 280,
           })
+          .bindTooltip(d.trim() || 'Destino', TIP_PONTO)
           .addTo(layer)
 
         const pracasMapa = [...ped.pracas]
@@ -822,7 +839,7 @@ export function RotaMapPreview({
               freeFlow: Boolean(p.free_flow),
               ordem: ordem || undefined,
             }),
-            title: `${ordem ? `${ordem}ª · ` : ''}${p.nome}: ${valorLabel}`,
+            title: p.nome,
             zIndexOffset: 200,
           })
             .bindPopup(
@@ -846,6 +863,7 @@ export function RotaMapPreview({
               }),
               { className: 'rota-map-popup-wrap', maxWidth: 300 },
             )
+            .bindTooltip(p.nome, TIP_PONTO)
             .addTo(layer)
         }
 
@@ -982,7 +1000,14 @@ export function RotaMapPreview({
             pickMode={pickMode}
             pontoA={coordsOk(origemCoords) ? origemCoords : null}
             pontoB={coordsOk(destinoCoords) ? destinoCoords : null}
-            vias={viasComCoord(viasNorm).map((v) => ({ lat: v.lat, lng: v.lng, n: v.n }))}
+            labelA={origem}
+            labelB={destino}
+            vias={viasComCoord(viasNorm).map((v) => ({
+              lat: v.lat,
+              lng: v.lng,
+              n: v.n,
+              label: v.endereco,
+            }))}
             entrarId={mergulhoId}
             saindo={globeSaindo}
             onReady={() => setGlobeReady(true)}
