@@ -1045,7 +1045,7 @@ export function RotaMapPreview({
         {status === 'idle' && !autoCalcular && !pickMode && mergulhoId < 1 ? (
           <div
             data-pdf-ignore
-            className="pointer-events-none absolute left-2 right-2 top-2 z-10 rounded-lg bg-black/50 px-3 py-2 text-center text-[11px] font-semibold text-white shadow-md"
+            className="pointer-events-none absolute left-1/2 top-2 z-10 w-max max-w-[min(92%,28rem)] -translate-x-1/2 rounded-lg bg-black/50 px-3 py-1.5 text-center text-[11px] font-semibold text-white shadow-md"
           >
             {msg}
           </div>
