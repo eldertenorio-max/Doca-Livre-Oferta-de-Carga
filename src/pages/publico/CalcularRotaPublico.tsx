@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, lazy, Suspense } from 'react'
+import { useEffect, useId, useRef, useState, lazy, Suspense, Fragment } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowUpDown,
@@ -793,8 +793,36 @@ export function CalcularRotaPublicoPage() {
               {formAberto ? (
                 <div className={`mapa-frota__search-body rota-pub__form${vias.length > 0 || rotasSalvas.length > 0 ? ' is-long' : ''}`}>
                   <div className="rota-pub__ab">
-                    <div className="rota-pub__rail">
-                      <span className="rota-pub__pin rota-pub__pin--a">A</span>
+                    <span className="rota-pub__pin rota-pub__pin--a">A</span>
+                    <div className="rota-pub__campo">
+                      <AddressSuggestInput
+                        value={origem}
+                        onChange={(v) => {
+                          setOrigem(v)
+                          setOrigemCoords(null)
+                        }}
+                        onPick={pickOrigem}
+                        placeholder="Origem"
+                        className="rota-pub__input"
+                      />
+                      <button
+                        type="button"
+                        className={`rota-pub__campo-btn${pickMode === 'A' ? ' is-on' : ''}`}
+                        title="Marcar origem (ponto A) no mapa"
+                        onClick={() => {
+                          pickSeq.current = false
+                          const next = pickMode === 'A' ? null : 'A'
+                          setPickMode(next)
+                          if (next) {
+                            setShowResultado(false)
+                            setFormAberto(false)
+                          }
+                        }}
+                      >
+                        <MapPin size={15} />
+                      </button>
+                    </div>
+                    <div className="rota-pub__join">
                       <span className="rota-pub__dots" />
                       <button
                         type="button"
@@ -804,46 +832,17 @@ export function CalcularRotaPublicoPage() {
                       >
                         <ArrowUpDown size={14} />
                       </button>
-                      {vias.map((via, idx) => (
-                        <span key={via.id} className="rota-pub__rail-via">
-                          <span className="rota-pub__dots" />
-                          <span className="rota-pub__pin rota-pub__pin--via">{idx + 1}</span>
-                        </span>
-                      ))}
                       <span className="rota-pub__dots" />
-                      <span className="rota-pub__pin rota-pub__pin--b">B</span>
                     </div>
-                    <div className="rota-pub__ab-fields">
-                      <div className="rota-pub__campo">
-                        <AddressSuggestInput
-                          value={origem}
-                          onChange={(v) => {
-                            setOrigem(v)
-                            setOrigemCoords(null)
-                          }}
-                          onPick={pickOrigem}
-                          placeholder="Origem"
-                          className="rota-pub__input"
-                        />
-                        <button
-                          type="button"
-                          className={`rota-pub__campo-btn${pickMode === 'A' ? ' is-on' : ''}`}
-                          title="Marcar origem (ponto A) no mapa"
-                          onClick={() => {
-                            pickSeq.current = false
-                            const next = pickMode === 'A' ? null : 'A'
-                            setPickMode(next)
-                            if (next) {
-                              setShowResultado(false)
-                              setFormAberto(false)
-                            }
-                          }}
-                        >
-                          <MapPin size={15} />
-                        </button>
-                      </div>
-                      {vias.map((via, idx) => (
-                        <div key={via.id} className="rota-pub__via">
+                    {vias.map((via, idx) => (
+                      <Fragment key={via.id}>
+                        {idx > 0 ? (
+                          <div className="rota-pub__join">
+                            <span className="rota-pub__dots" />
+                          </div>
+                        ) : null}
+                        <span className="rota-pub__pin rota-pub__pin--via">{idx + 1}</span>
+                        <div className="rota-pub__via">
                           <div className="rota-pub__campo">
                             <AddressSuggestInput
                               value={via.endereco}
@@ -901,43 +900,49 @@ export function CalcularRotaPublicoPage() {
                             ×
                           </button>
                         </div>
-                      ))}
-                      <div className="rota-pub__campo">
-                        <AddressSuggestInput
-                          value={destino}
-                          onChange={(v) => {
-                            setDestino(v)
-                            setDestinoCoords(null)
-                          }}
-                          onPick={pickDestino}
-                          placeholder="Destino"
-                          className="rota-pub__input"
-                        />
-                        <button
-                          type="button"
-                          className={`rota-pub__campo-btn${pickMode === 'B' ? ' is-on' : ''}`}
-                          title="Marcar destino (ponto B) no mapa"
-                          onClick={() => {
-                            pickSeq.current = false
-                            const next = pickMode === 'B' ? null : 'B'
-                            setPickMode(next)
-                            if (next) {
-                              setShowResultado(false)
-                              setFormAberto(false)
-                            }
-                          }}
-                        >
-                          <MapPin size={15} />
-                        </button>
-                        <button
-                          type="button"
-                          className="rota-pub__campo-btn"
-                          title="Adicionar ponto de passagem"
-                          onClick={() => setVias((lista) => [...lista, novaVia()])}
-                        >
-                          <Plus size={16} />
-                        </button>
+                      </Fragment>
+                    ))}
+                    {vias.length > 0 ? (
+                      <div className="rota-pub__join">
+                        <span className="rota-pub__dots" />
                       </div>
+                    ) : null}
+                    <span className="rota-pub__pin rota-pub__pin--b">B</span>
+                    <div className="rota-pub__campo">
+                      <AddressSuggestInput
+                        value={destino}
+                        onChange={(v) => {
+                          setDestino(v)
+                          setDestinoCoords(null)
+                        }}
+                        onPick={pickDestino}
+                        placeholder="Destino"
+                        className="rota-pub__input"
+                      />
+                      <button
+                        type="button"
+                        className={`rota-pub__campo-btn${pickMode === 'B' ? ' is-on' : ''}`}
+                        title="Marcar destino (ponto B) no mapa"
+                        onClick={() => {
+                          pickSeq.current = false
+                          const next = pickMode === 'B' ? null : 'B'
+                          setPickMode(next)
+                          if (next) {
+                            setShowResultado(false)
+                            setFormAberto(false)
+                          }
+                        }}
+                      >
+                        <MapPin size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        className="rota-pub__campo-btn"
+                        title="Adicionar ponto de passagem"
+                        onClick={() => setVias((lista) => [...lista, novaVia()])}
+                      >
+                        <Plus size={16} />
+                      </button>
                     </div>
                   </div>
 

@@ -338,8 +338,35 @@
 .rota-pub__ab {
   display: grid;
   grid-template-columns: 28px 1fr;
-  gap: 8px;
-  align-items: stretch;
+  column-gap: 8px;
+  row-gap: 0;
+  align-items: center;
+}
+
+.rota-pub__ab > .rota-pub__pin {
+  grid-column: 1;
+  justify-self: center;
+}
+
+.rota-pub__ab > .rota-pub__join {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-height: 28px;
+  padding: 1px 0;
+}
+
+.rota-pub__ab > .rota-pub__campo,
+.rota-pub__ab > .rota-pub__via {
+  grid-column: 2;
+}
+
+.rota-pub__join .rota-pub__dots {
+  flex: 1;
+  min-height: 6px;
 }
 
 .rota-pub__rail {
