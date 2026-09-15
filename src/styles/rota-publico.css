@@ -66,14 +66,14 @@
   position: absolute;
   left: 10px;
   top: 10px;
-  bottom: auto;
-  max-height: calc(100% - 20px);
+  bottom: 10px;
+  max-height: none;
   z-index: 20;
   display: flex;
   flex-direction: column;
   width: min(392px, calc(100% - 20px));
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
   max-width: 100%;
   min-width: 0;
   border: 0;
@@ -87,22 +87,23 @@
 
 .rota-pub.mapa-pub .mapa-frota__search,
 .rota-pub .mapa-frota__search {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
   background: transparent;
   border-bottom: 0;
   padding: 2px 8px 8px;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .rota-pub.mapa-pub .mapa-frota__search-body,
 .rota-pub .mapa-frota__search-body,
 .rota-pub .mapa-frota__search-body.rota-pub__form {
-  flex: none;
+  flex: 1 1 auto;
   min-height: 0;
-  overflow: visible;
+  overflow-x: hidden;
+  overflow-y: auto;
   gap: var(--rp-gap);
   padding-bottom: 4px;
   max-width: 100%;
@@ -228,6 +229,48 @@
   line-height: 1.1;
   letter-spacing: -0.03em;
   min-width: 0;
+}
+
+.rota-pub__hero-tit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.rota-pub__beneficios {
+  display: inline-flex;
+  margin: 0;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 999px;
+  background: #f9db00;
+  color: #111;
+  font: inherit;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.rota-pub__beneficios:hover {
+  background: #ffe34d;
+}
+
+.rota-pub__badge {
+  display: inline-flex;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f9db00;
+  color: #111;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .rota-pub__card-top {
@@ -1341,8 +1384,8 @@
   .rota-pub .mapa-frota__lista.rota-pub__panel {
     left: 8px;
     top: 8px;
-    bottom: auto;
-    max-height: calc(100% - 16px);
+    bottom: 8px;
+    max-height: none;
     width: min(392px, calc(100% - 16px));
   }
 
