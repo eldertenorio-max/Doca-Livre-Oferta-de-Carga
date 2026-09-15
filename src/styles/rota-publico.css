@@ -125,17 +125,18 @@
 .rota-pub .mapa-frota__search-body.rota-pub__form > .rota-pub__prefs {
   flex: 1 1 auto;
   align-content: stretch;
-  min-height: 38px;
+  min-height: 34px;
+  max-height: 46px;
 }
 
 .rota-pub__hero {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
   flex-shrink: 0;
-  padding: 8px 12px 6px;
+  padding: 12px 14px 10px;
   background:
     linear-gradient(135deg, #111111 0%, #1a1a1a 55%, #2a2400 100%);
   color: #fff;
@@ -151,7 +152,7 @@
 
 .rota-pub__kicker {
   margin: 0;
-  font-size: 0.64rem;
+  font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -242,7 +243,7 @@
 
 .rota-pub__hero h1 {
   margin: 0;
-  font-size: clamp(1.2rem, 2.4dvh, 1.48rem);
+  font-size: clamp(1.38rem, 3dvh, 1.7rem);
   font-weight: 900;
   line-height: 1.05;
   letter-spacing: -0.045em;
@@ -261,13 +262,13 @@
   display: inline-flex;
   align-self: flex-start;
   margin: 0;
-  padding: 4px 10px;
+  padding: 6px 12px;
   border: 0;
   border-radius: 999px;
   background: #f9db00;
   color: #111;
   font: inherit;
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.01em;
   cursor: pointer;
@@ -281,11 +282,11 @@
 .rota-pub__badge {
   display: inline-flex;
   margin: 0;
-  padding: 5px 10px;
+  padding: 6px 12px;
   border-radius: 999px;
   background: #f9db00;
   color: #111;
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.01em;
   white-space: nowrap;
@@ -980,15 +981,15 @@
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  min-height: 38px;
+  gap: 4px;
+  min-height: 34px;
   height: 100%;
   border: 1px solid #e8edf3;
   background: #f8fafc;
   border-radius: 12px;
-  padding: 8px 6px;
+  padding: 5px 4px;
   font: inherit;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 800;
   color: #64748b;
   cursor: pointer;
