@@ -555,21 +555,28 @@ async function fetchValhallaRoute(
   const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null
   const timer = ctrl ? setTimeout(() => ctrl.abort(), 12000) : 0
   try {
-    const res = await fetch(VALHALLA_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: ctrl?.signal,
-      body: JSON.stringify({
-        locations: pontos.map((p) => ({ lat: p.lat, lon: p.lng })),
-        costing,
-        costing_options: {
-          [costing]: { use_tolls: opts.useTolls, use_highways: 1 },
-        },
-        exclude_polygons: [EXCLUDE_RODOANEL_NORTE_TRECHO2],
-        shape_format: 'polyline6',
-        units: 'kilometers',
-      }),
-    })
+    const body = {
+      locations: pontos.map((p) => ({ lat: p.lat, lon: p.lng })),
+      costing,
+      costing_options: {
+        [costing]: { use_tolls: opts.useTolls, use_highways: 1 },
+      },
+      exclude_polygons: [EXCLUDE_RODOANEL_NORTE_TRECHO2],
+      shape_format: 'polyline6' as const,
+      units: 'kilometers',
+    }
+    const pedir = (payload: typeof body) =>
+      fetch(VALHALLA_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: ctrl?.signal,
+        body: JSON.stringify(payload),
+      })
+    let res = await pedir(body)
+    if (!res.ok && res.status === 400) {
+      const { exclude_polygons: _drop, ...semExclude } = body
+      res = await pedir(semExclude as typeof body)
+    }
     if (!res.ok) return null
     const data = (await res.json()) as {
       trip?: {
