@@ -60,9 +60,9 @@
 
 .rota-pub.mapa-pub .mapa-frota__lista.rota-pub__panel,
 .rota-pub .mapa-frota__lista.rota-pub__panel {
-  --rp-gap: clamp(8px, 1.6dvh, 14px);
-  --rp-ctrl: clamp(42px, 5.4dvh, 50px);
-  --rp-block: clamp(54px, 7.2dvh, 70px);
+  --rp-gap: clamp(4px, 0.9dvh, 8px);
+  --rp-ctrl: clamp(36px, 4.5dvh, 42px);
+  --rp-block: clamp(44px, 5.6dvh, 56px);
   position: absolute;
   left: 10px;
   top: 10px;
@@ -93,7 +93,7 @@
   flex-direction: column;
   background: transparent;
   border-bottom: 0;
-  padding: 6px 12px 12px;
+  padding: 4px 10px 8px;
   overflow: hidden;
 }
 
@@ -105,7 +105,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   gap: var(--rp-gap);
-  padding-bottom: 8px;
+  padding-bottom: 2px;
   max-width: 100%;
   min-width: 0;
 }
@@ -122,10 +122,10 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 8px;
+  gap: 5px;
   min-width: 0;
   flex-shrink: 0;
-  padding: 14px 16px 12px;
+  padding: 10px 14px 8px;
   background:
     linear-gradient(135deg, #111111 0%, #1a1a1a 55%, #2a2400 100%);
   color: #fff;
@@ -141,7 +141,7 @@
 
 .rota-pub__kicker {
   margin: 0;
-  font-size: 0.7rem;
+  font-size: 0.64rem;
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -152,12 +152,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 7px;
   flex-shrink: 0;
-  margin: 10px 12px 4px;
-  padding: 8px 14px;
-  min-height: 42px;
-  font-size: 0.92rem;
+  margin: 6px 12px 2px;
+  padding: 5px 12px;
+  min-height: 34px;
+  font-size: 0.84rem;
   font-weight: 800;
   letter-spacing: -0.01em;
   color: #111;
@@ -232,7 +232,7 @@
 
 .rota-pub__hero h1 {
   margin: 0;
-  font-size: clamp(1.55rem, 3.6dvh, 1.95rem);
+  font-size: clamp(1.32rem, 2.8dvh, 1.62rem);
   font-weight: 900;
   line-height: 1.05;
   letter-spacing: -0.045em;
@@ -251,13 +251,13 @@
   display: inline-flex;
   align-self: flex-start;
   margin: 0;
-  padding: 6px 12px;
+  padding: 4px 10px;
   border: 0;
   border-radius: 999px;
   background: #f9db00;
   color: #111;
   font: inherit;
-  font-size: 0.74rem;
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.01em;
   cursor: pointer;
@@ -271,11 +271,11 @@
 .rota-pub__badge {
   display: inline-flex;
   margin: 0;
-  padding: 6px 12px;
+  padding: 5px 10px;
   border-radius: 999px;
   background: #f9db00;
   color: #111;
-  font-size: 0.74rem;
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.01em;
   white-space: nowrap;
@@ -295,7 +295,7 @@
 }
 
 .rota-pub .mapa-frota__cats-title {
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   letter-spacing: 0.08em;
   color: #64748b;
 }
@@ -303,8 +303,8 @@
 .rota-pub__reset {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border: 0;
   border-radius: 10px;
   background: #fff7ed;
@@ -363,8 +363,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  min-height: 32px;
+  width: 28px;
+  min-height: 22px;
   padding: 1px 0;
 }
 
@@ -731,9 +731,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
-  height: var(--rp-block, 56px);
+  height: var(--rp-block, 48px);
   border: 1px solid #e8edf3;
   border-radius: 12px;
   background: #f8fafc;
@@ -742,8 +742,8 @@
 }
 
 .rota-pub__tipo svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
 }
 
 .rota-pub__tipo small {
@@ -971,14 +971,14 @@
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  min-height: 42px;
+  gap: 4px;
+  min-height: 36px;
   border: 1px solid #e8edf3;
   background: #f8fafc;
   border-radius: 12px;
-  padding: 6px 4px;
+  padding: 4px 4px;
   font: inherit;
-  font-size: 0.66rem;
+  font-size: 0.62rem;
   font-weight: 800;
   color: #64748b;
   cursor: pointer;
@@ -1005,17 +1005,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
   margin-top: auto;
   border: 0;
-  border-radius: 16px;
+  border-radius: 14px;
   background: #111;
   color: #f9db00;
-  padding: 14px 12px;
-  min-height: 52px;
+  padding: 10px 12px;
+  min-height: 44px;
   font: inherit;
-  font-size: 0.92rem;
+  font-size: 0.84rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
