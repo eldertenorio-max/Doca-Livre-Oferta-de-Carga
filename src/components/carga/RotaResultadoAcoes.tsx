@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { Check, FileSpreadsheet, FileText, Save, Share2 } from 'lucide-react'
 import {
   copiarOuCompartilharRota,
@@ -9,7 +10,7 @@ import {
   type RotaResultadoPayload,
   type RotaSalvaLocal,
 } from '../../lib/rotaResultadoAcoes'
-import { abrirRelatorioRota } from '../../lib/rotaRelatorioHtml'
+import { montarHtmlRelatorioRota } from '../../lib/rotaRelatorioHtml'
 import type { Profile, Rota } from '../../types'
 import { LinkSistema } from '../ui/HostLink'
 import { WhatsAppIconOnGreen } from '../ui/WhatsAppIcon'
@@ -119,8 +120,23 @@ export function RotaResultadoAcoes(props: Props) {
   const rotas = props.conta?.rotas ?? []
   const salvarRota = props.conta?.salvarRota
   const [msg, setMsg] = useState<{ texto: string; erro?: boolean; login?: boolean } | null>(null)
-  const [busy, setBusy] = useState<'relatorio' | 'share' | 'salvar' | null>(null)
+  const [busy, setBusy] = useState<'share' | 'salvar' | null>(null)
   const [salvaOk, setSalvaOk] = useState(false)
+  const [relatorioHtml, setRelatorioHtml] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!relatorioHtml) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setRelatorioHtml(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prev
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [relatorioHtml])
 
   const payload: RotaResultadoPayload = {
     origem: props.origem,
@@ -210,16 +226,9 @@ export function RotaResultadoAcoes(props: Props) {
     }
   }
 
-  async function relatorio() {
-    setBusy('relatorio')
-    try {
-      await abrirRelatorioRota(payload)
-      avisar('Relatório aberto. Marque o que imprimir ou salvar como PDF.')
-    } catch {
-      avisar('Não foi possível abrir o relatório.', { erro: true })
-    } finally {
-      setBusy(null)
-    }
+  function relatorio() {
+    setRelatorioHtml(montarHtmlRelatorioRota(payload))
+    avisar('Marque o que quer ver, imprimir ou salvar como PDF.')
   }
 
   async function compartilhar() {
@@ -273,8 +282,7 @@ export function RotaResultadoAcoes(props: Props) {
           className="rota-resultado-acoes__btn rota-resultado-acoes__btn--pdf"
           title="Relatório: escolher seções, imprimir ou salvar PDF"
           aria-label="Relatório: escolher seções, imprimir ou salvar PDF"
-          disabled={busy === 'relatorio'}
-          onClick={() => void relatorio()}
+          onClick={() => relatorio()}
         >
           <FileText size={26} strokeWidth={2.1} />
         </button>
@@ -299,6 +307,20 @@ export function RotaResultadoAcoes(props: Props) {
           ) : null}
         </p>
       ) : null}
+      {relatorioHtml
+        ? createPortal(
+            <div className="rota-relatorio-overlay" role="dialog" aria-modal="true" aria-label="Relatório da rota">
+              <div className="rota-relatorio-overlay__top">
+                <strong>Relatório da rota</strong>
+                <button type="button" onClick={() => setRelatorioHtml(null)}>
+                  Fechar
+                </button>
+              </div>
+              <iframe className="rota-relatorio-overlay__frame" title="Relatório da rota" srcDoc={relatorioHtml} />
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }

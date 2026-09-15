@@ -199,6 +199,40 @@ export async function gerarPdfRelatorioRota(p: RotaResultadoPayload): Promise<{
     })
   }
 
+  y += 20
+  if (y > 700) {
+    doc.addPage()
+    y = 48
+  }
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(12)
+  doc.setTextColor(...COR_PRETO)
+  doc.text('Rotograma', marginX, y)
+  y += 16
+  const rotograma: string[] = [`A  Origem — ${p.origem || '—'}`]
+  ;(p.vias ?? []).forEach((v, i) => {
+    if (v.endereco.trim()) rotograma.push(`${i + 1}  Passagem — ${v.endereco}`)
+  })
+  pracas.forEach((pr, i) => {
+    const rod = [pr.rodovia, (pr.uf || '').toUpperCase()].filter(Boolean).join('/')
+    const km = pr.km_ate != null ? `${pr.km_ate.toLocaleString('pt-BR')} km` : ''
+    const det = [rod || null, km || null].filter(Boolean).join(' · ')
+    rotograma.push(`${pr.ordem ?? i + 1}ª  ${pr.nome}${det ? ` (${det})` : ''}`)
+  })
+  rotograma.push(`B  Destino — ${p.destino || '—'}`)
+  rotograma.forEach((linha) => {
+    if (y > 770) {
+      doc.addPage()
+      y = 48
+    }
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.setTextColor(...COR_TEXTO)
+    const wrap = doc.splitTextToSize(linha, maxW) as string[]
+    doc.text(wrap, marginX, y)
+    y += Math.max(15, wrap.length * 13)
+  })
+
   y += 18
   if (y > 760) {
     doc.addPage()

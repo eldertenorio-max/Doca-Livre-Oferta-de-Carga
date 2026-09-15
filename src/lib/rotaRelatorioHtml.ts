@@ -247,14 +247,23 @@ export function montarHtmlRelatorioRota(p: RotaResultadoPayload): string {
           })
           .join('')}</tbody><tfoot><tr><td colspan="7">Total (${pracas.length})</td><td>${esc(formatCurrency(r.pedagio))}</td></tr></tfoot></table>`
 
-  const rotogramaItens = [
-    `<li><b>A</b> ${esc(p.origem || 'Origem')}</li>`,
-    ...vias.map((v, i) => `<li><b>${i + 1}</b> ${esc(v.endereco)}</li>`),
-    `<li><b>B</b> ${esc(p.destino || 'Destino')}</li>`,
+  const rotogramaItens: string[] = [
+    `<li class="roto-cid"><span>A</span><div><b>Origem</b><strong>${esc(p.origem || '—')}</strong></div></li>`,
+    ...vias.map(
+      (v, i) =>
+        `<li class="roto-cid"><span>${i + 1}</span><div><b>Passagem</b><strong>${esc(v.endereco)}</strong></div></li>`,
+    ),
+    ...pracas.map((pr, i) => {
+      const rod = [pr.rodovia, (pr.uf || '').toUpperCase()].filter(Boolean).join('/')
+      const km = pr.km_ate != null ? `${pr.km_ate.toLocaleString('pt-BR')} km` : ''
+      const det = [rod || null, km || null].filter(Boolean).join(' · ')
+      return `<li class="roto-via"><span>P${pr.ordem ?? i + 1}</span><div><b>${esc(det || 'Trecho')}</b><strong>${esc(pr.nome)}</strong></div></li>`
+    }),
+    `<li class="roto-cid"><span>B</span><div><b>Destino</b><strong>${esc(p.destino || '—')}</strong></div></li>`,
   ]
   const rotogramaRod = rods.length
-    ? `<p class="sub">Rodovias nas praças</p><ol class="rotograma">${rods.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>`
-    : `<p class="vazio">Sem nomes de rodovia nas praças desta rota.</p>`
+    ? `<p class="sub">Rodovias no trecho</p><ul class="chips">${rods.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`
+    : ''
 
   const conces = Array.from(
     new Set(pracas.map((pr) => (pr.concessionaria || '').trim()).filter(Boolean)),
@@ -283,19 +292,20 @@ export function montarHtmlRelatorioRota(p: RotaResultadoPayload): string {
     :root { color-scheme: light; }
     * { box-sizing: border-box; }
     body { margin: 0; font: 15px/1.45 system-ui, Segoe UI, sans-serif; color: #171717; background: #fff; }
-    .hero { padding: 18px 22px 14px; background: #111; color: #fff; }
-    .hero img { height: 28px; }
-    .hero p { margin: 10px 0 0; color: #f9db00; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-    .hero h1 { margin: 6px 0 0; font-size: 28px; letter-spacing: -.03em; }
-    .hero small { display: block; margin-top: 6px; color: #cbd5e1; font-size: 12px; }
-    .bar { position: sticky; top: 0; z-index: 5; padding: 12px 18px 16px; background: #fff; border-bottom: 1px solid #e5e7eb; }
-    .bar b { margin-right: 8px; }
-    .checks { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
-    .checks label { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; cursor: pointer; user-select: none; }
-    .atalhos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .faixa { height: 8px; background: #f9db00; }
+    .hero { padding: 18px 22px 10px; background: #fff; }
+    .hero img { height: 32px; }
+    .hero h1 { margin: 10px 0 0; font-size: 22px; letter-spacing: -.03em; }
+    .hero small { display: block; margin-top: 4px; color: #6e7076; font-size: 12px; }
+    .bar { position: sticky; top: 0; z-index: 5; padding: 10px 18px 14px; background: #fff; border-bottom: 1px solid #e5e7eb; }
+    .bar b { margin-right: 8px; color: #111; }
+    .checks { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
+    .checks label { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: #111; cursor: pointer; user-select: none; }
+    .checks input { width: 15px; height: 15px; accent-color: #111; }
+    .atalhos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
     .atalhos button { border: 0; background: none; color: #334155; font: inherit; font-size: 12px; font-weight: 700; text-decoration: underline; cursor: pointer; padding: 0; }
-    .acoes { display: flex; gap: 8px; margin-top: 12px; }
-    .acoes button { flex: 1; min-height: 42px; border: 0; border-radius: 8px; background: #2f3540; color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+    .acoes { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    .acoes button { width: 100%; min-height: 42px; border: 0; border-radius: 8px; background: #2f3540; color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
     .acoes button.sec { background: #111; color: #f9db00; }
     .dica { margin: 8px 0 0; color: #64748b; font-size: 12px; }
     main { padding: 18px 22px 40px; max-width: 960px; }
@@ -317,6 +327,12 @@ export function montarHtmlRelatorioRota(p: RotaResultadoPayload): string {
     .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
     .chips li { padding: 6px 10px; border-radius: 999px; background: #f1f5f9; font-size: 13px; }
     .rotograma { margin: 0; padding-left: 18px; }
+    .roto { list-style: none; margin: 0; padding: 0; }
+    .roto li { display: grid; grid-template-columns: 42px 1fr; gap: 10px; align-items: start; padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+    .roto li span { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 999px; background: #0f172a; color: #fff; font-size: 11px; font-weight: 800; }
+    .roto li.roto-via span { background: #1d4ed8; }
+    .roto li b { display: block; color: #64748b; font-size: 11px; text-transform: uppercase; }
+    .roto li strong { font-size: 14px; }
     .vazio { color: #64748b; }
     .mapa-svg { width: 100%; height: auto; border-radius: 12px; border: 1px solid #e2e8f0; }
     .mapa-osm { width: 100%; height: 360px; border: 1px solid #e2e8f0; border-radius: 12px; margin-top: 10px; }
@@ -329,18 +345,18 @@ export function montarHtmlRelatorioRota(p: RotaResultadoPayload): string {
     }
     @media print {
       .no-print { display: none !important; }
-      .hero { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .faixa, .hero, .roto li span { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       a { color: inherit; text-decoration: none; }
       table { font-size: 11px; }
     }
   </style>
 </head>
 <body>
+  <div class="faixa"></div>
   <header class="hero">
     <img src="${esc(logoAbsoluto())}" alt="Doca Livre" />
-    <p>Pedágio · km · combustível</p>
     <h1>Relatório da rota</h1>
-    <small>${esc(p.origem)} → ${esc(p.destino)} · ${esc(agora)}</small>
+    <small>Gerado em ${esc(agora)} · Oferta de Carga</small>
   </header>
   <div class="bar no-print">
     <div class="checks">
@@ -424,7 +440,7 @@ export function montarHtmlRelatorioRota(p: RotaResultadoPayload): string {
     </section>
     <section id="sec-rotograma">
       <h2>Rotograma</h2>
-      <ol class="rotograma">${rotogramaItens.join('')}</ol>
+      <ol class="roto">${rotogramaItens.join('')}</ol>
       ${rotogramaRod}
     </section>
     <section id="sec-vale">
@@ -502,17 +518,5 @@ export function montarHtmlRelatorioRota(p: RotaResultadoPayload): string {
 }
 
 export function abrirRelatorioRota(p: RotaResultadoPayload) {
-  const html = montarHtmlRelatorioRota(p)
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const win = window.open(url, '_blank')
-  if (!win) {
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'relatorio-rota.html'
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    window.setTimeout(() => URL.revokeObjectURL(url), 30_000)
-  }
+  return montarHtmlRelatorioRota(p)
 }
