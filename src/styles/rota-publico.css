@@ -66,14 +66,15 @@
   position: absolute;
   left: 10px;
   top: 10px;
-  bottom: 10px;
-  max-height: none;
+  bottom: auto;
+  height: auto;
+  max-height: calc(100% - 20px);
   z-index: 20;
   display: flex;
   flex-direction: column;
   width: min(392px, calc(100% - 20px));
   overflow-x: hidden;
-  overflow-y: hidden;
+  overflow-y: auto;
   max-width: 100%;
   min-width: 0;
   border: 0;
@@ -87,23 +88,22 @@
 
 .rota-pub.mapa-pub .mapa-frota__search,
 .rota-pub .mapa-frota__search {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
   background: transparent;
   border-bottom: 0;
   padding: 2px 8px 8px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .rota-pub.mapa-pub .mapa-frota__search-body,
 .rota-pub .mapa-frota__search-body,
 .rota-pub .mapa-frota__search-body.rota-pub__form {
-  flex: 1 1 auto;
+  flex: none;
   min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: visible;
   gap: var(--rp-gap);
   padding-bottom: 4px;
   max-width: 100%;
@@ -1384,8 +1384,9 @@
   .rota-pub .mapa-frota__lista.rota-pub__panel {
     left: 8px;
     top: 8px;
-    bottom: 8px;
-    max-height: none;
+    bottom: auto;
+    height: auto;
+    max-height: calc(100% - 16px);
     width: min(392px, calc(100% - 16px));
   }
 
