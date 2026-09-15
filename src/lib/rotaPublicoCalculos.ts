@@ -1,10 +1,16 @@
-import { type EstadoBuscasPublicas } from './mapaPublicoBuscas'
 import { ritmoPublicoOk } from './publicoProtecao'
 import { isLocalDev } from './siteOfertaDeCarga'
+import { creditosRotaPublico, consumirCreditoRotaPublico } from './rotaPublicoCreditos'
 
 const STORAGE_KEY = 'doca-rota-publico-calculos-v1'
 const LIMITE = 2
-const ILIMITADO = { usadas: 0, restam: LIMITE, esgotado: false } as const
+const ILIMITADO = {
+  usadas: 0,
+  restamGratis: LIMITE,
+  creditos: 0,
+  restam: LIMITE,
+  esgotado: false,
+} as const
 
 /** Caminho do laboratório (não aparece no site público). */
 export const ROTA_LAB_PATH = '/diego-lab'
@@ -71,30 +77,45 @@ function gravarLocal(reg: Registro) {
   }
 }
 
-function estadoDeRegistro(reg: Registro): EstadoBuscasPublicas {
-  const usadas = Math.min(LIMITE, Math.max(0, reg.n))
-  const restam = Math.max(0, LIMITE - usadas)
-  return { usadas, restam, esgotado: restam <= 0 }
+export type EstadoCalculosPublicos = {
+  usadas: number
+  restamGratis: number
+  creditos: number
+  restam: number
+  esgotado: boolean
 }
 
-export function estadoCalculosPublicos(): EstadoBuscasPublicas {
+function estadoDeRegistro(reg: Registro): EstadoCalculosPublicos {
+  const usadas = Math.min(LIMITE, Math.max(0, reg.n))
+  const restamGratis = Math.max(0, LIMITE - usadas)
+  const creditos = creditosRotaPublico()
+  const restam = restamGratis + creditos
+  return { usadas, restamGratis, creditos, restam, esgotado: restam <= 0 }
+}
+
+export function estadoCalculosPublicos(): EstadoCalculosPublicos {
   if (isRotaPublicoIlimitado()) return { ...ILIMITADO }
   return estadoDeRegistro(lerLocal())
 }
 
-export async function consultarEstadoCalculosPublicos(): Promise<EstadoBuscasPublicas> {
+export async function consultarEstadoCalculosPublicos(): Promise<EstadoCalculosPublicos> {
   return estadoCalculosPublicos()
 }
 
-/** Consome 1 cálculo (cota no aparelho). */
-export async function registrarCalculoPublico(): Promise<EstadoBuscasPublicas & { ok: boolean }> {
+/** Consome 1 cálculo: primeiro as 2 grátis do dia, depois créditos PIX. */
+export async function registrarCalculoPublico(): Promise<EstadoCalculosPublicos & { ok: boolean }> {
   if (isRotaPublicoIlimitado()) return { ok: true, ...ILIMITADO }
   if (!ritmoPublicoOk()) {
-    return { ok: false, usadas: LIMITE, restam: 0, esgotado: true }
+    return { ok: false, ...estadoDeRegistro(lerLocal()) }
   }
   const local = lerLocal()
-  if (local.n >= LIMITE) return { ok: false, usadas: LIMITE, restam: 0, esgotado: true }
-  const n = local.n + 1
-  gravarLocal({ n, dia: diaBrasil() })
-  return { ok: true, usadas: n, restam: Math.max(0, LIMITE - n), esgotado: n >= LIMITE }
+  if (local.n < LIMITE) {
+    const n = local.n + 1
+    gravarLocal({ n, dia: diaBrasil() })
+    return { ok: true, ...estadoDeRegistro({ n, dia: diaBrasil() }) }
+  }
+  if (consumirCreditoRotaPublico()) {
+    return { ok: true, ...estadoDeRegistro(local) }
+  }
+  return { ok: false, ...estadoDeRegistro(local) }
 }

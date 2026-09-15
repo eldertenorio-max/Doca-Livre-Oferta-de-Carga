@@ -43,6 +43,7 @@ import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
 import { MapaFrotaAjuda } from '../../components/mapa/MapaFrotaAjuda'
 import { RotaResultadoAcoes, RotaFaleConosco } from '../../components/carga/RotaResultadoAcoes'
 import { RotaMapErroBoundary } from '../../components/carga/RotaMapErroBoundary'
+import { RotaPaywallModal } from '../../components/carga/RotaPaywallModal'
 import type { SugestaoEndereco } from '../../lib/geocodeEndereco'
 import { geocodificarConsulta, labelPorCoordenadas } from '../../lib/geocodeEndereco'
 import {
@@ -51,6 +52,7 @@ import {
   isRotaPublicoIlimitado,
   registrarCalculoPublico,
   ROTA_PUBLICO_LIMITE_CALCULOS,
+  type EstadoCalculosPublicos,
 } from '../../lib/rotaPublicoCalculos'
 import { lerRotaDaUrl, sincronizarBarraEndereco } from '../../lib/rotaShareUrl'
 import {
@@ -67,49 +69,6 @@ const RotaMapPreview = lazy(() =>
     default: m.RotaMapPreview,
   })),
 )
-
-const PLANOS_PUBLICOS = [
-  {
-    id: 'motorista',
-    nome: 'Motorista',
-    preco: 'R$ 49',
-    periodo: '/mês',
-    extra: 'ou R$ 14,90 /semana',
-    para: 'Caminhoneiro e transportador',
-    itens: ['Rotas ilimitadas', 'Mapa da frota', 'Perfil no sistema'],
-    destaque: false,
-  },
-  {
-    id: 'start',
-    nome: 'Embarcador Start',
-    preco: 'R$ 197',
-    periodo: '/mês',
-    extra: '2 usuários',
-    para: 'Empresa pequena',
-    itens: ['Publicar cargas', 'Rotas ilimitadas', 'WhatsApp e placa da frota'],
-    destaque: true,
-  },
-  {
-    id: 'pro',
-    nome: 'Embarcador Pro',
-    preco: 'R$ 397',
-    periodo: '/mês',
-    extra: '5 usuários',
-    para: 'Operação com time',
-    itens: ['Tudo do Start', 'Malha logística', 'Kanban e áreas salvas'],
-    destaque: false,
-  },
-  {
-    id: 'empresa',
-    nome: 'Empresa',
-    preco: 'R$ 890',
-    periodo: '/mês',
-    extra: 'ou sob consulta',
-    para: 'Várias filiais',
-    itens: ['10 usuários', 'Usuários extras', 'Prioridade no suporte'],
-    destaque: false,
-  },
-] as const
 
 type Coord = { lat: number; lng: number }
 type Via = { id: string; endereco: string; lat?: number | null; lng?: number | null }
@@ -159,6 +118,21 @@ function fmtConsumo(n: number): string {
 
 function fmtDiesel(n: number): string {
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+const COTA_ILIMITADA: EstadoCalculosPublicos = {
+  usadas: 0,
+  restamGratis: ROTA_PUBLICO_LIMITE_CALCULOS,
+  creditos: 0,
+  restam: ROTA_PUBLICO_LIMITE_CALCULOS,
+  esgotado: false,
+}
+
+function rotuloCotaPublica(ilimitado: boolean, cota: EstadoCalculosPublicos) {
+  if (ilimitado) return 'Ilimitado'
+  if (cota.restamGratis > 0) return `${cota.restamGratis} de ${ROTA_PUBLICO_LIMITE_CALCULOS} grátis`
+  if (cota.creditos > 0) return `${cota.creditos} crédito${cota.creditos === 1 ? '' : 's'}`
+  return 'Esgotado hoje'
 }
 
 const PREF_LABEL: Record<PreferenciaRota, string> = {
@@ -222,8 +196,8 @@ export function CalcularRotaPublicoPage() {
   const [mapId, setMapId] = useState(0)
   const [entrarId, setEntrarId] = useState(0)
   const ilimitado = Boolean(user) || isRotaPublicoIlimitado()
-  const [restam, setRestam] = useState(() =>
-    ilimitado ? ROTA_PUBLICO_LIMITE_CALCULOS : estadoCalculosPublicos().restam,
+  const [cota, setCota] = useState<EstadoCalculosPublicos>(() =>
+    ilimitado ? COTA_ILIMITADA : estadoCalculosPublicos(),
   )
   const [showPaywall, setShowPaywall] = useState(false)
   const [showResultado, setShowResultado] = useState(false)
@@ -248,7 +222,7 @@ export function CalcularRotaPublicoPage() {
   }, [])
 
   useEffect(() => {
-    if (ilimitado) setRestam(ROTA_PUBLICO_LIMITE_CALCULOS)
+    if (ilimitado) setCota(COTA_ILIMITADA)
   }, [ilimitado])
 
   useEffect(() => {
@@ -256,7 +230,7 @@ export function CalcularRotaPublicoPage() {
     let alive = true
     void consultarEstadoCalculosPublicos().then((estado) => {
       if (!alive) return
-      setRestam(estado.restam)
+      setCota(estado)
     })
     return () => {
       alive = false
@@ -501,7 +475,7 @@ export function CalcularRotaPublicoPage() {
     cotaBusyRef.current = true
     try {
       const consumoCota = await registrarCalculoPublico()
-      setRestam(consumoCota.restam)
+      setCota(consumoCota)
       if (!consumoCota.ok) {
         setShowPaywall(true)
         return false
@@ -795,11 +769,11 @@ export function CalcularRotaPublicoPage() {
       </header>
 
       <div className="mapa-frota mapa-pub__shell">
-        {!ilimitado && restam === 0 ? (
+        {!ilimitado && cota.restam === 0 ? (
           <div className="mapa-pub__cta-esgotado">
-            <span>Para calcular mais rotas hoje, assine o Doca Livre.</span>
+            <span>Para calcular mais rotas, compre créditos no PIX ou assine o Doca Livre.</span>
             <button type="button" onClick={() => setShowPaywall(true)}>
-              Assinar para continuar
+              Continuar calculando
             </button>
           </div>
         ) : null}
@@ -809,13 +783,7 @@ export function CalcularRotaPublicoPage() {
             <div className="rota-pub__hero">
               <div className="rota-pub__hero-top">
                 <p className="rota-pub__kicker">Pedágio · km · combustível</p>
-                <p className="rota-pub__badge">
-                  {ilimitado
-                    ? 'Ilimitado'
-                    : restam > 0
-                      ? `${restam} de ${ROTA_PUBLICO_LIMITE_CALCULOS} grátis`
-                      : 'Esgotado hoje'}
-                </p>
+                <p className="rota-pub__badge">{rotuloCotaPublica(ilimitado, cota)}</p>
               </div>
               <h1>Calcular rota</h1>
               {!ilimitado ? (
@@ -1203,9 +1171,9 @@ export function CalcularRotaPublicoPage() {
                   <button
                     type="button"
                     className="rota-pub__calc"
-                    disabled={busy || (!ilimitado && restam === 0)}
+                    disabled={busy || (!ilimitado && cota.restam === 0)}
                     onClick={() => {
-                      if (!ilimitado && restam === 0) {
+                      if (!ilimitado && cota.restam === 0) {
                         setShowPaywall(true)
                         return
                       }
@@ -1472,52 +1440,14 @@ export function CalcularRotaPublicoPage() {
       </div>
 
       {showPaywall ? (
-        <div className="mapa-pub-modal" role="dialog" aria-modal="true" aria-labelledby="rota-pub-pay-title">
-          <div className="mapa-pub-modal__card mapa-pub-modal__card--planos">
-            <h2 id="rota-pub-pay-title">{restam === 0 ? 'Escolha um plano' : 'Conheça os benefícios'}</h2>
-            <p>
-              {restam === 0
-                ? `Os ${ROTA_PUBLICO_LIMITE_CALCULOS} cálculos grátis de hoje acabaram. Amanhã você tem mais dois, ou assine para calcular sem limite.`
-                : `Você ainda tem ${restam} de ${ROTA_PUBLICO_LIMITE_CALCULOS} cálculos grátis hoje. Veja os planos para calcular sem limite, usar o mapa da frota e publicar cargas.`}
-            </p>
-            <div className="mapa-pub-planos">
-              {PLANOS_PUBLICOS.map((plano) => (
-                <article
-                  key={plano.id}
-                  className={`mapa-pub-plano${plano.destaque ? ' is-destaque' : ''}`}
-                >
-                  {plano.destaque ? <span className="mapa-pub-plano__tag">Mais escolhido</span> : null}
-                  <h3>{plano.nome}</h3>
-                  <p className="mapa-pub-plano__para">{plano.para}</p>
-                  <p className="mapa-pub-plano__preco">
-                    <strong>{plano.preco}</strong>
-                    <small>{plano.periodo}</small>
-                  </p>
-                  <p className="mapa-pub-plano__extra">{plano.extra}</p>
-                  <ul>
-                    {plano.itens.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                  <LinkSistema
-                    className="mapa-pub__btn mapa-pub__btn--solid"
-                    to={`/cadastro-transportador?plano=${plano.id}`}
-                  >
-                    Assinar {plano.nome}
-                  </LinkSistema>
-                </article>
-              ))}
-            </div>
-            <div className="mapa-pub-modal__acoes">
-              <LinkSistema className="mapa-pub__btn mapa-pub__btn--ghost" to="/login">
-                Já tenho conta
-              </LinkSistema>
-              <button type="button" className="mapa-pub-modal__fechar" onClick={() => setShowPaywall(false)}>
-                {restam === 0 ? 'Continuar vendo o último cálculo' : 'Continuar com o cálculo grátis'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <RotaPaywallModal
+          restamGratis={cota.restamGratis}
+          creditos={cota.creditos}
+          onClose={() => setShowPaywall(false)}
+          onCreditosLiberados={() => {
+            setCota(estadoCalculosPublicos())
+          }}
+        />
       ) : null}
     </div>
   )

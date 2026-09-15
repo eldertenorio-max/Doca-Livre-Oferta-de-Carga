@@ -81,7 +81,7 @@ export const AJUDA_FAQ: AjudaFaqItem[] = [
     id: 'calculos-gratis',
     pergunta: 'Quantos cálculos grátis eu tenho por dia?',
     resposta:
-      'No site público há um limite diário de cálculos grátis. Quando acaba, você pode assinar o Doca Livre para calcular sem limite, ou esperar o dia seguinte. Quem está logado no sistema não tem esse teto.',
+      'No site público há 2 cálculos grátis por dia. Quando acabam, você pode comprar créditos no PIX (cada crédito vale 1 rota neste aparelho) ou assinar um plano para calcular sem limite. Quem está logado no sistema não tem esse teto.',
   },
   {
     id: 'frete-minimo',
