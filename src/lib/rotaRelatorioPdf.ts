@@ -215,17 +215,4 @@ export async function gerarPdfRelatorioRota(p: RotaResultadoPayload): Promise<{
   return { blob, filename }
 }
 
-export async function abrirRelatorioRota(p: RotaResultadoPayload) {
-  const { blob, filename } = await gerarPdfRelatorioRota(p)
-  const url = URL.createObjectURL(blob)
-  const win = window.open(url, '_blank', 'noopener,noreferrer')
-  if (!win) {
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-  }
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
-}
+export { abrirRelatorioRota } from './rotaRelatorioHtml'

@@ -9,7 +9,7 @@ import {
   type RotaResultadoPayload,
   type RotaSalvaLocal,
 } from '../../lib/rotaResultadoAcoes'
-import { abrirRelatorioRota } from '../../lib/rotaRelatorioPdf'
+import { abrirRelatorioRota } from '../../lib/rotaRelatorioHtml'
 import type { Profile, Rota } from '../../types'
 import { LinkSistema } from '../ui/HostLink'
 import { WhatsAppIconOnGreen } from '../ui/WhatsAppIcon'
@@ -214,7 +214,7 @@ export function RotaResultadoAcoes(props: Props) {
     setBusy('relatorio')
     try {
       await abrirRelatorioRota(payload)
-      avisar('Relatório aberto.')
+      avisar('Relatório aberto. Marque o que imprimir ou salvar como PDF.')
     } catch {
       avisar('Não foi possível abrir o relatório.', { erro: true })
     } finally {
@@ -271,8 +271,8 @@ export function RotaResultadoAcoes(props: Props) {
         <button
           type="button"
           className="rota-resultado-acoes__btn rota-resultado-acoes__btn--pdf"
-          title="Abrir relatório da rota"
-          aria-label="Abrir relatório da rota"
+          title="Relatório: escolher seções, imprimir ou salvar PDF"
+          aria-label="Relatório: escolher seções, imprimir ou salvar PDF"
           disabled={busy === 'relatorio'}
           onClick={() => void relatorio()}
         >
