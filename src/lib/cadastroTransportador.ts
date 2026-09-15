@@ -19,6 +19,8 @@ import type {
 } from '../types'
 
 export type CadastroTransportadorInput = {
+  ramificacao?: string
+  plano?: string
   empresa: {
     razao_social: string
     nome_fantasia: string
@@ -84,6 +86,9 @@ export function validarCadastroTransportador(
   input: CadastroTransportadorInput,
 ): string | null {
   const e = input.empresa
+  if (!input.ramificacao?.trim()) {
+    return 'Escolha a ramificação da empresa (embarcador, unidade, transportadora ou motorista).'
+  }
   if (!e.razao_social.trim() || !e.nome_fantasia.trim() || !e.cnpj.trim()) {
     return 'Preencha Razão Social, Nome Fantasia e CNPJ.'
   }
@@ -181,6 +186,8 @@ export function cadastrarTransportadorLocal(
     origem_lng: input.origem.lng ?? null,
     raio_km: Number(input.origem.raio_km) || 50,
     origem_cadastro: 'link',
+    ramificacao: input.ramificacao,
+    plano: input.plano,
     disponivel_mapa: true,
     classificacao: 'bronze',
     pontuacao: 50,
@@ -274,6 +281,8 @@ const COLUNAS_OPCIONAIS_TRANSPORTADOR = [
   'logo_url',
   'perfil_publico',
   'motivo_recusa',
+  'ramificacao',
+  'plano',
 ] as const
 
 function colunaFaltandoNoSchema(msg: string): string | null {
@@ -573,6 +582,8 @@ export async function cadastrarTransportadorRemoto(
     origem_lng: input.origem.lng ?? null,
     raio_km: Number(input.origem.raio_km) || 50,
     origem_cadastro: 'link' as const,
+    ramificacao: input.ramificacao ?? null,
+    plano: input.plano ?? null,
     disponivel_mapa: true,
     situacao: situacaoAlvo,
     motivo_recusa: null,
@@ -989,6 +1000,8 @@ function mapTransportadorRow(row: Record<string, unknown>): Transportador {
       row.origem_cadastro === 'link' || row.origem_cadastro === 'painel'
         ? row.origem_cadastro
         : undefined,
+    ramificacao: (row.ramificacao as string | null) ?? undefined,
+    plano: (row.plano as string | null) ?? undefined,
     disponivel_mapa: row.disponivel_mapa === false ? false : true,
     classificacao: (row.classificacao as Transportador['classificacao']) || 'bronze',
     pontuacao: Number(row.pontuacao ?? 50),

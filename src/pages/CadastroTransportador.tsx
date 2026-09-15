@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useData } from '../context/DataContext'
 import { LOGO_DOCA_LIVRE_SRC } from '../lib/brandAssets'
 import { ProductMark } from '../components/ProductMark'
@@ -30,6 +30,13 @@ import {
   geocodificarEndereco,
 } from '../lib/geocodeEndereco'
 import { formatPhoneBr } from '../lib/phoneBr'
+import {
+  RAMIFICACOES_CADASTRO,
+  lerPlanoPago,
+  planoOfertaPorId,
+  ramificacaoSugeridaDoPlano,
+  type RamificacaoCadastro,
+} from '../lib/planosOfertaCarga'
 import '../styles/cadastro.css'
 import '../styles/login.css'
 import '../styles/shell.css'
@@ -71,6 +78,13 @@ const emptyOrigem = () => ({
 
 export function CadastroTransportadorPage() {
   const { user, registrarCadastroTransportador } = useData()
+  const [params] = useSearchParams()
+  const planoQuery = params.get('plano')
+  const veioPago = params.get('pago') === '1' || lerPlanoPago()?.planoId === planoQuery
+  const planoEscolhido = planoOfertaPorId(planoQuery) ?? planoOfertaPorId(lerPlanoPago()?.planoId)
+  const [ramificacao, setRamificacao] = useState<RamificacaoCadastro>(() =>
+    ramificacaoSugeridaDoPlano(planoQuery || lerPlanoPago()?.planoId),
+  )
   const [step, setStep] = useState<Step>(1)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
@@ -453,11 +467,16 @@ export function CadastroTransportadorPage() {
   function nextFromEmpresa(e: FormEvent) {
     e.preventDefault()
     setError('')
+    if (!ramificacao) {
+      setError('Escolha a ramificação da empresa (embarcador, unidade, transportadora ou motorista).')
+      return
+    }
     if (!empresa.cnpj.trim() || !empresa.nome_fantasia.trim() || !empresa.razao_social.trim()) {
       setError('Preencha CNPJ, Nome Fantasia e Razão Social.')
       return
     }
-    if (!empresa.rntrc.trim()) {
+    const precisaRntrc = ramificacao === 'transportadora' || ramificacao === 'motorista'
+    if (precisaRntrc && !empresa.rntrc.trim()) {
       setError('Preencha o RNTRC (registro ANTT).')
       return
     }
@@ -564,6 +583,8 @@ export function CadastroTransportadorPage() {
     }
     setLoading(true)
     const result = await registrarCadastroTransportador({
+      ramificacao,
+      plano: planoEscolhido?.id,
       empresa,
       origem: {
         cep: origem.cep,
@@ -616,10 +637,11 @@ export function CadastroTransportadorPage() {
           <ProductMark size="md" />
         </div>
 
-        <h1 className="portal-login__title">Cadastro de transportador</h1>
+        <h1 className="portal-login__title">Cadastro Oferta de Carga</h1>
         <p className="portal-login__subtitle">
-          Preencha os dados da empresa, anexe os documentos e crie seu acesso. Após o envio,
-          aguarde a aprovação.
+          {veioPago && planoEscolhido
+            ? `Pagamento do plano ${planoEscolhido.nome} confirmado. Complete a ficha do Oferta de Carga e informe a ramificação da empresa.`
+            : 'Preencha os dados da empresa, anexe os documentos e crie seu acesso. Após o envio, aguarde a aprovação.'}
         </p>
 
         {!isSupabaseConfigured && step !== 'ok' && (
@@ -662,9 +684,28 @@ export function CadastroTransportadorPage() {
               </header>
               <div className="form-card__body">
                 <p className="cadastro-publico__hint">
-                  Endereço abaixo é o da empresa (CNPJ). Sua residência fica em &quot;Cadastre sua
-                  origem&quot;.
+                  Primeiro escolha a ramificação da empresa na hierarquia Doca Livre. O endereço
+                  abaixo é o da empresa (CNPJ). Sua residência fica em &quot;Cadastre sua origem&quot;.
                 </p>
+
+                <p className="cadastro-label" style={{ marginBottom: 8 }}>
+                  Ramificação <span>*</span>
+                </p>
+                <div className="cadastro-ramificacoes" role="radiogroup" aria-label="Ramificação da empresa">
+                  {RAMIFICACOES_CADASTRO.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={ramificacao === r.id}
+                      className={`cadastro-ramificacao${ramificacao === r.id ? ' is-on' : ''}`}
+                      onClick={() => setRamificacao(r.id)}
+                    >
+                      <strong>{r.label}</strong>
+                      <span>{r.resumo}</span>
+                    </button>
+                  ))}
+                </div>
 
                 <div className="cadastro-logo">
                   <div className="cadastro-logo__preview" aria-hidden>
@@ -766,13 +807,13 @@ export function CadastroTransportadorPage() {
                       autoComplete="organization"
                     />
                   </Field>
-                  <Field label="RNTRC (ANTT)" required>
+                  <Field label="RNTRC (ANTT)" required={ramificacao === 'transportadora' || ramificacao === 'motorista'}>
                     <input
                       value={empresa.rntrc}
                       onChange={(e) => setEmp('rntrc', onlyDigits(e.target.value, 14))}
                       placeholder="Registro ANTT (somente números)"
                       inputMode="numeric"
-                      required
+                      required={ramificacao === 'transportadora' || ramificacao === 'motorista'}
                     />
                   </Field>
                   <Field label="Inscrição Estadual">

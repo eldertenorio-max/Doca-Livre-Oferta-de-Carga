@@ -954,6 +954,60 @@
   color: #1a1d21;
 }
 
+.cadastro-label {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.cadastro-ramificacoes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.cadastro-ramificacao {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.cadastro-ramificacao strong {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.cadastro-ramificacao span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  line-height: 1.35;
+}
+
+.cadastro-ramificacao.is-on {
+  border-color: #0f172a;
+  background: #fffbeb;
+  box-shadow: 0 0 0 2px rgb(15 23 42 / 0.12);
+}
+
+@media (max-width: 640px) {
+  .cadastro-ramificacoes {
+    grid-template-columns: 1fr;
+  }
+}
+
 .cadastro-publico__nav {
   display: flex;
   gap: 10px;

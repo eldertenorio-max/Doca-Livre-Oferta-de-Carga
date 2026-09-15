@@ -18,50 +18,8 @@ import {
 import { ROTA_PUBLICO_LIMITE_CALCULOS } from '../../lib/rotaPublicoCalculos'
 import type { ContaRotaPublico } from '../../lib/rotaPublicoAuth'
 import { hrefWhatsappSuporte } from '../../lib/whatsappSuporte'
+import { PLANOS_OFERTA_CARGA, irCadastroPlanoPago, marcarPlanoPago } from '../../lib/planosOfertaCarga'
 import { GoogleGIcon } from './GoogleGIcon'
-
-const PLANOS = [
-  {
-    id: 'motorista',
-    nome: 'Motorista',
-    preco: 'R$ 49',
-    periodo: '/mês',
-    extra: 'ou R$ 14,90 /semana',
-    para: 'Caminhoneiro e transportador',
-    itens: ['Rotas ilimitadas', 'Mapa da frota', 'Perfil no sistema'],
-    destaque: false,
-  },
-  {
-    id: 'start',
-    nome: 'Embarcador Start',
-    preco: 'R$ 197',
-    periodo: '/mês',
-    extra: '2 usuários',
-    para: 'Empresa pequena',
-    itens: ['Publicar cargas', 'Rotas ilimitadas', 'WhatsApp e placa da frota'],
-    destaque: true,
-  },
-  {
-    id: 'pro',
-    nome: 'Embarcador Pro',
-    preco: 'R$ 397',
-    periodo: '/mês',
-    extra: '5 usuários',
-    para: 'Operação com time',
-    itens: ['Tudo do Start', 'Malha logística', 'Kanban e áreas salvas'],
-    destaque: false,
-  },
-  {
-    id: 'empresa',
-    nome: 'Empresa',
-    preco: 'R$ 890',
-    periodo: '/mês',
-    extra: 'ou sob consulta',
-    para: 'Várias filiais',
-    itens: ['10 usuários', 'Usuários extras', 'Prioridade no suporte'],
-    destaque: false,
-  },
-] as const
 
 type Aba = 'creditos' | 'plano'
 
@@ -94,6 +52,11 @@ export function RotaPaywallModal({
   const [pagoOk, setPagoOk] = useState(false)
   const [erroPix, setErroPix] = useState('')
   const [gravando, setGravando] = useState(false)
+  const [planoSel, setPlanoSel] = useState<(typeof PLANOS_OFERTA_CARGA)[number]>(PLANOS_OFERTA_CARGA[1])
+  const [txidPlano, setTxidPlano] = useState(() => novoTxidPix())
+  const [copiadoPlano, setCopiadoPlano] = useState(false)
+  const [pagoPlanoOk, setPagoPlanoOk] = useState(false)
+  const [erroPlano, setErroPlano] = useState('')
 
   useEffect(() => {
     setAba(esgotado ? 'creditos' : 'plano')
@@ -107,6 +70,13 @@ export function RotaPaywallModal({
     setErroPix('')
   }, [pacote])
 
+  useEffect(() => {
+    setTxidPlano(novoTxidPix())
+    setCopiadoPlano(false)
+    setPagoPlanoOk(false)
+    setErroPlano('')
+  }, [planoSel.id])
+
   const payload = useMemo(() => {
     if (!pacote || !conta) return ''
     return gerarPixCopiaECola({
@@ -117,6 +87,16 @@ export function RotaPaywallModal({
       txid,
     })
   }, [pacote, txid, conta])
+
+  const payloadPlano = useMemo(() => {
+    return gerarPixCopiaECola({
+      chave: pixChavePadrao(),
+      nome: pixNomePadrao(),
+      cidade: pixCidadePadrao(),
+      valor: planoSel.precoValor,
+      txid: txidPlano,
+    })
+  }, [planoSel, txidPlano])
 
   async function copiarPix() {
     if (!payload) return
@@ -141,6 +121,22 @@ export function RotaPaywallModal({
     }
     setPagoOk(true)
     onCreditosLiberados()
+  }
+
+  async function copiarPixPlano() {
+    try {
+      await navigator.clipboard.writeText(payloadPlano)
+      setCopiadoPlano(true)
+      window.setTimeout(() => setCopiadoPlano(false), 2000)
+    } catch {
+      setErroPlano('Não foi possível copiar. Selecione o código e copie na mão.')
+    }
+  }
+
+  function confirmarPagamentoPlano() {
+    marcarPlanoPago(planoSel.id, txidPlano)
+    setPagoPlanoOk(true)
+    irCadastroPlanoPago(planoSel.id)
   }
 
   return (
@@ -273,33 +269,88 @@ export function RotaPaywallModal({
             )}
           </div>
         ) : (
-          <div className="mapa-pub-planos">
-            {PLANOS.map((plano) => (
-              <article
-                key={plano.id}
-                className={`mapa-pub-plano${plano.destaque ? ' is-destaque' : ''}`}
-              >
-                {plano.destaque ? <span className="mapa-pub-plano__tag">Mais escolhido</span> : null}
-                <h3>{plano.nome}</h3>
-                <p className="mapa-pub-plano__para">{plano.para}</p>
-                <p className="mapa-pub-plano__preco">
-                  <strong>{plano.preco}</strong>
-                  <small>{plano.periodo}</small>
-                </p>
-                <p className="mapa-pub-plano__extra">{plano.extra}</p>
-                <ul>
-                  {plano.itens.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-                <LinkSistema
-                  className="mapa-pub__btn mapa-pub__btn--solid"
-                  to={`/cadastro-transportador?plano=${plano.id}`}
+          <div className="mapa-pub-creditos">
+            <p className="mapa-pub-creditos__hint">
+              A conta Google dos créditos é outra. O plano é a conta do sistema: pague o PIX e, em
+              seguida, complete a mesma ficha de cadastro do Oferta de Carga — lá a empresa informa a
+              ramificação (embarcador, unidade, transportadora ou motorista).
+            </p>
+            <div className="mapa-pub-planos">
+              {PLANOS_OFERTA_CARGA.map((plano) => (
+                <article
+                  key={plano.id}
+                  role="button"
+                  tabIndex={0}
+                  className={`mapa-pub-plano${plano.destaque ? ' is-destaque' : ''}${planoSel.id === plano.id ? ' is-on' : ''}`}
+                  onClick={() => setPlanoSel(plano)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      setPlanoSel(plano)
+                    }
+                  }}
                 >
-                  Assinar {plano.nome}
-                </LinkSistema>
-              </article>
-            ))}
+                  {plano.destaque ? <span className="mapa-pub-plano__tag">Mais escolhido</span> : null}
+                  <h3>{plano.nome}</h3>
+                  <p className="mapa-pub-plano__para">{plano.para}</p>
+                  <p className="mapa-pub-plano__preco">
+                    <strong>{plano.preco}</strong>
+                    <small>{plano.periodo}</small>
+                  </p>
+                  <p className="mapa-pub-plano__extra">{plano.extra}</p>
+                  <ul>
+                    {plano.itens.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </article>
+              ))}
+            </div>
+            <div className="mapa-pub-pix">
+              <div className="mapa-pub-pix__qr">
+                <img src={urlQrPix(payloadPlano)} alt="QR Code PIX do plano" width={180} height={180} />
+                <span>
+                  <QrCode size={14} /> PIX
+                </span>
+              </div>
+              <div className="mapa-pub-pix__lado">
+                <p>
+                  Pague <strong>{formatCurrency(planoSel.precoValor)}</strong> do plano{' '}
+                  <strong>{planoSel.nome}</strong>. Depois abre o cadastro do sistema.
+                </p>
+                <label className="mapa-pub-pix__copia">
+                  PIX Copia e cola
+                  <textarea readOnly rows={3} value={payloadPlano} />
+                </label>
+                <button
+                  type="button"
+                  className="mapa-pub__btn mapa-pub__btn--solid"
+                  onClick={() => void copiarPixPlano()}
+                >
+                  {copiadoPlano ? <Check size={16} /> : <Copy size={16} />}
+                  {copiadoPlano ? 'Código copiado' : 'Copiar código PIX'}
+                </button>
+                <button
+                  type="button"
+                  className="mapa-pub__btn mapa-pub__btn--ghost"
+                  disabled={pagoPlanoOk}
+                  onClick={confirmarPagamentoPlano}
+                >
+                  {pagoPlanoOk ? 'Abrindo o cadastro…' : 'Já paguei — ir para o cadastro'}
+                </button>
+                <a
+                  className="mapa-pub-pix__wa"
+                  href={hrefWhatsappSuporte({
+                    pagina: `assinatura PIX do plano ${planoSel.nome} (${formatCurrency(planoSel.precoValor)}). Código ${txidPlano}`,
+                  })}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Enviar comprovante no WhatsApp
+                </a>
+                {erroPlano ? <p className="mapa-pub-pix__erro">{erroPlano}</p> : null}
+              </div>
+            </div>
           </div>
         )}
 

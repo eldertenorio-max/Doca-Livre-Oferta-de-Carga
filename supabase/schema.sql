@@ -360,3 +360,4 @@ $$;
 -- \i usuarios.sql  (ou cole o conteúdo no SQL Editor do Supabase)
 
 -- Créditos PIX da calculadora pública (login Google): supabase/rota_publico_creditos.sql
+-- Cadastro após plano (ramificação): supabase/cadastro_plano_ramificacao.sql

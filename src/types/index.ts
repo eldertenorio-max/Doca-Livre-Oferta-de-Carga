@@ -132,6 +132,10 @@ export interface Transportador {
    * - `painel` = criado/editado pelo embarcador no painel
    */
   origem_cadastro?: 'link' | 'painel'
+  /** Papel na hierarquia: embarcador, unidade, transportadora ou motorista. */
+  ramificacao?: string
+  /** Plano pago na calculadora pública (motorista, start, pro, empresa). */
+  plano?: string
   /**
    * Se true, motoristas/veículos desta transportadora aparecem no Mapa da Frota
    * como disponíveis para carregar.

@@ -469,6 +469,15 @@
   background: #f8fafc;
 }
 
+.mapa-pub-plano.is-on {
+  box-shadow: 0 0 0 2px rgb(15 23 42 / 0.28);
+  cursor: pointer;
+}
+
+.mapa-pub-plano[role='button'] {
+  cursor: pointer;
+}
+
 .mapa-pub-plano.is-destaque {
   background: #0f172a;
   border-color: #0f172a;
