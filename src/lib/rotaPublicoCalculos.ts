@@ -1,6 +1,12 @@
 import { ritmoPublicoOk } from './publicoProtecao'
 import { isLocalDev } from './siteOfertaDeCarga'
-import { creditosRotaPublico, consumirCreditoRotaPublico } from './rotaPublicoCreditos'
+import {
+  creditosRotaPublico,
+  consumirCreditoRotaPublicoConta,
+  migrarCreditosLocaisParaConta,
+  saldoCreditosRotaPublico,
+} from './rotaPublicoCreditos'
+import { sessaoRotaPublico } from './rotaPublicoAuth'
 
 const STORAGE_KEY = 'doca-rota-publico-calculos-v1'
 const LIMITE = 2
@@ -85,12 +91,23 @@ export type EstadoCalculosPublicos = {
   esgotado: boolean
 }
 
-function estadoDeRegistro(reg: Registro): EstadoCalculosPublicos {
+function estadoComCreditos(reg: Registro, creditos: number): EstadoCalculosPublicos {
   const usadas = Math.min(LIMITE, Math.max(0, reg.n))
   const restamGratis = Math.max(0, LIMITE - usadas)
-  const creditos = creditosRotaPublico()
   const restam = restamGratis + creditos
   return { usadas, restamGratis, creditos, restam, esgotado: restam <= 0 }
+}
+
+function estadoDeRegistro(reg: Registro): EstadoCalculosPublicos {
+  return estadoComCreditos(reg, creditosRotaPublico())
+}
+
+async function estadoAtual(): Promise<EstadoCalculosPublicos> {
+  if (isRotaPublicoIlimitado()) return { ...ILIMITADO }
+  if (await sessaoRotaPublico()) {
+    await migrarCreditosLocaisParaConta()
+  }
+  return estadoComCreditos(lerLocal(), await saldoCreditosRotaPublico())
 }
 
 export function estadoCalculosPublicos(): EstadoCalculosPublicos {
@@ -99,23 +116,23 @@ export function estadoCalculosPublicos(): EstadoCalculosPublicos {
 }
 
 export async function consultarEstadoCalculosPublicos(): Promise<EstadoCalculosPublicos> {
-  return estadoCalculosPublicos()
+  return estadoAtual()
 }
 
-/** Consome 1 cálculo: primeiro as 2 grátis do dia, depois créditos PIX. */
+/** Consome 1 cálculo: primeiro as 2 grátis do dia, depois créditos da conta (ou deste aparelho). */
 export async function registrarCalculoPublico(): Promise<EstadoCalculosPublicos & { ok: boolean }> {
   if (isRotaPublicoIlimitado()) return { ok: true, ...ILIMITADO }
   if (!ritmoPublicoOk()) {
-    return { ok: false, ...estadoDeRegistro(lerLocal()) }
+    return { ok: false, ...(await estadoAtual()) }
   }
   const local = lerLocal()
   if (local.n < LIMITE) {
     const n = local.n + 1
     gravarLocal({ n, dia: diaBrasil() })
-    return { ok: true, ...estadoDeRegistro({ n, dia: diaBrasil() }) }
+    return { ok: true, ...(await estadoAtual()) }
   }
-  if (consumirCreditoRotaPublico()) {
-    return { ok: true, ...estadoDeRegistro(local) }
+  if (await consumirCreditoRotaPublicoConta()) {
+    return { ok: true, ...(await estadoAtual()) }
   }
-  return { ok: false, ...estadoDeRegistro(local) }
+  return { ok: false, ...(await estadoAtual()) }
 }

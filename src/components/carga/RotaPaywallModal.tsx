@@ -10,13 +10,15 @@ import {
   urlQrPix,
 } from '../../lib/pixBrCode'
 import {
-  creditarPacoteRotaPublico,
+  creditarPacoteRotaPublicoNaConta,
   novoTxidPix,
   PACOTES_CREDITO_ROTA,
   type PacoteCreditoRota,
 } from '../../lib/rotaPublicoCreditos'
 import { ROTA_PUBLICO_LIMITE_CALCULOS } from '../../lib/rotaPublicoCalculos'
+import type { ContaRotaPublico } from '../../lib/rotaPublicoAuth'
 import { hrefWhatsappSuporte } from '../../lib/whatsappSuporte'
+import { GoogleGIcon } from './GoogleGIcon'
 
 const PLANOS = [
   {
@@ -66,11 +68,24 @@ type Aba = 'creditos' | 'plano'
 type Props = {
   restamGratis: number
   creditos: number
+  conta: ContaRotaPublico | null
+  entrandoGoogle: boolean
+  erroGoogle: string
+  onEntrarGoogle: () => void
   onClose: () => void
   onCreditosLiberados: () => void
 }
 
-export function RotaPaywallModal({ restamGratis, creditos, onClose, onCreditosLiberados }: Props) {
+export function RotaPaywallModal({
+  restamGratis,
+  creditos,
+  conta,
+  entrandoGoogle,
+  erroGoogle,
+  onEntrarGoogle,
+  onClose,
+  onCreditosLiberados,
+}: Props) {
   const esgotado = restamGratis <= 0
   const [aba, setAba] = useState<Aba>(esgotado ? 'creditos' : 'plano')
   const [pacote, setPacote] = useState<PacoteCreditoRota | null>(PACOTES_CREDITO_ROTA[0])
@@ -78,6 +93,7 @@ export function RotaPaywallModal({ restamGratis, creditos, onClose, onCreditosLi
   const [copiado, setCopiado] = useState(false)
   const [pagoOk, setPagoOk] = useState(false)
   const [erroPix, setErroPix] = useState('')
+  const [gravando, setGravando] = useState(false)
 
   useEffect(() => {
     setAba(esgotado ? 'creditos' : 'plano')
@@ -92,7 +108,7 @@ export function RotaPaywallModal({ restamGratis, creditos, onClose, onCreditosLi
   }, [pacote])
 
   const payload = useMemo(() => {
-    if (!pacote) return ''
+    if (!pacote || !conta) return ''
     return gerarPixCopiaECola({
       chave: pixChavePadrao(),
       nome: pixNomePadrao(),
@@ -100,7 +116,7 @@ export function RotaPaywallModal({ restamGratis, creditos, onClose, onCreditosLi
       valor: pacote.preco,
       txid,
     })
-  }, [pacote, txid])
+  }, [pacote, txid, conta])
 
   async function copiarPix() {
     if (!payload) return
@@ -113,11 +129,14 @@ export function RotaPaywallModal({ restamGratis, creditos, onClose, onCreditosLi
     }
   }
 
-  function confirmarPagamento() {
-    if (!pacote) return
-    const ok = creditarPacoteRotaPublico(pacote, txid)
-    if (!ok) {
-      setErroPix('Este pagamento já foi usado neste aparelho.')
+  async function confirmarPagamento() {
+    if (!pacote || !conta) return
+    setGravando(true)
+    setErroPix('')
+    const r = await creditarPacoteRotaPublicoNaConta(pacote, txid)
+    setGravando(false)
+    if (!r.ok) {
+      setErroPix(r.erro || 'Não foi possível liberar os créditos.')
       return
     }
     setPagoOk(true)
@@ -134,7 +153,9 @@ export function RotaPaywallModal({ restamGratis, creditos, onClose, onCreditosLi
           {esgotado
             ? `Os ${ROTA_PUBLICO_LIMITE_CALCULOS} cálculos grátis de hoje acabaram. Compre créditos no PIX ou assine um plano.`
             : `Você ainda tem ${restamGratis} de ${ROTA_PUBLICO_LIMITE_CALCULOS} cálculos grátis hoje. Créditos avulsos no PIX ou plano mensal ilimitado.`}
-          {creditos > 0 ? ` Você já tem ${creditos} crédito${creditos === 1 ? '' : 's'} neste aparelho.` : ''}
+          {creditos > 0
+            ? ` Você já tem ${creditos} crédito${creditos === 1 ? '' : 's'}${conta ? ' na sua conta' : ''}.`
+            : ''}
         </p>
 
         <div className="mapa-pub-pay-tabs" role="tablist" aria-label="Forma de continuar">
@@ -161,70 +182,95 @@ export function RotaPaywallModal({ restamGratis, creditos, onClose, onCreditosLi
 
         {aba === 'creditos' ? (
           <div className="mapa-pub-creditos">
-            <p className="mapa-pub-creditos__hint">
-              Cada crédito vale 1 cálculo de rota neste aparelho. Não expira no fim do dia.
-            </p>
-            <div className="mapa-pub-creditos__packs">
-              {PACOTES_CREDITO_ROTA.map((p) => (
+            {!conta ? (
+              <div className="mapa-pub-login-google">
+                <p className="mapa-pub-creditos__hint">
+                  Cadastro e login são o mesmo: entre com Google para comprar créditos e não perdê-los se trocar de
+                  aparelho. Serve só para esta calculadora, não é a conta do sistema Doca Livre.
+                </p>
                 <button
-                  key={p.id}
                   type="button"
-                  className={`mapa-pub-credito${p.destaque ? ' is-destaque' : ''}${pacote?.id === p.id ? ' is-on' : ''}`}
-                  onClick={() => setPacote(p)}
+                  className="mapa-pub__btn mapa-pub__btn--google"
+                  disabled={entrandoGoogle}
+                  onClick={onEntrarGoogle}
                 >
-                  {p.destaque ? <span className="mapa-pub-plano__tag">Mais usado</span> : null}
-                  <strong>{p.titulo}</strong>
-                  <small>{p.sub}</small>
-                  <em>{formatCurrency(p.preco)}</em>
+                  <GoogleGIcon />
+                  {entrandoGoogle ? 'Abrindo Google…' : 'Entrar com Google'}
                 </button>
-              ))}
-            </div>
-
-            {pacote ? (
-              <div className="mapa-pub-pix">
-                <div className="mapa-pub-pix__qr">
-                  <img src={urlQrPix(payload)} alt="QR Code PIX" width={180} height={180} />
-                  <span>
-                    <QrCode size={14} /> PIX
-                  </span>
-                </div>
-                <div className="mapa-pub-pix__lado">
-                  <p>
-                    Pague <strong>{formatCurrency(pacote.preco)}</strong> e libere{' '}
-                    <strong>{pacote.creditos} créditos</strong>.
-                  </p>
-                  <label className="mapa-pub-pix__copia">
-                    PIX Copia e cola
-                    <textarea readOnly rows={3} value={payload} />
-                  </label>
-                  <button type="button" className="mapa-pub__btn mapa-pub__btn--solid" onClick={() => void copiarPix()}>
-                    {copiado ? <Check size={16} /> : <Copy size={16} />}
-                    {copiado ? 'Código copiado' : 'Copiar código PIX'}
-                  </button>
-                  <button
-                    type="button"
-                    className="mapa-pub__btn mapa-pub__btn--ghost"
-                    disabled={pagoOk}
-                    onClick={confirmarPagamento}
-                  >
-                    {pagoOk ? 'Créditos liberados neste aparelho' : 'Já paguei'}
-                  </button>
-                  {pagoOk ? (
-                    <a
-                      className="mapa-pub-pix__wa"
-                      href={hrefWhatsappSuporte({
-                        pagina: `compra PIX de ${pacote.creditos} créditos (${formatCurrency(pacote.preco)}). Código ${txid}`,
-                      })}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Enviar comprovante no WhatsApp
-                    </a>
-                  ) : null}
-                  {erroPix ? <p className="mapa-pub-pix__erro">{erroPix}</p> : null}
-                </div>
+                {erroGoogle ? <p className="mapa-pub-pix__erro">{erroGoogle}</p> : null}
               </div>
-            ) : null}
+            ) : (
+              <>
+                <p className="mapa-pub-creditos__hint">
+                  Cada crédito vale 1 cálculo na conta de {conta.nome.split(' ')[0]}. Não expira no fim do dia.
+                </p>
+                <div className="mapa-pub-creditos__packs">
+                  {PACOTES_CREDITO_ROTA.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`mapa-pub-credito${p.destaque ? ' is-destaque' : ''}${pacote?.id === p.id ? ' is-on' : ''}`}
+                      onClick={() => setPacote(p)}
+                    >
+                      {p.destaque ? <span className="mapa-pub-plano__tag">Mais usado</span> : null}
+                      <strong>{p.titulo}</strong>
+                      <small>{p.sub}</small>
+                      <em>{formatCurrency(p.preco)}</em>
+                    </button>
+                  ))}
+                </div>
+
+                {pacote ? (
+                  <div className="mapa-pub-pix">
+                    <div className="mapa-pub-pix__qr">
+                      <img src={urlQrPix(payload)} alt="QR Code PIX" width={180} height={180} />
+                      <span>
+                        <QrCode size={14} /> PIX
+                      </span>
+                    </div>
+                    <div className="mapa-pub-pix__lado">
+                      <p>
+                        Pague <strong>{formatCurrency(pacote.preco)}</strong> e libere{' '}
+                        <strong>{pacote.creditos} créditos</strong> na sua conta Google.
+                      </p>
+                      <label className="mapa-pub-pix__copia">
+                        PIX Copia e cola
+                        <textarea readOnly rows={3} value={payload} />
+                      </label>
+                      <button
+                        type="button"
+                        className="mapa-pub__btn mapa-pub__btn--solid"
+                        onClick={() => void copiarPix()}
+                      >
+                        {copiado ? <Check size={16} /> : <Copy size={16} />}
+                        {copiado ? 'Código copiado' : 'Copiar código PIX'}
+                      </button>
+                      <button
+                        type="button"
+                        className="mapa-pub__btn mapa-pub__btn--ghost"
+                        disabled={pagoOk || gravando}
+                        onClick={() => void confirmarPagamento()}
+                      >
+                        {pagoOk ? 'Créditos na sua conta' : gravando ? 'Gravando…' : 'Já paguei'}
+                      </button>
+                      {pagoOk ? (
+                        <a
+                          className="mapa-pub-pix__wa"
+                          href={hrefWhatsappSuporte({
+                            pagina: `compra PIX de ${pacote.creditos} créditos (${formatCurrency(pacote.preco)}). Conta ${conta.email}. Código ${txid}`,
+                          })}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Enviar comprovante no WhatsApp
+                        </a>
+                      ) : null}
+                      {erroPix ? <p className="mapa-pub-pix__erro">{erroPix}</p> : null}
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            )}
           </div>
         ) : (
           <div className="mapa-pub-planos">
@@ -258,9 +304,15 @@ export function RotaPaywallModal({ restamGratis, creditos, onClose, onCreditosLi
         )}
 
         <div className="mapa-pub-modal__acoes">
-          <LinkSistema className="mapa-pub__btn mapa-pub__btn--ghost" to="/login">
-            Já tenho conta
-          </LinkSistema>
+          {aba === 'plano' ? (
+            <LinkSistema className="mapa-pub__btn mapa-pub__btn--ghost" to="/login">
+              Já tenho conta no sistema
+            </LinkSistema>
+          ) : conta ? (
+            <p className="mapa-pub-login-google__conta">Logado: {conta.email}</p>
+          ) : (
+            <span />
+          )}
           <button type="button" className="mapa-pub-modal__fechar" onClick={onClose}>
             {esgotado ? 'Continuar vendo o último cálculo' : 'Continuar com o cálculo grátis'}
           </button>

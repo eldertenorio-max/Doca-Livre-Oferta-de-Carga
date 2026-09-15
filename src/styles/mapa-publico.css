@@ -82,6 +82,84 @@
   color: #fff;
 }
 
+.mapa-pub__btn--google {
+  gap: 8px;
+  background: #fff;
+  color: #1f1f1f;
+  border: 1px solid #dadce0;
+}
+
+.mapa-pub__btn--google:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.mapa-pub-conta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 2px 2px 2px 8px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.mapa-pub-conta img,
+.mapa-pub-conta__iniciais {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.mapa-pub-conta__iniciais {
+  display: grid;
+  place-items: center;
+  background: #0f172a;
+  color: #facc15;
+  font-size: 0.75rem;
+}
+
+.mapa-pub-conta span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+.mapa-pub-conta .mapa-pub__btn {
+  padding: 6px 10px;
+}
+
+.mapa-pub-login-google {
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.mapa-pub-login-google .mapa-pub-creditos__hint {
+  margin: 0;
+}
+
+.mapa-pub-login-google__conta {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
 .mapa-pub__shell.mapa-frota {
   height: auto;
   flex: 1;

@@ -81,7 +81,7 @@ export const AJUDA_FAQ: AjudaFaqItem[] = [
     id: 'calculos-gratis',
     pergunta: 'Quantos cálculos grátis eu tenho por dia?',
     resposta:
-      'No site público há 2 cálculos grátis por dia. Quando acabam, você pode comprar créditos no PIX (cada crédito vale 1 rota neste aparelho) ou assinar um plano para calcular sem limite. Quem está logado no sistema não tem esse teto.',
+      'No site público há 2 cálculos grátis por dia. Quando acabam, entre com Google (cadastro e login são o mesmo) para comprar créditos no PIX. Os créditos ficam na sua conta Google desta calculadora, para não se perderem se você trocar de aparelho. Ou assine um plano do sistema Doca Livre para calcular sem limite. Quem já está logado no sistema não tem esse teto.',
   },
   {
     id: 'frete-minimo',

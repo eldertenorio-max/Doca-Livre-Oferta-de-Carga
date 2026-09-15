@@ -358,3 +358,5 @@ $$;
 
 -- Contas do portal (usuarios): ver arquivo usuarios.sql
 -- \i usuarios.sql  (ou cole o conteúdo no SQL Editor do Supabase)
+
+-- Créditos PIX da calculadora pública (login Google): supabase/rota_publico_creditos.sql

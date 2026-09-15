@@ -19,7 +19,6 @@ import {
   Calculator,
   Timer,
   Truck,
-  Wallet,
   X,
   Zap,
 } from 'lucide-react'
@@ -44,6 +43,8 @@ import { MapaFrotaAjuda } from '../../components/mapa/MapaFrotaAjuda'
 import { RotaResultadoAcoes, RotaFaleConosco } from '../../components/carga/RotaResultadoAcoes'
 import { RotaMapErroBoundary } from '../../components/carga/RotaMapErroBoundary'
 import { RotaPaywallModal } from '../../components/carga/RotaPaywallModal'
+import { GoogleGIcon } from '../../components/carga/GoogleGIcon'
+import { useRotaPublicoAuth } from '../../lib/rotaPublicoAuth'
 import type { SugestaoEndereco } from '../../lib/geocodeEndereco'
 import { geocodificarConsulta, labelPorCoordenadas } from '../../lib/geocodeEndereco'
 import {
@@ -196,6 +197,7 @@ export function CalcularRotaPublicoPage() {
   const [mapId, setMapId] = useState(0)
   const [entrarId, setEntrarId] = useState(0)
   const ilimitado = Boolean(user) || isRotaPublicoIlimitado()
+  const googleAuth = useRotaPublicoAuth()
   const [cota, setCota] = useState<EstadoCalculosPublicos>(() =>
     ilimitado ? COTA_ILIMITADA : estadoCalculosPublicos(),
   )
@@ -235,7 +237,7 @@ export function CalcularRotaPublicoPage() {
     return () => {
       alive = false
     }
-  }, [ilimitado])
+  }, [ilimitado, googleAuth.conta?.id])
 
   useEffect(() => {
     setConsumo(fmtConsumo(consumoPadraoKmL(eixos)))
@@ -755,13 +757,37 @@ export function CalcularRotaPublicoPage() {
             >
               Ir para o sistema
             </LinkSistema>
+          ) : googleAuth.conta ? (
+            <div className="mapa-pub-conta">
+              {googleAuth.conta.foto ? (
+                <img src={googleAuth.conta.foto} alt="" referrerPolicy="no-referrer" />
+              ) : (
+                <span className="mapa-pub-conta__iniciais" aria-hidden>
+                  {googleAuth.conta.nome.slice(0, 1).toUpperCase()}
+                </span>
+              )}
+              <span>
+                {googleAuth.conta.nome.split(/\s+/)[0]}
+                {cota.creditos > 0 ? ` · ${cota.creditos} crédito${cota.creditos === 1 ? '' : 's'}` : ''}
+              </span>
+              <button type="button" className="mapa-pub__btn mapa-pub__btn--ghost" onClick={() => void googleAuth.sair()}>
+                Sair
+              </button>
+            </div>
           ) : (
             <>
-              <LinkSistema className="mapa-pub__btn mapa-pub__btn--ghost" to="/login">
-                Entrar
-              </LinkSistema>
-              <LinkSistema className="mapa-pub__btn mapa-pub__btn--solid" to="/cadastro-transportador">
-                Cadastrar
+              <button
+                type="button"
+                className="mapa-pub__btn mapa-pub__btn--google"
+                disabled={googleAuth.busy}
+                title={googleAuth.erro || 'Cadastro e login com Google nesta calculadora'}
+                onClick={() => void googleAuth.entrar()}
+              >
+                <GoogleGIcon />
+                {googleAuth.busy ? 'Abrindo Google…' : 'Entrar com Google'}
+              </button>
+              <LinkSistema className="mapa-pub__btn mapa-pub__btn--ghost" to="/cadastro-transportador">
+                Sistema
               </LinkSistema>
             </>
           )}
@@ -1446,9 +1472,13 @@ export function CalcularRotaPublicoPage() {
         <RotaPaywallModal
           restamGratis={cota.restamGratis}
           creditos={cota.creditos}
+          conta={googleAuth.conta}
+          entrandoGoogle={googleAuth.busy}
+          erroGoogle={googleAuth.erro}
+          onEntrarGoogle={() => void googleAuth.entrar()}
           onClose={() => setShowPaywall(false)}
           onCreditosLiberados={() => {
-            setCota(estadoCalculosPublicos())
+            void consultarEstadoCalculosPublicos().then(setCota)
           }}
         />
       ) : null}
