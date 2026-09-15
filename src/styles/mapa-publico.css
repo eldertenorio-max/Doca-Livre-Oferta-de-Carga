@@ -137,11 +137,6 @@
   min-height: 0;
 }
 
-.mapa-pub .mapa-frota__search-body {
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
 .mapa-pub .mapa-frota__cats {
   overflow: auto;
   min-height: 0;
