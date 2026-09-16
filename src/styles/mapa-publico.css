@@ -94,6 +94,16 @@
   cursor: wait;
 }
 
+.mapa-pub-google-erro {
+  flex: 1 1 100%;
+  margin: 0;
+  text-align: right;
+  color: #b91c1c;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .mapa-pub-conta {
   display: inline-flex;
   align-items: center;

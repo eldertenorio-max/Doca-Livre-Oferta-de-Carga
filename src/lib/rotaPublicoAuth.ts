@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { isSupabaseConfigured, supabase } from './supabase'
+import { isSupabaseConfigured, supabase, supabaseAnonKey, supabaseUrl } from './supabase'
 import { isLocalDev, isSiteOfertaDeCarga } from './siteOfertaDeCarga'
+
+const ERRO_GOOGLE_DESLIGADO =
+  'O login Google ainda não está ligado no Supabase. Painel → Authentication → Providers → Google → Enable (Client ID e Secret do Google Cloud).'
 
 export type ContaRotaPublico = {
   id: string
@@ -39,24 +42,62 @@ export async function sessaoRotaPublico(): Promise<ContaRotaPublico | null> {
   return user ? contaDeUser(user) : null
 }
 
+function mensagemErroGoogle(raw: string) {
+  const t = raw.trim()
+  let msg = t
+  try {
+    const j = JSON.parse(t) as { msg?: string; error_description?: string; message?: string }
+    msg = String(j.msg || j.error_description || j.message || t)
+  } catch {
+    /* texto simples */
+  }
+  const low = msg.toLowerCase()
+  if (low.includes('provider') || low.includes('not enabled') || low.includes('unsupported')) {
+    return ERRO_GOOGLE_DESLIGADO
+  }
+  return 'Não foi possível entrar com Google. Tente de novo.'
+}
+
+async function googleProviderLigado(): Promise<boolean | null> {
+  if (!isSupabaseConfigured || !supabaseUrl || !supabaseAnonKey) return false
+  try {
+    const ctrl = new AbortController()
+    const t = window.setTimeout(() => ctrl.abort(), 8000)
+    const r = await fetch(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/settings`, {
+      headers: {
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${supabaseAnonKey}`,
+      },
+      signal: ctrl.signal,
+    })
+    window.clearTimeout(t)
+    if (!r.ok) return null
+    const j = (await r.json()) as { external?: { google?: boolean } }
+    return Boolean(j.external?.google)
+  } catch {
+    return null
+  }
+}
+
 export async function entrarComGoogleRotaPublico(): Promise<{ ok: boolean; erro?: string }> {
   if (!supabase || !isSupabaseConfigured) {
     return { ok: false, erro: 'O login Google ainda não está configurado neste site.' }
   }
-  const { error } = await supabase.auth.signInWithOAuth({
+  const ligado = await googleProviderLigado()
+  if (ligado === false) {
+    return { ok: false, erro: ERRO_GOOGLE_DESLIGADO }
+  }
+  const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
       redirectTo: redirectOAuthRotaPublico(),
       queryParams: { prompt: 'select_account' },
+      skipBrowserRedirect: true,
     },
   })
-  if (error) {
-    const msg = error.message.toLowerCase()
-    if (msg.includes('provider') || msg.includes('unsupported')) {
-      return { ok: false, erro: 'Ative o login Google no painel do Supabase (Authentication → Providers).' }
-    }
-    return { ok: false, erro: 'Não foi possível entrar com Google. Tente de novo.' }
-  }
+  if (error) return { ok: false, erro: mensagemErroGoogle(error.message) }
+  if (!data.url) return { ok: false, erro: 'Não foi possível abrir o login Google. Tente de novo.' }
+  window.location.assign(data.url)
   return { ok: true }
 }
 

@@ -786,6 +786,11 @@ export function CalcularRotaPublicoPage() {
                 <GoogleGIcon />
                 {googleAuth.busy ? 'Abrindo Google…' : 'Entrar com Google'}
               </button>
+              {googleAuth.erro ? (
+                <span className="mapa-pub-google-erro" role="alert">
+                  {googleAuth.erro}
+                </span>
+              ) : null}
               <LinkSistema className="mapa-pub__btn mapa-pub__btn--ghost" to="/cadastro-transportador">
                 Sistema
               </LinkSistema>
