@@ -19,6 +19,7 @@ import {
   Calculator,
   Timer,
   Truck,
+  Wallet,
   X,
   Zap,
 } from 'lucide-react'
