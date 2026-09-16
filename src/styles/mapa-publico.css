@@ -792,6 +792,28 @@
   color: #b91c1c;
 }
 
+.mapa-pub-pix__verificacao {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.mapa-pub-pix__verificacao p {
+  margin: 0;
+}
+
+.mapa-pub-pix__verificacao-hint {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #b45309;
+}
+
+.mapa-pub-pix__verificacao .mapa-pub__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 @media (max-width: 720px) {
   .mapa-pub-creditos__packs {
     grid-template-columns: 1fr;

@@ -93,27 +93,39 @@ export function ramificacaoSugeridaDoPlano(id: string | null | undefined): Ramif
   return planoOfertaPorId(id)?.ramificacao ?? 'transportadora'
 }
 
-export function marcarPlanoPago(planoId: string, txid: string) {
+export type PlanoPagoStatus = 'pendente' | 'comprovante_enviado'
+
+export function marcarPlanoPago(planoId: string, txid: string, status: PlanoPagoStatus = 'pendente') {
   try {
-    sessionStorage.setItem(PLANO_PAGO_KEY, JSON.stringify({ planoId, txid, at: Date.now() }))
+    sessionStorage.setItem(PLANO_PAGO_KEY, JSON.stringify({ planoId, txid, status, at: Date.now() }))
   } catch {
     /* ignore */
   }
 }
 
-export function lerPlanoPago(): { planoId: string; txid: string } | null {
+export function marcarComprovantePlanoEnviado() {
+  const atual = lerPlanoPago()
+  if (!atual) return
+  marcarPlanoPago(atual.planoId, atual.txid, 'comprovante_enviado')
+}
+
+export function lerPlanoPago(): { planoId: string; txid: string; status: PlanoPagoStatus } | null {
   try {
     const raw = sessionStorage.getItem(PLANO_PAGO_KEY)
     if (!raw) return null
-    const parsed = JSON.parse(raw) as { planoId?: string; txid?: string }
+    const parsed = JSON.parse(raw) as { planoId?: string; txid?: string; status?: PlanoPagoStatus }
     if (!parsed?.planoId) return null
-    return { planoId: parsed.planoId, txid: parsed.txid || '' }
+    return {
+      planoId: parsed.planoId,
+      txid: parsed.txid || '',
+      status: parsed.status === 'comprovante_enviado' ? 'comprovante_enviado' : 'pendente',
+    }
   } catch {
     return null
   }
 }
 
-/** Depois do PIX do plano, abre a mesma ficha de cadastro do Oferta de Carga. */
+/** Link do cadastro depois que o PIX do plano foi confirmado (não usar no “Já paguei”). */
 export function irCadastroPlanoPago(planoId: string) {
   const path = `/cadastro-transportador?plano=${encodeURIComponent(planoId)}&pago=1`
   if (isLocalDev() || isSiteSistema()) {

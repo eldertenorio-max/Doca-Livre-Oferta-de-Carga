@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Check, Copy, QrCode, Wallet } from 'lucide-react'
+import { Check, Copy, MessageCircle, QrCode, Wallet } from 'lucide-react'
 import { formatCurrency } from '../../lib/businessRules'
 import { LinkSistema } from '../ui/HostLink'
 import {
@@ -17,11 +17,16 @@ import {
 } from '../../lib/rotaPublicoCreditos'
 import { ROTA_PUBLICO_LIMITE_CALCULOS } from '../../lib/rotaPublicoCalculos'
 import type { ContaRotaPublico } from '../../lib/rotaPublicoAuth'
-import { hrefWhatsappSuporte } from '../../lib/whatsappSuporte'
-import { PLANOS_OFERTA_CARGA, irCadastroPlanoPago, marcarPlanoPago } from '../../lib/planosOfertaCarga'
+import { hrefWhatsappComprovantePlano, hrefWhatsappSuporte } from '../../lib/whatsappSuporte'
+import {
+  PLANOS_OFERTA_CARGA,
+  marcarComprovantePlanoEnviado,
+  marcarPlanoPago,
+} from '../../lib/planosOfertaCarga'
 import { GoogleGIcon } from './GoogleGIcon'
 
 type Aba = 'creditos' | 'plano'
+type EtapaPlano = 'pix' | 'verificar' | 'enviado'
 
 type Props = {
   restamGratis: number
@@ -55,7 +60,8 @@ export function RotaPaywallModal({
   const [planoSel, setPlanoSel] = useState<(typeof PLANOS_OFERTA_CARGA)[number]>(PLANOS_OFERTA_CARGA[1])
   const [txidPlano, setTxidPlano] = useState(() => novoTxidPix())
   const [copiadoPlano, setCopiadoPlano] = useState(false)
-  const [pagoPlanoOk, setPagoPlanoOk] = useState(false)
+  const [etapaPlano, setEtapaPlano] = useState<EtapaPlano>('pix')
+  const [abriuWhatsappPlano, setAbriuWhatsappPlano] = useState(false)
   const [erroPlano, setErroPlano] = useState('')
 
   useEffect(() => {
@@ -73,7 +79,8 @@ export function RotaPaywallModal({
   useEffect(() => {
     setTxidPlano(novoTxidPix())
     setCopiadoPlano(false)
-    setPagoPlanoOk(false)
+    setEtapaPlano('pix')
+    setAbriuWhatsappPlano(false)
     setErroPlano('')
   }, [planoSel.id])
 
@@ -134,10 +141,15 @@ export function RotaPaywallModal({
   }
 
   function confirmarPagamentoPlano() {
-    marcarPlanoPago(planoSel.id, txidPlano)
-    setPagoPlanoOk(true)
-    irCadastroPlanoPago(planoSel.id)
+    marcarPlanoPago(planoSel.id, txidPlano, 'pendente')
+    setEtapaPlano('verificar')
   }
+
+  const hrefComprovantePlano = hrefWhatsappComprovantePlano({
+    plano: planoSel.nome,
+    valor: formatCurrency(planoSel.precoValor),
+    txid: txidPlano,
+  })
 
   return (
     <div className="mapa-pub-modal" role="dialog" aria-modal="true" aria-labelledby="rota-pub-pay-title">
@@ -278,9 +290,9 @@ export function RotaPaywallModal({
         ) : (
           <div className="mapa-pub-creditos">
             <p className="mapa-pub-creditos__hint">
-              A conta Google dos créditos é outra. O plano é a conta do sistema: pague o PIX e, em
-              seguida, complete a mesma ficha de cadastro do Oferta de Carga — lá a empresa informa a
-              ramificação (embarcador, unidade, transportadora ou motorista).
+              A conta Google dos créditos é outra. O plano é a conta do sistema: pague o PIX, envie
+              o comprovante e aguarde a confirmação. Só então sai o link do cadastro — lá a empresa
+              informa a ramificação (embarcador, unidade, transportadora ou motorista).
             </p>
             <div className="mapa-pub-planos">
               {PLANOS_OFERTA_CARGA.map((plano) => (
@@ -323,38 +335,81 @@ export function RotaPaywallModal({
               <div className="mapa-pub-pix__lado">
                 <p>
                   Pague <strong>{formatCurrency(planoSel.precoValor)}</strong> do plano{' '}
-                  <strong>{planoSel.nome}</strong>. Depois abre o cadastro do sistema.
+                  <strong>{planoSel.nome}</strong>. Depois clique em Já paguei e envie o comprovante.
+                  O cadastro do sistema só abre quando o PIX for confirmado.
                 </p>
                 <label className="mapa-pub-pix__copia">
                   PIX Copia e cola
                   <textarea readOnly rows={3} value={payloadPlano} />
                 </label>
-                <button
-                  type="button"
-                  className="mapa-pub__btn mapa-pub__btn--solid"
-                  onClick={() => void copiarPixPlano()}
-                >
-                  {copiadoPlano ? <Check size={16} /> : <Copy size={16} />}
-                  {copiadoPlano ? 'Código copiado' : 'Copiar código PIX'}
-                </button>
-                <button
-                  type="button"
-                  className="mapa-pub__btn mapa-pub__btn--ghost"
-                  disabled={pagoPlanoOk}
-                  onClick={confirmarPagamentoPlano}
-                >
-                  {pagoPlanoOk ? 'Abrindo o cadastro…' : 'Já paguei — ir para o cadastro'}
-                </button>
-                <a
-                  className="mapa-pub-pix__wa"
-                  href={hrefWhatsappSuporte({
-                    pagina: `assinatura PIX do plano ${planoSel.nome} (${formatCurrency(planoSel.precoValor)}). Código ${txidPlano}`,
-                  })}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Enviar comprovante no WhatsApp
-                </a>
+                {etapaPlano === 'pix' ? (
+                  <>
+                    <button
+                      type="button"
+                      className="mapa-pub__btn mapa-pub__btn--solid"
+                      onClick={() => void copiarPixPlano()}
+                    >
+                      {copiadoPlano ? <Check size={16} /> : <Copy size={16} />}
+                      {copiadoPlano ? 'Código copiado' : 'Copiar código PIX'}
+                    </button>
+                    <button
+                      type="button"
+                      className="mapa-pub__btn mapa-pub__btn--ghost"
+                      onClick={confirmarPagamentoPlano}
+                    >
+                      Já paguei
+                    </button>
+                  </>
+                ) : etapaPlano === 'verificar' ? (
+                  <div className="mapa-pub-pix__verificacao">
+                    <p>
+                      Pagamento informado. Envie o comprovante no WhatsApp com o código{' '}
+                      <strong>{txidPlano}</strong>. Sem essa conferência o cadastro do sistema não
+                      abre.
+                    </p>
+                    <a
+                      className="mapa-pub__btn mapa-pub__btn--solid"
+                      href={hrefComprovantePlano}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={() => setAbriuWhatsappPlano(true)}
+                    >
+                      <MessageCircle size={16} />
+                      Enviar comprovante no WhatsApp
+                    </a>
+                    <button
+                      type="button"
+                      className="mapa-pub__btn mapa-pub__btn--ghost"
+                      disabled={!abriuWhatsappPlano}
+                      onClick={() => {
+                        marcarComprovantePlanoEnviado()
+                        setEtapaPlano('enviado')
+                      }}
+                    >
+                      Já enviei o comprovante
+                    </button>
+                    {!abriuWhatsappPlano ? (
+                      <p className="mapa-pub-pix__verificacao-hint">
+                        Abra o WhatsApp e anexe o comprovante do PIX antes de continuar.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="mapa-pub-pix__verificacao">
+                    <p>
+                      Comprovante em verificação. Assim que o PIX for confirmado, você recebe no
+                      WhatsApp o link para o cadastro do sistema.
+                    </p>
+                    <a
+                      className="mapa-pub-pix__wa"
+                      href={hrefComprovantePlano}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Abrir o WhatsApp de novo
+                    </a>
+                  </div>
+                )}
                 {erroPlano ? <p className="mapa-pub-pix__erro">{erroPlano}</p> : null}
               </div>
             </div>

@@ -80,7 +80,7 @@ export function CadastroTransportadorPage() {
   const { user, registrarCadastroTransportador } = useData()
   const [params] = useSearchParams()
   const planoQuery = params.get('plano')
-  const veioPago = params.get('pago') === '1' || lerPlanoPago()?.planoId === planoQuery
+  const veioPago = params.get('pago') === '1'
   const planoEscolhido = planoOfertaPorId(planoQuery) ?? planoOfertaPorId(lerPlanoPago()?.planoId)
   const [ramificacao, setRamificacao] = useState<RamificacaoCadastro>(() =>
     ramificacaoSugeridaDoPlano(planoQuery || lerPlanoPago()?.planoId),
@@ -640,7 +640,7 @@ export function CadastroTransportadorPage() {
         <h1 className="portal-login__title">Cadastro Oferta de Carga</h1>
         <p className="portal-login__subtitle">
           {veioPago && planoEscolhido
-            ? `Pagamento do plano ${planoEscolhido.nome} confirmado. Complete a ficha do Oferta de Carga e informe a ramificação da empresa.`
+            ? `Plano ${planoEscolhido.nome} com PIX confirmado. Complete a ficha do Oferta de Carga e informe a ramificação da empresa.`
             : 'Preencha os dados da empresa, anexe os documentos e crie seu acesso. Após o envio, aguarde a aprovação.'}
         </p>
 
