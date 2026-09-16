@@ -17,26 +17,26 @@ export type PacoteCreditoRota = {
 
 export const PACOTES_CREDITO_ROTA: PacoteCreditoRota[] = [
   {
-    id: '5',
-    creditos: 5,
-    preco: 9.9,
-    titulo: '5 créditos',
-    sub: '5 cálculos de rota',
+    id: '50',
+    creditos: 50,
+    preco: 29.9,
+    titulo: '50 créditos',
+    sub: '50 cálculos de rota',
     destaque: true,
   },
   {
-    id: '15',
-    creditos: 15,
-    preco: 24.9,
-    titulo: '15 créditos',
-    sub: '15 cálculos de rota',
+    id: '100',
+    creditos: 100,
+    preco: 59.9,
+    titulo: '100 créditos',
+    sub: '100 cálculos de rota',
   },
   {
-    id: '30',
-    creditos: 30,
-    preco: 39.9,
-    titulo: '30 créditos',
-    sub: '30 cálculos de rota',
+    id: '200',
+    creditos: 200,
+    preco: 99.9,
+    titulo: '200 créditos',
+    sub: '200 cálculos de rota',
   },
 ]
 

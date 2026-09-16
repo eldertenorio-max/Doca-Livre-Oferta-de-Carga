@@ -110,15 +110,15 @@ begin
   end if;
 
   v_creditos := case trim(coalesce(p_pacote, ''))
-    when '5' then 5
-    when '15' then 15
-    when '30' then 30
+    when '50' then 50
+    when '100' then 100
+    when '200' then 200
     else null
   end;
   v_valor := case trim(coalesce(p_pacote, ''))
-    when '5' then 9.90
-    when '15' then 24.90
-    when '30' then 39.90
+    when '50' then 29.90
+    when '100' then 59.90
+    when '200' then 99.90
     else null
   end;
   if v_creditos is null then

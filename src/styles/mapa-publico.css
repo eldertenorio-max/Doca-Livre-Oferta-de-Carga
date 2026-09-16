@@ -647,6 +647,11 @@
   color: #475569;
 }
 
+.mapa-pub-creditos__mais-planos {
+  margin-top: 12px;
+  width: 100%;
+}
+
 .mapa-pub-creditos__packs {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

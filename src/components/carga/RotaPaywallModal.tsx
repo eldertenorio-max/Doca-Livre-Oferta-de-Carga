@@ -267,6 +267,13 @@ export function RotaPaywallModal({
                 ) : null}
               </>
             )}
+            <button
+              type="button"
+              className="mapa-pub__btn mapa-pub__btn--ghost mapa-pub-creditos__mais-planos"
+              onClick={() => setAba('plano')}
+            >
+              Conheça mais planos
+            </button>
           </div>
         ) : (
           <div className="mapa-pub-creditos">

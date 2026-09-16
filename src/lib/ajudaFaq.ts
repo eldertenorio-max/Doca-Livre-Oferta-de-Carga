@@ -81,7 +81,7 @@ export const AJUDA_FAQ: AjudaFaqItem[] = [
     id: 'calculos-gratis',
     pergunta: 'Quantos cálculos grátis eu tenho por dia?',
     resposta:
-      'No site público há 2 cálculos grátis por dia. Quando acabam, entre com Google para comprar créditos no PIX — essa conta é só da calculadora. Para assinar um plano, pague o PIX do plano (conta diferente) e depois complete a mesma ficha de cadastro do Oferta de Carga, informando a ramificação da empresa. Quem já está logado no sistema não tem teto de cálculo.',
+      'No site público há 2 cálculos grátis por dia. Quando acabam, entre com Google para comprar créditos no PIX (50 por R$ 29,90, 100 por R$ 59,90 ou 200 por R$ 99,90) — essa conta é só da calculadora. Em Conheça mais planos você vê a assinatura: pague o PIX do plano (conta diferente) e depois complete a mesma ficha de cadastro do Oferta de Carga, informando a ramificação da empresa. Quem já está logado no sistema não tem teto de cálculo.',
   },
   {
     id: 'frete-minimo',
