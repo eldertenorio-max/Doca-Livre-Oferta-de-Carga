@@ -52,6 +52,7 @@ type RpcCreditos = {
   valor?: number
   saldo_atual?: number
   txid?: string
+  status?: string
 }
 
 function lerCreditosLocais(): number {
@@ -197,6 +198,7 @@ export type ConsultaPixCredito = {
   valor?: number
   quando?: string
   saldo_atual?: number
+  status?: string
 }
 
 function formatarQuandoPix(iso: string) {
@@ -212,7 +214,7 @@ export async function consultarPixCreditoRota(txid: string): Promise<{
   erro?: string
   dados?: ConsultaPixCredito
 }> {
-  const codigo = txid.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+  const codigo = txid.replace(/[^A-Za-z0-9_]/g, '')
   if (codigo.length < 6) return { ok: false, erro: 'Cole o código do pagamento (mínimo 6 caracteres).' }
   if (!supabase) return { ok: false, erro: 'Supabase não configurado.' }
   const { data, error } = await supabase.rpc('rota_publico_consultar_pix', { p_txid: codigo })
@@ -231,6 +233,7 @@ export async function consultarPixCreditoRota(txid: string): Promise<{
       valor: parsed.valor,
       quando: parsed.quando,
       saldo_atual: parsed.saldo_atual,
+      status: parsed.status,
     },
   }
 }

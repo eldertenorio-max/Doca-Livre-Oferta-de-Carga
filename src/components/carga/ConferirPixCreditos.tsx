@@ -38,8 +38,8 @@ export function ConferirPixCreditos() {
       <div>
         <h2 className="financeiro-pix__title">Conferir PIX da calculadora</h2>
         <p className="financeiro-pix__sub">
-          Cole o código do pagamento que veio no WhatsApp. Se já estiver creditado, é comprovante
-          antigo — não libere créditos de novo.
+          Cole o código do pagamento (Asaas <code>pay_…</code> ou o código antigo). Se já estiver
+          creditado, é comprovante antigo — não libere créditos de novo.
         </p>
       </div>
       <form
@@ -54,7 +54,7 @@ export function ConferirPixCreditos() {
           <input
             value={codigo}
             onChange={(e) => setCodigo(e.target.value)}
-            placeholder="Ex.: DOC1K2ABC3"
+            placeholder="Ex.: pay_080225913252"
             autoComplete="off"
             spellCheck={false}
           />
@@ -66,12 +66,23 @@ export function ConferirPixCreditos() {
       {erro ? <p className="financeiro-pix__erro">{erro}</p> : null}
       {dados && !dados.encontrado ? (
         <p className="financeiro-pix__vazio">
-          Código <strong>{dados.txid}</strong> não adicionou créditos. A pessoa ainda não clicou em
-          Já paguei, ou o código está errado. Sem registro, não aceite o comprovante como crédito
-          novo até conferir o PIX na conta.
+          Código <strong>{dados.txid}</strong> não adicionou créditos. O PIX ainda não caiu, ou o
+          código está errado.
         </p>
       ) : null}
-      {dados?.encontrado ? (
+      {dados?.encontrado && dados.status === 'pendente' && !dados.ja_creditado ? (
+        <p className="financeiro-pix__vazio">
+          PIX gerado, ainda <strong>não pago</strong> (código {dados.txid}). Não libere crédito na
+          mão até o Asaas confirmar.
+        </p>
+      ) : null}
+      {dados?.encontrado && dados.status === 'pago' && !dados.ja_creditado ? (
+        <p className="financeiro-pix__vazio">
+          PIX do plano já pago para <strong>{dados.email || '—'}</strong>. Isso não é crédito da
+          calculadora.
+        </p>
+      ) : null}
+      {dados?.encontrado && dados.ja_creditado ? (
         <div className="financeiro-pix__alerta" role="status">
           <strong>Já creditado — não aceite comprovante antigo.</strong>
           <ul>

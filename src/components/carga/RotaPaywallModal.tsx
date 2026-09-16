@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Check, Copy, MessageCircle, QrCode, Wallet } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Check, Copy, Loader2, MessageCircle, QrCode, Wallet } from 'lucide-react'
 import { formatCurrency } from '../../lib/businessRules'
 import { LinkSistema } from '../ui/HostLink'
 import {
@@ -20,13 +20,21 @@ import type { ContaRotaPublico } from '../../lib/rotaPublicoAuth'
 import { hrefWhatsappComprovanteCreditos, hrefWhatsappComprovantePlano } from '../../lib/whatsappSuporte'
 import {
   PLANOS_OFERTA_CARGA,
+  irCadastroPlanoPago,
   marcarComprovantePlanoEnviado,
   marcarPlanoPago,
 } from '../../lib/planosOfertaCarga'
 import { GoogleGIcon } from './GoogleGIcon'
+import { cpfCnpjValido, formatarCpfCnpj, soDigitos } from '../../lib/cpfCnpj'
+import {
+  asaasNaoConfigurado,
+  criarPixAsaas,
+  statusPixAsaas,
+  type CobrancaAsaas,
+} from '../../lib/asaasPix'
 
 type Aba = 'creditos' | 'plano'
-type EtapaPlano = 'pix' | 'verificar' | 'enviado'
+type EtapaPlano = 'pix' | 'verificar' | 'enviado' | 'pago'
 
 type Props = {
   restamGratis: number
@@ -57,12 +65,25 @@ export function RotaPaywallModal({
   const [pagoOk, setPagoOk] = useState(false)
   const [erroPix, setErroPix] = useState('')
   const [gravando, setGravando] = useState(false)
+  const [cpf, setCpf] = useState('')
+  const [cobranca, setCobranca] = useState<CobrancaAsaas | null>(null)
+  const [modoManual, setModoManual] = useState(false)
+  const [gerando, setGerando] = useState(false)
+  const [emailOk, setEmailOk] = useState(false)
   const [planoSel, setPlanoSel] = useState<(typeof PLANOS_OFERTA_CARGA)[number]>(PLANOS_OFERTA_CARGA[1])
   const [txidPlano, setTxidPlano] = useState(() => novoTxidPix())
   const [copiadoPlano, setCopiadoPlano] = useState(false)
   const [etapaPlano, setEtapaPlano] = useState<EtapaPlano>('pix')
   const [abriuWhatsappPlano, setAbriuWhatsappPlano] = useState(false)
   const [erroPlano, setErroPlano] = useState('')
+  const [cpfPlano, setCpfPlano] = useState('')
+  const [emailPlano, setEmailPlano] = useState('')
+  const [cobrancaPlano, setCobrancaPlano] = useState<CobrancaAsaas | null>(null)
+  const [modoManualPlano, setModoManualPlano] = useState(false)
+  const [gerandoPlano, setGerandoPlano] = useState(false)
+  const [emailPlanoOk, setEmailPlanoOk] = useState(false)
+  const onCreditosLiberadosRef = useRef(onCreditosLiberados)
+  onCreditosLiberadosRef.current = onCreditosLiberados
 
   useEffect(() => {
     setAba(esgotado ? 'creditos' : 'plano')
@@ -74,6 +95,8 @@ export function RotaPaywallModal({
     setCopiado(false)
     setPagoOk(false)
     setErroPix('')
+    setCobranca(null)
+    setEmailOk(false)
   }, [pacote])
 
   useEffect(() => {
@@ -82,9 +105,57 @@ export function RotaPaywallModal({
     setEtapaPlano('pix')
     setAbriuWhatsappPlano(false)
     setErroPlano('')
+    setCobrancaPlano(null)
+    setEmailPlanoOk(false)
   }, [planoSel.id])
 
-  const payload = useMemo(() => {
+  useEffect(() => {
+    if (conta?.email && !emailPlano) setEmailPlano(conta.email)
+  }, [conta?.email, emailPlano])
+
+  useEffect(() => {
+    const id = cobranca?.paymentId
+    if (!id || pagoOk || modoManual) return
+    let stop = false
+    async function tick() {
+      const r = await statusPixAsaas(id)
+      if (stop) return
+      if (r.pago) {
+        setPagoOk(true)
+        setEmailOk(Boolean(r.emailEnviado))
+        onCreditosLiberadosRef.current()
+      }
+    }
+    void tick()
+    const t = window.setInterval(() => void tick(), 3000)
+    return () => {
+      stop = true
+      window.clearInterval(t)
+    }
+  }, [cobranca?.paymentId, pagoOk, modoManual])
+
+  useEffect(() => {
+    const id = cobrancaPlano?.paymentId
+    if (!id || etapaPlano === 'pago' || modoManualPlano) return
+    let stop = false
+    async function tick() {
+      const r = await statusPixAsaas(id)
+      if (stop) return
+      if (r.pago) {
+        marcarPlanoPago(planoSel.id, id, 'comprovante_enviado')
+        setEtapaPlano('pago')
+        setEmailPlanoOk(Boolean(r.emailEnviado))
+      }
+    }
+    void tick()
+    const t = window.setInterval(() => void tick(), 3000)
+    return () => {
+      stop = true
+      window.clearInterval(t)
+    }
+  }, [cobrancaPlano?.paymentId, etapaPlano, modoManualPlano, planoSel.id])
+
+  const payloadManual = useMemo(() => {
     if (!pacote || !conta) return ''
     return gerarPixCopiaECola({
       chave: pixChavePadrao(),
@@ -95,7 +166,7 @@ export function RotaPaywallModal({
     })
   }, [pacote, txid, conta])
 
-  const payloadPlano = useMemo(() => {
+  const payloadPlanoManual = useMemo(() => {
     return gerarPixCopiaECola({
       chave: pixChavePadrao(),
       nome: pixNomePadrao(),
@@ -105,10 +176,15 @@ export function RotaPaywallModal({
     })
   }, [planoSel, txidPlano])
 
+  const qrCredito = cobranca?.imagem || (modoManual ? urlQrPix(payloadManual) : '')
+  const copiaCredito = cobranca?.payload || (modoManual ? payloadManual : '')
+  const qrPlano = cobrancaPlano?.imagem || (modoManualPlano ? urlQrPix(payloadPlanoManual) : '')
+  const copiaPlano = cobrancaPlano?.payload || (modoManualPlano ? payloadPlanoManual : '')
+
   async function copiarPix() {
-    if (!payload) return
+    if (!copiaCredito) return
     try {
-      await navigator.clipboard.writeText(payload)
+      await navigator.clipboard.writeText(copiaCredito)
       setCopiado(true)
       window.setTimeout(() => setCopiado(false), 2000)
     } catch {
@@ -116,8 +192,36 @@ export function RotaPaywallModal({
     }
   }
 
+  async function gerarPixCredito() {
+    if (!pacote || !conta) return
+    if (!cpfCnpjValido(cpf)) {
+      setErroPix('Informe um CPF ou CNPJ válido para o PIX.')
+      return
+    }
+    setGerando(true)
+    setErroPix('')
+    const r = await criarPixAsaas({
+      tipo: 'credito',
+      pacoteId: pacote.id,
+      cpfCnpj: soDigitos(cpf),
+      email: conta.email,
+      nome: conta.nome,
+    })
+    setGerando(false)
+    if (!r.ok) {
+      if (asaasNaoConfigurado(r.erro)) {
+        setModoManual(true)
+        setErroPix('')
+        return
+      }
+      setErroPix(r.erro)
+      return
+    }
+    setCobranca(r.cobranca)
+  }
+
   async function confirmarPagamento() {
-    if (!pacote || !conta || gravando || pagoOk) return
+    if (!pacote || !conta || gravando || pagoOk || !modoManual) return
     setGravando(true)
     setErroPix('')
     const r = await creditarPacoteRotaPublicoNaConta(pacote, txid)
@@ -131,8 +235,9 @@ export function RotaPaywallModal({
   }
 
   async function copiarPixPlano() {
+    if (!copiaPlano) return
     try {
-      await navigator.clipboard.writeText(payloadPlano)
+      await navigator.clipboard.writeText(copiaPlano)
       setCopiadoPlano(true)
       window.setTimeout(() => setCopiadoPlano(false), 2000)
     } catch {
@@ -140,15 +245,48 @@ export function RotaPaywallModal({
     }
   }
 
+  async function gerarPixPlano() {
+    if (!cpfCnpjValido(cpfPlano)) {
+      setErroPlano('Informe um CPF ou CNPJ válido para o PIX.')
+      return
+    }
+    const email = (emailPlano || conta?.email || '').trim()
+    if (!email.includes('@')) {
+      setErroPlano('Informe o e-mail para enviarmos a confirmação do plano.')
+      return
+    }
+    setGerandoPlano(true)
+    setErroPlano('')
+    const r = await criarPixAsaas({
+      tipo: 'plano',
+      pacoteId: planoSel.id,
+      cpfCnpj: soDigitos(cpfPlano),
+      email,
+      nome: conta?.nome || email.split('@')[0],
+    })
+    setGerandoPlano(false)
+    if (!r.ok) {
+      if (asaasNaoConfigurado(r.erro)) {
+        setModoManualPlano(true)
+        setErroPlano('')
+        return
+      }
+      setErroPlano(r.erro)
+      return
+    }
+    setCobrancaPlano(r.cobranca)
+    setEtapaPlano('pix')
+  }
+
   function confirmarPagamentoPlano() {
-    marcarPlanoPago(planoSel.id, txidPlano, 'pendente')
+    marcarPlanoPago(planoSel.id, cobrancaPlano?.paymentId || txidPlano, 'pendente')
     setEtapaPlano('verificar')
   }
 
   const hrefComprovantePlano = hrefWhatsappComprovantePlano({
     plano: planoSel.nome,
     valor: formatCurrency(planoSel.precoValor),
-    txid: txidPlano,
+    txid: cobrancaPlano?.paymentId || txidPlano,
   })
 
   const hrefComprovanteCreditos =
@@ -157,7 +295,7 @@ export function RotaPaywallModal({
           email: conta.email,
           creditos: pacote.creditos,
           valor: formatCurrency(pacote.preco),
-          txid,
+          txid: cobranca?.paymentId || txid,
         })
       : ''
 
@@ -220,7 +358,8 @@ export function RotaPaywallModal({
             ) : (
               <>
                 <p className="mapa-pub-creditos__hint">
-                  Cada crédito vale 1 cálculo na conta de {conta.nome.split(' ')[0]}. Não expira no fim do dia.
+                  Cada crédito vale 1 cálculo na conta de {conta.nome.split(' ')[0]}. Pague o PIX: os créditos entram
+                  sozinhos e o comprovante vai por e-mail.
                 </p>
                 <div className="mapa-pub-creditos__packs">
                   {PACOTES_CREDITO_ROTA.map((p) => (
@@ -240,60 +379,103 @@ export function RotaPaywallModal({
 
                 {pacote ? (
                   <div className="mapa-pub-pix">
-                    <div className="mapa-pub-pix__qr">
-                      <img src={urlQrPix(payload)} alt="QR Code PIX" width={180} height={180} />
-                      <span>
-                        <QrCode size={14} /> PIX
-                      </span>
-                    </div>
+                    {qrCredito ? (
+                      <div className="mapa-pub-pix__qr">
+                        <img src={qrCredito} alt="QR Code PIX" width={180} height={180} />
+                        <span>
+                          <QrCode size={14} /> PIX
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="mapa-pub-pix__qr mapa-pub-pix__qr--vazio">
+                        <QrCode size={36} />
+                        <span>Gere o QR do PIX</span>
+                      </div>
+                    )}
                     <div className="mapa-pub-pix__lado">
                       <p>
                         Pague <strong>{formatCurrency(pacote.preco)}</strong> e libere{' '}
                         <strong>{pacote.creditos} créditos</strong> na sua conta Google.
                       </p>
-                      <p className="mapa-pub-pix__txid">
-                        Código deste pagamento: <strong>{txid}</strong>
-                      </p>
-                      <label className="mapa-pub-pix__copia">
-                        PIX Copia e cola
-                        <textarea readOnly rows={3} value={payload} />
-                      </label>
-                      {!pagoOk ? (
+                      {!modoManual && !cobranca ? (
                         <>
+                          <label className="mapa-pub-pix__copia">
+                            CPF ou CNPJ
+                            <input
+                              value={cpf}
+                              onChange={(e) => setCpf(formatarCpfCnpj(e.target.value))}
+                              inputMode="numeric"
+                              autoComplete="off"
+                              placeholder="000.000.000-00"
+                            />
+                          </label>
                           <button
                             type="button"
                             className="mapa-pub__btn mapa-pub__btn--solid"
-                            onClick={() => void copiarPix()}
+                            disabled={gerando}
+                            onClick={() => void gerarPixCredito()}
                           >
-                            {copiado ? <Check size={16} /> : <Copy size={16} />}
-                            {copiado ? 'Código copiado' : 'Copiar código PIX'}
-                          </button>
-                          <button
-                            type="button"
-                            className="mapa-pub__btn mapa-pub__btn--ghost"
-                            disabled={gravando}
-                            onClick={() => void confirmarPagamento()}
-                          >
-                            {gravando ? 'Gravando…' : 'Já paguei'}
+                            {gerando ? <Loader2 size={16} className="mapa-pub-spin" /> : <QrCode size={16} />}
+                            {gerando ? 'Gerando PIX…' : 'Gerar QR Code PIX'}
                           </button>
                         </>
                       ) : (
-                        <div className="mapa-pub-pix__verificacao">
-                          <p>
-                            Créditos na sua conta. Envie o comprovante <strong>deste</strong> código{' '}
-                            <strong>{txid}</strong>. Comprovante de outro pagamento não libera crédito
-                            de novo.
+                        <>
+                          <p className="mapa-pub-pix__txid">
+                            Código deste pagamento:{' '}
+                            <strong>{cobranca?.paymentId || txid}</strong>
                           </p>
-                          <a
-                            className="mapa-pub__btn mapa-pub__btn--whatsapp"
-                            href={hrefComprovanteCreditos}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            <MessageCircle size={16} />
-                            Clique aqui para enviar comprovante no WhatsApp
-                          </a>
-                        </div>
+                          <label className="mapa-pub-pix__copia">
+                            PIX Copia e cola
+                            <textarea readOnly rows={3} value={copiaCredito} />
+                          </label>
+                          {!pagoOk ? (
+                            <>
+                              <button
+                                type="button"
+                                className="mapa-pub__btn mapa-pub__btn--solid"
+                                onClick={() => void copiarPix()}
+                              >
+                                {copiado ? <Check size={16} /> : <Copy size={16} />}
+                                {copiado ? 'Código copiado' : 'Copiar código PIX'}
+                              </button>
+                              {modoManual ? (
+                                <button
+                                  type="button"
+                                  className="mapa-pub__btn mapa-pub__btn--ghost"
+                                  disabled={gravando}
+                                  onClick={() => void confirmarPagamento()}
+                                >
+                                  {gravando ? 'Gravando…' : 'Já paguei'}
+                                </button>
+                              ) : (
+                                <p className="mapa-pub-pix__aguardando">
+                                  <Loader2 size={16} className="mapa-pub-spin" />
+                                  Aguardando o PIX. Os créditos entram sozinhos — não precisa clicar em já paguei.
+                                </p>
+                              )}
+                            </>
+                          ) : (
+                            <div className="mapa-pub-pix__verificacao">
+                              <p>
+                                Pagamento confirmado. <strong>{pacote.creditos} créditos</strong> já estão na sua
+                                conta
+                                {emailOk
+                                  ? `. Enviamos o e-mail para ${conta.email}.`
+                                  : `. Se o e-mail não chegar, fale no WhatsApp.`}
+                              </p>
+                              <a
+                                className="mapa-pub__btn mapa-pub__btn--whatsapp"
+                                href={hrefComprovanteCreditos}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <MessageCircle size={16} />
+                                Dúvida? Falar no WhatsApp
+                              </a>
+                            </div>
+                          )}
+                        </>
                       )}
                       {erroPix ? <p className="mapa-pub-pix__erro">{erroPix}</p> : null}
                     </div>
@@ -312,9 +494,8 @@ export function RotaPaywallModal({
         ) : (
           <div className="mapa-pub-creditos">
             <p className="mapa-pub-creditos__hint">
-              A conta Google dos créditos é outra. O plano é a conta do sistema: pague o PIX, envie
-              o comprovante e aguarde a confirmação. Só então sai o link do cadastro — lá a empresa
-              informa a ramificação (embarcador, unidade, transportadora ou motorista).
+              A conta Google dos créditos é outra. O plano é a conta do sistema: pague o PIX e, quando o banco
+              confirmar, o cadastro libera e o e-mail de confirmação chega.
             </p>
             <div className="mapa-pub-planos">
               {PLANOS_OFERTA_CARGA.map((plano) => (
@@ -348,89 +529,166 @@ export function RotaPaywallModal({
               ))}
             </div>
             <div className="mapa-pub-pix">
-              <div className="mapa-pub-pix__qr">
-                <img src={urlQrPix(payloadPlano)} alt="QR Code PIX do plano" width={180} height={180} />
-                <span>
-                  <QrCode size={14} /> PIX
-                </span>
-              </div>
+              {qrPlano ? (
+                <div className="mapa-pub-pix__qr">
+                  <img src={qrPlano} alt="QR Code PIX do plano" width={180} height={180} />
+                  <span>
+                    <QrCode size={14} /> PIX
+                  </span>
+                </div>
+              ) : (
+                <div className="mapa-pub-pix__qr mapa-pub-pix__qr--vazio">
+                  <QrCode size={36} />
+                  <span>Gere o QR do PIX</span>
+                </div>
+              )}
               <div className="mapa-pub-pix__lado">
                 <p>
                   Pague <strong>{formatCurrency(planoSel.precoValor)}</strong> do plano{' '}
-                  <strong>{planoSel.nome}</strong>. Depois clique em Já paguei e envie o comprovante.
-                  O cadastro do sistema só abre quando o PIX for confirmado.
+                  <strong>{planoSel.nome}</strong>. Quando o PIX cair, o e-mail com o link do cadastro sai
+                  sozinho.
                 </p>
-                <label className="mapa-pub-pix__copia">
-                  PIX Copia e cola
-                  <textarea readOnly rows={3} value={payloadPlano} />
-                </label>
-                {etapaPlano === 'pix' ? (
+                {!modoManualPlano && !cobrancaPlano ? (
                   <>
+                    <label className="mapa-pub-pix__copia">
+                      E-mail para a confirmação
+                      <input
+                        type="email"
+                        value={emailPlano}
+                        onChange={(e) => setEmailPlano(e.target.value)}
+                        placeholder="voce@email.com"
+                        autoComplete="email"
+                      />
+                    </label>
+                    <label className="mapa-pub-pix__copia">
+                      CPF ou CNPJ
+                      <input
+                        value={cpfPlano}
+                        onChange={(e) => setCpfPlano(formatarCpfCnpj(e.target.value))}
+                        inputMode="numeric"
+                        autoComplete="off"
+                        placeholder="000.000.000-00"
+                      />
+                    </label>
                     <button
                       type="button"
                       className="mapa-pub__btn mapa-pub__btn--solid"
-                      onClick={() => void copiarPixPlano()}
+                      disabled={gerandoPlano}
+                      onClick={() => void gerarPixPlano()}
                     >
-                      {copiadoPlano ? <Check size={16} /> : <Copy size={16} />}
-                      {copiadoPlano ? 'Código copiado' : 'Copiar código PIX'}
-                    </button>
-                    <button
-                      type="button"
-                      className="mapa-pub__btn mapa-pub__btn--ghost"
-                      onClick={confirmarPagamentoPlano}
-                    >
-                      Já paguei
+                      {gerandoPlano ? <Loader2 size={16} className="mapa-pub-spin" /> : <QrCode size={16} />}
+                      {gerandoPlano ? 'Gerando PIX…' : 'Gerar QR Code PIX'}
                     </button>
                   </>
-                ) : etapaPlano === 'verificar' ? (
+                ) : etapaPlano === 'pago' ? (
                   <div className="mapa-pub-pix__verificacao">
                     <p>
-                      Pagamento informado. Envie o comprovante no WhatsApp com o código{' '}
-                      <strong>{txidPlano}</strong>. Sem essa conferência o cadastro do sistema não
-                      abre.
+                      Pagamento confirmado
+                      {emailPlanoOk
+                        ? `. Enviamos o e-mail com o link do cadastro para ${emailPlano || conta?.email}.`
+                        : '.'}{' '}
+                      Conclua o cadastro do sistema.
                     </p>
-                    <a
-                      className="mapa-pub__btn mapa-pub__btn--solid"
-                      href={hrefComprovantePlano}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={() => setAbriuWhatsappPlano(true)}
-                    >
-                      <MessageCircle size={16} />
-                      Enviar comprovante no WhatsApp
-                    </a>
                     <button
                       type="button"
-                      className="mapa-pub__btn mapa-pub__btn--ghost"
-                      disabled={!abriuWhatsappPlano}
-                      onClick={() => {
-                        marcarComprovantePlanoEnviado()
-                        setEtapaPlano('enviado')
-                      }}
+                      className="mapa-pub__btn mapa-pub__btn--solid"
+                      onClick={() => irCadastroPlanoPago(planoSel.id)}
                     >
-                      Já enviei o comprovante
+                      Ir para o cadastro
                     </button>
-                    {!abriuWhatsappPlano ? (
-                      <p className="mapa-pub-pix__verificacao-hint">
-                        Abra o WhatsApp e anexe o comprovante do PIX antes de continuar.
-                      </p>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="mapa-pub-pix__verificacao">
-                    <p>
-                      Comprovante em verificação. Assim que o PIX for confirmado, você recebe no
-                      WhatsApp o link para o cadastro do sistema.
-                    </p>
                     <a
                       className="mapa-pub-pix__wa"
                       href={hrefComprovantePlano}
                       target="_blank"
                       rel="noreferrer"
                     >
-                      Abrir o WhatsApp de novo
+                      Falar no WhatsApp
                     </a>
                   </div>
+                ) : (
+                  <>
+                    <label className="mapa-pub-pix__copia">
+                      PIX Copia e cola
+                      <textarea readOnly rows={3} value={copiaPlano} />
+                    </label>
+                    {modoManualPlano && etapaPlano === 'pix' ? (
+                      <>
+                        <button
+                          type="button"
+                          className="mapa-pub__btn mapa-pub__btn--solid"
+                          onClick={() => void copiarPixPlano()}
+                        >
+                          {copiadoPlano ? <Check size={16} /> : <Copy size={16} />}
+                          {copiadoPlano ? 'Código copiado' : 'Copiar código PIX'}
+                        </button>
+                        <button
+                          type="button"
+                          className="mapa-pub__btn mapa-pub__btn--ghost"
+                          onClick={confirmarPagamentoPlano}
+                        >
+                          Já paguei
+                        </button>
+                      </>
+                    ) : modoManualPlano && etapaPlano === 'verificar' ? (
+                      <div className="mapa-pub-pix__verificacao">
+                        <p>
+                          Pagamento informado. Envie o comprovante no WhatsApp com o código{' '}
+                          <strong>{txidPlano}</strong>. Sem essa conferência o cadastro do sistema não abre.
+                        </p>
+                        <a
+                          className="mapa-pub__btn mapa-pub__btn--solid"
+                          href={hrefComprovantePlano}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={() => setAbriuWhatsappPlano(true)}
+                        >
+                          <MessageCircle size={16} />
+                          Enviar comprovante no WhatsApp
+                        </a>
+                        <button
+                          type="button"
+                          className="mapa-pub__btn mapa-pub__btn--ghost"
+                          disabled={!abriuWhatsappPlano}
+                          onClick={() => {
+                            marcarComprovantePlanoEnviado()
+                            setEtapaPlano('enviado')
+                          }}
+                        >
+                          Já enviei o comprovante
+                        </button>
+                      </div>
+                    ) : modoManualPlano && etapaPlano === 'enviado' ? (
+                      <div className="mapa-pub-pix__verificacao">
+                        <p>
+                          Comprovante em verificação. Assim que o PIX for confirmado, você recebe no WhatsApp o
+                          link para o cadastro do sistema.
+                        </p>
+                        <a
+                          className="mapa-pub-pix__wa"
+                          href={hrefComprovantePlano}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Abrir o WhatsApp de novo
+                        </a>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className="mapa-pub__btn mapa-pub__btn--solid"
+                          onClick={() => void copiarPixPlano()}
+                        >
+                          {copiadoPlano ? <Check size={16} /> : <Copy size={16} />}
+                          {copiadoPlano ? 'Código copiado' : 'Copiar código PIX'}
+                        </button>
+                        <p className="mapa-pub-pix__aguardando">
+                          <Loader2 size={16} className="mapa-pub-spin" />
+                          Aguardando o PIX. O cadastro e o e-mail saem sozinhos quando o pagamento cair.
+                        </p>
+                      </>
+                    )}
+                  </>
                 )}
                 {erroPlano ? <p className="mapa-pub-pix__erro">{erroPlano}</p> : null}
               </div>
