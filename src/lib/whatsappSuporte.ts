@@ -13,6 +13,20 @@ export function hrefWhatsappSuporte(opts?: {
   return `https://wa.me/${WHATSAPP_CREDENCIAIS_DIGITS}?text=${encodeURIComponent(text)}`
 }
 
+export function hrefWhatsappComprovanteCreditos(opts: {
+  email: string
+  creditos: number
+  valor: string
+  txid: string
+}) {
+  const text =
+    `Olá! Paguei o PIX de ${opts.creditos} créditos (${opts.valor}) na calculadora. ` +
+    `Conta Google: ${opts.email}. ` +
+    `Código do pagamento: ${opts.txid}. ` +
+    `Segue o comprovante deste código. Não usem comprovante de outro pagamento.`
+  return `https://wa.me/${WHATSAPP_CREDENCIAIS_DIGITS}?text=${encodeURIComponent(text)}`
+}
+
 export function hrefWhatsappComprovantePlano(opts: {
   plano: string
   valor: string

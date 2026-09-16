@@ -1,6 +1,6 @@
--- Pacotes da calculadora: 50 / R$ 29,90 · 100 / R$ 59,90 · 200 / R$ 99,90
--- Rode no SQL Editor se rota_publico_creditar_pacote já existir.
--- Anti-golpe: o mesmo código (txid) não credita duas vezes. Conferência: rota_publico_consultar_pix.sql
+-- Conferência anti-golpe: cada PIX da calculadora tem código único (txid).
+-- Rode no SQL Editor (também já está em rota_publico_creditos.sql).
+-- Depois: Financeiro → Conferir PIX da calculadora, cole o código do WhatsApp.
 
 create or replace function public.rota_publico_creditar_pacote(p_pacote text, p_txid text)
 returns jsonb
@@ -78,4 +78,56 @@ begin
 end;
 $$;
 
+create or replace function public.rota_publico_consultar_pix(p_txid text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_txid text := upper(regexp_replace(trim(coalesce(p_txid, '')), '[^A-Za-z0-9]', '', 'g'));
+  v_quando timestamptz;
+  v_email text;
+  v_pacote_id text;
+  v_creditos integer;
+  v_valor numeric(10,2);
+  v_saldo integer;
+  v_uid uuid;
+begin
+  if length(v_txid) < 6 then
+    return jsonb_build_object('ok', false, 'erro', 'codigo_curto');
+  end if;
+
+  select p.user_id, p.created_at, p.pacote_id, p.creditos, p.valor, u.email, c.saldo
+    into v_uid, v_quando, v_pacote_id, v_creditos, v_valor, v_email, v_saldo
+  from public.rota_publico_pix p
+  left join auth.users u on u.id = p.user_id
+  left join public.rota_publico_creditos c on c.user_id = p.user_id
+  where p.txid = v_txid;
+
+  if v_uid is null then
+    return jsonb_build_object(
+      'ok', true,
+      'encontrado', false,
+      'ja_creditado', false,
+      'txid', v_txid
+    );
+  end if;
+
+  return jsonb_build_object(
+    'ok', true,
+    'encontrado', true,
+    'ja_creditado', true,
+    'txid', v_txid,
+    'email', v_email,
+    'pacote_id', v_pacote_id,
+    'creditos', v_creditos,
+    'valor', v_valor,
+    'quando', v_quando,
+    'saldo_atual', coalesce(v_saldo, 0)
+  );
+end;
+$$;
+
 grant execute on function public.rota_publico_creditar_pacote(text, text) to authenticated;
+grant execute on function public.rota_publico_consultar_pix(text) to anon, authenticated;

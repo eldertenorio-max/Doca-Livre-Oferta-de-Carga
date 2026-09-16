@@ -101,6 +101,10 @@ declare
   v_valor numeric(10,2);
   v_saldo integer;
   v_txid text := upper(trim(coalesce(p_txid, '')));
+  v_quando timestamptz;
+  v_email text;
+  v_pacote_id text;
+  v_pix_creditos integer;
 begin
   if v_uid is null then
     return jsonb_build_object('ok', false, 'erro', 'nao_autenticado', 'creditos', 0);
@@ -134,8 +138,22 @@ begin
     values (v_uid, v_txid, trim(p_pacote), v_creditos, v_valor);
   exception
     when unique_violation then
-      select saldo into v_saldo from public.rota_publico_creditos where user_id = v_uid;
-      return jsonb_build_object('ok', false, 'erro', 'ja_usado', 'creditos', coalesce(v_saldo, 0));
+      select p.created_at, p.pacote_id, p.creditos, u.email, c.saldo
+        into v_quando, v_pacote_id, v_pix_creditos, v_email, v_saldo
+      from public.rota_publico_pix p
+      left join auth.users u on u.id = p.user_id
+      left join public.rota_publico_creditos c on c.user_id = p.user_id
+      where p.txid = v_txid;
+      return jsonb_build_object(
+        'ok', false,
+        'erro', 'ja_usado',
+        'ja_creditado', true,
+        'quando', v_quando,
+        'pacote_id', v_pacote_id,
+        'email', v_email,
+        'creditos', coalesce(v_saldo, 0),
+        'txid', v_txid
+      );
   end;
 
   update public.rota_publico_creditos
@@ -176,10 +194,62 @@ begin
 end;
 $$;
 
+create or replace function public.rota_publico_consultar_pix(p_txid text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_txid text := upper(regexp_replace(trim(coalesce(p_txid, '')), '[^A-Za-z0-9]', '', 'g'));
+  v_quando timestamptz;
+  v_email text;
+  v_pacote_id text;
+  v_creditos integer;
+  v_valor numeric(10,2);
+  v_saldo integer;
+  v_uid uuid;
+begin
+  if length(v_txid) < 6 then
+    return jsonb_build_object('ok', false, 'erro', 'codigo_curto');
+  end if;
+
+  select p.user_id, p.created_at, p.pacote_id, p.creditos, p.valor, u.email, c.saldo
+    into v_uid, v_quando, v_pacote_id, v_creditos, v_valor, v_email, v_saldo
+  from public.rota_publico_pix p
+  left join auth.users u on u.id = p.user_id
+  left join public.rota_publico_creditos c on c.user_id = p.user_id
+  where p.txid = v_txid;
+
+  if v_uid is null then
+    return jsonb_build_object(
+      'ok', true,
+      'encontrado', false,
+      'ja_creditado', false,
+      'txid', v_txid
+    );
+  end if;
+
+  return jsonb_build_object(
+    'ok', true,
+    'encontrado', true,
+    'ja_creditado', true,
+    'txid', v_txid,
+    'email', v_email,
+    'pacote_id', v_pacote_id,
+    'creditos', v_creditos,
+    'valor', v_valor,
+    'quando', v_quando,
+    'saldo_atual', coalesce(v_saldo, 0)
+  );
+end;
+$$;
+
 grant execute on function public.rota_publico_meus_creditos() to authenticated;
 grant execute on function public.rota_publico_consumir_credito() to authenticated;
 grant execute on function public.rota_publico_creditar_pacote(text, text) to authenticated;
 grant execute on function public.rota_publico_migrar_local(integer) to authenticated;
+grant execute on function public.rota_publico_consultar_pix(text) to anon, authenticated;
 
 -- Google da calculadora NÃO cria transportador no sistema.
 create or replace function public.handle_new_user()

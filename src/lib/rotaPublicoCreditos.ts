@@ -44,6 +44,14 @@ type RpcCreditos = {
   ok?: boolean
   creditos?: number
   erro?: string
+  ja_creditado?: boolean
+  quando?: string
+  pacote_id?: string
+  email?: string
+  encontrado?: boolean
+  valor?: number
+  saldo_atual?: number
+  txid?: string
 }
 
 function lerCreditosLocais(): number {
@@ -143,7 +151,14 @@ export async function creditarPacoteRotaPublicoNaConta(
     return { ok: false, erro: 'Não foi possível gravar na conta. Rode o SQL de créditos no Supabase.' }
   }
   if (!parsed.ok) {
-    if (parsed.erro === 'ja_usado') return { ok: false, erro: 'Este pagamento já foi usado nesta conta.' }
+    if (parsed.erro === 'ja_usado') {
+      const quando = parsed.quando ? ` em ${formatarQuandoPix(parsed.quando)}` : ''
+      return {
+        ok: false,
+        erro: `Este código já adicionou os créditos${quando}. Comprovante antigo não gera crédito de novo.`,
+        creditos: parsed.creditos,
+      }
+    }
     if (parsed.erro === 'nao_autenticado') {
       return { ok: false, erro: 'Entre com Google para guardar os créditos na sua conta.' }
     }
@@ -170,4 +185,52 @@ export async function migrarCreditosLocaisParaConta(): Promise<number | null> {
 
 export function novoTxidPix() {
   return `DOC${Date.now().toString(36).toUpperCase()}`.replace(/[^A-Z0-9]/g, '').slice(0, 25)
+}
+
+export type ConsultaPixCredito = {
+  encontrado: boolean
+  ja_creditado: boolean
+  txid?: string
+  email?: string
+  pacote_id?: string
+  creditos?: number
+  valor?: number
+  quando?: string
+  saldo_atual?: number
+}
+
+function formatarQuandoPix(iso: string) {
+  try {
+    return new Date(iso).toLocaleString('pt-BR')
+  } catch {
+    return iso
+  }
+}
+
+export async function consultarPixCreditoRota(txid: string): Promise<{
+  ok: boolean
+  erro?: string
+  dados?: ConsultaPixCredito
+}> {
+  const codigo = txid.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+  if (codigo.length < 6) return { ok: false, erro: 'Cole o código do pagamento (mínimo 6 caracteres).' }
+  if (!supabase) return { ok: false, erro: 'Supabase não configurado.' }
+  const { data, error } = await supabase.rpc('rota_publico_consultar_pix', { p_txid: codigo })
+  const parsed = rpcCreditos(data)
+  if (error) return { ok: false, erro: 'Não foi possível consultar. Rode o SQL de consulta PIX no Supabase.' }
+  if (!parsed.ok) return { ok: false, erro: parsed.erro === 'codigo_curto' ? 'Código curto demais.' : 'Consulta inválida.' }
+  return {
+    ok: true,
+    dados: {
+      encontrado: Boolean(parsed.encontrado),
+      ja_creditado: Boolean(parsed.ja_creditado ?? parsed.encontrado),
+      txid: parsed.txid,
+      email: parsed.email,
+      pacote_id: parsed.pacote_id,
+      creditos: parsed.creditos,
+      valor: parsed.valor,
+      quando: parsed.quando,
+      saldo_atual: parsed.saldo_atual,
+    },
+  }
 }

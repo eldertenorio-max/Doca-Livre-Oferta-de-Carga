@@ -70,6 +70,7 @@
   text-decoration: none;
   border: 0;
   cursor: pointer;
+  gap: 8px;
 }
 
 .mapa-pub__btn--ghost {
@@ -80,6 +81,18 @@
 .mapa-pub__btn--solid {
   background: #0f172a;
   color: #fff;
+}
+
+.mapa-pub__btn--whatsapp {
+  background: #16a34a;
+  color: #fff;
+  white-space: normal;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.mapa-pub__btn--whatsapp:hover {
+  background: #15803d;
 }
 
 .mapa-pub__btn--google {
@@ -776,6 +789,18 @@
 .mapa-pub-pix__lado .mapa-pub__btn {
   width: 100%;
   justify-content: center;
+}
+
+.mapa-pub-pix__txid {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.mapa-pub-pix__txid strong {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.04em;
 }
 
 .mapa-pub-pix__wa {

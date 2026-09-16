@@ -17,7 +17,7 @@ import {
 } from '../../lib/rotaPublicoCreditos'
 import { ROTA_PUBLICO_LIMITE_CALCULOS } from '../../lib/rotaPublicoCalculos'
 import type { ContaRotaPublico } from '../../lib/rotaPublicoAuth'
-import { hrefWhatsappComprovantePlano, hrefWhatsappSuporte } from '../../lib/whatsappSuporte'
+import { hrefWhatsappComprovanteCreditos, hrefWhatsappComprovantePlano } from '../../lib/whatsappSuporte'
 import {
   PLANOS_OFERTA_CARGA,
   marcarComprovantePlanoEnviado,
@@ -117,7 +117,7 @@ export function RotaPaywallModal({
   }
 
   async function confirmarPagamento() {
-    if (!pacote || !conta) return
+    if (!pacote || !conta || gravando || pagoOk) return
     setGravando(true)
     setErroPix('')
     const r = await creditarPacoteRotaPublicoNaConta(pacote, txid)
@@ -150,6 +150,16 @@ export function RotaPaywallModal({
     valor: formatCurrency(planoSel.precoValor),
     txid: txidPlano,
   })
+
+  const hrefComprovanteCreditos =
+    pacote && conta
+      ? hrefWhatsappComprovanteCreditos({
+          email: conta.email,
+          creditos: pacote.creditos,
+          valor: formatCurrency(pacote.preco),
+          txid,
+        })
+      : ''
 
   return (
     <div className="mapa-pub-modal" role="dialog" aria-modal="true" aria-labelledby="rota-pub-pay-title">
@@ -241,38 +251,50 @@ export function RotaPaywallModal({
                         Pague <strong>{formatCurrency(pacote.preco)}</strong> e libere{' '}
                         <strong>{pacote.creditos} créditos</strong> na sua conta Google.
                       </p>
+                      <p className="mapa-pub-pix__txid">
+                        Código deste pagamento: <strong>{txid}</strong>
+                      </p>
                       <label className="mapa-pub-pix__copia">
                         PIX Copia e cola
                         <textarea readOnly rows={3} value={payload} />
                       </label>
-                      <button
-                        type="button"
-                        className="mapa-pub__btn mapa-pub__btn--solid"
-                        onClick={() => void copiarPix()}
-                      >
-                        {copiado ? <Check size={16} /> : <Copy size={16} />}
-                        {copiado ? 'Código copiado' : 'Copiar código PIX'}
-                      </button>
-                      <button
-                        type="button"
-                        className="mapa-pub__btn mapa-pub__btn--ghost"
-                        disabled={pagoOk || gravando}
-                        onClick={() => void confirmarPagamento()}
-                      >
-                        {pagoOk ? 'Créditos na sua conta' : gravando ? 'Gravando…' : 'Já paguei'}
-                      </button>
-                      {pagoOk ? (
-                        <a
-                          className="mapa-pub-pix__wa"
-                          href={hrefWhatsappSuporte({
-                            pagina: `compra PIX de ${pacote.creditos} créditos (${formatCurrency(pacote.preco)}). Conta ${conta.email}. Código ${txid}`,
-                          })}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Enviar comprovante no WhatsApp
-                        </a>
-                      ) : null}
+                      {!pagoOk ? (
+                        <>
+                          <button
+                            type="button"
+                            className="mapa-pub__btn mapa-pub__btn--solid"
+                            onClick={() => void copiarPix()}
+                          >
+                            {copiado ? <Check size={16} /> : <Copy size={16} />}
+                            {copiado ? 'Código copiado' : 'Copiar código PIX'}
+                          </button>
+                          <button
+                            type="button"
+                            className="mapa-pub__btn mapa-pub__btn--ghost"
+                            disabled={gravando}
+                            onClick={() => void confirmarPagamento()}
+                          >
+                            {gravando ? 'Gravando…' : 'Já paguei'}
+                          </button>
+                        </>
+                      ) : (
+                        <div className="mapa-pub-pix__verificacao">
+                          <p>
+                            Créditos na sua conta. Envie o comprovante <strong>deste</strong> código{' '}
+                            <strong>{txid}</strong>. Comprovante de outro pagamento não libera crédito
+                            de novo.
+                          </p>
+                          <a
+                            className="mapa-pub__btn mapa-pub__btn--whatsapp"
+                            href={hrefComprovanteCreditos}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <MessageCircle size={16} />
+                            Clique aqui para enviar comprovante no WhatsApp
+                          </a>
+                        </div>
+                      )}
                       {erroPix ? <p className="mapa-pub-pix__erro">{erroPix}</p> : null}
                     </div>
                   </div>

@@ -16,6 +16,7 @@ import {
 } from '../../lib/financeiroPagamentos'
 import { isSuperSession } from '../../lib/superUsers'
 import type { Carga } from '../../types'
+import { ConferirPixCreditos } from '../../components/carga/ConferirPixCreditos'
 import '../../styles/cadastro.css'
 
 function startOfDay(iso: string) {
@@ -372,6 +373,8 @@ export function FinanceiroPage() {
           </button>
         </div>
       </header>
+
+      <ConferirPixCreditos />
 
       <div className="financeiro-kpis">
         <Kpi label="Viagens" value={String(totais.viagens)} hint="Fretes fechados" />
