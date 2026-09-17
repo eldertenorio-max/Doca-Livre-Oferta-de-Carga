@@ -134,7 +134,7 @@ function rotuloCotaPublica(ilimitado: boolean, cota: EstadoCalculosPublicos) {
   if (ilimitado) return 'Ilimitado'
   if (cota.restamGratis > 0) return `${cota.restamGratis} de ${ROTA_PUBLICO_LIMITE_CALCULOS} grátis`
   if (cota.creditos > 0) return `${cota.creditos} crédito${cota.creditos === 1 ? '' : 's'}`
-  return 'Esgotado hoje'
+  return 'Sem créditos — compre mais'
 }
 
 const PREF_LABEL: Record<PreferenciaRota, string> = {
@@ -170,6 +170,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
   const reqId = useRef(0)
   const userRef = useRef(user)
   const cotaBusyRef = useRef(false)
+  const paywallEsgotadoMostrado = useRef(false)
   userRef.current = user
 
   const [origem, setOrigem] = useState('')
@@ -239,6 +240,13 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
       alive = false
     }
   }, [ilimitado, googleAuth.conta?.id])
+
+  useEffect(() => {
+    if (cota.restam > 0) paywallEsgotadoMostrado.current = false
+    if (ilimitado || cota.restam > 0 || paywallEsgotadoMostrado.current) return
+    paywallEsgotadoMostrado.current = true
+    setShowPaywall(true)
+  }, [ilimitado, cota.restam])
 
   useEffect(() => {
     setConsumo(fmtConsumo(consumoPadraoKmL(eixos)))
@@ -807,9 +815,9 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
       <div className="mapa-frota mapa-pub__shell">
         {!modoSistema && !ilimitado && cota.restam === 0 ? (
           <div className="mapa-pub__cta-esgotado">
-            <span>Para calcular mais rotas, compre créditos no PIX ou assine o Doca Livre.</span>
+            <span>Seus créditos acabaram. Compre mais no PIX para continuar calculando, ou assine um plano.</span>
             <button type="button" onClick={() => setShowPaywall(true)}>
-              Continuar calculando
+              Comprar mais créditos
             </button>
           </div>
         ) : null}
@@ -1209,7 +1217,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
                   <button
                     type="button"
                     className="rota-pub__calc"
-                    disabled={busy || (!ilimitado && cota.restam === 0)}
+                    disabled={busy}
                     onClick={() => {
                       if (!ilimitado && cota.restam === 0) {
                         setShowPaywall(true)
