@@ -177,10 +177,7 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
   }, [filtradas, porNome])
 
   const escolhaDeUnidade = porNome.length > 1
-  const pinsNoMapa = useMemo(
-    () => (escolhaDeUnidade ? listaExibida.filter((e) => e.id === selecionada) : listaExibida),
-    [escolhaDeUnidade, listaExibida, selecionada],
-  )
+  const pinsNoMapa = listaExibida
 
   const sugestoes = useMemo(() => sugerirBusca(query, empresas, 10), [query, empresas])
 
@@ -319,23 +316,21 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
     }
 
     window.setTimeout(() => map.invalidateSize(), 80)
-  }, [pinsNoMapa, navigate, visitante, escolhaDeUnidade, selecionada])
+  }, [pinsNoMapa, navigate, visitante, selecionada])
 
   useEffect(() => {
     const map = mapRef.current
     if (!map || selecionada) return
     const comPonto = pinsNoMapa.filter(temCoordenada)
-    if (escolhaDeUnidade) {
-      map.setView([-14.2, -51.9], 4)
-      return
-    }
+    if (comPonto.length === 0) return
     if (comPonto.length === 1) {
       map.setView([comPonto[0].lat, comPonto[0].lng], 12)
-    } else if (comPonto.length > 1) {
-      const bounds = L.latLngBounds(comPonto.map((e) => [e.lat, e.lng] as [number, number]))
-      map.fitBounds(bounds.pad(0.18), { maxZoom: 8, padding: [36, 36] })
+      return
     }
-  }, [pinsNoMapa, escolhaDeUnidade, selecionada])
+    const bounds = L.latLngBounds(comPonto.map((e) => [e.lat, e.lng] as [number, number]))
+    const buscaAtiva = query.trim().length >= 2 || porNome.length > 0
+    map.fitBounds(bounds.pad(0.18), { maxZoom: buscaAtiva ? 12 : 8, padding: [36, 36] })
+  }, [pinsNoMapa, selecionada, query, porNome.length])
 
   useEffect(() => {
     for (const e of listaExibida) {
@@ -806,9 +801,9 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
 
           <p className="mapa-log__result">
             {escolhaDeUnidade
-              ? `Escolha a unidade (${listaExibida.length}) — clique na lista para ver no mapa`
+              ? `${listaExibida.length} unidade(s) de “${query.trim()}” no mapa — clique para focar`
               : porNome.length > 0
-                ? `${listaExibida.length} empresa(s) para “${query.trim()}” — clique para ver no mapa`
+                ? `${listaExibida.length} empresa(s) para “${query.trim()}” no mapa`
                 : `${listaExibida.length} empresa(s) no mapa`}
           </p>
           {listaExibida.length === 0 ? (
