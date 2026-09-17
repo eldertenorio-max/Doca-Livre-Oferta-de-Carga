@@ -143,13 +143,24 @@
 
 .cadastro-page {
   min-height: 100dvh;
-  padding: 28px 16px 40px;
+  padding: 16px 20px 24px;
   background: linear-gradient(180deg, #f4f6f8 0%, #e8ecf0 100%);
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.cadastro-page.cadastro-page--logistica {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 16px 20px 24px;
 }
 
 .cadastro-shell {
-  width: min(860px, 100%);
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  flex: 1;
 }
 
 .cadastro-top {
@@ -171,6 +182,8 @@
   border-radius: 16px;
   box-shadow: 0 10px 28px rgb(15 23 42 / 0.08);
   padding: 22px 22px 20px;
+  box-sizing: border-box;
+  min-height: calc(100dvh - 150px);
 }
 
 .cadastro-steps {
@@ -179,6 +192,60 @@
   gap: 8px;
   margin: 0 0 18px;
   padding: 0;
+}
+
+@media (min-width: 900px) {
+  .cadastro-page.cadastro-page--logistica {
+    padding: 16px 28px 24px;
+  }
+
+  .cadastro-page--logistica .cadastro-card {
+    padding: 32px 40px 28px;
+    min-height: calc(100dvh - 160px);
+  }
+
+  .cadastro-page--logistica .cadastro-steps {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .cadastro-page--logistica .cadastro-steps__item {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border-radius: 12px;
+    padding: 10px 8px;
+    gap: 4px;
+    white-space: normal;
+    line-height: 1.25;
+  }
+
+  .cadastro-page--logistica .cadastro-steps__label {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    background: none;
+    border-radius: 0;
+    color: inherit;
+    font-size: inherit;
+    text-align: center;
+    overflow-wrap: break-word;
+  }
+
+  .cadastro-page--logistica .cadastro-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .cadastro-page--logistica .cadastro-cats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 .cadastro-steps__item {
@@ -222,6 +289,10 @@
 .cadastro-steps__item:not(.is-active) .cadastro-steps__num {
   background: #e2e8f0;
   color: #334155;
+}
+
+.cadastro-steps__label {
+  min-width: 0;
 }
 
 .cadastro-step-panel {

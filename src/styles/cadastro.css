@@ -1055,7 +1055,7 @@
   padding: 12px 0 8px;
 }
 
-.cadastro-steps {
+.cadastro-publico .cadastro-steps {
   list-style: none;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1064,7 +1064,7 @@
   padding: 0;
 }
 
-.cadastro-steps__item {
+.cadastro-publico .cadastro-steps__item {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1075,7 +1075,7 @@
   text-align: center;
 }
 
-.cadastro-steps__item span {
+.cadastro-publico .cadastro-steps__item span {
   width: 28px;
   height: 28px;
   border-radius: 999px;
@@ -1086,21 +1086,21 @@
   font-size: 0.8rem;
 }
 
-.cadastro-steps__item--active {
+.cadastro-publico .cadastro-steps__item--active {
   color: #0f172a;
 }
 
-.cadastro-steps__item--active span {
+.cadastro-publico .cadastro-steps__item--active span {
   background: #f9db00;
   color: #000;
 }
 
-.cadastro-steps__item--done span {
+.cadastro-publico .cadastro-steps__item--done span {
   background: #16a34a;
   color: #fff;
 }
 
-.cadastro-logo {
+.cadastro-publico .cadastro-logo {
   display: flex;
   gap: 14px;
   align-items: center;
@@ -1172,7 +1172,7 @@
 }
 
 @media (max-width: 520px) {
-  .cadastro-logo {
+  .cadastro-publico .cadastro-logo {
     flex-direction: column;
     text-align: center;
   }
@@ -1246,7 +1246,7 @@
 }
 
 @media (max-width: 640px) {
-  .cadastro-steps {
+  .cadastro-publico .cadastro-steps {
     grid-template-columns: repeat(2, 1fr);
   }
 

@@ -273,7 +273,7 @@ export function CadastroEmpresaPage() {
   }
 
   return (
-    <div className="cadastro-page">
+    <div className="cadastro-page cadastro-page--logistica">
       <div className="cadastro-shell">
         <div className="cadastro-top">
           <img src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" className="cadastro-logo" />
@@ -353,7 +353,7 @@ export function CadastroEmpresaPage() {
                     onChange={(e) => setNomeFantasia(e.target.value)}
                   />
                 </div>
-                <div className="cadastro-grid__full">
+                <div>
                   <label className="cadastro-label">Razão social</label>
                   <input
                     className="cadastro-input"
@@ -533,7 +533,7 @@ export function CadastroEmpresaPage() {
                     ))}
                   </select>
                 </div>
-                <div className="cadastro-grid__full">
+                <div>
                   <label className="cadastro-label">
                     Cidade <span>*</span>
                   </label>
@@ -555,7 +555,7 @@ export function CadastroEmpresaPage() {
                   <label className="cadastro-label">Número</label>
                   <input className="cadastro-input" value={numero} onChange={(e) => setNumero(e.target.value)} />
                 </div>
-                <div className="cadastro-grid__full">
+                <div>
                   <label className="cadastro-label">Bairro</label>
                   <input className="cadastro-input" value={bairro} onChange={(e) => setBairro(e.target.value)} />
                 </div>
