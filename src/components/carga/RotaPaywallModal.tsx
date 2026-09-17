@@ -485,7 +485,7 @@ export function RotaPaywallModal({
             )}
             <button
               type="button"
-              className="mapa-pub__btn mapa-pub__btn--ghost mapa-pub-creditos__mais-planos"
+              className="mapa-pub__btn mapa-pub-creditos__mais-planos"
               onClick={() => setAba('plano')}
             >
               Conheça mais planos

@@ -663,6 +663,12 @@
 .mapa-pub-creditos__mais-planos {
   margin-top: 12px;
   width: 100%;
+  background: #facc15;
+  color: #0f172a;
+}
+
+.mapa-pub-creditos__mais-planos:hover {
+  background: #eab308;
 }
 
 .mapa-pub-creditos__packs {
