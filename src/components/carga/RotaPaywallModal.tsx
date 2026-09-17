@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Check, Copy, Loader2, MessageCircle, QrCode, Wallet } from 'lucide-react'
 import { formatCurrency } from '../../lib/businessRules'
 import { LinkSistema } from '../ui/HostLink'
@@ -299,7 +300,36 @@ export function RotaPaywallModal({
         })
       : ''
 
+  const avisoPago =
+    pagoOk && pacote
+      ? createPortal(
+          <div
+            className="mapa-pub-pago"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="rota-pago-title"
+            aria-describedby="rota-pago-desc"
+          >
+            <div className="mapa-pub-pago__card">
+              <div className="mapa-pub-pago__icon" aria-hidden>
+                <Check size={38} strokeWidth={2.8} />
+              </div>
+              <h3 id="rota-pago-title">Pagamento confirmado</h3>
+              <p id="rota-pago-desc">
+                <strong>+{pacote.creditos} créditos</strong> já foram adicionados à sua conta
+                {conta ? ` Google` : ''}. Pode continuar calculando rotas.
+              </p>
+              <button type="button" className="mapa-pub__btn mapa-pub-pago__btn" onClick={onClose}>
+                Continuar calculando
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null
+
   return (
+    <>
     <div className="mapa-pub-modal" role="dialog" aria-modal="true" aria-labelledby="rota-pub-pay-title">
       <div className="mapa-pub-modal__card mapa-pub-modal__card--planos">
         <h2 id="rota-pub-pay-title">
@@ -712,5 +742,7 @@ export function RotaPaywallModal({
         </div>
       </div>
     </div>
+    {avisoPago}
+    </>
   )
 }
