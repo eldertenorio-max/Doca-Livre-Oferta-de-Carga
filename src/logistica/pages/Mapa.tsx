@@ -48,8 +48,6 @@ function temCoordenada(e: Empresa) {
   return Number.isFinite(e.lat) && Number.isFinite(e.lng)
 }
 
-const ZOOM_CLUSTER = 9
-
 function pinIcon(e: Empresa, selecionada = false) {
   const cat = categoriaPorId(e.categoria)
   const tamanho = selecionada ? 48 : 36
@@ -59,34 +57,6 @@ function pinIcon(e: Empresa, selecionada = false) {
     iconSize: [tamanho, tamanho],
     iconAnchor: [tamanho / 2, tamanho],
     popupAnchor: [0, -tamanho + 4],
-  })
-}
-
-function pinCidade(qtd: number, cidade: string, uf: string) {
-  const tamanho = qtd > 99 ? 48 : qtd > 19 ? 42 : 36
-  return L.divIcon({
-    className: 'pin-cidade',
-    html: `<div class="pin-cidade__inner" title="${escapeHtml(`${cidade}/${uf}`)}">${qtd}</div>`,
-    iconSize: [tamanho, tamanho],
-    iconAnchor: [tamanho / 2, tamanho / 2],
-    popupAnchor: [0, -tamanho / 2],
-  })
-}
-
-function gruposPorCidade(lista: Empresa[]) {
-  const grupos = new Map<string, Empresa[]>()
-  for (const e of lista) {
-    if (!temCoordenada(e)) continue
-    const chave = `${e.cidade}|${e.uf}`
-    const atual = grupos.get(chave)
-    if (atual) atual.push(e)
-    else grupos.set(chave, [e])
-  }
-  return [...grupos.entries()].map(([chave, itens]) => {
-    const [cidade, uf] = chave.split('|')
-    const lat = itens.reduce((s, x) => s + x.lat, 0) / itens.length
-    const lng = itens.reduce((s, x) => s + x.lng, 0) / itens.length
-    return { chave, cidade, uf, itens, lat, lng }
   })
 }
 
@@ -164,7 +134,6 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
     typeof window !== 'undefined' ? window.innerWidth > 900 : true,
   )
   const [abaMobile, setAbaMobile] = useState<'lista' | 'mapa'>('lista')
-  const [zoomMapa, setZoomMapa] = useState(5)
   const buscaWrapRef = useRef<HTMLDivElement>(null)
   const filtrosWrapRef = useRef<HTMLDivElement>(null)
   const legendaWrapRef = useRef<HTMLDivElement>(null)
@@ -278,12 +247,8 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
     }).addTo(map)
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
-    setZoomMapa(map.getZoom())
-    const onZoom = () => setZoomMapa(map.getZoom())
-    map.on('zoomend', onZoom)
     window.setTimeout(() => map.invalidateSize(), 120)
     return () => {
-      map.off('zoomend', onZoom)
       map.remove()
       mapRef.current = null
       layerRef.current = null
@@ -319,10 +284,8 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
     markersRef.current.clear()
 
     const comPonto = pinsNoMapa.filter(temCoordenada)
-    const usarCluster = zoomMapa < ZOOM_CLUSTER && comPonto.length > 8 && !escolhaDeUnidade
 
-    function addEmpresaMarker(e: Empresa) {
-      if (!temCoordenada(e)) return
+    for (const e of comPonto) {
       const marker = L.marker([e.lat, e.lng], {
         icon: pinIcon(e, e.id === selecionada),
         riseOnHover: true,
@@ -355,34 +318,8 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
       markersRef.current.set(e.id, marker)
     }
 
-    if (usarCluster) {
-      for (const grupo of gruposPorCidade(comPonto)) {
-        const temSelecionada = Boolean(selecionada && grupo.itens.some((x) => x.id === selecionada))
-        if (grupo.itens.length === 1 || temSelecionada) {
-          for (const e of grupo.itens) addEmpresaMarker(e)
-          continue
-        }
-        const marker = L.marker([grupo.lat, grupo.lng], {
-          icon: pinCidade(grupo.itens.length, grupo.cidade, grupo.uf),
-          riseOnHover: true,
-          title: `${grupo.cidade}/${grupo.uf} · ${grupo.itens.length} empresas`,
-        })
-        marker.bindPopup(
-          `<div class="mapa-popup"><h3>${escapeHtml(grupo.cidade)}/${escapeHtml(grupo.uf)}</h3><p>${grupo.itens.length} empresas neste município. Clique para aproximar.</p></div>`,
-        )
-        marker.on('click', () => {
-          const bounds = L.latLngBounds(grupo.itens.map((e) => [e.lat, e.lng] as [number, number]))
-          map.fitBounds(bounds.pad(0.28), { maxZoom: 12, padding: [28, 28], animate: true })
-        })
-        marker.addTo(camada)
-        markersRef.current.set(`cid:${grupo.chave}`, marker)
-      }
-    } else {
-      for (const e of comPonto) addEmpresaMarker(e)
-    }
-
     window.setTimeout(() => map.invalidateSize(), 80)
-  }, [pinsNoMapa, navigate, visitante, escolhaDeUnidade, selecionada, zoomMapa])
+  }, [pinsNoMapa, navigate, visitante, escolhaDeUnidade, selecionada])
 
   useEffect(() => {
     const map = mapRef.current
@@ -430,7 +367,6 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
     if (map) {
       const z = Math.max(map.getZoom(), 12)
       map.setView([e.lat, e.lng], z, { animate: true })
-      setZoomMapa(z)
     }
     window.setTimeout(() => {
       document.getElementById(`emp-lista-${e.id}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
