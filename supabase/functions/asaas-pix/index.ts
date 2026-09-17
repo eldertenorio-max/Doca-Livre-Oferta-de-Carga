@@ -529,7 +529,7 @@ async function criarCobranca(req: Request, body: Record<string, unknown>) {
     body: JSON.stringify({
       customer: cliente.id,
       billingType: 'PIX',
-      value,
+      value: Number(Number(valor).toFixed(2)),
       dueDate: hojeISO(),
       description: descricao.slice(0, 500),
       externalReference: `${tipo}:${conta?.id || email}:${pacote}`.slice(0, 100),
