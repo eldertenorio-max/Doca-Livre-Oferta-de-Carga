@@ -8,6 +8,7 @@ import {
   MessageCircle,
   Paperclip,
   Send,
+  SendHorizontal,
   Share2,
   Trash2,
   Video,
@@ -527,8 +528,8 @@ export function FeedMural({ empresaFiltro, mostrarComposer, composerEmpresa, vaz
                             : 'Escreva um comentário…'
                         }
                       />
-                      <button type="submit" aria-label="Enviar comentário">
-                        <Send size={16} />
+                      <button type="submit" className="feed__enviar" aria-label="Enviar comentário">
+                        <SendHorizontal size={18} strokeWidth={2.25} />
                       </button>
                     </form>
                   ) : null}
