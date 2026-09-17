@@ -63,7 +63,11 @@ function admin() {
 }
 
 function asaasKey() {
-  return Deno.env.get('ASAAS_API_KEY')?.trim() || ''
+  return (Deno.env.get('ASAAS_API_KEY') || '').trim().replace(/^["']|["']$/g, '')
+}
+
+function fail(erro: string) {
+  return json({ ok: false, erro })
 }
 
 function asaasBase() {
@@ -109,24 +113,55 @@ function hojeISO() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
 }
 
-function erroAsaas(body: unknown) {
-  if (!body || typeof body !== 'object') return 'Falha no Asaas.'
-  const errors = (body as { errors?: Array<{ description?: string }> }).errors
-  if (Array.isArray(errors) && errors[0]?.description) return String(errors[0].description)
-  return 'Falha no Asaas.'
+function erroAsaas(body: unknown, http = 0) {
+  if (!body || typeof body !== 'object') {
+    return http === 401
+      ? 'O Asaas recusou a chave de API. Gere outra em Integrações e atualize o secret ASAAS_API_KEY.'
+      : 'Falha no Asaas.'
+  }
+  const o = body as {
+    errors?: Array<{ description?: string; code?: string }>
+    message?: string
+    erro?: string
+    raw?: string
+  }
+  const desc = Array.isArray(o.errors) ? o.errors[0]?.description || o.errors[0]?.code : ''
+  const raw = String(desc || o.message || o.erro || o.raw || '').trim()
+  const t = raw.toLowerCase()
+  if (http === 401 || t.includes('invalid_access_token') || t.includes('chave de api')) {
+    return 'O Asaas recusou a chave de API. Gere outra em Integrações e atualize o secret ASAAS_API_KEY.'
+  }
+  if (
+    t.includes('em análise') ||
+    t.includes('em analise') ||
+    t.includes('não aprovad') ||
+    t.includes('nao aprovad') ||
+    t.includes('aprovação') ||
+    t.includes('aprovacao') ||
+    t.includes('onboarding') ||
+    t.includes('documentação') ||
+    t.includes('documentacao')
+  ) {
+    return 'A conta Asaas ainda está em análise. Quando estiver aprovada, o QR Code passa a ser gerado.'
+  }
+  return raw || 'Falha no Asaas.'
 }
 
 async function asaasFetch(path: string, init?: RequestInit) {
   const key = asaasKey()
   if (!key) return { ok: false as const, status: 0, body: { erro: 'asaas_nao_configurado' } }
+  const method = String(init?.method || 'GET').toUpperCase()
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'User-Agent': 'DocaLivreOfertaDeCarga/1.0 (https://ofertadecarga.com.br)',
+    access_token: key,
+    Authorization: `Bearer ${key}`,
+  }
+  if (init?.body) headers['Content-Type'] = 'application/json'
   const r = await fetch(`${asaasBase()}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      'User-Agent': 'DocaLivreOfertaDeCarga/1.0 (SupabaseEdge)',
-      access_token: key,
-      ...(init?.headers || {}),
-    },
+    method,
+    body: init?.body,
+    headers,
   })
   const text = await r.text()
   let body: unknown = {}
@@ -135,7 +170,37 @@ async function asaasFetch(path: string, init?: RequestInit) {
   } catch {
     body = { raw: text.slice(0, 240) }
   }
+  if (!r.ok) console.error('asaas', method, path, r.status, text.slice(0, 400))
   return { ok: r.ok, status: r.status, body }
+}
+
+type ContaAsaas = {
+  commercialInfo?: string
+  documentation?: string
+  bankAccountInfo?: string
+  general?: string
+}
+
+async function situacaoContaAsaas(): Promise<
+  { ok: true; conta: ContaAsaas } | { ok: false; erro: string; http: number }
+> {
+  const ping = await asaasFetch('/myAccount/status')
+  if (!ping.ok) return { ok: false, erro: erroAsaas(ping.body, ping.status), http: ping.status }
+  const st = ping.body as ContaAsaas
+  return {
+    ok: true,
+    conta: {
+      commercialInfo: st.commercialInfo,
+      documentation: st.documentation,
+      bankAccountInfo: st.bankAccountInfo,
+      general: st.general,
+    },
+  }
+}
+
+function contaAindaEmAnalise(conta?: ContaAsaas | null) {
+  const g = String(conta?.general || '').toUpperCase()
+  return g !== '' && g !== 'APPROVED'
 }
 
 async function webhookToken() {
@@ -209,7 +274,7 @@ async function clienteAsaas(opts: { nome: string; email: string; cpfCnpj: string
     }),
   })
   const id = (criar.body as { id?: string }).id
-  if (!criar.ok || !id) return { ok: false as const, erro: erroAsaas(criar.body) }
+  if (!criar.ok || !id) return { ok: false as const, erro: erroAsaas(criar.body, criar.status) }
   return { ok: true as const, id }
 }
 
@@ -404,18 +469,18 @@ async function processarPago(paymentId: string) {
 }
 
 async function criarCobranca(req: Request, body: Record<string, unknown>) {
-  if (!asaasKey()) return json({ ok: false, erro: 'asaas_nao_configurado' }, 503)
+  if (!asaasKey()) return fail('asaas_nao_configurado')
 
   const tipo = body.tipo === 'plano' ? 'plano' : 'credito'
   const pacote = String(body.pacote || '').trim()
   const cpfCnpj = soDigitos(String(body.cpfCnpj || ''))
   if (!cpfCnpjOk(cpfCnpj)) {
-    return json({ ok: false, erro: 'Informe um CPF ou CNPJ válido.' }, 400)
+    return fail('Informe um CPF ou CNPJ válido.')
   }
 
   const conta = await usuarioDoPedido(req)
   if (tipo === 'credito' && !conta) {
-    return json({ ok: false, erro: 'Entre com Google para comprar créditos.' }, 401)
+    return fail('Entre com Google para comprar créditos.')
   }
 
   let creditos = 0
@@ -423,13 +488,13 @@ async function criarCobranca(req: Request, body: Record<string, unknown>) {
   let titulo = ''
   if (tipo === 'credito') {
     const p = PACOTES[pacote]
-    if (!p) return json({ ok: false, erro: 'Pacote inválido.' }, 400)
+    if (!p) return fail('Pacote inválido.')
     creditos = p.creditos
     valor = p.valor
     titulo = p.titulo
   } else {
     const p = PLANOS[pacote]
-    if (!p) return json({ ok: false, erro: 'Plano inválido.' }, 400)
+    if (!p) return fail('Plano inválido.')
     valor = p.valor
     titulo = p.titulo
   }
@@ -437,7 +502,14 @@ async function criarCobranca(req: Request, body: Record<string, unknown>) {
   const email = (conta?.email || String(body.email || '')).trim().toLowerCase()
   const nome = (conta?.nome || String(body.nome || '')).trim() || email.split('@')[0] || 'Cliente Doca Livre'
   if (tipo === 'plano' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-    return json({ ok: false, erro: 'Informe o e-mail para enviarmos a confirmação.' }, 400)
+    return fail('Informe o e-mail para enviarmos a confirmação.')
+  }
+
+  const situacao = await situacaoContaAsaas()
+  if (situacao.ok && contaAindaEmAnalise(situacao.conta)) {
+    return fail(
+      'A conta Asaas ainda está em análise (documentos/cadastro). O QR Code só é gerado depois da aprovação.',
+    )
   }
 
   const cliente = await clienteAsaas({
@@ -446,7 +518,7 @@ async function criarCobranca(req: Request, body: Record<string, unknown>) {
     cpfCnpj,
     userId: conta?.id,
   })
-  if (!cliente.ok) return json({ ok: false, erro: cliente.erro }, 400)
+  if (!cliente.ok) return fail(cliente.erro)
 
   const descricao =
     tipo === 'credito'
@@ -465,13 +537,13 @@ async function criarCobranca(req: Request, body: Record<string, unknown>) {
   })
   const paymentId = (cobrancaAsaas.body as { id?: string }).id
   if (!cobrancaAsaas.ok || !paymentId) {
-    return json({ ok: false, erro: erroAsaas(cobrancaAsaas.body) }, 400)
+    return fail(erroAsaas(cobrancaAsaas.body, cobrancaAsaas.status))
   }
 
   const qr = await asaasFetch(`/payments/${encodeURIComponent(paymentId)}/pixQrCode`)
   const qrBody = qr.body as { encodedImage?: string; payload?: string; expirationDate?: string }
   if (!qr.ok || !qrBody.payload) {
-    return json({ ok: false, erro: erroAsaas(qr.body) || 'Não foi possível gerar o QR Code PIX.' }, 400)
+    return fail(erroAsaas(qr.body, qr.status) || 'Não foi possível gerar o QR Code PIX.')
   }
 
   const sb = admin()
@@ -487,7 +559,7 @@ async function criarCobranca(req: Request, body: Record<string, unknown>) {
     email: email || null,
   })
   if (insErr) {
-    return json({ ok: false, erro: 'Não foi possível gravar a cobrança. Rode o SQL do Asaas no Supabase.' }, 500)
+    return fail('Não foi possível gravar a cobrança. Rode o SQL do Asaas no Supabase.')
   }
 
   try {
@@ -518,7 +590,7 @@ async function criarCobranca(req: Request, body: Record<string, unknown>) {
 
 async function statusCobranca(req: Request, body: Record<string, unknown>) {
   const paymentId = String(body.paymentId || '').trim()
-  if (!paymentId) return json({ ok: false, erro: 'Pagamento inválido.' }, 400)
+  if (!paymentId) return fail('Pagamento inválido.')
 
   const sb = admin()
   const { data } = await sb
@@ -527,11 +599,11 @@ async function statusCobranca(req: Request, body: Record<string, unknown>) {
     .eq('asaas_payment_id', paymentId)
     .maybeSingle()
   const cobranca = data as Cobranca | null
-  if (!cobranca) return json({ ok: false, erro: 'Cobrança não encontrada.' }, 404)
+  if (!cobranca) return fail('Cobrança não encontrada.')
 
   const conta = await usuarioDoPedido(req)
   if (cobranca.tipo === 'credito' && cobranca.user_id && conta?.id !== cobranca.user_id) {
-    return json({ ok: false, erro: 'Essa cobrança é de outra conta.' }, 403)
+    return fail('Essa cobrança é de outra conta.')
   }
 
   if (cobranca.status === 'pago') {
@@ -545,7 +617,7 @@ async function statusCobranca(req: Request, body: Record<string, unknown>) {
 
   const consulta = await asaasFetch(`/payments/${encodeURIComponent(paymentId)}`)
   const status = String((consulta.body as { status?: string }).status || '')
-  if (!consulta.ok) return json({ ok: false, erro: erroAsaas(consulta.body) }, 400)
+  if (!consulta.ok) return fail(erroAsaas(consulta.body, consulta.status))
   if (!PAGO.has(status)) {
     return json({ ok: true, pago: false, status })
   }
@@ -601,16 +673,20 @@ Deno.serve(async (req) => {
     if (action === 'criar') return await criarCobranca(req, body)
     if (action === 'status') return await statusCobranca(req, body)
     if (action === 'config') {
+      const situacao = asaasKey() ? await situacaoContaAsaas() : null
       return json({
         ok: true,
         asaas: Boolean(asaasKey()),
         resend: Boolean(Deno.env.get('RESEND_API_KEY')?.trim()),
         sandbox: asaasKey().includes('aact_hmlg'),
+        conta: situacao && situacao.ok ? situacao.conta : undefined,
+        contaErro: situacao && !situacao.ok ? situacao.erro : undefined,
       })
     }
-    return json({ ok: false, erro: 'Ação inválida.' }, 400)
+    return fail('Ação inválida.')
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro interno.'
-    return json({ ok: false, erro: msg }, 500)
+    console.error('asaas-pix', msg)
+    return fail(msg)
   }
 })

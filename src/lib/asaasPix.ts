@@ -39,7 +39,16 @@ async function chamarAsaas(body: Record<string, unknown>): Promise<RespostaAsaas
     return { ok: false, erro: payload.erro || 'Não foi possível falar com o PIX.' }
   }
   if (error) {
-    const msg = error.message || 'Falha ao chamar o PIX automático.'
+    let msg = error.message || 'Falha ao chamar o PIX automático.'
+    const ctx = (error as { context?: Response }).context
+    if (ctx && typeof ctx.json === 'function') {
+      try {
+        const bodyErr = (await ctx.json()) as RespostaAsaas
+        if (bodyErr?.erro) msg = bodyErr.erro
+      } catch {
+        /* ignore */
+      }
+    }
     if (/not found|404|Failed to send a request/i.test(msg)) {
       return { ok: false, erro: 'asaas_nao_configurado' }
     }
