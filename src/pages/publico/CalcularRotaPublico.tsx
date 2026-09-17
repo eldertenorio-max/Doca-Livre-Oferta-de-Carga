@@ -164,7 +164,7 @@ function novaVia(): Via {
   return { id, endereco: '' }
 }
 
-export function CalcularRotaPublicoPage() {
+export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?: boolean } = {}) {
   const user = lerPerfilLocal()
   const formId = useId()
   const reqId = useRef(0)
@@ -197,7 +197,7 @@ export function CalcularRotaPublicoPage() {
   const [calc, setCalc] = useState<AnttCalculo | null>(null)
   const [mapId, setMapId] = useState(0)
   const [entrarId, setEntrarId] = useState(0)
-  const ilimitado = Boolean(user) || isRotaPublicoIlimitado()
+  const ilimitado = modoSistema || Boolean(user) || isRotaPublicoIlimitado()
   const googleAuth = useRotaPublicoAuth()
   const [cota, setCota] = useState<EstadoCalculosPublicos>(() =>
     ilimitado ? COTA_ILIMITADA : estadoCalculosPublicos(),
@@ -221,8 +221,8 @@ export function CalcularRotaPublicoPage() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'light')
-    document.title = 'Calcular rota — Oferta de Carga'
-  }, [])
+    document.title = modoSistema ? 'Calcular rota' : 'Calcular rota — Oferta de Carga'
+  }, [modoSistema])
 
   useEffect(() => {
     if (ilimitado) setCota(COTA_ILIMITADA)
@@ -473,7 +473,7 @@ export function CalcularRotaPublicoPage() {
   }
 
   async function consumirCalculo(): Promise<boolean> {
-    if (userRef.current || isRotaPublicoIlimitado()) return true
+    if (modoSistema || userRef.current || isRotaPublicoIlimitado()) return true
     if (cotaBusyRef.current) return false
     cotaBusyRef.current = true
     try {
@@ -586,20 +586,22 @@ export function CalcularRotaPublicoPage() {
       preferencia: pref,
     })
     setShowResultado(true)
-    sincronizarBarraEndereco({
-      origem: oTxt,
-      destino: dTxt,
-      vias: waypoints,
-      origemCoords: oHint,
-      destinoCoords: dHint,
-      tipoVeiculo: tipoVeiculoNome.trim() || undefined,
-      idaEVolta: volta,
-      preferencia: pref,
-      eixos: ex,
-      categoriaId: cat,
-      consumoKmL: consKmL,
-      precoDiesel: diesel,
-    })
+    if (!modoSistema) {
+      sincronizarBarraEndereco({
+        origem: oTxt,
+        destino: dTxt,
+        vias: waypoints,
+        origemCoords: oHint,
+        destinoCoords: dHint,
+        tipoVeiculo: tipoVeiculoNome.trim() || undefined,
+        idaEVolta: volta,
+        preferencia: pref,
+        eixos: ex,
+        categoriaId: cat,
+        consumoKmL: consKmL,
+        precoDiesel: diesel,
+      })
+    }
   }
 
   useEffect(() => {
@@ -738,7 +740,8 @@ export function CalcularRotaPublicoPage() {
   )
 
   return (
-    <div className="mapa-pub rota-pub">
+    <div className={`mapa-pub rota-pub${modoSistema ? ' rota-pub--sistema' : ''}`}>
+      {modoSistema ? null : (
       <header className="mapa-pub__top">
         <Link to={isSiteOfertaDeCarga() ? '/' : '/rota'} className="mapa-pub__brand">
           <img src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
@@ -799,9 +802,10 @@ export function CalcularRotaPublicoPage() {
           )}
         </div>
       </header>
+      )}
 
       <div className="mapa-frota mapa-pub__shell">
-        {!ilimitado && cota.restam === 0 ? (
+        {!modoSistema && !ilimitado && cota.restam === 0 ? (
           <div className="mapa-pub__cta-esgotado">
             <span>Para calcular mais rotas, compre créditos no PIX ou assine o Doca Livre.</span>
             <button type="button" onClick={() => setShowPaywall(true)}>
@@ -818,7 +822,7 @@ export function CalcularRotaPublicoPage() {
                 <p className="rota-pub__badge">{rotuloCotaPublica(ilimitado, cota)}</p>
               </div>
               <h1>Calcular rota</h1>
-              {!ilimitado ? (
+              {!modoSistema && !ilimitado ? (
                 <button type="button" className="rota-pub__beneficios" onClick={() => setShowPaywall(true)}>
                   Conheça os benefícios
                 </button>
@@ -1474,7 +1478,7 @@ export function CalcularRotaPublicoPage() {
         </div>
       </div>
 
-      {showPaywall ? (
+      {showPaywall && !modoSistema ? (
         <RotaPaywallModal
           restamGratis={cota.restamGratis}
           creditos={cota.creditos}

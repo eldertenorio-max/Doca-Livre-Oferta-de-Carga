@@ -835,6 +835,16 @@ a.sidebar-section:first-of-type {
   z-index: 1;
 }
 
+.main-panel:has(.rota-pub--sistema) {
+  padding: 0;
+  overflow: hidden;
+}
+
+.main-panel:has(.rota-pub--sistema)::before,
+.main-panel:has(.rota-pub--sistema)::after {
+  display: none;
+}
+
 /* Backdrop do menu — só no mobile (ver media query) */
 .app-workspace-backdrop {
   display: none;
@@ -1040,4 +1050,9 @@ a.sidebar-section:first-of-type {
   .sidebar:not(.sidebar--pinned):not(.sidebar--wide) {
     width: var(--sidebar-w-collapsed);
   }
+}
+
+.main-panel:has(.rota-pub--sistema) {
+  padding: 0;
+  overflow: hidden;
 }

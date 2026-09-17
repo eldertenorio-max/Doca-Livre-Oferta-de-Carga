@@ -53,6 +53,21 @@ function IconLocation() {
   )
 }
 
+function IconRoute() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="6" cy="6" r="2.5" stroke="currentColor" strokeWidth="1.75" />
+      <circle cx="18" cy="18" r="2.5" stroke="currentColor" strokeWidth="1.75" />
+      <path
+        d="M8.2 8.2c3.2 1.2 4.4 6.4 7.6 7.6"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
 function IconUsers() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -172,6 +187,7 @@ const minervaLinks: NavItem[] = [
     icon: <IconMalha />,
   },
   { to: '/embarcador/rotas', label: 'Rotas', icon: <IconLocation /> },
+  { to: '/embarcador/calcular-rota', label: 'Calcular rota', icon: <IconRoute /> },
   { to: '/embarcador/tabelas-frete', label: 'Tabelas de Frete', icon: <IconWallet /> },
   { to: '/embarcador/transportadores', label: 'Transportadoras', icon: <IconUsers /> },
   { to: '/embarcador/veiculos', label: 'Veículos', icon: <IconTruck /> },
@@ -189,6 +205,7 @@ const minervaLinks: NavItem[] = [
 const transportadorLinks: NavItem[] = [
   { to: '/transportador/painel', label: 'Painel', icon: <IconChart /> },
   { to: '/transportador', label: 'Ofertas', icon: <IconGrid />, end: true },
+  { to: '/transportador/calcular-rota', label: 'Calcular rota', icon: <IconRoute /> },
   { to: '/transportador/viagens', label: 'Viagens', icon: <IconTruck /> },
   { to: '/transportador/veiculos', label: 'Meus Veículos', icon: <IconTruck /> },
   { to: '/transportador/motoristas', label: 'Meus Motoristas', icon: <IconUsers /> },

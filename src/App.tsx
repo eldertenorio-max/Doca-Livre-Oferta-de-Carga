@@ -98,7 +98,8 @@ function AppBanners() {
     location.pathname === '/rota' ||
     location.pathname === '/calcular-rota' ||
     location.pathname === '/frete-minimo' ||
-    location.pathname.startsWith('/embarcador/mapa')
+    location.pathname.startsWith('/embarcador/mapa') ||
+    location.pathname.endsWith('/calcular-rota')
   ) {
     return null
   }
@@ -247,6 +248,14 @@ export default function App() {
           element={
             <Protected role={['super']}>
               <RotasPage />
+            </Protected>
+          }
+        />
+        <Route
+          path="/embarcador/calcular-rota"
+          element={
+            <Protected role={['super']}>
+              <CalcularRotaPublicoPage modoSistema />
             </Protected>
           }
         />
@@ -423,6 +432,14 @@ export default function App() {
           element={
             <Protected role={['transportador', 'super']}>
               <PainelTransportadorPage />
+            </Protected>
+          }
+        />
+        <Route
+          path="/transportador/calcular-rota"
+          element={
+            <Protected role={['transportador', 'super']}>
+              <CalcularRotaPublicoPage modoSistema />
             </Protected>
           }
         />

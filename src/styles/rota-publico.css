@@ -13,6 +13,12 @@
   max-height: 100dvh;
 }
 
+.rota-pub.mapa-pub.rota-pub--sistema {
+  height: 100%;
+  max-height: none;
+  min-height: 100%;
+}
+
 .rota-pub.mapa-pub .mapa-pub__top {
   padding: 6px 10px;
 }
