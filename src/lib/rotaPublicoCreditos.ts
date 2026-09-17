@@ -19,7 +19,7 @@ export const PACOTES_CREDITO_ROTA: PacoteCreditoRota[] = [
   {
     id: '50',
     creditos: 50,
-    preco: 29.9,
+    preco: 0.01,
     titulo: '50 créditos',
     sub: '50 cálculos de rota',
     destaque: true,

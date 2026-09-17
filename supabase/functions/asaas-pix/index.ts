@@ -20,7 +20,7 @@ const corsHeaders: Record<string, string> = {
 }
 
 const PACOTES: Record<string, { creditos: number; valor: number; titulo: string }> = {
-  '50': { creditos: 50, valor: 29.9, titulo: '50 créditos' },
+  '50': { creditos: 50, valor: 0.01, titulo: '50 créditos' },
   '100': { creditos: 100, valor: 59.9, titulo: '100 créditos' },
   '200': { creditos: 200, valor: 99.9, titulo: '200 créditos' },
 }
