@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, Copy, Loader2, MessageCircle, QrCode, Wallet } from 'lucide-react'
+import { Check, Copy, Loader2, MessageCircle, QrCode, Wallet, X } from 'lucide-react'
 import { formatCurrency } from '../../lib/businessRules'
 import { LinkSistema } from '../ui/HostLink'
 import {
@@ -332,9 +332,14 @@ export function RotaPaywallModal({
     <>
     <div className="mapa-pub-modal" role="dialog" aria-modal="true" aria-labelledby="rota-pub-pay-title">
       <div className="mapa-pub-modal__card mapa-pub-modal__card--planos">
-        <h2 id="rota-pub-pay-title">
-          {esgotado ? 'Continuar calculando rotas' : 'Conheça os benefícios'}
-        </h2>
+        <div className="mapa-pub-modal__topo">
+          <h2 id="rota-pub-pay-title">
+            {esgotado ? 'Continuar calculando rotas' : 'Conheça os benefícios'}
+          </h2>
+          <button type="button" className="mapa-pub-modal__x" aria-label="Fechar" onClick={onClose}>
+            <X size={22} strokeWidth={2.7} />
+          </button>
+        </div>
         <p>
           {esgotado
             ? `Os ${ROTA_PUBLICO_LIMITE_CALCULOS} cálculos grátis de hoje acabaram. Compre créditos no PIX ou assine um plano.`

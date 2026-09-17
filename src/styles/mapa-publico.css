@@ -466,6 +466,41 @@
   font-weight: 900;
 }
 
+.mapa-pub-modal__topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: -8px -8px 0 0;
+  padding: 8px 8px 4px 0;
+  background: #fff;
+}
+
+.mapa-pub-modal__topo h2 {
+  flex: 1;
+  padding-top: 4px;
+}
+
+.mapa-pub-modal__x {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 12px;
+  background: #f1f5f9;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.mapa-pub-modal__x:hover {
+  background: #e2e8f0;
+}
+
 .mapa-pub-modal__card > p {
   margin: 10px 0 0;
   font-size: 0.88rem;
