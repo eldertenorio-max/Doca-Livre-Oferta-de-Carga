@@ -843,7 +843,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
                   {googleAuth.erro}
                 </span>
               ) : null}
-              <LinkSistema className="mapa-pub__btn mapa-pub__btn--ghost" to="/cadastro-transportador">
+              <LinkSistema className="mapa-pub__btn mapa-pub__btn--ghost" to="/login">
                 Sistema
               </LinkSistema>
             </>
