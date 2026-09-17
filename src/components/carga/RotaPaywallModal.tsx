@@ -523,7 +523,8 @@ export function RotaPaywallModal({
                   key={plano.id}
                   role="button"
                   tabIndex={0}
-                  className={`mapa-pub-plano${plano.destaque ? ' is-destaque' : ''}${planoSel.id === plano.id ? ' is-on' : ''}`}
+                  className={`mapa-pub-plano${planoSel.id === plano.id ? ' is-destaque is-on' : ''}`}
+                  aria-pressed={planoSel.id === plano.id}
                   onClick={() => setPlanoSel(plano)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {

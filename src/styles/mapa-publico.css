@@ -651,19 +651,21 @@
   background: #f8fafc;
 }
 
-.mapa-pub-plano.is-on {
-  box-shadow: 0 0 0 2px rgb(15 23 42 / 0.28);
-  cursor: pointer;
+.mapa-pub-plano.is-on,
+.mapa-pub-plano.is-destaque {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #fff;
+  box-shadow: 0 0 0 2px rgb(250 204 21 / 0.55);
 }
 
 .mapa-pub-plano[role='button'] {
   cursor: pointer;
 }
 
-.mapa-pub-plano.is-destaque {
-  background: #0f172a;
+.mapa-pub-plano[role='button']:hover:not(.is-on):not(.is-destaque) {
   border-color: #0f172a;
-  color: #fff;
+  background: #fff;
 }
 
 .mapa-pub-plano__tag {
@@ -693,6 +695,8 @@
   color: #64748b;
 }
 
+.mapa-pub-plano.is-on .mapa-pub-plano__para,
+.mapa-pub-plano.is-on .mapa-pub-plano__extra,
 .mapa-pub-plano.is-destaque .mapa-pub-plano__para,
 .mapa-pub-plano.is-destaque .mapa-pub-plano__extra {
   color: #cbd5e1;
@@ -716,6 +720,7 @@
   color: #64748b;
 }
 
+.mapa-pub-plano.is-on .mapa-pub-plano__preco small,
 .mapa-pub-plano.is-destaque .mapa-pub-plano__preco small {
   color: #94a3b8;
 }
@@ -733,6 +738,7 @@
   color: #334155;
 }
 
+.mapa-pub-plano.is-on ul,
 .mapa-pub-plano.is-destaque ul {
   color: #e2e8f0;
 }
@@ -741,6 +747,7 @@
   width: 100%;
 }
 
+.mapa-pub-plano.is-on .mapa-pub__btn--solid,
 .mapa-pub-plano.is-destaque .mapa-pub__btn--solid {
   background: #facc15;
   color: #0f172a;
