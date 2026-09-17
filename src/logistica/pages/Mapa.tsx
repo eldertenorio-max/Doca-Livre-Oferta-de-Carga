@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { Info } from 'lucide-react'
+import { Info, Lock } from 'lucide-react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useAuth } from '../lib/AuthContext'
@@ -48,6 +48,8 @@ function temCoordenada(e: Empresa) {
   return Number.isFinite(e.lat) && Number.isFinite(e.lng)
 }
 
+const ZOOM_CLUSTER = 9
+
 function pinIcon(e: Empresa, selecionada = false) {
   const cat = categoriaPorId(e.categoria)
   const tamanho = selecionada ? 48 : 36
@@ -57,6 +59,34 @@ function pinIcon(e: Empresa, selecionada = false) {
     iconSize: [tamanho, tamanho],
     iconAnchor: [tamanho / 2, tamanho],
     popupAnchor: [0, -tamanho + 4],
+  })
+}
+
+function pinCidade(qtd: number, cidade: string, uf: string) {
+  const tamanho = qtd > 99 ? 48 : qtd > 19 ? 42 : 36
+  return L.divIcon({
+    className: 'pin-cidade',
+    html: `<div class="pin-cidade__inner" title="${escapeHtml(`${cidade}/${uf}`)}">${qtd}</div>`,
+    iconSize: [tamanho, tamanho],
+    iconAnchor: [tamanho / 2, tamanho / 2],
+    popupAnchor: [0, -tamanho / 2],
+  })
+}
+
+function gruposPorCidade(lista: Empresa[]) {
+  const grupos = new Map<string, Empresa[]>()
+  for (const e of lista) {
+    if (!temCoordenada(e)) continue
+    const chave = `${e.cidade}|${e.uf}`
+    const atual = grupos.get(chave)
+    if (atual) atual.push(e)
+    else grupos.set(chave, [e])
+  }
+  return [...grupos.entries()].map(([chave, itens]) => {
+    const [cidade, uf] = chave.split('|')
+    const lat = itens.reduce((s, x) => s + x.lat, 0) / itens.length
+    const lng = itens.reduce((s, x) => s + x.lng, 0) / itens.length
+    return { chave, cidade, uf, itens, lat, lng }
   })
 }
 
@@ -130,9 +160,15 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
   const [legendaAberta, setLegendaAberta] = useState(false)
   const [filtroAberto, setFiltroAberto] = useState<string | null>(null)
   const [filtrosReset, setFiltrosReset] = useState(0)
+  const [maisFiltros, setMaisFiltros] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth > 900 : true,
+  )
+  const [abaMobile, setAbaMobile] = useState<'lista' | 'mapa'>('lista')
+  const [zoomMapa, setZoomMapa] = useState(5)
   const buscaWrapRef = useRef<HTMLDivElement>(null)
   const filtrosWrapRef = useRef<HTMLDivElement>(null)
   const legendaWrapRef = useRef<HTMLDivElement>(null)
+  const mapWrapRef = useRef<HTMLDivElement>(null)
   // Mantém o endereço em que o mapa já está (raiz para visitante) ao filtrar.
   const basePath = publico ? pathname : '/embarcador/mapa-logistica'
   const visitante = publico && !sessao
@@ -242,13 +278,30 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
     }).addTo(map)
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
+    setZoomMapa(map.getZoom())
+    const onZoom = () => setZoomMapa(map.getZoom())
+    map.on('zoomend', onZoom)
     window.setTimeout(() => map.invalidateSize(), 120)
     return () => {
+      map.off('zoomend', onZoom)
       map.remove()
       mapRef.current = null
       layerRef.current = null
     }
   }, [])
+
+  useEffect(() => {
+    const wrap = mapWrapRef.current
+    const map = mapRef.current
+    if (!wrap || !map) return
+    const ro = new ResizeObserver(() => map.invalidateSize())
+    ro.observe(wrap)
+    const t = window.setTimeout(() => map.invalidateSize(), 80)
+    return () => {
+      window.clearTimeout(t)
+      ro.disconnect()
+    }
+  }, [abaMobile])
 
   useEffect(() => {
     if (manterFocoRef.current) {
@@ -260,15 +313,18 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
 
   useEffect(() => {
     const map = mapRef.current
-    const layer = layerRef.current
-    if (!map || !layer) return
-    layer.clearLayers()
+    const camada = layerRef.current
+    if (!map || !camada) return
+    camada.clearLayers()
     markersRef.current.clear()
 
-    for (const e of pinsNoMapa) {
-      if (!temCoordenada(e)) continue
+    const comPonto = pinsNoMapa.filter(temCoordenada)
+    const usarCluster = zoomMapa < ZOOM_CLUSTER && comPonto.length > 8 && !escolhaDeUnidade
+
+    function addEmpresaMarker(e: Empresa) {
+      if (!temCoordenada(e)) return
       const marker = L.marker([e.lat, e.lng], {
-        icon: pinIcon(e, false),
+        icon: pinIcon(e, e.id === selecionada),
         riseOnHover: true,
         title: e.nome_fantasia,
       })
@@ -295,23 +351,54 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
           setSelecionada(e.id)
         })
       }
-      marker.addTo(layer)
+      marker.addTo(camada)
       markersRef.current.set(e.id, marker)
     }
 
-    if (escolhaDeUnidade && !selecionada) {
-      map.setView([-14.2, -51.9], 4)
-    } else if (!selecionada) {
-      const comPonto = pinsNoMapa.filter(temCoordenada)
-      if (comPonto.length === 1) {
-        map.setView([comPonto[0].lat, comPonto[0].lng], 12)
-      } else if (comPonto.length > 1) {
-        const bounds = L.latLngBounds(comPonto.map((e) => [e.lat, e.lng] as [number, number]))
-        map.fitBounds(bounds.pad(0.18), { maxZoom: 12, padding: [36, 36] })
+    if (usarCluster) {
+      for (const grupo of gruposPorCidade(comPonto)) {
+        const temSelecionada = Boolean(selecionada && grupo.itens.some((x) => x.id === selecionada))
+        if (grupo.itens.length === 1 || temSelecionada) {
+          for (const e of grupo.itens) addEmpresaMarker(e)
+          continue
+        }
+        const marker = L.marker([grupo.lat, grupo.lng], {
+          icon: pinCidade(grupo.itens.length, grupo.cidade, grupo.uf),
+          riseOnHover: true,
+          title: `${grupo.cidade}/${grupo.uf} · ${grupo.itens.length} empresas`,
+        })
+        marker.bindPopup(
+          `<div class="mapa-popup"><h3>${escapeHtml(grupo.cidade)}/${escapeHtml(grupo.uf)}</h3><p>${grupo.itens.length} empresas neste município. Clique para aproximar.</p></div>`,
+        )
+        marker.on('click', () => {
+          const bounds = L.latLngBounds(grupo.itens.map((e) => [e.lat, e.lng] as [number, number]))
+          map.fitBounds(bounds.pad(0.28), { maxZoom: 12, padding: [28, 28], animate: true })
+        })
+        marker.addTo(camada)
+        markersRef.current.set(`cid:${grupo.chave}`, marker)
       }
+    } else {
+      for (const e of comPonto) addEmpresaMarker(e)
     }
+
     window.setTimeout(() => map.invalidateSize(), 80)
-  }, [pinsNoMapa, navigate, visitante, escolhaDeUnidade, selecionada])
+  }, [pinsNoMapa, navigate, visitante, escolhaDeUnidade, selecionada, zoomMapa])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || selecionada) return
+    const comPonto = pinsNoMapa.filter(temCoordenada)
+    if (escolhaDeUnidade) {
+      map.setView([-14.2, -51.9], 4)
+      return
+    }
+    if (comPonto.length === 1) {
+      map.setView([comPonto[0].lat, comPonto[0].lng], 12)
+    } else if (comPonto.length > 1) {
+      const bounds = L.latLngBounds(comPonto.map((e) => [e.lat, e.lng] as [number, number]))
+      map.fitBounds(bounds.pad(0.18), { maxZoom: 8, padding: [36, 36] })
+    }
+  }, [pinsNoMapa, escolhaDeUnidade, selecionada])
 
   useEffect(() => {
     for (const e of listaExibida) {
@@ -335,9 +422,16 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
   }, [selecionada])
 
   function irPara(e: Empresa) {
-    if (!temCoordenada(e)) return
     manterFocoRef.current = true
     setSelecionada(e.id)
+    if (typeof window !== 'undefined' && window.innerWidth <= 900) setAbaMobile('mapa')
+    if (!temCoordenada(e)) return
+    const map = mapRef.current
+    if (map) {
+      const z = Math.max(map.getZoom(), 12)
+      map.setView([e.lat, e.lng], z, { animate: true })
+      setZoomMapa(z)
+    }
     window.setTimeout(() => {
       document.getElementById(`emp-lista-${e.id}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
     }, 50)
@@ -487,7 +581,29 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
       ) : null}
       <div className="mapa-log__body">
       <div className="mapa-log__layout">
-        <aside className={`mapa-log__lista${escolhaDeUnidade ? ' is-escolha' : ''}`}>
+        <div className="mapa-log__abas" role="tablist" aria-label="Lista ou mapa">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={abaMobile === 'lista'}
+            className={`mapa-log__aba${abaMobile === 'lista' ? ' is-on' : ''}`}
+            onClick={() => setAbaMobile('lista')}
+          >
+            Lista
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={abaMobile === 'mapa'}
+            className={`mapa-log__aba${abaMobile === 'mapa' ? ' is-on' : ''}`}
+            onClick={() => setAbaMobile('mapa')}
+          >
+            Mapa
+          </button>
+        </div>
+        <aside
+          className={`mapa-log__lista${escolhaDeUnidade ? ' is-escolha' : ''}${abaMobile === 'mapa' ? ' is-off-mobile' : ''}`}
+        >
           <div className="mapa-log__search">
             <label className="mapa-log__cats-title" htmlFor="busca-mapa">
               Pesquisar
@@ -588,9 +704,36 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
                 Assinar para continuar
               </button>
             ) : null}
-            <button type="button" className="mapa-log__btn-limpar" onClick={limparPesquisa}>
-              Limpar pesquisa
-            </button>
+          </div>
+
+          <div className="mapa-log__cats">
+            <p className="mapa-log__cats-title">Categorias</p>
+            <div className="mapa-log__cats-grid">
+              <button
+                type="button"
+                className={`mapa-log__cat${categoria == null ? ' is-on' : ''}`}
+                onClick={() => setCat(null)}
+              >
+                <span className="mapa-log__cat-label">Todas</span>
+                <span className="mapa-log__cat-qtd">
+                  {aplicarFiltros(empresas, { ...filtros, categoria: null }).length}
+                </span>
+              </button>
+              {CATEGORIAS.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`mapa-log__cat${categoria === c.id ? ' is-on' : ''}`}
+                  onClick={() => setCat(c.id)}
+                >
+                  <span className="mapa-log__cat-ico" style={{ background: c.corFundo }}>
+                    {c.emoji}
+                  </span>
+                  <span className="mapa-log__cat-label">{c.label}</span>
+                  <span className="mapa-log__cat-qtd">{contagem[c.id] ?? 0}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {chipsAtivos.length > 0 ? (
@@ -607,130 +750,121 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
           ) : null}
 
           <div className="mapa-log__filtros" ref={filtrosWrapRef} key={filtrosReset}>
-            <FiltroCampo
-              id="rapidas"
-              titulo="Sugestões rápidas"
-              placeholder="Digite ou clique para ver sugestões"
-              aberto={filtroAberto === 'rapidas'}
-              onFoco={() => setFiltroAberto('rapidas')}
-              permitirLivre
-              opcoes={frasesSugestaoRapida().map((s) => ({
-                id: s.texto,
-                label: s.texto,
-                detalhe: s.detalhe,
-                ativo: funcoes.includes(s.texto),
-              }))}
-              onEscolher={(id) => setFuncoes((a) => toggleItem(a, id))}
-            />
-            <FiltroCampo
-              id="categorias"
-              titulo="Categorias"
-              placeholder="Digite a categoria"
-              aberto={filtroAberto === 'categorias'}
-              onFoco={() => setFiltroAberto('categorias')}
-              opcoes={[
-                {
-                  id: '',
-                  label: 'Todas',
-                  detalhe: `${aplicarFiltros(empresas, { ...filtros, categoria: null }).length} empresas`,
-                  ativo: categoria == null,
-                },
-                ...CATEGORIAS.map((c) => ({
-                  id: c.id,
-                  label: `${c.emoji} ${c.label}`,
-                  detalhe: `${contagem[c.id] ?? 0} empresas`,
-                  ativo: categoria === c.id,
-                })),
-              ]}
-              onEscolher={(id) => setCat(id ? (id as CategoriaId) : null)}
-            />
-            <FiltroCampo
-              id="funcao"
-              titulo="Função"
-              placeholder="Digite a função, ex.: empilhadeira"
-              aberto={filtroAberto === 'funcao'}
-              onFoco={() => setFiltroAberto('funcao')}
-              permitirLivre
-              opcoes={funcoesOpcoes.map((fn) => ({
-                id: fn,
-                label: fn,
-                ativo: funcoes.includes(fn),
-              }))}
-              onEscolher={(id) => setFuncoes((a) => toggleItem(a, id))}
-            />
-            <FiltroCampo
-              id="estado"
-              titulo="Estado"
-              placeholder="Digite a UF, ex.: SP"
-              aberto={filtroAberto === 'estado'}
-              onFoco={() => setFiltroAberto('estado')}
-              opcoes={ufsOpcoes.map((u) => ({
-                id: u.uf,
-                label: u.uf,
-                detalhe: `${u.qtd} empresas`,
-                ativo: ufs.includes(u.uf),
-              }))}
-              onEscolher={(id) => setUfs((a) => toggleItem(a, id.toUpperCase()))}
-            />
-            <FiltroCampo
-              id="regiao"
-              titulo="Região"
-              placeholder="Digite a região, ex.: Sudeste"
-              aberto={filtroAberto === 'regiao'}
-              onFoco={() => setFiltroAberto('regiao')}
-              opcoes={REGIOES.map((r) => ({
-                id: r.id,
-                label: r.label,
-                detalhe: r.ufs.join(', '),
-                ativo: regioes.includes(r.id),
-              }))}
-              onEscolher={(id) => setRegioes((a) => toggleItem(a, id))}
-            />
-            <FiltroCampo
-              id="cidade"
-              titulo="Cidade"
-              placeholder="Digite a cidade"
-              aberto={filtroAberto === 'cidade'}
-              onFoco={() => setFiltroAberto('cidade')}
-              permitirLivre
-              opcoes={cidadesOpcoes.map((c) => ({
-                id: c.cidade,
-                label: c.cidade,
-                detalhe: `${c.uf} · ${c.qtd}`,
-                ativo: cidades.includes(c.cidade),
-              }))}
-              onEscolher={(id) => setCidades((a) => toggleItem(a, id))}
-            />
-            <FiltroCampo
-              id="nivel"
-              titulo="Nível de integração"
-              placeholder="Digite o nível"
-              aberto={filtroAberto === 'nivel'}
-              onFoco={() => setFiltroAberto('nivel')}
-              opcoes={NIVEIS_INTEGRACAO.map((n) => ({
-                id: n.id,
-                label: n.label,
-                detalhe: n.resumo,
-                ativo: niveis.includes(n.id),
-              }))}
-              onEscolher={(id) => setNiveis((a) => toggleItem(a, id as NivelIntegracaoId))}
-            />
-            <FiltroCampo
-              id="origem"
-              titulo="Origem do cadastro"
-              placeholder="Digite a origem"
-              aberto={filtroAberto === 'origem'}
-              onFoco={() => setFiltroAberto('origem')}
-              opcoes={(Object.keys(ORIGEM_META) as OrigemCadastro[]).map((id) => ({
-                id,
-                label: ORIGEM_META[id].label,
-                ativo: origens.includes(id),
-              }))}
-              onEscolher={(id) => setOrigens((a) => toggleItem(a, id as OrigemCadastro))}
-            />
-            <button type="button" className="mapa-log__btn-limpar" onClick={limparSoFiltros}>
-              Limpar filtros
+            <button
+              type="button"
+              className={`mapa-log__mais-btn${maisFiltros ? ' is-on' : ''}`}
+              aria-expanded={maisFiltros}
+              onClick={() => setMaisFiltros((v) => !v)}
+            >
+              Mais filtros
+              {ufs.length + regioes.length + niveis.length + origens.length + funcoes.length + cidades.length > 0
+                ? ` (${ufs.length + regioes.length + niveis.length + origens.length + funcoes.length + cidades.length})`
+                : ''}
+              <span aria-hidden="true">{maisFiltros ? '▴' : '▾'}</span>
             </button>
+            {maisFiltros ? (
+              <div className="mapa-log__mais">
+                <FiltroCampo
+                  id="rapidas"
+                  titulo="Sugestões rápidas"
+                  placeholder="Digite ou clique para ver sugestões"
+                  aberto={filtroAberto === 'rapidas'}
+                  onFoco={() => setFiltroAberto('rapidas')}
+                  permitirLivre
+                  opcoes={frasesSugestaoRapida().map((s) => ({
+                    id: s.texto,
+                    label: s.texto,
+                    detalhe: s.detalhe,
+                    ativo: funcoes.includes(s.texto),
+                  }))}
+                  onEscolher={(id) => setFuncoes((a) => toggleItem(a, id))}
+                />
+                <FiltroCampo
+                  id="funcao"
+                  titulo="Função"
+                  placeholder="Digite a função, ex.: empilhadeira"
+                  aberto={filtroAberto === 'funcao'}
+                  onFoco={() => setFiltroAberto('funcao')}
+                  permitirLivre
+                  opcoes={funcoesOpcoes.map((fn) => ({
+                    id: fn,
+                    label: fn,
+                    ativo: funcoes.includes(fn),
+                  }))}
+                  onEscolher={(id) => setFuncoes((a) => toggleItem(a, id))}
+                />
+                <FiltroCampo
+                  id="estado"
+                  titulo="Estado"
+                  placeholder="Digite a UF, ex.: SP"
+                  aberto={filtroAberto === 'estado'}
+                  onFoco={() => setFiltroAberto('estado')}
+                  opcoes={ufsOpcoes.map((u) => ({
+                    id: u.uf,
+                    label: u.uf,
+                    detalhe: `${u.qtd} empresas`,
+                    ativo: ufs.includes(u.uf),
+                  }))}
+                  onEscolher={(id) => setUfs((a) => toggleItem(a, id.toUpperCase()))}
+                />
+                <FiltroCampo
+                  id="regiao"
+                  titulo="Região"
+                  placeholder="Digite a região, ex.: Sudeste"
+                  aberto={filtroAberto === 'regiao'}
+                  onFoco={() => setFiltroAberto('regiao')}
+                  opcoes={REGIOES.map((r) => ({
+                    id: r.id,
+                    label: r.label,
+                    detalhe: r.ufs.join(', '),
+                    ativo: regioes.includes(r.id),
+                  }))}
+                  onEscolher={(id) => setRegioes((a) => toggleItem(a, id))}
+                />
+                <FiltroCampo
+                  id="cidade"
+                  titulo="Cidade"
+                  placeholder="Digite a cidade"
+                  aberto={filtroAberto === 'cidade'}
+                  onFoco={() => setFiltroAberto('cidade')}
+                  permitirLivre
+                  opcoes={cidadesOpcoes.map((c) => ({
+                    id: c.cidade,
+                    label: c.cidade,
+                    detalhe: `${c.uf} · ${c.qtd}`,
+                    ativo: cidades.includes(c.cidade),
+                  }))}
+                  onEscolher={(id) => setCidades((a) => toggleItem(a, id))}
+                />
+                <FiltroCampo
+                  id="nivel"
+                  titulo="Nível de integração"
+                  placeholder="Digite o nível"
+                  aberto={filtroAberto === 'nivel'}
+                  onFoco={() => setFiltroAberto('nivel')}
+                  opcoes={NIVEIS_INTEGRACAO.map((n) => ({
+                    id: n.id,
+                    label: n.label,
+                    detalhe: n.resumo,
+                    ativo: niveis.includes(n.id),
+                  }))}
+                  onEscolher={(id) => setNiveis((a) => toggleItem(a, id as NivelIntegracaoId))}
+                />
+                <FiltroCampo
+                  id="origem"
+                  titulo="Origem do cadastro"
+                  placeholder="Digite a origem"
+                  aberto={filtroAberto === 'origem'}
+                  onFoco={() => setFiltroAberto('origem')}
+                  opcoes={(Object.keys(ORIGEM_META) as OrigemCadastro[]).map((id) => ({
+                    id,
+                    label: ORIGEM_META[id].label,
+                    ativo: origens.includes(id),
+                  }))}
+                  onEscolher={(id) => setOrigens((a) => toggleItem(a, id as OrigemCadastro))}
+                />
+              </div>
+            ) : null}
           </div>
 
           <p className="mapa-log__result">
@@ -740,45 +874,50 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
                 ? `${listaExibida.length} empresa(s) para “${query.trim()}” — clique para ver no mapa`
                 : `${listaExibida.length} empresa(s) no mapa`}
           </p>
-          <ul className="mapa-log__empresas">
-            {listaExibida.map((e) => {
-              const cat = categoriaPorId(e.categoria)
-              return (
-                <li key={e.id} id={`emp-lista-${e.id}`} style={{ display: 'flex', gap: 4, alignItems: 'stretch' }}>
-                  <button
-                    type="button"
-                    className={`mapa-log__emp${selecionada === e.id ? ' is-on' : ''}`}
-                    onClick={() => irPara(e)}
-                  >
-                    <span className="mapa-log__cat-ico" style={{ background: cat.corFundo }}>
-                      {cat.emoji}
-                    </span>
-                    <span>
-                      <span className="mapa-log__emp-nome">
-                        {escolhaDeUnidade && !e.hierarquia_superior
-                          ? `${e.nome_fantasia} (matriz)`
-                          : e.nome_fantasia}
+          {listaExibida.length === 0 ? (
+            <p className="mapa-log__vazio">Nenhuma empresa com esses filtros.</p>
+          ) : (
+            <ul className="mapa-log__empresas">
+              {listaExibida.map((e) => {
+                const cat = categoriaPorId(e.categoria)
+                const noMapa = temCoordenada(e)
+                return (
+                  <li key={e.id} id={`emp-lista-${e.id}`} className="mapa-log__emp-linha">
+                    <button
+                      type="button"
+                      className={`mapa-log__emp${selecionada === e.id ? ' is-on' : ''}${noMapa ? '' : ' is-sem-ponto'}`}
+                      onClick={() => irPara(e)}
+                    >
+                      <span className="mapa-log__cat-ico" style={{ background: cat.corFundo }}>
+                        {cat.emoji}
                       </span>
-                      <span className="mapa-log__emp-meta">
-                        {cat.label} · {e.cidade}/{e.uf}
+                      <span className="mapa-log__emp-txt">
+                        <span className="mapa-log__emp-nome">
+                          {escolhaDeUnidade && !e.hierarquia_superior
+                            ? `${e.nome_fantasia} (matriz)`
+                            : e.nome_fantasia}
+                        </span>
+                        <span className="mapa-log__emp-meta">
+                          {cat.label} · {e.cidade}/{e.uf}
+                        </span>
+                        {noMapa ? null : <span className="mapa-log__emp-selo">Sem ponto no mapa</span>}
                       </span>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className="mapa-log__emp"
-                    style={{ width: 'auto', flexShrink: 0, fontSize: '0.72rem', fontWeight: 800 }}
-                    onClick={() => abrirEmpresa(e)}
-                  >
-                    Ver página
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
+                    </button>
+                    <button type="button" className="mapa-log__emp-pagina" onClick={() => abrirEmpresa(e)}>
+                      {visitante ? <Lock size={12} strokeWidth={2.4} aria-hidden /> : null}
+                      Ver página
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </aside>
 
-        <div className="mapa-log__map-wrap">
+        <div
+          className={`mapa-log__map-wrap${abaMobile === 'lista' ? ' is-off-mobile' : ''}`}
+          ref={mapWrapRef}
+        >
           <div className="mapa-log__map-help">
             <MapaFrotaAjuda
               texto="Clique no campo, digite e escolha a sugestão. O mapa mostra só as empresas selecionadas."

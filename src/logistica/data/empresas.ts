@@ -6,6 +6,7 @@ import { EMPRESAS_LEVA_500 } from './empresasLeva500'
 import { EMPRESAS_LEVA_500B } from './empresasLeva500b'
 import { EMPRESAS_LEVA_500C } from './empresasLeva500c'
 import { EMPRESAS_LEVA_LOGISTICA } from './empresasLevaLogistica'
+import { EMPRESAS_LEVA_MAPA_2 } from './empresasLevaMapa2'
 import { EMPRESAS_FILIAIS } from './empresasFiliais'
 
 function emp(e: Empresa): Empresa {
@@ -1154,6 +1155,7 @@ export const EMPRESAS: Empresa[] = [
   ...EMPRESAS_LEVA_500B,
   ...EMPRESAS_LEVA_500C,
   ...EMPRESAS_LEVA_LOGISTICA,
+  ...EMPRESAS_LEVA_MAPA_2,
   ...EMPRESAS_FILIAIS,
 ]
 
