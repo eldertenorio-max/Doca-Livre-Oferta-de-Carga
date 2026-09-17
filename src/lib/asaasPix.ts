@@ -15,6 +15,8 @@ type RespostaAsaas = {
   ok?: boolean
   erro?: string
   asaas?: boolean
+  resend?: boolean
+  sandbox?: boolean
   paymentId?: string
   payload?: string
   imagem?: string
@@ -46,9 +48,19 @@ async function chamarAsaas(body: Record<string, unknown>): Promise<RespostaAsaas
   return payload
 }
 
-export function asaasNaoConfigurado(erro?: string) {
-  const t = (erro || '').toLowerCase()
-  return t.includes('asaas_nao_configurado') || t.includes('asaas_api_key')
+export async function statusConfigAsaas(): Promise<{
+  ok: boolean
+  asaas?: boolean
+  resend?: boolean
+  sandbox?: boolean
+}> {
+  const r = await chamarAsaas({ action: 'config' })
+  return {
+    ok: Boolean(r.ok),
+    asaas: Boolean(r.asaas),
+    resend: Boolean(r.resend),
+    sandbox: Boolean(r.sandbox),
+  }
 }
 
 export async function criarPixAsaas(input: {

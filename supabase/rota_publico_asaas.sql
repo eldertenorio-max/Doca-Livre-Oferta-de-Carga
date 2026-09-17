@@ -1,15 +1,10 @@
 -- PIX automático via Asaas (créditos da calculadora + plano).
 -- 1) Rode este SQL no Editor.
--- 2) Secrets da Edge Function asaas-pix:
---    ASAAS_API_KEY          (Integrações → API Key no Asaas)
---    ASAAS_WEBHOOK_TOKEN    (mesmo valor do authToken do webhook no Asaas)
---    RESEND_API_KEY / RESEND_FROM  (já usados no portal-otp)
+-- 2) Secret obrigatório da Edge Function asaas-pix:
+--    ASAAS_API_KEY  (Asaas web → Integrações → API Key)
+--    RESEND_API_KEY / RESEND_FROM  (e-mail de confirmação; já usados no portal-otp)
 -- 3) Deploy: supabase functions deploy asaas-pix --project-ref imnlbbfgaztfhwndfxwb
--- 4) Webhook no Asaas (Integrações → Webhooks):
---    URL: https://imnlbbfgaztfhwndfxwb.supabase.co/functions/v1/asaas-pix?apikey=SUA_ANON_KEY
---    Eventos: PAYMENT_RECEIVED, PAYMENT_CONFIRMED
---    authToken: o mesmo ASAAS_WEBHOOK_TOKEN
---    Header enviado pelo Asaas: asaas-access-token
+-- 4) O webhook é criado sozinho na primeira cobrança (não precisa cadastrar à mão).
 
 create table if not exists public.rota_publico_cobrancas (
   id uuid primary key default gen_random_uuid(),

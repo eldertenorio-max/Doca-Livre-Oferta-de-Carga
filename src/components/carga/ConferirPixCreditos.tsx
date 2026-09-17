@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { formatCurrency } from '../../lib/businessRules'
+import { statusConfigAsaas } from '../../lib/asaasPix'
 import {
   consultarPixCreditoRota,
   type ConsultaPixCredito,
@@ -19,6 +20,21 @@ export function ConferirPixCreditos() {
   const [buscando, setBuscando] = useState(false)
   const [erro, setErro] = useState('')
   const [dados, setDados] = useState<ConsultaPixCredito | null>(null)
+  const [asaasOn, setAsaasOn] = useState<boolean | null>(null)
+  const [resendOn, setResendOn] = useState<boolean | null>(null)
+  const [sandbox, setSandbox] = useState(false)
+
+  useEffect(() => {
+    void statusConfigAsaas().then((r) => {
+      if (!r.ok) {
+        setAsaasOn(false)
+        return
+      }
+      setAsaasOn(Boolean(r.asaas))
+      setResendOn(Boolean(r.resend))
+      setSandbox(Boolean(r.sandbox))
+    })
+  }, [])
 
   async function conferir() {
     setBuscando(true)
@@ -38,8 +54,16 @@ export function ConferirPixCreditos() {
       <div>
         <h2 className="financeiro-pix__title">Conferir PIX da calculadora</h2>
         <p className="financeiro-pix__sub">
-          Cole o código do pagamento (Asaas <code>pay_…</code> ou o código antigo). Se já estiver
-          creditado, é comprovante antigo — não libere créditos de novo.
+          PIX do sistema: Asaas. Cole o código <code>pay_…</code>. Se já estiver creditado, é
+          comprovante antigo — não libere de novo.
+          {asaasOn === false
+            ? ' A chave da API ainda não está no Supabase — até lá o site usa o PIX antigo.'
+            : asaasOn
+              ? sandbox
+                ? ' Asaas ligado (sandbox).'
+                : ' Asaas ligado (produção).'
+              : ''}
+          {resendOn === false ? ' E-mail de confirmação: falta RESEND_API_KEY.' : ''}
         </p>
       </div>
       <form

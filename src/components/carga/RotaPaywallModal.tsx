@@ -358,8 +358,8 @@ export function RotaPaywallModal({
             ) : (
               <>
                 <p className="mapa-pub-creditos__hint">
-                  Cada crédito vale 1 cálculo na conta de {conta.nome.split(' ')[0]}. Pague o PIX: os créditos entram
-                  sozinhos e o comprovante vai por e-mail.
+                  Cada crédito vale 1 cálculo na conta de {conta.nome.split(' ')[0]}. PIX pelo Asaas:
+                  os créditos entram sozinhos e o comprovante vai por e-mail.
                 </p>
                 <div className="mapa-pub-creditos__packs">
                   {PACOTES_CREDITO_ROTA.map((p) => (
@@ -494,8 +494,8 @@ export function RotaPaywallModal({
         ) : (
           <div className="mapa-pub-creditos">
             <p className="mapa-pub-creditos__hint">
-              A conta Google dos créditos é outra. O plano é a conta do sistema: pague o PIX e, quando o banco
-              confirmar, o cadastro libera e o e-mail de confirmação chega.
+              A conta Google dos créditos é outra. O plano é a conta do sistema: pague o PIX Asaas e,
+              quando o banco confirmar, o cadastro libera e o e-mail de confirmação chega.
             </p>
             <div className="mapa-pub-planos">
               {PLANOS_OFERTA_CARGA.map((plano) => (

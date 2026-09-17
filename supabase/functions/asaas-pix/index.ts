@@ -5,10 +5,9 @@
  *   supabase functions deploy asaas-pix --project-ref imnlbbfgaztfhwndfxwb
  *
  * Secrets:
- *   ASAAS_API_KEY
- *   ASAAS_WEBHOOK_TOKEN
- *   RESEND_API_KEY
- *   RESEND_FROM
+ *   ASAAS_API_KEY   (obrigatório)
+ *   RESEND_API_KEY / RESEND_FROM
+ *   ASAAS_WEBHOOK_TOKEN (opcional; se vazio, a função gera um token estável)
  */
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
@@ -137,6 +136,44 @@ async function asaasFetch(path: string, init?: RequestInit) {
     body = { raw: text.slice(0, 240) }
   }
   return { ok: r.ok, status: r.status, body }
+}
+
+async function webhookToken() {
+  const env = Deno.env.get('ASAAS_WEBHOOK_TOKEN')?.trim() || ''
+  if (env.length >= 32) return env
+  const seed = `${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''}|doca-asaas-wh`
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(seed))
+  return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+function webhookUrl() {
+  const base = (Deno.env.get('SUPABASE_URL') || '').replace(/\/$/, '')
+  const anon = Deno.env.get('SUPABASE_ANON_KEY') || ''
+  if (!base || !anon) return ''
+  return `${base}/functions/v1/asaas-pix?apikey=${encodeURIComponent(anon)}`
+}
+
+async function garantirWebhook() {
+  const url = webhookUrl()
+  const token = await webhookToken()
+  if (!url || token.length < 32) return
+  const lista = await asaasFetch('/webhooks')
+  const data = (lista.body as { data?: Array<{ id?: string; url?: string; name?: string }> }).data || []
+  if (data.some((w) => (w.url || '').includes('/asaas-pix'))) return
+  await asaasFetch('/webhooks', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: 'Doca Livre PIX',
+      url,
+      email: 'diego@docalivre.com',
+      enabled: true,
+      interrupted: false,
+      apiVersion: 3,
+      authToken: token,
+      sendType: 'NON_SEQUENTIALLY',
+      events: ['PAYMENT_RECEIVED', 'PAYMENT_CONFIRMED'],
+    }),
+  })
 }
 
 async function usuarioDoPedido(req: Request) {
@@ -379,6 +416,12 @@ async function criarCobranca(req: Request, body: Record<string, unknown>) {
     return json({ ok: false, erro: 'Não foi possível gravar a cobrança. Rode o SQL do Asaas no Supabase.' }, 500)
   }
 
+  try {
+    await garantirWebhook()
+  } catch {
+    /* QR já gerado; webhook pode ser criado na próxima cobrança */
+  }
+
   const imagem = qrBody.encodedImage
     ? qrBody.encodedImage.startsWith('data:')
       ? qrBody.encodedImage
@@ -445,7 +488,7 @@ async function statusCobranca(req: Request, body: Record<string, unknown>) {
 }
 
 async function webhook(req: Request) {
-  const esperado = Deno.env.get('ASAAS_WEBHOOK_TOKEN')?.trim() || ''
+  const esperado = await webhookToken()
   const recebido = (req.headers.get('asaas-access-token') || '').trim()
   if (!esperado || recebido !== esperado) {
     return json({ ok: false, erro: 'Webhook não autorizado.' }, 401)
@@ -483,6 +526,14 @@ Deno.serve(async (req) => {
     const action = String(body.action || '').trim()
     if (action === 'criar') return await criarCobranca(req, body)
     if (action === 'status') return await statusCobranca(req, body)
+    if (action === 'config') {
+      return json({
+        ok: true,
+        asaas: Boolean(asaasKey()),
+        resend: Boolean(Deno.env.get('RESEND_API_KEY')?.trim()),
+        sandbox: asaasKey().includes('aact_hmlg'),
+      })
+    }
     return json({ ok: false, erro: 'Ação inválida.' }, 400)
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro interno.'
