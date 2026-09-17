@@ -225,7 +225,39 @@ function brl(n: number) {
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-async function enviarEmail(cobranca: Cobranca) {
+function escapeHtml(raw: string) {
+  return raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function linhaExtrato(label: string, valor: string) {
+  return (
+    `<tr>` +
+    `<td style="padding:8px 0;color:#64748b;font-size:13px;border-bottom:1px solid #e2e8f0">${label}</td>` +
+    `<td style="padding:8px 0;color:#0f172a;font-size:13px;font-weight:700;text-align:right;border-bottom:1px solid #e2e8f0">${valor}</td>` +
+    `</tr>`
+  )
+}
+
+function envelopeEmail(titulo: string, intro: string, extratoHtml: string, extraHtml: string) {
+  return (
+    `<div style="font-family:Arial,Helvetica,sans-serif;background:#f8fafc;padding:24px 12px">` +
+    `<div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:28px 24px">` +
+    `<p style="margin:0 0 4px;font-size:12px;font-weight:800;letter-spacing:.08em;color:#16a34a">DOCA LIVRE</p>` +
+    `<h1 style="margin:0 0 12px;font-size:22px;color:#0f172a">${titulo}</h1>` +
+    `<p style="margin:0 0 20px;color:#334155;font-size:15px;line-height:1.5">${intro}</p>` +
+    `<p style="margin:0 0 8px;font-size:12px;font-weight:800;color:#64748b;letter-spacing:.06em">EXTRATO DO PAGAMENTO</p>` +
+    `<table style="width:100%;border-collapse:collapse;margin:0 0 20px">${extratoHtml}</table>` +
+    extraHtml +
+    `<p style="margin:24px 0 0;color:#94a3b8;font-size:12px">Se você não reconhece esta compra, fale conosco pelo WhatsApp do site.</p>` +
+    `</div></div>`
+  )
+}
+
+async function enviarEmail(cobranca: Cobranca, saldoAtual?: number) {
   const email = (cobranca.email || '').trim().toLowerCase()
   if (!email) return { ok: false as const, motivo: 'sem_email' }
   const apiKey = Deno.env.get('RESEND_API_KEY')?.trim()
@@ -234,35 +266,77 @@ async function enviarEmail(cobranca: Cobranca) {
     Deno.env.get('RESEND_FROM')?.trim() || 'Doca Livre Oferta de Carga <onboarding@resend.dev>'
 
   const valor = brl(Number(cobranca.valor))
+  const quando = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+  const codigo = cobranca.asaas_payment_id
+  const emailSafe = escapeHtml(email)
+  const codigoSafe = escapeHtml(codigo)
+
   let assunto = 'Pagamento confirmado — Doca Livre'
   let texto = ''
   let html = ''
 
+  const extratoBase =
+    linhaExtrato('Status', 'Pago com sucesso') +
+    linhaExtrato('Data', escapeHtml(quando)) +
+    linhaExtrato('Forma', 'PIX') +
+    linhaExtrato('Valor', valor) +
+    linhaExtrato('Código', codigoSafe) +
+    linhaExtrato('Conta', emailSafe)
+
   if (cobranca.tipo === 'credito') {
-    assunto = `Pagamento confirmado — ${cobranca.creditos} créditos Doca Livre`
+    const tituloPacote = PACOTES[cobranca.pacote_id]?.titulo || `${cobranca.creditos} créditos`
+    const saldoTxt =
+      typeof saldoAtual === 'number' && Number.isFinite(saldoAtual)
+        ? String(saldoAtual)
+        : '—'
+    assunto = `Pagamento confirmado — ${cobranca.creditos} créditos na sua conta`
     texto =
-      `Seu PIX de ${valor} foi confirmado.\n\n` +
-      `${cobranca.creditos} créditos já estão na sua conta Google (${email}).\n` +
-      `Cada crédito vale 1 cálculo na calculadora: ${urlRota()}\n\n` +
-      `Código do pagamento: ${cobranca.asaas_payment_id}\n`
-    html =
-      `<p>Seu PIX de <strong>${valor}</strong> foi confirmado.</p>` +
-      `<p><strong>${cobranca.creditos} créditos</strong> já estão na sua conta Google (${email}).</p>` +
-      `<p>Cada crédito vale 1 cálculo na calculadora.</p>` +
-      `<p><a href="${urlRota()}">Abrir a calculadora de rota</a></p>` +
-      `<p style="color:#64748b;font-size:13px">Código: ${cobranca.asaas_payment_id}</p>`
+      `Pagamento confirmado.\n\n` +
+      `EXTRATO\n` +
+      `Status: Pago com sucesso\n` +
+      `Data: ${quando}\n` +
+      `Forma: PIX\n` +
+      `Item: ${tituloPacote}\n` +
+      `Valor: ${valor}\n` +
+      `Código: ${codigo}\n` +
+      `Conta Google: ${email}\n\n` +
+      `CRÉDITOS\n` +
+      `${cobranca.creditos} créditos foram adicionados à sua conta.\n` +
+      `Saldo atual: ${saldoTxt} crédito(s).\n` +
+      `Cada crédito vale 1 cálculo: ${urlRota()}\n`
+    html = envelopeEmail(
+      'Pagamento confirmado',
+      `Recebemos o seu PIX. Os créditos já estão na conta Google <strong>${emailSafe}</strong>.`,
+      extratoBase + linhaExtrato('Item', escapeHtml(tituloPacote)),
+      `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px 16px">` +
+        `<p style="margin:0 0 6px;font-size:12px;font-weight:800;color:#166534;letter-spacing:.06em">CRÉDITOS ADICIONADOS</p>` +
+        `<p style="margin:0;font-size:18px;font-weight:800;color:#14532d">+${cobranca.creditos} créditos</p>` +
+        `<p style="margin:6px 0 0;color:#166534;font-size:14px">Saldo atual: <strong>${saldoTxt}</strong> crédito(s). Cada um vale 1 cálculo na calculadora.</p>` +
+        `</div>` +
+        `<p style="margin:18px 0 0"><a href="${urlRota()}" style="display:inline-block;background:#0f172a;color:#fff;text-decoration:none;font-weight:800;padding:12px 18px;border-radius:10px">Abrir a calculadora</a></p>`,
+    )
   } else {
     const plano = PLANOS[cobranca.pacote_id]?.titulo || cobranca.pacote_id
     const link = urlCadastro(cobranca.pacote_id)
     assunto = `Pagamento confirmado — plano ${plano}`
     texto =
-      `Seu PIX de ${valor} do plano ${plano} foi confirmado.\n\n` +
-      `Conclua o cadastro do sistema neste link:\n${link}\n\n` +
-      `Código do pagamento: ${cobranca.asaas_payment_id}\n`
-    html =
-      `<p>Seu PIX de <strong>${valor}</strong> do plano <strong>${plano}</strong> foi confirmado.</p>` +
-      `<p><a href="${link}">Clique aqui para concluir o cadastro do sistema</a></p>` +
-      `<p style="color:#64748b;font-size:13px">Código: ${cobranca.asaas_payment_id}</p>`
+      `Pagamento confirmado.\n\n` +
+      `EXTRATO\n` +
+      `Status: Pago com sucesso\n` +
+      `Data: ${quando}\n` +
+      `Forma: PIX\n` +
+      `Plano: ${plano}\n` +
+      `Valor: ${valor}\n` +
+      `Código: ${codigo}\n` +
+      `E-mail: ${email}\n\n` +
+      `Cadastro do sistema: ${link}\n`
+    html = envelopeEmail(
+      'Pagamento confirmado',
+      `Recebemos o PIX do plano <strong>${escapeHtml(plano)}</strong>. O cadastro do sistema já pode ser concluído.`,
+      extratoBase + linhaExtrato('Plano', escapeHtml(plano)),
+      `<p style="margin:0 0 14px;color:#334155;font-size:15px">Use o botão abaixo para criar a conta do sistema com este plano.</p>` +
+        `<p style="margin:0"><a href="${link}" style="display:inline-block;background:#0f172a;color:#fff;text-decoration:none;font-weight:800;padding:12px 18px;border-radius:10px">Concluir o cadastro</a></p>`,
+    )
   }
 
   const r = await fetch('https://api.resend.com/emails', {
@@ -302,10 +376,16 @@ async function processarPago(paymentId: string) {
     if (creditou.error) return { ok: false as const, erro: creditou.error.message }
   }
 
+  const saldoResp =
+    cobranca.user_id
+      ? await sb.from('rota_publico_creditos').select('saldo').eq('user_id', cobranca.user_id).maybeSingle()
+      : { data: null }
+  const saldo = Number((saldoResp.data as { saldo?: number } | null)?.saldo ?? cobranca.creditos)
+
   let emailEnviado = Boolean(cobranca.email_enviado_em)
   let emailErro: string | null = null
   if (!emailEnviado) {
-    const mail = await enviarEmail(cobranca)
+    const mail = await enviarEmail(cobranca, saldo)
     if (mail.ok) emailEnviado = true
     else emailErro = mail.motivo
   }
@@ -319,12 +399,6 @@ async function processarPago(paymentId: string) {
       email_erro: emailErro,
     })
     .eq('id', cobranca.id)
-
-  const saldoResp =
-    cobranca.user_id
-      ? await sb.from('rota_publico_creditos').select('saldo').eq('user_id', cobranca.user_id).maybeSingle()
-      : { data: null }
-  const saldo = Number((saldoResp.data as { saldo?: number } | null)?.saldo ?? cobranca.creditos)
 
   return { ok: true as const, emailEnviado, saldo, cobranca }
 }
