@@ -130,18 +130,23 @@
   width: 84px;
   height: 84px;
   object-fit: contain;
+  object-position: center;
+  padding: 8px;
+  box-sizing: border-box;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #fff;
   flex-shrink: 0;
 }
 
-.tv-perfil__logo--empty {
+.tv-perfil__logo--empty,
+.tv-perfil__logo.is-logo-empty {
   display: grid;
   place-items: center;
   font-size: 2rem;
   font-weight: 900;
   color: #0f172a;
+  padding: 0;
 }
 
 .tv-perfil__titles h1 {
@@ -758,13 +763,15 @@
   background: #fff;
 }
 
-.tv-perfil-form__logo--empty {
+.tv-perfil-form__logo--empty,
+.tv-perfil-form__logo.is-logo-empty {
   display: grid;
   place-items: center;
   font-weight: 800;
   font-size: 1.4rem;
   background: #0f172a;
   color: #fff;
+  padding: 0;
 }
 
 .tv-perfil-form__logo-fields {
@@ -882,8 +889,37 @@
   font: inherit;
   cursor: pointer;
   display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.tv-perfil-picker__logo {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  object-fit: contain;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  padding: 3px;
+  box-sizing: border-box;
+}
+
+.tv-perfil-picker__logo.is-logo-empty {
+  display: grid;
+  place-items: center;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 0;
+  color: #0f172a;
+}
+
+.tv-perfil-picker__txt {
+  display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .tv-perfil-picker__lista button:hover {

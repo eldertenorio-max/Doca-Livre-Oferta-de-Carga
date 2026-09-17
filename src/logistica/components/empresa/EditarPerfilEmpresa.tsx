@@ -6,6 +6,7 @@ import { UFS_BR, geocodificarEndereco } from '../../lib/geo'
 import { CERTIFICACOES, EQUIPAMENTOS, MODAIS, PORTES, PUBLICOS, TIPOS_CARGA } from '../../lib/perfilOperacional'
 import { PAPEIS_HIERARQUIA } from '../../lib/orgHierarchy'
 import { toggleItem } from '../../lib/search'
+import { LogoEmpresa } from './LogoEmpresa'
 import { useAuth } from '../../lib/AuthContext'
 
 function linhas(texto: string) {
@@ -39,7 +40,7 @@ type Props = {
 }
 
 export function EditarPerfilEmpresa({ empresa, onCancelar }: Props) {
-  const { atualizarEmpresa } = useAuth()
+  const { atualizarEmpresa, empresas } = useAuth()
   const logoFileRef = useRef<HTMLInputElement>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [ok, setOk] = useState<string | null>(null)
@@ -299,9 +300,11 @@ export function EditarPerfilEmpresa({ empresa, onCancelar }: Props) {
           {logoUrl ? (
             <img className="tv-perfil-form__logo" src={logoUrl} alt="" />
           ) : (
-            <div className="tv-perfil-form__logo tv-perfil-form__logo--empty" aria-hidden>
-              {(nomeFantasia || '?').slice(0, 1).toUpperCase()}
-            </div>
+            <LogoEmpresa
+              empresa={{ ...empresa, site_url: siteUrl || empresa.site_url, nome_fantasia: nomeFantasia }}
+              catalogo={empresas}
+              className="tv-perfil-form__logo"
+            />
           )}
           <div className="tv-perfil-form__logo-fields">
             <label>

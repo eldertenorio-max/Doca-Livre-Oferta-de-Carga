@@ -138,11 +138,21 @@
   place-items: center;
   font-size: 0.72rem;
   font-weight: 800;
-  object-fit: cover;
+  object-fit: contain;
+  overflow: hidden;
 }
 
 .feed__avatar--img {
-  background: #f4f4f5;
+  background: #fff;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+.feed__avatar--img.is-logo-empty {
+  background: #111;
+  color: #f9db00;
+  padding: 0;
+  font-size: 0.72rem;
 }
 
 .feed__tipos,

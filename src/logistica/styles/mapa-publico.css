@@ -263,6 +263,16 @@
   padding: 4px 2px;
 }
 
+.mapa-pub-popup__logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  margin-bottom: 6px;
+}
+
 .mapa-pub-popup__tipo {
   margin: 0;
   font-size: 0.95rem;

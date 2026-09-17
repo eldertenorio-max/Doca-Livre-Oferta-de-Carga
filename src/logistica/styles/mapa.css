@@ -618,11 +618,25 @@
   text-align: left;
 }
 
-.mapa-log__emp .mapa-log__cat-ico {
+.mapa-log__emp-logo {
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  font-size: 0.95rem;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid #eef2f6;
+  flex-shrink: 0;
+  padding: 2px;
+  box-sizing: border-box;
+}
+
+.mapa-log__emp-logo.is-logo-empty {
+  display: grid;
+  place-items: center;
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #0f172a;
+  padding: 0;
 }
 
 .mapa-log__emp-txt {
@@ -854,6 +868,19 @@
 
 .mapa-popup {
   min-width: 220px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.mapa-popup__logo {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  flex-shrink: 0;
 }
 
 .mapa-popup h3 {

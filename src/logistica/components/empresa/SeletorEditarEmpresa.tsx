@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Empresa } from '../../types'
 import { semAcento } from '../../lib/search'
+import { LogoEmpresa } from './LogoEmpresa'
 import { EMPRESA_DOCA_LIVRE } from '../../lib/empresaDocaLivre'
 import '../../styles/perfil-empresa.css'
 
@@ -49,10 +50,13 @@ export function SeletorEditarEmpresa({ empresas }: Props) {
               type="button"
               onClick={() => navigate(`/embarcador/mapa-logistica/empresa/${e.slug}?editar=1`)}
             >
-              <strong>{e.nome_fantasia}</strong>
-              <span>
-                {e.cidade}/{e.uf}
-                {e.cnpj ? ` · ${e.cnpj}` : ''}
+              <LogoEmpresa empresa={e} catalogo={empresas} className="tv-perfil-picker__logo" />
+              <span className="tv-perfil-picker__txt">
+                <strong>{e.nome_fantasia}</strong>
+                <span>
+                  {e.cidade}/{e.uf}
+                  {e.cnpj ? ` · ${e.cnpj}` : ''}
+                </span>
               </span>
             </button>
           </li>

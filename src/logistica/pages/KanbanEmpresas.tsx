@@ -9,11 +9,11 @@ import { catValida } from '../lib/painelStats'
 import { filtrarEmpresas } from '../lib/search'
 import {
   formatPhoneBr,
-  iniciaisEmpresa,
   logoSrcEmpresa,
   oQueFaz,
   whatsappLink,
 } from '../lib/empresaVisual'
+import { LogoEmpresa } from '../components/empresa/LogoEmpresa'
 import type { CategoriaId, Empresa } from '../types'
 import '../styles/kanban-empresas.css'
 
@@ -35,13 +35,17 @@ function escapeHtml(s: string) {
     .replace(/"/g, '&quot;')
 }
 
-function popupHtml(e: Empresa) {
+function popupHtml(e: Empresa, catalogo: Empresa[]) {
   const faz = oQueFaz(e)
-  return `<div class="emp-kanban-popup">
+  const logo = logoSrcEmpresa(e, catalogo)
+  const img = logo
+    ? `<img class="emp-kanban-popup__logo" src="${escapeHtml(logo)}" alt="" referrerpolicy="no-referrer" />`
+    : ''
+  return `<div class="emp-kanban-popup">${img}<div>
     <strong>${escapeHtml(e.nome_fantasia)}</strong>
     <span>${escapeHtml(e.cidade)} / ${escapeHtml(e.uf)}</span>
     <em>${escapeHtml(faz.categoria)}${faz.detalhe ? ` · ${escapeHtml(faz.detalhe)}` : ''}</em>
-  </div>`
+  </div></div>`
 }
 
 const PAGE_SIZE = 10
@@ -69,7 +73,6 @@ export function KanbanEmpresasPage() {
   )
   const [selecionadoId, setSelecionadoId] = useState<string | null>(null)
   const [pagina, setPagina] = useState(1)
-  const [logoQuebrou, setLogoQuebrou] = useState<Record<string, boolean>>({})
   const listaRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -145,14 +148,14 @@ export function KanbanEmpresasPage() {
           title: e.nome_fantasia,
           riseOnHover: true,
         })
-        m.bindPopup(popupHtml(e), { className: 'emp-kanban-leaflet-popup' })
+        m.bindPopup(popupHtml(e, empresas), { className: 'emp-kanban-leaflet-popup' })
         m.on('click', () => setSelecionadoId(e.id))
         m.addTo(map)
         markersRef.current.set(e.id, m)
       } else {
         m.setLatLng([e.lat, e.lng])
         m.setIcon(pinIcon(ativo))
-        m.setPopupContent(popupHtml(e))
+        m.setPopupContent(popupHtml(e, empresas))
       }
     }
     if (!selecionadoId) {
@@ -162,7 +165,7 @@ export function KanbanEmpresasPage() {
       }
     }
     window.setTimeout(() => map.invalidateSize(), 60)
-  }, [filtradas, selecionadoId])
+  }, [filtradas, selecionadoId, empresas])
 
   useEffect(() => {
     if (!selecionadoId) return
@@ -252,7 +255,6 @@ export function KanbanEmpresasPage() {
                 const tel = e.telefone
                 const wa = whatsappLink(tel)
                 const faz = oQueFaz(e)
-                const logo = logoQuebrou[e.id] ? null : logoSrcEmpresa(e)
                 return (
                   <article
                     key={e.id}
@@ -260,15 +262,7 @@ export function KanbanEmpresasPage() {
                     className={`emp-card${selecionadoId === e.id ? ' is-on' : ''}`}
                   >
                     <div className="emp-card__logo">
-                      {logo ? (
-                        <img
-                          src={logo}
-                          alt=""
-                          onError={() => setLogoQuebrou((m) => ({ ...m, [e.id]: true }))}
-                        />
-                      ) : (
-                        <span>{iniciaisEmpresa(e.nome_fantasia || e.razao_social)}</span>
-                      )}
+                      <LogoEmpresa empresa={e} catalogo={empresas} />
                     </div>
                     <div className="emp-card__info">
                       <h3 className="emp-card__nome">{e.nome_fantasia}</h3>

@@ -10,6 +10,7 @@ import {
   labelPapelHierarquia,
   papelHierarquiaDaEmpresa,
 } from '../lib/orgHierarchy'
+import { LogoEmpresa } from '../components/empresa/LogoEmpresa'
 import type { PapelHierarquia } from '../types'
 import '../styles/hierarquia.css'
 
@@ -181,10 +182,13 @@ export function HierarquiaPage() {
                     style={{ borderLeftColor: meta.cor }}
                     onClick={() => navigate(`/embarcador/mapa-logistica/empresa/${e.slug}?from=hierarquia`)}
                   >
-                    <span className="hierarquia__card-main">
-                      <strong>{e.nome_fantasia}</strong>
-                      <span>
-                        {e.cidade}/{e.uf} · {cat.label}
+                    <span className="hierarquia__card-id">
+                      <LogoEmpresa empresa={e} catalogo={empresas} className="hierarquia__logo" />
+                      <span className="hierarquia__card-main">
+                        <strong>{e.nome_fantasia}</strong>
+                        <span>
+                          {e.cidade}/{e.uf} · {cat.label}
+                        </span>
                       </span>
                     </span>
                     <span className="hierarquia__badge" style={{ background: meta.corFundo, color: meta.cor }}>

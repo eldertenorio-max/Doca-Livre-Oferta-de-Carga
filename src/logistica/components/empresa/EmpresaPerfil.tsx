@@ -10,6 +10,7 @@ import { operacaoDaEmpresa, PORTES, PUBLICOS, unidadesDaRede } from '../../lib/p
 import { UF_NOMES } from '../../lib/geo'
 import { nomeMarca } from '../../lib/search'
 import { EditarPerfilEmpresa } from './EditarPerfilEmpresa'
+import { LogoEmpresa } from './LogoEmpresa'
 import { PontoMapPreview } from './PontoMapPreview'
 import '../../styles/perfil-empresa.css'
 
@@ -92,13 +93,7 @@ export function EmpresaPerfil({ empresa: e, eDono = false, podeEditar, abrirEdic
           </div>
         ) : null}
         <div className="tv-perfil__brand-row">
-          {e.logo_url ? (
-            <img className="tv-perfil__logo" src={e.logo_url} alt="" />
-          ) : (
-            <div className="tv-perfil__logo tv-perfil__logo--empty" aria-hidden>
-              {e.nome_fantasia.slice(0, 1).toUpperCase()}
-            </div>
-          )}
+          <LogoEmpresa empresa={e} catalogo={empresas} className="tv-perfil__logo" />
           <div className="tv-perfil__titles">
             <h1>{titulo}</h1>
             <p className="tv-perfil__especialidades">

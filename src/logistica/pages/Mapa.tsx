@@ -28,6 +28,8 @@ import {
   ufsDoCadastro,
   type SugestaoBusca,
 } from '../lib/search'
+import { logoSrcEmpresa } from '../lib/empresaVisual'
+import { LogoEmpresa } from '../components/empresa/LogoEmpresa'
 import type { CategoriaId, Empresa, NivelIntegracaoId, OrigemCadastro } from '../types'
 import '../styles/mapa.css'
 import '../styles/mapa-publico.css'
@@ -60,15 +62,24 @@ function pinIcon(e: Empresa, selecionada = false) {
   })
 }
 
-function popupInternoHtml(e: Empresa) {
+function popupInternoHtml(e: Empresa, catalogo: Empresa[]) {
   const cat = categoriaPorId(e.categoria)
-  return `<div class="mapa-popup"><h3>${escapeHtml(e.nome_fantasia)}</h3><p>${escapeHtml(cat.label)} · ${escapeHtml(e.cidade)}/${escapeHtml(e.uf)}</p></div>`
+  const logo = logoSrcEmpresa(e, catalogo)
+  const img = logo
+    ? `<img class="mapa-popup__logo" src="${escapeHtml(logo)}" alt="" referrerpolicy="no-referrer" />`
+    : ''
+  return `<div class="mapa-popup">${img}<div><h3>${escapeHtml(e.nome_fantasia)}</h3><p>${escapeHtml(cat.label)} · ${escapeHtml(e.cidade)}/${escapeHtml(e.uf)}</p></div></div>`
 }
 
-function popupPublicoHtml(e: Empresa) {
+function popupPublicoHtml(e: Empresa, catalogo: Empresa[]) {
   const cat = categoriaPorId(e.categoria)
+  const logo = logoSrcEmpresa(e, catalogo)
+  const img = logo
+    ? `<img class="mapa-pub-popup__logo" src="${escapeHtml(logo)}" alt="" referrerpolicy="no-referrer" />`
+    : ''
   return `
     <div class="mapa-pub-popup">
+      ${img}
       <p class="mapa-pub-popup__tipo">${escapeHtml(e.nome_fantasia)}</p>
       <p class="mapa-pub-popup__local">${escapeHtml(cat.label)} · ${escapeHtml(e.cidade)} / ${escapeHtml(e.uf)}</p>
       <p class="mapa-pub-popup__lock">Contato, WhatsApp e CNPJ só para assinante.</p>
@@ -289,7 +300,7 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
         title: e.nome_fantasia,
       })
       const cat = categoriaPorId(e.categoria)
-      marker.bindPopup(visitante ? popupPublicoHtml(e) : popupInternoHtml(e), {
+      marker.bindPopup(visitante ? popupPublicoHtml(e, empresas) : popupInternoHtml(e, empresas), {
         className: visitante ? 'mapa-pub-leaflet' : '',
         maxWidth: 280,
         minWidth: 220,
@@ -316,7 +327,7 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
     }
 
     window.setTimeout(() => map.invalidateSize(), 80)
-  }, [pinsNoMapa, navigate, visitante, selecionada])
+  }, [pinsNoMapa, navigate, visitante, selecionada, empresas])
 
   useEffect(() => {
     const map = mapRef.current
@@ -820,9 +831,7 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
                       className={`mapa-log__emp${selecionada === e.id ? ' is-on' : ''}${noMapa ? '' : ' is-sem-ponto'}`}
                       onClick={() => irPara(e)}
                     >
-                      <span className="mapa-log__cat-ico" style={{ background: cat.corFundo }}>
-                        {cat.emoji}
-                      </span>
+                      <LogoEmpresa empresa={e} catalogo={empresas} className="mapa-log__emp-logo" />
                       <span className="mapa-log__emp-txt">
                         <span className="mapa-log__emp-nome">
                           {escolhaDeUnidade && !e.hierarquia_superior
@@ -830,7 +839,7 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
                             : e.nome_fantasia}
                         </span>
                         <span className="mapa-log__emp-meta">
-                          {cat.label} · {e.cidade}/{e.uf}
+                          {cat.emoji} {cat.label} · {e.cidade}/{e.uf}
                         </span>
                         {noMapa ? null : <span className="mapa-log__emp-selo">Sem ponto no mapa</span>}
                       </span>

@@ -16,7 +16,8 @@ import {
 } from 'lucide-react'
 import type { Empresa } from '../../types'
 import { useAuth } from '../../lib/AuthContext'
-import { iniciaisEmpresa, logoSrcEmpresa } from '../../lib/empresaVisual'
+import { iniciaisEmpresa } from '../../lib/empresaVisual'
+import { LogoEmpresa } from '../empresa/LogoEmpresa'
 import {
   classificarMidia,
   enviarArquivosFeed,
@@ -449,7 +450,6 @@ export function FeedMural({ empresaFiltro, mostrarComposer, composerEmpresa, vaz
           visiveis.map((post) => {
             const emp = post.empresa_slug ? empresas.find((e) => e.slug === post.empresa_slug) : undefined
             const tituloPost = post.empresa_slug ? post.empresa_nome : post.autor_nome
-            const logo = emp ? logoSrcEmpresa(emp) : null
             const curtiu = sessao ? post.curtidas.includes(sessao.usuario) : false
             const podeApagar = sessao?.isSuper || sessao?.usuario === post.autor_usuario
             const midias = midiasDoPost(post)
@@ -467,8 +467,8 @@ export function FeedMural({ empresaFiltro, mostrarComposer, composerEmpresa, vaz
                     onClick={() => post.empresa_slug && navigate(`/embarcador/mapa-logistica/empresa/${post.empresa_slug}`)}
                     disabled={!post.empresa_slug}
                   >
-                    {logo ? (
-                      <img src={logo} alt="" className="feed__avatar feed__avatar--img" />
+                    {emp ? (
+                      <LogoEmpresa empresa={emp} catalogo={empresas} className="feed__avatar feed__avatar--img" />
                     ) : (
                       <span className="feed__avatar">{iniciaisEmpresa(tituloPost)}</span>
                     )}
