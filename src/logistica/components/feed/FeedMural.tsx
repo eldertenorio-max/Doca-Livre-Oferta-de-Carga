@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Camera,
+  Check,
   Heart,
   ImagePlus,
   MessageCircle,
   Paperclip,
   Send,
+  Share2,
   Trash2,
   Video,
   X,
@@ -25,12 +27,17 @@ import {
 import {
   TIPOS_POST_FEED,
   alternarCurtida,
+  alternarCurtidaComentario,
+  comentariosRaiz,
   comentarPost,
+  compartilharPublicacaoFeed,
   excluirPostFeed,
   labelTipoPost,
   listarPostsFeed,
   publicarPostFeed,
+  respostasDoComentario,
   tempoRelativo,
+  type ComentarioFeed,
   type PostFeed,
   type TipoPostFeed,
 } from '../../lib/feedStore'
@@ -68,6 +75,8 @@ export function postsDaEmpresa(posts: PostFeed[], empresa: Pick<Empresa, 'id' | 
 
 export function FeedMural({ empresaFiltro, mostrarComposer, composerEmpresa, vazio }: Props) {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const postDestaque = params.get('post')
   const { sessao, empresas } = useAuth()
   const [posts, setPosts] = useState<PostFeed[]>([])
   const [filtro, setFiltro] = useState<TipoPostFeed | 'todos'>('todos')
@@ -79,8 +88,10 @@ export function FeedMural({ empresaFiltro, mostrarComposer, composerEmpresa, vaz
   const [arrastando, setArrastando] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
-  const [comentarioAberto, setComentarioAberto] = useState<string | null>(null)
-  const [rascunhoComentario, setRascunhoComentario] = useState('')
+  const [rascunhos, setRascunhos] = useState<Record<string, string>>({})
+  const [resposta, setResposta] = useState<{ postId: string; comentarioId: string; nome: string } | null>(null)
+  const [shareOk, setShareOk] = useState<string | null>(null)
+  const comentarioInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const fotoRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLInputElement>(null)
   const arquivoRef = useRef<HTMLInputElement>(null)
@@ -104,6 +115,13 @@ export function FeedMural({ empresaFiltro, mostrarComposer, composerEmpresa, vaz
     const base = empresaFiltro ? postsDaEmpresa(posts, empresaFiltro) : posts
     return filtro === 'todos' ? base : base.filter((p) => p.tipo === filtro)
   }, [empresaFiltro, filtro, posts])
+
+  useEffect(() => {
+    if (!postDestaque) return
+    const el = document.getElementById(`feed-post-${postDestaque}`)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [postDestaque, visiveis])
 
   function acrescentarArquivos(lista: FileList | File[] | null) {
     if (!lista) return
@@ -184,11 +202,41 @@ export function FeedMural({ empresaFiltro, mostrarComposer, composerEmpresa, vaz
   async function onComentar(post: PostFeed) {
     if (!sessao) return
     try {
-      await comentarPost(post, sessao.usuario, sessao.nome, rascunhoComentario)
-      setRascunhoComentario('')
+      const respostaA = resposta?.postId === post.id ? resposta.comentarioId : null
+      await comentarPost(post, sessao.usuario, sessao.nome, rascunhos[post.id] || '', respostaA)
+      setRascunhos((atual) => ({ ...atual, [post.id]: '' }))
+      setResposta((atual) => (atual?.postId === post.id ? null : atual))
       await recarregar()
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Não foi possível comentar.')
+    }
+  }
+
+  async function onCurtirComentario(post: PostFeed, comentario: ComentarioFeed) {
+    if (!sessao) return
+    try {
+      await alternarCurtidaComentario(post, comentario, sessao.usuario, sessao.nome)
+      await recarregar()
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'Não foi possível curtir o comentário.')
+    }
+  }
+
+  function onResponder(post: PostFeed, comentario: ComentarioFeed) {
+    setResposta({ postId: post.id, comentarioId: comentario.id, nome: comentario.autor_nome })
+    comentarioInputRefs.current[post.id]?.focus()
+  }
+
+  async function onCompartilhar(post: PostFeed) {
+    try {
+      const modo = await compartilharPublicacaoFeed(post)
+      if (modo === 'copiado') {
+        setShareOk(post.id)
+        window.setTimeout(() => setShareOk((atual) => (atual === post.id ? null : atual)), 2500)
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
+      setErro('Não foi possível compartilhar agora.')
     }
   }
 
@@ -361,8 +409,13 @@ export function FeedMural({ empresaFiltro, mostrarComposer, composerEmpresa, vaz
             const curtiu = sessao ? post.curtidas.includes(sessao.usuario) : false
             const podeApagar = sessao?.isSuper || sessao?.usuario === post.autor_usuario
             const midias = midiasDoPost(post)
+            const raizes = comentariosRaiz(post.comentarios)
             return (
-              <article key={post.id} className="feed__card">
+              <article
+                key={post.id}
+                id={`feed-post-${post.id}`}
+                className={`feed__card ${postDestaque === post.id ? 'is-destaque' : ''}`}
+              >
                 <header className="feed__card-head">
                   <button
                     type="button"
@@ -393,10 +446,18 @@ export function FeedMural({ empresaFiltro, mostrarComposer, composerEmpresa, vaz
                   </button>
                   <button
                     type="button"
-                    onClick={() => setComentarioAberto(comentarioAberto === post.id ? null : post.id)}
+                    onClick={() => comentarioInputRefs.current[post.id]?.focus()}
                   >
                     <MessageCircle size={16} />
                     {post.comentarios.length || ''}
+                  </button>
+                  <button
+                    type="button"
+                    className={shareOk === post.id ? 'is-on' : ''}
+                    onClick={() => void onCompartilhar(post)}
+                  >
+                    {shareOk === post.id ? <Check size={16} /> : <Share2 size={16} />}
+                    {shareOk === post.id ? 'Link copiado' : 'Compartilhar'}
                   </button>
                   {podeApagar ? (
                     <button
@@ -408,36 +469,123 @@ export function FeedMural({ empresaFiltro, mostrarComposer, composerEmpresa, vaz
                     </button>
                   ) : null}
                 </footer>
-                {comentarioAberto === post.id ? (
-                  <div className="feed__comentarios">
-                    {post.comentarios.map((c) => (
-                      <p key={c.id}>
-                        <strong>{c.autor_nome}</strong> {c.texto}
-                        <time>{tempoRelativo(c.created_at)}</time>
-                      </p>
-                    ))}
+                <div className="feed__comentarios">
+                  {raizes.map((c) => (
+                    <div key={c.id} className="feed__comentario-bloco">
+                      <ComentarioLinha
+                        post={post}
+                        comentario={c}
+                        sessaoUsuario={sessao?.usuario}
+                        onCurtir={() => void onCurtirComentario(post, c)}
+                        onResponder={() => onResponder(post, c)}
+                        podeInteragir={Boolean(sessao)}
+                      />
+                      {respostasDoComentario(post.comentarios, c.id).map((r) => (
+                        <ComentarioLinha
+                          key={r.id}
+                          post={post}
+                          comentario={r}
+                          sessaoUsuario={sessao?.usuario}
+                          resposta
+                          onCurtir={() => void onCurtirComentario(post, r)}
+                          onResponder={() => onResponder(post, r)}
+                          podeInteragir={Boolean(sessao)}
+                        />
+                      ))}
+                    </div>
+                  ))}
+                  {sessao ? (
                     <form
                       onSubmit={(e) => {
                         e.preventDefault()
                         void onComentar(post)
                       }}
                     >
+                      {resposta?.postId === post.id ? (
+                        <p className="feed__respondendo">
+                          Respondendo {resposta.nome}
+                          <button
+                            type="button"
+                            onClick={() => setResposta(null)}
+                            aria-label="Cancelar resposta"
+                          >
+                            <X size={12} />
+                          </button>
+                        </p>
+                      ) : null}
                       <input
-                        value={rascunhoComentario}
-                        onChange={(e) => setRascunhoComentario(e.target.value)}
-                        placeholder="Escreva um comentário…"
+                        ref={(el) => {
+                          comentarioInputRefs.current[post.id] = el
+                        }}
+                        value={rascunhos[post.id] || ''}
+                        onChange={(e) =>
+                          setRascunhos((atual) => ({ ...atual, [post.id]: e.target.value }))
+                        }
+                        placeholder={
+                          resposta?.postId === post.id
+                            ? `Resposta para ${resposta.nome}…`
+                            : 'Escreva um comentário…'
+                        }
                       />
                       <button type="submit" aria-label="Enviar comentário">
                         <Send size={16} />
                       </button>
                     </form>
-                  </div>
-                ) : null}
+                  ) : null}
+                </div>
               </article>
             )
           })
         )}
       </section>
     </div>
+  )
+}
+
+function ComentarioLinha({
+  post,
+  comentario,
+  sessaoUsuario,
+  resposta,
+  onCurtir,
+  onResponder,
+  podeInteragir,
+}: {
+  post: PostFeed
+  comentario: ComentarioFeed
+  sessaoUsuario?: string
+  resposta?: boolean
+  onCurtir: () => void
+  onResponder: () => void
+  podeInteragir: boolean
+}) {
+  const curtiu = sessaoUsuario ? (comentario.curtidas || []).includes(sessaoUsuario) : false
+  const pai = comentario.resposta_a
+    ? post.comentarios.find((c) => c.id === comentario.resposta_a)
+    : undefined
+  return (
+    <article className={`feed__comentario ${resposta ? 'feed__comentario--resposta' : ''}`}>
+      <p>
+        <strong>{comentario.autor_nome}</strong>
+        {resposta && pai ? <span className="feed__comentario-mencao"> resposta a {pai.autor_nome}</span> : null}{' '}
+        {comentario.texto}
+        <time>{tempoRelativo(comentario.created_at)}</time>
+      </p>
+      <div className="feed__comentario-acoes">
+        <button
+          type="button"
+          className={curtiu ? 'is-on' : ''}
+          onClick={onCurtir}
+          disabled={!podeInteragir}
+          aria-label={curtiu ? 'Remover curtida do comentário' : 'Curtir comentário'}
+        >
+          <Heart size={13} fill={curtiu ? 'currentColor' : 'none'} />
+          {comentario.curtidas.length || ''}
+        </button>
+        <button type="button" onClick={onResponder} disabled={!podeInteragir}>
+          Responder
+        </button>
+      </div>
+    </article>
   )
 }

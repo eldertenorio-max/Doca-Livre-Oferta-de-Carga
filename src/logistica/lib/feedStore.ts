@@ -19,6 +19,8 @@ export type ComentarioFeed = {
   autor_nome: string
   texto: string
   created_at: string
+  resposta_a?: string | null
+  curtidas: string[]
 }
 
 export type PostFeed = {
@@ -52,6 +54,7 @@ export type NotificacaoFeed = {
 const POSTS_KEY = 'mapa-logistica-feed-posts-v1'
 const CURTIDAS_KEY = 'mapa-logistica-feed-curtidas-v1'
 const COMENTARIOS_KEY = 'mapa-logistica-feed-comentarios-v1'
+const CURTIDAS_COMENTARIO_KEY = 'mapa-logistica-feed-comentario-curtidas-v1'
 const NOTIFS_KEY = 'mapa-logistica-feed-notifs-v1'
 
 function loadJson<T>(key: string, fallback: T): T {
@@ -95,7 +98,92 @@ export function tempoRelativo(iso: string) {
 
 type LinhaPost = Omit<PostFeed, 'curtidas' | 'comentarios'>
 type LinhaCurtida = { post_id: string; usuario: string }
-type LinhaComentario = ComentarioFeed
+type LinhaComentario = Omit<ComentarioFeed, 'curtidas'>
+type LinhaCurtidaComentario = { comentario_id: string; usuario: string }
+
+function localCurtidasComentario(): LinhaCurtidaComentario[] {
+  return loadJson<LinhaCurtidaComentario[]>(CURTIDAS_COMENTARIO_KEY, [])
+}
+
+function unirPorChave<T>(a: T[], b: T[], chave: (item: T) => string): T[] {
+  const visto = new Set<string>()
+  const out: T[] = []
+  for (const item of [...a, ...b]) {
+    const k = chave(item)
+    if (visto.has(k)) continue
+    visto.add(k)
+    out.push(item)
+  }
+  return out
+}
+
+function unirComentarios(remoto: LinhaComentario[], local: LinhaComentario[]): LinhaComentario[] {
+  const porId = new Map<string, LinhaComentario>()
+  for (const c of remoto) {
+    porId.set(c.id, { ...c, resposta_a: c.resposta_a || null })
+  }
+  for (const c of local) {
+    const prev = porId.get(c.id)
+    if (!prev) {
+      porId.set(c.id, { ...c, resposta_a: c.resposta_a || null })
+      continue
+    }
+    porId.set(c.id, { ...prev, resposta_a: prev.resposta_a || c.resposta_a || null })
+  }
+  return [...porId.values()]
+}
+
+export function comentariosRaiz(comentarios: ComentarioFeed[]) {
+  const ids = new Set(comentarios.map((c) => c.id))
+  return comentarios.filter((c) => !c.resposta_a || !ids.has(c.resposta_a))
+}
+
+export function respostasDoComentario(comentarios: ComentarioFeed[], raizId: string) {
+  const porPai = new Map<string, ComentarioFeed[]>()
+  for (const c of comentarios) {
+    if (!c.resposta_a) continue
+    const lista = porPai.get(c.resposta_a) ?? []
+    lista.push(c)
+    porPai.set(c.resposta_a, lista)
+  }
+  const out: ComentarioFeed[] = []
+  const fila = [raizId]
+  const visto = new Set<string>()
+  while (fila.length) {
+    const id = fila.shift()!
+    for (const filho of porPai.get(id) ?? []) {
+      if (visto.has(filho.id)) continue
+      visto.add(filho.id)
+      out.push(filho)
+      fila.push(filho.id)
+    }
+  }
+  return out.sort((a, b) => a.created_at.localeCompare(b.created_at))
+}
+
+export async function compartilharPublicacaoFeed(post: PostFeed): Promise<'compartilhado' | 'copiado'> {
+  const url = urlPublicacaoFeed(post.id)
+  const titulo = `${post.empresa_nome} · Doca Livre`
+  const texto = (post.texto || `Divulgação de ${post.empresa_nome}`).slice(0, 180)
+  if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+    try {
+      await navigator.share({ title: titulo, text: texto, url })
+      return 'compartilhado'
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') throw err
+    }
+  }
+  await navigator.clipboard.writeText(url)
+  return 'copiado'
+}
+
+export function urlPublicacaoFeed(postId: string) {
+  const origem =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}${window.location.pathname.replace(/\/$/, '')}`
+      : 'https://ofertadecargas.docalivre.com.br'
+  return `${origem}/#/embarcador/mapa-logistica/feed?post=${encodeURIComponent(postId)}`
+}
 
 function localPosts(): LinhaPost[] {
   return loadJson<LinhaPost[]>(POSTS_KEY, [])
@@ -105,6 +193,7 @@ function montarFeed(
   posts: LinhaPost[],
   curtidas: LinhaCurtida[],
   comentarios: LinhaComentario[],
+  curtidasComentario: LinhaCurtidaComentario[] = [],
 ): PostFeed[] {
   return [...posts]
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
@@ -114,28 +203,62 @@ function montarFeed(
       curtidas: curtidas.filter((c) => c.post_id === p.id).map((c) => c.usuario),
       comentarios: comentarios
         .filter((c) => c.post_id === p.id)
-        .sort((a, b) => a.created_at.localeCompare(b.created_at)),
+        .sort((a, b) => a.created_at.localeCompare(b.created_at))
+        .map((c) => ({
+          ...c,
+          resposta_a: c.resposta_a || null,
+          curtidas: curtidasComentario
+            .filter((x) => x.comentario_id === c.id)
+            .map((x) => x.usuario),
+        })),
     }))
 }
 
 export async function listarPostsFeed(): Promise<PostFeed[]> {
+  const curtidasComentarioLocal = localCurtidasComentario()
   if (supabase) {
     try {
-      const [{ data: posts, error: e1 }, { data: curtidas, error: e2 }, { data: comentarios, error: e3 }] =
-        await Promise.all([
-          supabase.from('mapa_feed_posts').select('*').order('created_at', { ascending: false }).limit(120),
-          supabase.from('mapa_feed_curtidas').select('post_id,usuario'),
-          supabase.from('mapa_feed_comentarios').select('*').order('created_at', { ascending: true }),
-        ])
+      const [
+        { data: posts, error: e1 },
+        { data: curtidas, error: e2 },
+        { data: comentarios, error: e3 },
+        curtidasComentarioRemoto,
+      ] = await Promise.all([
+        supabase.from('mapa_feed_posts').select('*').order('created_at', { ascending: false }).limit(120),
+        supabase.from('mapa_feed_curtidas').select('post_id,usuario'),
+        supabase.from('mapa_feed_comentarios').select('*').order('created_at', { ascending: true }),
+        supabase
+          .from('mapa_feed_comentario_curtidas')
+          .select('comentario_id,usuario')
+          .then(({ data, error }) => {
+            if (error) return [] as LinhaCurtidaComentario[]
+            return (data ?? []) as LinhaCurtidaComentario[]
+          }),
+      ])
       if (e1) throw e1
       if (e2) throw e2
       if (e3) throw e3
-      return montarFeed((posts ?? []) as LinhaPost[], (curtidas ?? []) as LinhaCurtida[], (comentarios ?? []) as LinhaComentario[])
+      const curtidasComentario = unirPorChave(
+        (curtidasComentarioRemoto ?? []) as LinhaCurtidaComentario[],
+        curtidasComentarioLocal,
+        (c) => `${c.comentario_id}:${c.usuario}`,
+      )
+      return montarFeed(
+        (posts ?? []) as LinhaPost[],
+        (curtidas ?? []) as LinhaCurtida[],
+        unirComentarios((comentarios ?? []) as LinhaComentario[], loadJson(COMENTARIOS_KEY, [])),
+        curtidasComentario,
+      )
     } catch (err) {
       if (!tabelaAindaNaoExiste(err)) console.warn('Feed remoto:', err)
     }
   }
-  return montarFeed(localPosts(), loadJson(CURTIDAS_KEY, []), loadJson(COMENTARIOS_KEY, []))
+  return montarFeed(
+    localPosts(),
+    loadJson(CURTIDAS_KEY, []),
+    loadJson(COMENTARIOS_KEY, []),
+    curtidasComentarioLocal,
+  )
 }
 
 export async function publicarPostFeed(params: {
@@ -192,9 +315,12 @@ export async function excluirPostFeed(id: string) {
     CURTIDAS_KEY,
     loadJson<LinhaCurtida[]>(CURTIDAS_KEY, []).filter((c) => c.post_id !== id),
   )
+  const comentariosRestantes = loadJson<LinhaComentario[]>(COMENTARIOS_KEY, []).filter((c) => c.post_id !== id)
+  const idsComentario = new Set(comentariosRestantes.map((c) => c.id))
+  saveJson(COMENTARIOS_KEY, comentariosRestantes)
   saveJson(
-    COMENTARIOS_KEY,
-    loadJson<LinhaComentario[]>(COMENTARIOS_KEY, []).filter((c) => c.post_id !== id),
+    CURTIDAS_COMENTARIO_KEY,
+    localCurtidasComentario().filter((c) => idsComentario.has(c.comentario_id)),
   )
 }
 
@@ -234,7 +360,18 @@ export async function alternarCurtida(post: PostFeed, usuario: string, nome: str
   }
 }
 
-export async function comentarPost(post: PostFeed, usuario: string, nome: string, texto: string) {
+function erroSemColunaResposta(err: { message?: string } | null) {
+  const msg = err?.message || ''
+  return /resposta_a|schema cache|column/i.test(msg)
+}
+
+export async function comentarPost(
+  post: PostFeed,
+  usuario: string,
+  nome: string,
+  texto: string,
+  respostaA?: string | null,
+) {
   const limpo = texto.trim()
   if (limpo.length < 2) throw new Error('Escreva um comentário.')
   const comentario: LinhaComentario = {
@@ -244,14 +381,39 @@ export async function comentarPost(post: PostFeed, usuario: string, nome: string
     autor_nome: nome,
     texto: limpo,
     created_at: agoraIso(),
+    resposta_a: respostaA || null,
   }
   if (supabase) {
     const { error } = await supabase.from('mapa_feed_comentarios').insert(comentario)
-    if (error && !tabelaAindaNaoExiste(error)) throw new Error(error.message)
+    if (error && erroSemColunaResposta(error)) {
+      const semResposta = {
+        id: comentario.id,
+        post_id: comentario.post_id,
+        autor_usuario: comentario.autor_usuario,
+        autor_nome: comentario.autor_nome,
+        texto: comentario.texto,
+        created_at: comentario.created_at,
+      }
+      const retry = await supabase.from('mapa_feed_comentarios').insert(semResposta)
+      if (retry.error && !tabelaAindaNaoExiste(retry.error)) throw new Error(retry.error.message)
+    } else if (error && !tabelaAindaNaoExiste(error)) {
+      throw new Error(error.message)
+    }
   }
   saveJson(COMENTARIOS_KEY, [...loadJson<LinhaComentario[]>(COMENTARIOS_KEY, []), comentario])
 
-  if (post.autor_usuario !== usuario) {
+  const pai = respostaA ? post.comentarios.find((c) => c.id === respostaA) : undefined
+  if (pai && pai.autor_usuario !== usuario) {
+    await criarNotificacao({
+      usuario_destino: pai.autor_usuario,
+      tipo: 'comentario',
+      post_id: post.id,
+      de_usuario: usuario,
+      de_nome: nome,
+      resumo: `${nome} respondeu seu comentário na divulgação de ${post.empresa_nome}.`,
+    })
+  }
+  if (post.autor_usuario !== usuario && post.autor_usuario !== pai?.autor_usuario) {
     await criarNotificacao({
       usuario_destino: post.autor_usuario,
       tipo: 'comentario',
@@ -262,6 +424,54 @@ export async function comentarPost(post: PostFeed, usuario: string, nome: string
     })
   }
   return comentario
+}
+
+export async function alternarCurtidaComentario(
+  post: PostFeed,
+  comentario: ComentarioFeed,
+  usuario: string,
+  nome: string,
+) {
+  const jaCurtiu = comentario.curtidas.includes(usuario)
+  if (jaCurtiu) {
+    if (supabase) {
+      const { error } = await supabase
+        .from('mapa_feed_comentario_curtidas')
+        .delete()
+        .eq('comentario_id', comentario.id)
+        .eq('usuario', usuario)
+      if (error && !tabelaAindaNaoExiste(error)) throw new Error(error.message)
+    }
+    saveJson(
+      CURTIDAS_COMENTARIO_KEY,
+      localCurtidasComentario().filter(
+        (c) => !(c.comentario_id === comentario.id && c.usuario === usuario),
+      ),
+    )
+    return
+  }
+
+  if (supabase) {
+    const { error } = await supabase
+      .from('mapa_feed_comentario_curtidas')
+      .insert({ comentario_id: comentario.id, usuario })
+    if (error && !tabelaAindaNaoExiste(error)) throw new Error(error.message)
+  }
+  saveJson(CURTIDAS_COMENTARIO_KEY, [
+    ...localCurtidasComentario(),
+    { comentario_id: comentario.id, usuario },
+  ])
+
+  if (comentario.autor_usuario !== usuario) {
+    await criarNotificacao({
+      usuario_destino: comentario.autor_usuario,
+      tipo: 'curtida',
+      post_id: post.id,
+      de_usuario: usuario,
+      de_nome: nome,
+      resumo: `${nome} curtiu seu comentário na divulgação de ${post.empresa_nome}.`,
+    })
+  }
 }
 
 async function criarNotificacao(n: Omit<NotificacaoFeed, 'id' | 'lida' | 'created_at'>) {

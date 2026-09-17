@@ -118,6 +118,19 @@ create table if not exists public.mapa_feed_comentarios (
 
 create index if not exists idx_mapa_feed_comentarios_post on public.mapa_feed_comentarios (post_id, created_at);
 
+alter table public.mapa_feed_comentarios
+  add column if not exists resposta_a uuid references public.mapa_feed_comentarios(id) on delete cascade;
+
+create index if not exists idx_mapa_feed_comentarios_resposta
+  on public.mapa_feed_comentarios (resposta_a);
+
+create table if not exists public.mapa_feed_comentario_curtidas (
+  comentario_id uuid not null references public.mapa_feed_comentarios(id) on delete cascade,
+  usuario text not null,
+  created_at timestamptz not null default now(),
+  primary key (comentario_id, usuario)
+);
+
 create table if not exists public.mapa_notificacoes (
   id uuid primary key default gen_random_uuid(),
   usuario_destino text not null,
@@ -136,11 +149,13 @@ create index if not exists idx_mapa_notificacoes_destino
 alter table public.mapa_feed_posts enable row level security;
 alter table public.mapa_feed_curtidas enable row level security;
 alter table public.mapa_feed_comentarios enable row level security;
+alter table public.mapa_feed_comentario_curtidas enable row level security;
 alter table public.mapa_notificacoes enable row level security;
 
 drop policy if exists "mapa_feed_posts_all" on public.mapa_feed_posts;
 drop policy if exists "mapa_feed_curtidas_all" on public.mapa_feed_curtidas;
 drop policy if exists "mapa_feed_comentarios_all" on public.mapa_feed_comentarios;
+drop policy if exists "mapa_feed_comentario_curtidas_all" on public.mapa_feed_comentario_curtidas;
 drop policy if exists "mapa_notificacoes_all" on public.mapa_notificacoes;
 
 create policy "mapa_feed_posts_all"
@@ -155,6 +170,11 @@ create policy "mapa_feed_curtidas_all"
 
 create policy "mapa_feed_comentarios_all"
   on public.mapa_feed_comentarios for all
+  to anon, authenticated
+  using (true) with check (true);
+
+create policy "mapa_feed_comentario_curtidas_all"
+  on public.mapa_feed_comentario_curtidas for all
   to anon, authenticated
   using (true) with check (true);
 
