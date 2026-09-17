@@ -642,6 +642,7 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
             ) : null}
           </div>
 
+          <div className="mapa-log__scroll">
           <div className="mapa-log__cats">
             <p className="mapa-log__cats-title">Categorias</p>
             <div className="mapa-log__cats-grid">
@@ -848,6 +849,7 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
               })}
             </ul>
           )}
+          </div>
         </aside>
 
         <div
