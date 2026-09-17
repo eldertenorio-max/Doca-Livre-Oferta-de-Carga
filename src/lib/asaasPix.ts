@@ -48,6 +48,11 @@ async function chamarAsaas(body: Record<string, unknown>): Promise<RespostaAsaas
   return payload
 }
 
+export function asaasNaoConfigurado(erro?: string) {
+  const t = (erro || '').toLowerCase()
+  return t.includes('asaas_nao_configurado') || t.includes('asaas_api_key')
+}
+
 export async function statusConfigAsaas(): Promise<{
   ok: boolean
   asaas?: boolean
