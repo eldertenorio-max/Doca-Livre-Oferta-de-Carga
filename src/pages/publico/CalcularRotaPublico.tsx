@@ -12,6 +12,7 @@ import {
   Fuel,
   Gauge,
   GripVertical,
+  LogIn,
   MapPin,
   Plus,
   RotateCcw,
@@ -45,7 +46,7 @@ import { RotaResultadoAcoes, RotaFaleConosco } from '../../components/carga/Rota
 import { RotaMapErroBoundary } from '../../components/carga/RotaMapErroBoundary'
 import { RotaPaywallModal } from '../../components/carga/RotaPaywallModal'
 import { RotaPresenteModal } from '../../components/carga/RotaPresenteModal'
-import { GoogleGIcon } from '../../components/carga/GoogleGIcon'
+import { RotaPublicoLoginModal } from '../../components/carga/RotaPublicoLogin'
 import { useRotaPublicoAuth } from '../../lib/rotaPublicoAuth'
 import type { SugestaoEndereco } from '../../lib/geocodeEndereco'
 import { geocodificarConsulta, labelPorCoordenadas } from '../../lib/geocodeEndereco'
@@ -210,6 +211,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
     ilimitado ? COTA_ILIMITADA : estadoCalculosPublicos(),
   )
   const [showPaywall, setShowPaywall] = useState(false)
+  const [showLogin, setShowLogin] = useState(false)
   const [presente, setPresente] = useState<{ creditos: number; ids: string[] } | null>(null)
   const [showResultado, setShowResultado] = useState(false)
   const [snap, setSnap] = useState<ResultadoSnap | null>(null)
@@ -852,19 +854,12 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
             <>
               <button
                 type="button"
-                className="mapa-pub__btn mapa-pub__btn--google"
-                disabled={googleAuth.busy}
-                title={googleAuth.erro || 'Cadastro e login com Google nesta calculadora'}
-                onClick={() => void googleAuth.entrar()}
+                className="mapa-pub__btn mapa-pub__btn--solid"
+                onClick={() => setShowLogin(true)}
               >
-                <GoogleGIcon />
-                {googleAuth.busy ? 'Abrindo Google…' : 'Entrar com Google'}
+                <LogIn size={15} strokeWidth={2.4} />
+                Entrar
               </button>
-              {googleAuth.erro ? (
-                <span className="mapa-pub-google-erro" role="alert">
-                  {googleAuth.erro}
-                </span>
-              ) : null}
               <LinkSistema className="mapa-pub__btn mapa-pub__btn--ghost" to="/login">
                 Sistema
               </LinkSistema>
@@ -1567,14 +1562,15 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
           restamGratis={cota.restamGratis}
           creditos={cota.creditos}
           conta={googleAuth.conta}
-          entrandoGoogle={googleAuth.busy}
-          erroGoogle={googleAuth.erro}
-          onEntrarGoogle={() => void googleAuth.entrar()}
           onClose={() => setShowPaywall(false)}
           onCreditosLiberados={() => {
             void consultarEstadoCalculosPublicos().then(setCota)
           }}
         />
+      ) : null}
+
+      {!modoSistema && ((showLogin && !googleAuth.conta) || googleAuth.redefinirSenha) ? (
+        <RotaPublicoLoginModal onClose={() => setShowLogin(false)} />
       ) : null}
 
       {presente && !modoSistema ? (

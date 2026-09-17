@@ -52,7 +52,7 @@ export function PresentearCreditosRota() {
     const destino = email.trim().toLowerCase()
     const n = Math.floor(Number(creditos))
     if (!destino.includes('@')) {
-      setErro('Informe o e-mail da pessoa. O presente só entra nessa conta Google.')
+      setErro('Informe o e-mail da pessoa. O presente entra na conta da calculadora desse e-mail.')
       return
     }
     if (!Number.isFinite(n) || n < 1 || n > 500) {
@@ -72,8 +72,8 @@ export function PresentearCreditosRota() {
       return
     }
     const conta = r.contaExiste
-      ? 'Os créditos já estão na conta Google.'
-      : 'Quando ela entrar com Google neste e-mail, os créditos entram sozinhos.'
+      ? 'Os créditos já estão na conta da calculadora.'
+      : 'Quando ela entrar com Google ou e-mail e senha neste e-mail, os créditos entram sozinhos.'
     const mail = r.emailEnviado
       ? ' E-mail de parabéns enviado.'
       : r.emailErro === 'smtp_nao_configurado'
@@ -94,7 +94,7 @@ export function PresentearCreditosRota() {
         </h2>
         <p className="financeiro-pix__sub">
           Só por aqui, só pelo e-mail que você informar. A pessoa recebe um e-mail de parabéns e, ao
-          entrar com Google neste e-mail na calculadora, vê a mensagem do presente.
+          entrar na calculadora com Google ou e-mail e senha neste e-mail, vê a mensagem do presente.
           {resendOn === false ? ' Falta RESEND_API_KEY para o e-mail sair.' : ''}
         </p>
       </div>
@@ -106,7 +106,7 @@ export function PresentearCreditosRota() {
         }}
       >
         <label className="financeiro-pix__label financeiro-presente__email">
-          E-mail da pessoa (conta Google)
+          E-mail da pessoa (calculadora)
           <input
             type="email"
             value={email}
@@ -157,7 +157,7 @@ export function PresentearCreditosRota() {
               <span>{p.email}</span>
               <em>
                 {formatarQuando(p.criado_em)}
-                {p.aplicado_em ? ' · na conta' : ' · aguardando Google'}
+                {p.aplicado_em ? ' · na conta' : ' · aguardando login'}
                 {p.email_enviado_em ? ' · e-mail ok' : p.email_erro ? ' · e-mail falhou' : ''}
               </em>
             </li>

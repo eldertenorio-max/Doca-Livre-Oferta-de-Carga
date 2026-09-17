@@ -168,7 +168,7 @@
   background: #f8fafc;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 12px;
 }
 
@@ -181,6 +181,130 @@
   font-size: 0.75rem;
   font-weight: 700;
   color: #64748b;
+}
+
+.mapa-pub-modal__card--login {
+  width: min(420px, 100%);
+}
+
+.mapa-pub-login {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.mapa-pub-login__aviso {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 650;
+  line-height: 1.45;
+  color: #475569;
+}
+
+.mapa-pub-login__ou {
+  margin: 0;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.mapa-pub-login__tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 12px;
+  background: #e8ecf1;
+}
+
+.mapa-pub-login__tabs button {
+  border: 0;
+  background: transparent;
+  border-radius: 9px;
+  min-height: 36px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #475569;
+  cursor: pointer;
+}
+
+.mapa-pub-login__tabs button.is-on {
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.08);
+}
+
+.mapa-pub-login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.mapa-pub-login__form label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #334155;
+}
+
+.mapa-pub-login__form input {
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  color: #0f172a;
+}
+
+.mapa-pub-login__form .mapa-pub__btn--solid {
+  min-height: 42px;
+  width: 100%;
+}
+
+.mapa-pub-login__esqueci {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #166534;
+  cursor: pointer;
+  text-align: left;
+}
+
+.mapa-pub-login__esqueci:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.mapa-pub-login__erro {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #b91c1c;
+}
+
+.mapa-pub-login__ok {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #166534;
+}
+
+.mapa-pub-login .mapa-pub__btn--google {
+  width: 100%;
 }
 
 .mapa-pub__shell.mapa-frota {

@@ -203,7 +203,7 @@ export async function creditarPacoteRotaPublicoNaConta(
 ): Promise<{ ok: boolean; erro?: string; creditos?: number }> {
   const conta = await sessaoRotaPublico()
   if (!conta || !supabase) {
-    return { ok: false, erro: 'Entre com Google para guardar os créditos na sua conta.' }
+    return { ok: false, erro: 'Entre na calculadora para guardar os créditos na sua conta.' }
   }
   const { data, error } = await supabase.rpc('rota_publico_creditar_pacote', {
     p_pacote: pacote.id,
@@ -223,7 +223,7 @@ export async function creditarPacoteRotaPublicoNaConta(
       }
     }
     if (parsed.erro === 'nao_autenticado') {
-      return { ok: false, erro: 'Entre com Google para guardar os créditos na sua conta.' }
+      return { ok: false, erro: 'Entre na calculadora para guardar os créditos na sua conta.' }
     }
     return { ok: false, erro: 'Não foi possível liberar os créditos.' }
   }

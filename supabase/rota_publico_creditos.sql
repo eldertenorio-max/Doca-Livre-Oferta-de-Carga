@@ -259,7 +259,8 @@ security definer set search_path = public
 as $$
 begin
   if coalesce(new.raw_app_meta_data->>'provider', '') = 'google'
-     or coalesce(new.raw_app_meta_data->'providers', '[]'::jsonb) ? 'google' then
+     or coalesce(new.raw_app_meta_data->'providers', '[]'::jsonb) ? 'google'
+     or coalesce(new.raw_user_meta_data->>'origem', '') = 'rota_publico' then
     insert into public.rota_publico_creditos (user_id, saldo)
     values (new.id, 0)
     on conflict (user_id) do nothing;

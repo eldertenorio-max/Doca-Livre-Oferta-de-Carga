@@ -6,6 +6,9 @@ import { isLocalDev, isSiteOfertaDeCarga } from './siteOfertaDeCarga'
 const ERRO_GOOGLE_DESLIGADO =
   'O login Google ainda não está ligado no Supabase. Painel → Authentication → Providers → Google → Enable (Client ID e Secret do Google Cloud).'
 
+/** Marca a conta Auth como só do site aberto (calculadora/mapa). Não entra no sistema. */
+export const ORIGEM_ROTA_PUBLICO = 'rota_publico'
+
 export type ContaRotaPublico = {
   id: string
   email: string
@@ -13,9 +16,14 @@ export type ContaRotaPublico = {
   foto: string | null
 }
 
+export function ehContaSoSiteAberto(user: User | null | undefined): boolean {
+  if (!user) return false
+  return String(user.user_metadata?.origem || '').trim() === ORIGEM_ROTA_PUBLICO
+}
+
 function contaDeUser(user: User): ContaRotaPublico {
   const meta = user.user_metadata || {}
-  const nome = String(meta.full_name || meta.name || user.email || 'Conta Google').trim()
+  const nome = String(meta.full_name || meta.name || meta.nome || user.email || 'Conta').trim()
   const foto =
     typeof meta.avatar_url === 'string'
       ? meta.avatar_url
@@ -56,6 +64,38 @@ function mensagemErroGoogle(raw: string) {
     return ERRO_GOOGLE_DESLIGADO
   }
   return 'Não foi possível entrar com Google. Tente de novo.'
+}
+
+export function mensagemErroAuthRota(raw: string) {
+  const t = (raw || '').trim()
+  const low = t.toLowerCase()
+  if (low.includes('invalid login') || low.includes('invalid credentials')) {
+    return 'E-mail ou senha incorretos.'
+  }
+  if (low.includes('email not confirmed') || low.includes('not confirmed')) {
+    return 'Confirme o e-mail que enviamos e entre de novo.'
+  }
+  if (
+    low.includes('already registered') ||
+    low.includes('already been registered') ||
+    low.includes('user already')
+  ) {
+    return 'Este e-mail já tem conta. Entre com a senha.'
+  }
+  if (low.includes('password') && (low.includes('least') || low.includes('6'))) {
+    return 'A senha precisa ter pelo menos 6 caracteres.'
+  }
+  if (low.includes('rate limit') || low.includes('security purposes')) {
+    return 'Aguarde uns segundos e tente de novo.'
+  }
+  if (low.includes('signup is disabled')) {
+    return 'O cadastro por e-mail ainda não está ligado no Supabase.'
+  }
+  return t || 'Não foi possível entrar. Tente de novo.'
+}
+
+function emailOk(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 254
 }
 
 async function googleProviderLigado(): Promise<boolean | null> {
@@ -101,10 +141,88 @@ export async function entrarComGoogleRotaPublico(): Promise<{ ok: boolean; erro?
   return { ok: true }
 }
 
+export async function cadastrarEmailRotaPublico(input: {
+  email: string
+  senha: string
+  nome?: string
+}): Promise<{ ok: boolean; erro?: string; precisaConfirmar?: boolean }> {
+  if (!supabase || !isSupabaseConfigured) {
+    return { ok: false, erro: 'O cadastro ainda não está configurado neste site.' }
+  }
+  const email = input.email.trim().toLowerCase()
+  const senha = input.senha
+  const nome = (input.nome || '').trim() || email.split('@')[0] || 'Conta'
+  if (!emailOk(email)) return { ok: false, erro: 'Informe um e-mail válido.' }
+  if (senha.length < 6) return { ok: false, erro: 'A senha precisa ter pelo menos 6 caracteres.' }
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password: senha,
+    options: {
+      emailRedirectTo: redirectOAuthRotaPublico(),
+      data: {
+        origem: ORIGEM_ROTA_PUBLICO,
+        nome,
+        full_name: nome,
+      },
+    },
+  })
+  if (error) return { ok: false, erro: mensagemErroAuthRota(error.message) }
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    return { ok: false, erro: 'Este e-mail já tem conta. Entre com a senha.' }
+  }
+  if (!data.session) {
+    return {
+      ok: true,
+      precisaConfirmar: true,
+    }
+  }
+  return { ok: true }
+}
+
+export async function entrarEmailRotaPublico(input: {
+  email: string
+  senha: string
+}): Promise<{ ok: boolean; erro?: string }> {
+  if (!supabase || !isSupabaseConfigured) {
+    return { ok: false, erro: 'O login ainda não está configurado neste site.' }
+  }
+  const email = input.email.trim().toLowerCase()
+  const senha = input.senha
+  if (!emailOk(email)) return { ok: false, erro: 'Informe um e-mail válido.' }
+  if (!senha) return { ok: false, erro: 'Informe a senha.' }
+  const { error } = await supabase.auth.signInWithPassword({ email, password: senha })
+  if (error) return { ok: false, erro: mensagemErroAuthRota(error.message) }
+  return { ok: true }
+}
+
+export async function recuperarSenhaRotaPublico(emailRaw: string): Promise<{ ok: boolean; erro?: string }> {
+  if (!supabase || !isSupabaseConfigured) {
+    return { ok: false, erro: 'A recuperação de senha ainda não está configurada.' }
+  }
+  const email = emailRaw.trim().toLowerCase()
+  if (!emailOk(email)) return { ok: false, erro: 'Informe um e-mail válido.' }
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: redirectOAuthRotaPublico(),
+  })
+  if (error) return { ok: false, erro: mensagemErroAuthRota(error.message) }
+  return { ok: true }
+}
+
+export async function definirNovaSenhaRotaPublico(senha: string): Promise<{ ok: boolean; erro?: string }> {
+  if (!supabase) return { ok: false, erro: 'Supabase não configurado.' }
+  if (senha.length < 6) return { ok: false, erro: 'A senha precisa ter pelo menos 6 caracteres.' }
+  const { error } = await supabase.auth.updateUser({ password: senha })
+  if (error) return { ok: false, erro: mensagemErroAuthRota(error.message) }
+  return { ok: true }
+}
+
 export async function sairRotaPublico() {
   if (!supabase) return
   await supabase.auth.signOut()
 }
+
+let senhaRecoveryAtiva = false
 
 export function ouvirSessaoRotaPublico(cb: (conta: ContaRotaPublico | null) => void): () => void {
   if (!supabase) {
@@ -116,7 +234,8 @@ export function ouvirSessaoRotaPublico(cb: (conta: ContaRotaPublico | null) => v
     if (!alive) return
     cb(data.session?.user ? contaDeUser(data.session.user) : null)
   })
-  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+  const { data } = supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY') senhaRecoveryAtiva = true
     if (!alive) return
     cb(session?.user ? contaDeUser(session.user) : null)
   })
@@ -129,28 +248,97 @@ export function ouvirSessaoRotaPublico(cb: (conta: ContaRotaPublico | null) => v
 export function useRotaPublicoAuth() {
   const [conta, setConta] = useState<ContaRotaPublico | null>(null)
   const [pronto, setPronto] = useState(false)
-  const [busy, setBusy] = useState(false)
+  const [busyGoogle, setBusyGoogle] = useState(false)
+  const [busyEmail, setBusyEmail] = useState(false)
   const [erro, setErro] = useState('')
+  const [info, setInfo] = useState('')
+  const [redefinirSenha, setRedefinirSenha] = useState(senhaRecoveryAtiva)
 
   useEffect(() => {
     const unsub = ouvirSessaoRotaPublico((c) => {
       setConta(c)
       setPronto(true)
+      if (senhaRecoveryAtiva) setRedefinirSenha(true)
     })
     return unsub
   }, [])
 
   async function entrar() {
-    setBusy(true)
+    setBusyGoogle(true)
     setErro('')
+    setInfo('')
     const r = await entrarComGoogleRotaPublico()
     if (!r.ok) setErro(r.erro || 'Não foi possível entrar com Google.')
-    setBusy(false)
+    setBusyGoogle(false)
+  }
+
+  async function entrarEmail(email: string, senha: string) {
+    setBusyEmail(true)
+    setErro('')
+    setInfo('')
+    const r = await entrarEmailRotaPublico({ email, senha })
+    if (!r.ok) setErro(r.erro || 'Não foi possível entrar.')
+    setBusyEmail(false)
+    return r
+  }
+
+  async function cadastrar(email: string, senha: string, nome: string) {
+    setBusyEmail(true)
+    setErro('')
+    setInfo('')
+    const r = await cadastrarEmailRotaPublico({ email, senha, nome })
+    if (!r.ok) setErro(r.erro || 'Não foi possível criar a conta.')
+    else if (r.precisaConfirmar) {
+      setInfo('Enviamos um e-mail para confirmar. Depois disso, entre aqui com e-mail e senha.')
+    }
+    setBusyEmail(false)
+    return r
+  }
+
+  async function recuperar(email: string) {
+    setBusyEmail(true)
+    setErro('')
+    setInfo('')
+    const r = await recuperarSenhaRotaPublico(email)
+    if (!r.ok) setErro(r.erro || 'Não foi possível enviar o e-mail.')
+    else setInfo('Se o e-mail existir, enviamos o link para criar uma senha nova.')
+    setBusyEmail(false)
+    return r
+  }
+
+  async function novaSenha(senha: string) {
+    setBusyEmail(true)
+    setErro('')
+    setInfo('')
+    const r = await definirNovaSenhaRotaPublico(senha)
+    if (!r.ok) setErro(r.erro || 'Não foi possível gravar a senha.')
+    else {
+      senhaRecoveryAtiva = false
+      setRedefinirSenha(false)
+      setInfo('Senha atualizada. Você já está na calculadora.')
+    }
+    setBusyEmail(false)
+    return r
   }
 
   async function sair() {
     await sairRotaPublico()
   }
 
-  return { conta, pronto, busy, erro, entrar, sair }
+  return {
+    conta,
+    pronto,
+    busy: busyGoogle || busyEmail,
+    busyGoogle,
+    busyEmail,
+    erro,
+    info,
+    redefinirSenha,
+    entrar,
+    entrarEmail,
+    cadastrar,
+    recuperar,
+    novaSenha,
+    sair,
+  }
 }

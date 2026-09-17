@@ -2244,9 +2244,36 @@ export async function portalLogin(
     })
     if (error || !data.user) continue
 
-    const account =
+    const origemAuth = String(data.user.user_metadata?.origem || '').trim()
+    if (origemAuth === 'rota_publico') {
+      try {
+        await supabase.auth.signOut()
+      } catch {
+        /* ignore */
+      }
+      return {
+        ok: false,
+        erro:
+          'Esta conta é só do site da calculadora. Para o sistema Oferta de Carga, use o cadastro de transportadora ou embarcador.',
+      }
+    }
+
+    const accountExistente =
       candidatos.find((c) => normId(c.email) === normId(email)) ||
-      loadPortalAccounts().find((c) => normId(c.email) === normId(email)) ||
+      loadPortalAccounts().find((c) => normId(c.email) === normId(email))
+
+    const roleMeta = String(data.user.user_metadata?.role || '').trim()
+    if (!accountExistente && roleMeta !== 'transportador' && roleMeta !== 'minerva' && roleMeta !== 'super') {
+      try {
+        await supabase.auth.signOut()
+      } catch {
+        /* ignore */
+      }
+      continue
+    }
+
+    const account =
+      accountExistente ||
       ({
         id: data.user.id,
         usuario: (data.user.user_metadata?.usuario as string) || email.split('@')[0],

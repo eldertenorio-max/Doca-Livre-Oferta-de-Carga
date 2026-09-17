@@ -25,7 +25,7 @@ import {
   marcarComprovantePlanoEnviado,
   marcarPlanoPago,
 } from '../../lib/planosOfertaCarga'
-import { GoogleGIcon } from './GoogleGIcon'
+import { RotaPublicoLoginPanel } from './RotaPublicoLogin'
 import { cpfCnpjValido, formatarCpfCnpj, soDigitos } from '../../lib/cpfCnpj'
 import {
   asaasNaoConfigurado,
@@ -41,9 +41,6 @@ type Props = {
   restamGratis: number
   creditos: number
   conta: ContaRotaPublico | null
-  entrandoGoogle: boolean
-  erroGoogle: string
-  onEntrarGoogle: () => void
   onClose: () => void
   onCreditosLiberados: () => void
 }
@@ -52,9 +49,6 @@ export function RotaPaywallModal({
   restamGratis,
   creditos,
   conta,
-  entrandoGoogle,
-  erroGoogle,
-  onEntrarGoogle,
   onClose,
   onCreditosLiberados,
 }: Props) {
@@ -378,20 +372,7 @@ export function RotaPaywallModal({
           <div className="mapa-pub-creditos">
             {!conta ? (
               <div className="mapa-pub-login-google">
-                <p className="mapa-pub-creditos__hint">
-                  Cadastro e login são o mesmo: entre com Google para comprar créditos e não perdê-los se trocar de
-                  aparelho. Serve só para esta calculadora, não é a conta do sistema Doca Livre.
-                </p>
-                <button
-                  type="button"
-                  className="mapa-pub__btn mapa-pub__btn--google"
-                  disabled={entrandoGoogle}
-                  onClick={onEntrarGoogle}
-                >
-                  <GoogleGIcon />
-                  {entrandoGoogle ? 'Abrindo Google…' : 'Entrar com Google'}
-                </button>
-                {erroGoogle ? <p className="mapa-pub-pix__erro">{erroGoogle}</p> : null}
+                <RotaPublicoLoginPanel />
               </div>
             ) : (
               <>
@@ -433,7 +414,7 @@ export function RotaPaywallModal({
                     <div className="mapa-pub-pix__lado">
                       <p>
                         Pague <strong>{formatCurrency(pacote.preco)}</strong> e libere{' '}
-                        <strong>{pacote.creditos} créditos</strong> na sua conta Google.
+                        <strong>{pacote.creditos} créditos</strong> na sua conta.
                       </p>
                       {!modoManual && !cobranca ? (
                         <>
@@ -532,8 +513,9 @@ export function RotaPaywallModal({
         ) : (
           <div className="mapa-pub-creditos">
             <p className="mapa-pub-creditos__hint">
-              A conta Google dos créditos é outra. O plano é a conta do sistema: pague o PIX Asaas e,
-              quando o banco confirmar, o cadastro libera e o e-mail de confirmação chega.
+              A conta da calculadora (Google ou e-mail e senha) não é a conta do sistema. O plano é
+              o sistema Oferta de Carga: pague o PIX Asaas e, quando o banco confirmar, o cadastro
+              libera e o e-mail de confirmação chega.
             </p>
             <div className="mapa-pub-planos">
               {PLANOS_OFERTA_CARGA.map((plano) => (
