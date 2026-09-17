@@ -901,14 +901,42 @@
 
 /* —— Cadastro público (link) —— */
 .cadastro-publico {
-  align-items: flex-start;
-  padding: 28px 16px 48px;
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 16px 20px 24px;
   overflow: auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.cadastro-publico__card {
-  max-width: 760px;
+.cadastro-publico .cadastro-publico__card {
   width: 100%;
+  max-width: none;
+  min-height: calc(100dvh - 40px);
+  box-sizing: border-box;
+  padding: 28px 32px 36px;
+}
+
+@media (min-width: 900px) {
+  .cadastro-publico {
+    padding: 16px 28px 24px;
+  }
+
+  .cadastro-publico .cadastro-publico__card {
+    padding: 32px 40px 40px;
+  }
+
+  .cadastro-publico .cadastro-ramificacoes {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .cadastro-publico .form-fields {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .cadastro-publico .form-fields--3 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 .cadastro-publico__card .portal-login__brand {

@@ -37,8 +37,8 @@ import {
   ramificacaoSugeridaDoPlano,
   type RamificacaoCadastro,
 } from '../lib/planosOfertaCarga'
-import '../styles/cadastro.css'
 import '../styles/login.css'
+import '../styles/cadastro.css'
 import '../styles/shell.css'
 
 type Step = 1 | 2 | 3 | 4 | 'ok'
