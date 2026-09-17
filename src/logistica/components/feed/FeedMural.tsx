@@ -215,10 +215,26 @@ export function FeedMural({ empresaFiltro, mostrarComposer, composerEmpresa, vaz
 
   async function onCurtirComentario(post: PostFeed, comentario: ComentarioFeed) {
     if (!sessao) return
+    const usuario = sessao.usuario
+    setPosts((atual) =>
+      atual.map((p) => {
+        if (p.id !== post.id) return p
+        return {
+          ...p,
+          comentarios: p.comentarios.map((c) => {
+            if (c.id !== comentario.id) return c
+            const lista = c.curtidas || []
+            const ja = lista.includes(usuario)
+            return { ...c, curtidas: ja ? lista.filter((u) => u !== usuario) : [...lista, usuario] }
+          }),
+        }
+      }),
+    )
     try {
       await alternarCurtidaComentario(post, comentario, sessao.usuario, sessao.nome)
       await recarregar()
     } catch (err) {
+      await recarregar()
       setErro(err instanceof Error ? err.message : 'Não foi possível curtir o comentário.')
     }
   }
@@ -590,8 +606,8 @@ function ComentarioLinha({
           disabled={!podeInteragir}
           aria-label={curtiu ? 'Remover curtida do comentário' : 'Curtir comentário'}
         >
-          <Heart size={13} fill={curtiu ? 'currentColor' : 'none'} />
-          {comentario.curtidas.length || ''}
+          <Heart size={15} fill={curtiu ? 'currentColor' : 'none'} />
+          {(comentario.curtidas || []).length || ''}
         </button>
         <button type="button" onClick={onResponder} disabled={!podeInteragir}>
           Responder

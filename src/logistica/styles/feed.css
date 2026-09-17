@@ -565,7 +565,8 @@
   color: #71717a;
   font-size: 0.72rem;
   font-weight: 700;
-  padding: 2px 6px;
+  min-height: 28px;
+  padding: 4px 8px;
   border-radius: 999px;
   cursor: pointer;
 }

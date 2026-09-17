@@ -1,6 +1,6 @@
 import type { Empresa } from '../types'
 import { supabase } from './supabase'
-import { tabelaAindaNaoExiste } from './supabaseSync'
+import { mensagemErroSupabase, tabelaAindaNaoExiste } from './supabaseSync'
 import { midiasDoPost, type MidiaFeed } from './feedMidia'
 
 export type TipoPostFeed = 'servico' | 'capacidade' | 'parceria' | 'aviso'
@@ -426,41 +426,58 @@ export async function comentarPost(
   return comentario
 }
 
+function erroIgnoravelCurtidaComentario(err: unknown) {
+  const msg = mensagemErroSupabase(err)
+  return (
+    tabelaAindaNaoExiste(err) ||
+    /23505|23503|22P02|duplicate key|foreign key|invalid input syntax/i.test(msg)
+  )
+}
+
 export async function alternarCurtidaComentario(
   post: PostFeed,
   comentario: ComentarioFeed,
   usuario: string,
   nome: string,
 ) {
-  const jaCurtiu = comentario.curtidas.includes(usuario)
+  const atuais = comentario.curtidas || []
+  const jaCurtiu = atuais.includes(usuario)
+
   if (jaCurtiu) {
-    if (supabase) {
-      const { error } = await supabase
-        .from('mapa_feed_comentario_curtidas')
-        .delete()
-        .eq('comentario_id', comentario.id)
-        .eq('usuario', usuario)
-      if (error && !tabelaAindaNaoExiste(error)) throw new Error(error.message)
-    }
     saveJson(
       CURTIDAS_COMENTARIO_KEY,
       localCurtidasComentario().filter(
         (c) => !(c.comentario_id === comentario.id && c.usuario === usuario),
       ),
     )
+    if (supabase) {
+      const { error } = await supabase
+        .from('mapa_feed_comentario_curtidas')
+        .delete()
+        .eq('comentario_id', comentario.id)
+        .eq('usuario', usuario)
+      if (error && !erroIgnoravelCurtidaComentario(error)) {
+        console.warn('Curtida do comentário:', mensagemErroSupabase(error))
+      }
+    }
     return
   }
+
+  saveJson(CURTIDAS_COMENTARIO_KEY, [
+    ...localCurtidasComentario().filter(
+      (c) => !(c.comentario_id === comentario.id && c.usuario === usuario),
+    ),
+    { comentario_id: comentario.id, usuario },
+  ])
 
   if (supabase) {
     const { error } = await supabase
       .from('mapa_feed_comentario_curtidas')
       .insert({ comentario_id: comentario.id, usuario })
-    if (error && !tabelaAindaNaoExiste(error)) throw new Error(error.message)
+    if (error && !erroIgnoravelCurtidaComentario(error)) {
+      console.warn('Curtida do comentário:', mensagemErroSupabase(error))
+    }
   }
-  saveJson(CURTIDAS_COMENTARIO_KEY, [
-    ...localCurtidasComentario(),
-    { comentario_id: comentario.id, usuario },
-  ])
 
   if (comentario.autor_usuario !== usuario) {
     await criarNotificacao({

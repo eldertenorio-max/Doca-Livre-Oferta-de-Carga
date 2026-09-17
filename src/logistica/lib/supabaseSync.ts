@@ -37,9 +37,20 @@ function empresaDeLinha(row: LinhaEmpresa): Empresa | null {
   return null
 }
 
+export function mensagemErroSupabase(err: unknown) {
+  if (err == null) return ''
+  if (typeof err === 'string') return err
+  if (err instanceof Error) return err.message
+  if (typeof err === 'object') {
+    const o = err as { message?: unknown; code?: unknown; details?: unknown }
+    return [o.code, o.message, o.details].filter((x) => typeof x === 'string' && x).join(' ')
+  }
+  return String(err)
+}
+
 export function tabelaAindaNaoExiste(err: unknown) {
-  const msg = err instanceof Error ? err.message : String(err)
-  return /PGRST205|schema cache|Could not find the table/i.test(msg)
+  const msg = mensagemErroSupabase(err)
+  return /PGRST205|PGRST204|42P01|schema cache|Could not find the table|does not exist/i.test(msg)
 }
 
 async function upsertLote<T extends { id?: string; usuario?: string }>(tabela: string, linhas: T[]) {
