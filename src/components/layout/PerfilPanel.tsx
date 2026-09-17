@@ -76,7 +76,9 @@ export function PerfilPanel({ onClose, autoOpenFoto }: Props) {
     ? 'Super Usuário'
     : user?.role === 'transportador'
       ? 'Transportador'
-      : 'Embarcador'
+      : user?.role === 'logistica'
+        ? 'Logística'
+        : 'Embarcador'
 
   const stats = useMemo(() => {
     if (isSuper) {

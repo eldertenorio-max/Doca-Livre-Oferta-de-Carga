@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import { useMemo } from 'react'
 import { useData } from '../context/DataContext'
 import { isSuperSession } from '../lib/superUsers'
 import { AuthProvider } from './lib/AuthContext'
@@ -31,27 +32,32 @@ function LogisticaNav() {
       <NavLink to={rotasLogistica.feed} className={item}>
         Feed
       </NavLink>
-      {!superUser ? (
-        <NavLink to={rotasLogistica.perfil} className={item}>
-          Meu perfil
-        </NavLink>
-      ) : null}
+      <NavLink to={rotasLogistica.perfil} className={item}>
+        Meu perfil
+      </NavLink>
     </nav>
   )
 }
 
 export function LogisticaArea() {
   const { user } = useData()
-  const forcarSuper =
-    user && isSuperSession(user)
-      ? {
-          nome: user.nome || 'Super',
-          usuario: user.email || user.id,
-        }
-      : null
+  const contaPortal = useMemo(
+    () =>
+      user
+        ? {
+            id: user.id,
+            usuario: (user.usuario || user.email || user.id).trim(),
+            email: user.email || '',
+            nome: user.nome,
+            avatar_url: user.avatar_url || null,
+            isSuper: isSuperSession(user),
+          }
+        : null,
+    [user],
+  )
 
   return (
-    <AuthProvider forcarSuper={forcarSuper}>
+    <AuthProvider contaPortal={contaPortal}>
       <div className="logistica-area">
         <LogisticaNav />
         <Outlet />

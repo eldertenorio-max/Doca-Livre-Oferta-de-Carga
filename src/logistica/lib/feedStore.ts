@@ -280,7 +280,7 @@ export async function publicarPostFeed(params: {
     id: novoId(),
     empresa_id: params.empresa?.id ?? null,
     empresa_slug: params.empresa?.slug ?? null,
-    empresa_nome: params.empresa?.nome_fantasia ?? 'Doca Livre',
+    empresa_nome: params.empresa?.nome_fantasia || params.sessaoNome,
     autor_usuario: params.sessaoUsuario,
     autor_nome: params.sessaoNome,
     tipo: params.tipo,

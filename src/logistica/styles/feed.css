@@ -4,6 +4,14 @@
   width: 100%;
 }
 
+.feed__perfil-sistema {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 16px 18px 20px;
+  box-shadow: 0 4px 16px rgb(15 23 42 / 0.04);
+}
+
 .feed {
   display: flex;
   flex-direction: column;

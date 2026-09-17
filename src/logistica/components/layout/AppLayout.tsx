@@ -72,7 +72,7 @@ function formatClock(d: Date) {
 export function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { sessao, logout, minhaEmpresa } = useAuth()
+  const { sessao, logout } = useAuth()
   const [sidebarPinned, setSidebarPinned] = useState(true)
   const [sidebarHover, setSidebarHover] = useState(false)
   const [isNarrow, setIsNarrow] = useState(false)
@@ -210,7 +210,7 @@ export function AppLayout() {
                     ? 'Acesso total ao sistema'
                     : `Hierarquia: ${papelLabel}${sessao?.superior ? ` · ${sessao.superior}` : ''}`}
                 </p>
-                {minhaEmpresa ? (
+                {sessao ? (
                   <button
                     type="button"
                     className="app-topbar-avatar-menu__btn"
@@ -272,7 +272,7 @@ export function AppLayout() {
                     { to: '/kanban', label: 'Kanban de empresas', icon: <IconKanban />, end: false, badge: 0 },
                   ]
                 : []),
-              ...(minhaEmpresa
+              ...(sessao
                 ? [{ to: '/perfil', label: 'Meu perfil', icon: <IconProfile />, end: true, badge: 0 }]
                 : []),
               { to: '/feed', label: 'Feed notícias', icon: <IconFeed />, end: false, badge: 0 },

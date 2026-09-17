@@ -6,12 +6,13 @@ import {
   loadSessao,
   registrarEmpresa,
   saveSessao,
+  sessaoDaContaPortal,
   SUPER_USUARIOS,
   USUARIOS_EMPRESA,
+  type ContaPortalLogistica,
   type Sessao,
 } from './auth'
 import { listarEmpresas, loadEmpresasCadastro, saveEmpresaCadastro } from './cadastroStore'
-import { EMPRESA_DOCA_LIVRE } from './empresaDocaLivre'
 import { sincronizarCatalogo, unirComCatalogoLocal, salvarUsuarioRemoto, tabelaAindaNaoExiste } from './supabaseSync'
 import { EMPRESAS } from '../data/empresas'
 
@@ -47,37 +48,38 @@ function montarLista(remoto: Empresa[]): Empresa[] {
 
 export function AuthProvider({
   children,
-  forcarSuper = null,
+  contaPortal = null,
 }: {
   children: ReactNode
-  forcarSuper?: { nome: string; usuario: string } | null
+  contaPortal?: ContaPortalLogistica | null
 }) {
   const [sessao, setSessao] = useState<Sessao | null>(() =>
-    forcarSuper
-      ? {
-          usuario: forcarSuper.usuario,
-          email: '',
-          nome: forcarSuper.nome,
-          papel: 'super',
-          nivelHierarquia: 'super',
-          superior: null,
-          isSuper: true,
-        }
-      : loadSessao(),
+    contaPortal ? sessaoDaContaPortal(contaPortal) : loadSessao(),
   )
 
+  const portalKey = contaPortal
+    ? `${contaPortal.id}|${contaPortal.usuario}|${contaPortal.email}|${contaPortal.nome}|${contaPortal.avatar_url || ''}|${contaPortal.isSuper}`
+    : ''
+
   useEffect(() => {
-    if (!forcarSuper) return
-    setSessao({
-      usuario: forcarSuper.usuario,
-      email: '',
-      nome: forcarSuper.nome,
-      papel: 'super',
-      nivelHierarquia: 'super',
-      superior: null,
-      isSuper: true,
+    if (!contaPortal) return
+    const next = sessaoDaContaPortal(contaPortal)
+    setSessao((prev) => {
+      if (
+        prev &&
+        prev.usuario === next.usuario &&
+        prev.email === next.email &&
+        prev.nome === next.nome &&
+        (prev.avatar_url || '') === (next.avatar_url || '') &&
+        prev.isSuper === next.isSuper &&
+        prev.empresaId === next.empresaId &&
+        prev.empresaSlug === next.empresaSlug
+      ) {
+        return prev
+      }
+      return next
     })
-  }, [forcarSuper?.usuario, forcarSuper?.nome])
+  }, [portalKey, contaPortal])
   const [empresas, setEmpresas] = useState<Empresa[]>(() => listarEmpresas())
 
   useEffect(() => {
@@ -119,8 +121,7 @@ export function AuthProvider({
       empresas,
       minhaEmpresa:
         empresas.find((e) => e.id === sessao?.empresaId || e.slug === sessao?.empresaSlug) ??
-        empresaDaSessao(sessao) ??
-        (sessao?.isSuper ? EMPRESA_DOCA_LIVRE : undefined),
+        empresaDaSessao(sessao),
       recarregarEmpresas,
       atualizarEmpresa,
       async login(usuario, senha) {

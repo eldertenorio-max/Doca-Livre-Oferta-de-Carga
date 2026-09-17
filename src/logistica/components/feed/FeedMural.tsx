@@ -259,12 +259,20 @@ export function FeedMural({ empresaFiltro, mostrarComposer, composerEmpresa, vaz
           }}
         >
           <div className="feed__composer-top">
-            <span className="feed__avatar" aria-hidden>
-              {iniciaisEmpresa(composerEmpresa?.nome_fantasia || sessao.nome)}
-            </span>
+            {sessao.avatar_url ? (
+              <img src={sessao.avatar_url} alt="" className="feed__avatar feed__avatar--img" />
+            ) : (
+              <span className="feed__avatar" aria-hidden>
+                {iniciaisEmpresa(sessao.nome)}
+              </span>
+            )}
             <div>
-              <strong>{composerEmpresa?.nome_fantasia || 'Doca Livre'}</strong>
-              <span>{empresaFiltro ? 'Publicar no perfil e no feed da rede' : 'Publicar para a rede do mapa'}</span>
+              <strong>{sessao.nome}</strong>
+              <span>
+                {composerEmpresa
+                  ? `Publicar no perfil de ${composerEmpresa.nome_fantasia}`
+                  : 'Publicar com o perfil logado no sistema'}
+              </span>
             </div>
           </div>
           <div className="feed__tipos">
@@ -406,6 +414,7 @@ export function FeedMural({ empresaFiltro, mostrarComposer, composerEmpresa, vaz
         ) : (
           visiveis.map((post) => {
             const emp = post.empresa_slug ? empresas.find((e) => e.slug === post.empresa_slug) : undefined
+            const tituloPost = post.empresa_slug ? post.empresa_nome : post.autor_nome
             const logo = emp ? logoSrcEmpresa(emp) : null
             const curtiu = sessao ? post.curtidas.includes(sessao.usuario) : false
             const podeApagar = sessao?.isSuper || sessao?.usuario === post.autor_usuario
@@ -427,12 +436,13 @@ export function FeedMural({ empresaFiltro, mostrarComposer, composerEmpresa, vaz
                     {logo ? (
                       <img src={logo} alt="" className="feed__avatar feed__avatar--img" />
                     ) : (
-                      <span className="feed__avatar">{iniciaisEmpresa(post.empresa_nome)}</span>
+                      <span className="feed__avatar">{iniciaisEmpresa(tituloPost)}</span>
                     )}
                     <span>
-                      <strong>{post.empresa_nome}</strong>
+                      <strong>{tituloPost}</strong>
                       <em>
-                        {post.autor_nome} · {tempoRelativo(post.created_at)}
+                        {post.empresa_slug ? `${post.autor_nome} · ` : ''}
+                        {tempoRelativo(post.created_at)}
                       </em>
                     </span>
                   </button>

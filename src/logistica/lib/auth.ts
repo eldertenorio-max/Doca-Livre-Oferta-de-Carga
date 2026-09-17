@@ -20,7 +20,20 @@ export type ContaUsuario = {
   empresaSlug?: string
 }
 
-export type Sessao = Omit<ContaUsuario, 'senha'> & { isSuper: boolean }
+export type Sessao = Omit<ContaUsuario, 'senha'> & {
+  isSuper: boolean
+  avatar_url?: string | null
+}
+
+/** Conta do Oferta de Carga — o mapa da logística usa a mesma identidade. */
+export type ContaPortalLogistica = {
+  id: string
+  usuario: string
+  email: string
+  nome: string
+  avatar_url?: string | null
+  isSuper: boolean
+}
 
 export const SUPER_USUARIOS: ContaUsuario[] = [
   {
@@ -111,6 +124,40 @@ function semSenha(conta: ContaUsuario): Sessao {
     empresaId: conta.empresaId,
     empresaSlug: conta.empresaSlug,
     isSuper: conta.papel === 'super' || isSuperUsuario(conta.usuario),
+    avatar_url: null,
+  }
+}
+
+function mesmaContaLocal(local: Sessao, conta: ContaPortalLogistica) {
+  const u = normalizar(conta.usuario)
+  const e = normalizar(conta.email)
+  const id = normalizar(conta.id)
+  return (
+    normalizar(local.usuario) === u ||
+    normalizar(local.email) === u ||
+    (e && (normalizar(local.usuario) === e || normalizar(local.email) === e)) ||
+    (id && (normalizar(local.usuario) === id || normalizar(local.email) === id))
+  )
+}
+
+export function sessaoDaContaPortal(conta: ContaPortalLogistica): Sessao {
+  const local = loadSessao()
+  const herdaEmpresa =
+    !conta.isSuper &&
+    local &&
+    mesmaContaLocal(local, conta) &&
+    Boolean(local.empresaId || local.empresaSlug)
+  return {
+    usuario: conta.usuario,
+    email: conta.email,
+    nome: conta.nome,
+    papel: conta.isSuper ? 'super' : 'empresa',
+    nivelHierarquia: conta.isSuper ? 'super' : local?.nivelHierarquia ?? 'operador',
+    superior: herdaEmpresa ? local?.superior ?? null : null,
+    empresaId: herdaEmpresa ? local?.empresaId : undefined,
+    empresaSlug: herdaEmpresa ? local?.empresaSlug : undefined,
+    isSuper: conta.isSuper,
+    avatar_url: conta.avatar_url || null,
   }
 }
 

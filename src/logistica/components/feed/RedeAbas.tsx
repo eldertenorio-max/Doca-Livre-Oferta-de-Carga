@@ -3,11 +3,11 @@ import { Newspaper, UserRound } from 'lucide-react'
 import { useAuth } from '../../lib/AuthContext'
 
 export function RedeAbas() {
-  const { minhaEmpresa } = useAuth()
+  const { sessao } = useAuth()
 
   return (
     <div className="feed__tabs" role="tablist" aria-label="Perfil e feed">
-      {minhaEmpresa ? (
+      {sessao ? (
         <NavLink to="/embarcador/mapa-logistica/perfil" className={({ isActive }) => `feed__tab ${isActive ? 'is-active' : ''}`}>
           <UserRound size={16} />
           Meu perfil

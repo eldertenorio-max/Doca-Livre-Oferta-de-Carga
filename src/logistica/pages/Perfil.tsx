@@ -1,20 +1,13 @@
+import { PerfilPanel } from '../../components/layout/PerfilPanel'
 import { EmpresaPerfil } from '../components/empresa/EmpresaPerfil'
 import { SeletorEditarEmpresa } from '../components/empresa/SeletorEditarEmpresa'
 import { RedeAbas } from '../components/feed/RedeAbas'
 import { useAuth } from '../lib/AuthContext'
 import '../styles/feed.css'
+import '../../styles/perfil.css'
 
 export function PerfilPage() {
   const { sessao, empresas, minhaEmpresa } = useAuth()
-
-  if (!minhaEmpresa) {
-    return (
-      <div className="feed animate-fade-up">
-        <h1>Meu perfil</h1>
-        <p>Complete o cadastro da empresa para ter um perfil na rede.</p>
-      </div>
-    )
-  }
 
   return (
     <div className="feed animate-fade-up">
@@ -23,15 +16,21 @@ export function PerfilPage() {
           <p className="feed__kicker">Doca Livre · Rede</p>
           <h1>Meu perfil</h1>
           <p>
-            {sessao?.isSuper
-              ? 'Edite a página da Doca Livre ou abra o perfil de qualquer empresa da rede.'
-              : 'Edite a página de apresentação da sua operação e veja as publicações do feed.'}
+            O mesmo perfil logado no Oferta de Carga: nome, foto e dados da conta.
+            {minhaEmpresa && !sessao?.isSuper
+              ? ' Abaixo fica a página da sua empresa no mapa.'
+              : ''}
           </p>
         </div>
       </header>
       <RedeAbas />
+      <section className="feed__perfil-sistema" aria-label="Perfil do sistema">
+        <PerfilPanel />
+      </section>
       {sessao?.isSuper ? <SeletorEditarEmpresa empresas={empresas} /> : null}
-      <EmpresaPerfil empresa={minhaEmpresa} eDono podeEditar />
+      {minhaEmpresa && !sessao?.isSuper ? (
+        <EmpresaPerfil empresa={minhaEmpresa} eDono podeEditar />
+      ) : null}
     </div>
   )
 }
