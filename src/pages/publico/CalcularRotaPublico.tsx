@@ -322,11 +322,41 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
     }
   }
 
+  function recalcularSequencia(estado: {
+    origem: string
+    destino: string
+    origemCoords: Coord | null
+    destinoCoords: Coord | null
+    vias: Via[]
+  }) {
+    if (estado.origem.trim().length < 3 || estado.destino.trim().length < 3) return
+    void calcular({
+      origem: estado.origem,
+      destino: estado.destino,
+      origemCoords: estado.origemCoords,
+      destinoCoords: estado.destinoCoords,
+      vias: estado.vias,
+      pularCota: mapId > 0,
+      pularMergulho: true,
+    })
+  }
+
   function trocarPontos() {
-    setOrigem(destino)
-    setDestino(origem)
-    setOrigemCoords(destinoCoords)
-    setDestinoCoords(origemCoords)
+    const o = destino
+    const d = origem
+    const oC = destinoCoords
+    const dC = origemCoords
+    setOrigem(o)
+    setDestino(d)
+    setOrigemCoords(oC)
+    setDestinoCoords(dC)
+    recalcularSequencia({
+      origem: o,
+      destino: d,
+      origemCoords: oC,
+      destinoCoords: dC,
+      vias,
+    })
   }
 
   function coordsStop(lat: number | null | undefined, lng: number | null | undefined): Coord | null {
@@ -391,21 +421,29 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
     const first = next[0]
     const last = next[next.length - 1]
     const middle = next.slice(1, -1)
+    const oC = coordsStop(first.lat, first.lng)
+    const dC = coordsStop(last.lat, last.lng)
+    const novasVias = middle.map((p) => ({
+      id: p.key === 'A' || p.key === 'B' ? novaVia().id : p.key,
+      endereco: p.endereco,
+      lat: p.lat,
+      lng: p.lng,
+    }))
     setOrigem(first.endereco)
-    setOrigemCoords(coordsStop(first.lat, first.lng))
+    setOrigemCoords(oC)
     setDestino(last.endereco)
-    setDestinoCoords(coordsStop(last.lat, last.lng))
-    setVias(
-      middle.map((p) => ({
-        id: p.key === 'A' || p.key === 'B' ? novaVia().id : p.key,
-        endereco: p.endereco,
-        lat: p.lat,
-        lng: p.lng,
-      })),
-    )
+    setDestinoCoords(dC)
+    setVias(novasVias)
+    recalcularSequencia({
+      origem: first.endereco,
+      destino: last.endereco,
+      origemCoords: oC,
+      destinoCoords: dC,
+      vias: novasVias,
+    })
   }
 
-  function iniciarArrasteVia(e: ReactPointerEvent<HTMLButtonElement>, viaId: string) {
+  function iniciarArrasteVia(e: ReactPointerEvent<HTMLElement>, viaId: string) {
     if (e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
@@ -416,7 +454,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
     setOverStop(viaId)
   }
 
-  function moverArrasteVia(e: ReactPointerEvent<HTMLButtonElement>) {
+  function moverArrasteVia(e: ReactPointerEvent<HTMLElement>) {
     if (!dragViaRef.current) return
     const alvo = alvoSobPonteiro(e.clientY)
     if (!alvo) return
@@ -509,6 +547,8 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
     idaEVolta?: boolean
     preferencia?: PreferenciaRota
     categoriaId?: number | null
+    pularCota?: boolean
+    pularMergulho?: boolean
   }) {
     const oTxt = (opts?.origem ?? origem).trim()
     const dTxt = (opts?.destino ?? destino).trim()
@@ -526,7 +566,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
       return
     }
     setErro('')
-    setEntrarId((n) => n + 1)
+    if (!opts?.pularMergulho) setEntrarId((n) => n + 1)
     setMapId((n) => n + 1)
     void (async () => {
       if (!oHint) {
@@ -538,7 +578,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
         if (g.ok) setDestinoCoords(g.coords)
       }
     })()
-    if (!(await consumirCalculo())) {
+    if (!opts?.pularCota && !(await consumirCalculo())) {
       setEntrarId(0)
       setMapId(0)
       return
@@ -886,6 +926,11 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
                     <span
                       className={`rota-pub__pin rota-pub__pin--a${overStop === 'A' ? ' is-over' : ''}`}
                       data-rota-stop="A"
+                      title="Arrastar para reordenar"
+                      onPointerDown={(e) => iniciarArrasteVia(e, 'A')}
+                      onPointerMove={moverArrasteVia}
+                      onPointerUp={soltarArrasteVia}
+                      onPointerCancel={soltarArrasteVia}
                     >
                       A
                     </span>
@@ -935,6 +980,11 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
                         <span
                           className={`rota-pub__pin rota-pub__pin--via${overStop === via.id ? ' is-over' : ''}`}
                           data-rota-stop={via.id}
+                          title="Arrastar para reordenar"
+                          onPointerDown={(e) => iniciarArrasteVia(e, via.id)}
+                          onPointerMove={moverArrasteVia}
+                          onPointerUp={soltarArrasteVia}
+                          onPointerCancel={soltarArrasteVia}
                         >
                           {idx + 1}
                         </span>
@@ -989,7 +1039,17 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
                             type="button"
                             className="rota-pub__via-del"
                             title="Remover ponto"
-                            onClick={() => setVias((lista) => lista.filter((x) => x.id !== via.id))}
+                            onClick={() => {
+                              const next = vias.filter((x) => x.id !== via.id)
+                              setVias(next)
+                              recalcularSequencia({
+                                origem,
+                                destino,
+                                origemCoords,
+                                destinoCoords,
+                                vias: next,
+                              })
+                            }}
                           >
                             ×
                           </button>
@@ -1004,6 +1064,11 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
                     <span
                       className={`rota-pub__pin rota-pub__pin--b${overStop === 'B' ? ' is-over' : ''}`}
                       data-rota-stop="B"
+                      title="Arrastar para reordenar"
+                      onPointerDown={(e) => iniciarArrasteVia(e, 'B')}
+                      onPointerMove={moverArrasteVia}
+                      onPointerUp={soltarArrasteVia}
+                      onPointerCancel={soltarArrasteVia}
                     >
                       B
                     </span>
