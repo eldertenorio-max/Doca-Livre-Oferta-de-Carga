@@ -2,9 +2,9 @@ import { ritmoPublicoOk } from './publicoProtecao'
 import { isLocalDev } from './siteOfertaDeCarga'
 import {
   creditosRotaPublico,
+  consultarCreditosRotaPublico,
   consumirCreditoRotaPublicoConta,
   migrarCreditosLocaisParaConta,
-  saldoCreditosRotaPublico,
 } from './rotaPublicoCreditos'
 import { sessaoRotaPublico } from './rotaPublicoAuth'
 
@@ -89,13 +89,27 @@ export type EstadoCalculosPublicos = {
   creditos: number
   restam: number
   esgotado: boolean
+  presente?: number
+  presenteIds?: string[]
 }
 
-function estadoComCreditos(reg: Registro, creditos: number): EstadoCalculosPublicos {
+function estadoComCreditos(
+  reg: Registro,
+  creditos: number,
+  extra?: { presente?: number; presenteIds?: string[] },
+): EstadoCalculosPublicos {
   const usadas = Math.min(LIMITE, Math.max(0, reg.n))
   const restamGratis = Math.max(0, LIMITE - usadas)
   const restam = restamGratis + creditos
-  return { usadas, restamGratis, creditos, restam, esgotado: restam <= 0 }
+  return {
+    usadas,
+    restamGratis,
+    creditos,
+    restam,
+    esgotado: restam <= 0,
+    presente: extra?.presente || 0,
+    presenteIds: extra?.presenteIds || [],
+  }
 }
 
 function estadoDeRegistro(reg: Registro): EstadoCalculosPublicos {
@@ -103,11 +117,17 @@ function estadoDeRegistro(reg: Registro): EstadoCalculosPublicos {
 }
 
 async function estadoAtual(): Promise<EstadoCalculosPublicos> {
-  if (isRotaPublicoIlimitado()) return { ...ILIMITADO }
   if (await sessaoRotaPublico()) {
     await migrarCreditosLocaisParaConta()
   }
-  return estadoComCreditos(lerLocal(), await saldoCreditosRotaPublico())
+  const saldo = await consultarCreditosRotaPublico()
+  if (isRotaPublicoIlimitado()) {
+    return { ...ILIMITADO, presente: saldo.presente, presenteIds: saldo.presenteIds }
+  }
+  return estadoComCreditos(lerLocal(), saldo.creditos, {
+    presente: saldo.presente,
+    presenteIds: saldo.presenteIds,
+  })
 }
 
 export function estadoCalculosPublicos(): EstadoCalculosPublicos {

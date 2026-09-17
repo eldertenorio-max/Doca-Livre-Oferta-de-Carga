@@ -17,6 +17,7 @@ import {
 import { isSuperSession } from '../../lib/superUsers'
 import type { Carga } from '../../types'
 import { ConferirPixCreditos } from '../../components/carga/ConferirPixCreditos'
+import { PresentearCreditosRota } from '../../components/carga/PresentearCreditosRota'
 import '../../styles/cadastro.css'
 
 function startOfDay(iso: string) {
@@ -375,6 +376,7 @@ export function FinanceiroPage() {
       </header>
 
       <ConferirPixCreditos />
+      <PresentearCreditosRota />
 
       <div className="financeiro-kpis">
         <Kpi label="Viagens" value={String(totais.viagens)} hint="Fretes fechados" />

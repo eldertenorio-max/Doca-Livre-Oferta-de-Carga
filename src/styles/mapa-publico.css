@@ -1002,6 +1002,111 @@
   }
 }
 
+.mapa-pub-presente {
+  position: fixed;
+  inset: 0;
+  z-index: 5200;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background:
+    radial-gradient(circle at 20% 10%, rgb(250 204 21 / 0.28), transparent 42%),
+    radial-gradient(circle at 90% 80%, rgb(22 163 74 / 0.28), transparent 46%),
+    rgb(15 23 42 / 0.72);
+  backdrop-filter: blur(12px);
+}
+
+.mapa-pub-presente__shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 30%, rgb(250 250 250 / 0.12), transparent 55%);
+}
+
+.mapa-pub-presente__card {
+  position: relative;
+  width: min(440px, 100%);
+  text-align: center;
+  background: #fff;
+  border-radius: 28px;
+  padding: 32px 28px 26px;
+  box-shadow:
+    0 0 0 1px rgb(250 204 21 / 0.35),
+    0 32px 70px rgb(15 23 42 / 0.38);
+  animation: mapa-pub-pago-in 0.42s ease;
+}
+
+.mapa-pub-presente__logo {
+  display: block;
+  width: 72px;
+  height: auto;
+  margin: 0 auto 14px;
+}
+
+.mapa-pub-presente__icon {
+  width: 84px;
+  height: 84px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #fef9c3, #fde68a);
+  color: #166534;
+  box-shadow:
+    0 0 0 10px #fffbeb,
+    0 12px 24px rgb(202 138 4 / 0.28);
+}
+
+.mapa-pub-presente__kicker {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #ca8a04;
+}
+
+.mapa-pub-presente__card h3 {
+  margin: 0 0 10px;
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: #14532d;
+}
+
+.mapa-pub-presente__card > p {
+  margin: 0 0 10px;
+  font-size: 1.08rem;
+  font-weight: 700;
+  line-height: 1.45;
+  color: #334155;
+}
+
+.mapa-pub-presente__card > p strong {
+  color: #15803d;
+}
+
+.mapa-pub-presente__sub {
+  margin: 0 0 22px !important;
+  font-size: 0.92rem !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
+}
+
+.mapa-pub-presente__btn {
+  width: 100%;
+  min-height: 50px;
+  border-radius: 14px;
+  background: #facc15;
+  color: #0f172a;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.mapa-pub-presente__btn:hover {
+  background: #eab308;
+}
+
 @media (max-width: 720px) {
   .mapa-pub-creditos__packs {
     grid-template-columns: 1fr;

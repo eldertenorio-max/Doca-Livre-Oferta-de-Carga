@@ -53,6 +53,51 @@ type RpcCreditos = {
   saldo_atual?: number
   txid?: string
   status?: string
+  presente?: number
+  presente_ids?: unknown
+}
+
+export type SaldoRotaPublico = {
+  creditos: number
+  presente: number
+  presenteIds: string[]
+}
+
+const PRESENTE_VISTO_KEY = 'doca-rota-presente-visto-v1'
+
+function idsPresente(raw: unknown): string[] {
+  if (typeof raw === 'string') {
+    try {
+      return idsPresente(JSON.parse(raw))
+    } catch {
+      return []
+    }
+  }
+  if (!Array.isArray(raw)) return []
+  return raw.filter((id): id is string => typeof id === 'string' && id.length > 0)
+}
+
+export function presenteJaVistoLocal(ids: string[]): boolean {
+  if (ids.length === 0) return true
+  try {
+    const raw = localStorage.getItem(PRESENTE_VISTO_KEY)
+    const vistos = raw ? (JSON.parse(raw) as string[]) : []
+    if (!Array.isArray(vistos)) return false
+    return ids.every((id) => vistos.includes(id))
+  } catch {
+    return false
+  }
+}
+
+function gravarPresenteVistoLocal(ids: string[]) {
+  try {
+    const raw = localStorage.getItem(PRESENTE_VISTO_KEY)
+    const prev = raw ? (JSON.parse(raw) as string[]) : []
+    const base = Array.isArray(prev) ? prev : []
+    localStorage.setItem(PRESENTE_VISTO_KEY, JSON.stringify([...new Set([...base, ...ids])].slice(-80)))
+  } catch {
+    /* ignore */
+  }
 }
 
 function lerCreditosLocais(): number {
@@ -90,16 +135,33 @@ export function creditosRotaPublico(): number {
   return lerCreditosLocais()
 }
 
-export async function saldoCreditosRotaPublico(): Promise<number> {
+export async function consultarCreditosRotaPublico(): Promise<SaldoRotaPublico> {
+  const vazio: SaldoRotaPublico = { creditos: 0, presente: 0, presenteIds: [] }
   const conta = await sessaoRotaPublico()
   if (conta && supabase) {
     const { data, error } = await supabase.rpc('rota_publico_meus_creditos')
     if (!error) {
-      const n = Number(rpcCreditos(data).creditos)
-      if (Number.isFinite(n) && n >= 0) return Math.floor(n)
+      const parsed = rpcCreditos(data)
+      const n = Number(parsed.creditos)
+      const presente = Number(parsed.presente)
+      return {
+        creditos: Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0,
+        presente: Number.isFinite(presente) && presente > 0 ? Math.floor(presente) : 0,
+        presenteIds: idsPresente(parsed.presente_ids),
+      }
     }
   }
-  return lerCreditosLocais()
+  return { ...vazio, creditos: lerCreditosLocais() }
+}
+
+export async function saldoCreditosRotaPublico(): Promise<number> {
+  return (await consultarCreditosRotaPublico()).creditos
+}
+
+export async function marcarPresenteRotaVisto(ids: string[]): Promise<void> {
+  gravarPresenteVistoLocal(ids)
+  if (!supabase || ids.length === 0) return
+  await supabase.rpc('rota_publico_marcar_presente_visto', { p_ids: ids })
 }
 
 export function consumirCreditoRotaPublico(): boolean {
