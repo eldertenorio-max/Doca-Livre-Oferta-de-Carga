@@ -233,7 +233,8 @@ export async function listarPostsFeed(): Promise<PostFeed[]> {
           .then(({ data, error }) => {
             if (error) return [] as LinhaCurtidaComentario[]
             return (data ?? []) as LinhaCurtidaComentario[]
-          }),
+          })
+          .catch(() => [] as LinhaCurtidaComentario[]),
       ])
       if (e1) throw e1
       if (e2) throw e2

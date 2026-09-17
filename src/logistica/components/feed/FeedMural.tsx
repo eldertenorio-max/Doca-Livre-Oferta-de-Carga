@@ -43,6 +43,7 @@ import {
   type TipoPostFeed,
 } from '../../lib/feedStore'
 import { FeedGaleria } from './FeedGaleria'
+import { tabelaAindaNaoExiste } from '../../lib/supabaseSync'
 import '../../styles/feed.css'
 
 type Props = {
@@ -89,6 +90,18 @@ export function FeedMural({ empresaFiltro, mostrarComposer, composerEmpresa, vaz
   const [arrastando, setArrastando] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+
+  function registrarErro(err: unknown, fallback: string) {
+    if (tabelaAindaNaoExiste(err)) return
+    const msg =
+      err instanceof Error
+        ? err.message
+        : typeof err === 'object' && err && 'message' in err && typeof (err as { message: unknown }).message === 'string'
+          ? (err as { message: string }).message
+          : fallback
+    if (tabelaAindaNaoExiste(msg)) return
+    setErro(msg || fallback)
+  }
   const [rascunhos, setRascunhos] = useState<Record<string, string>>({})
   const [resposta, setResposta] = useState<{ postId: string; comentarioId: string; nome: string } | null>(null)
   const [shareOk, setShareOk] = useState<string | null>(null)
@@ -188,7 +201,7 @@ export function FeedMural({ empresaFiltro, mostrarComposer, composerEmpresa, vaz
       setAnexos([])
       await recarregar()
     } catch (err) {
-      setErro(err instanceof Error ? err.message : 'Não foi possível publicar.')
+      registrarErro(err, 'Não foi possível publicar.')
     } finally {
       setEnviando(false)
     }
@@ -196,8 +209,12 @@ export function FeedMural({ empresaFiltro, mostrarComposer, composerEmpresa, vaz
 
   async function onCurtir(post: PostFeed) {
     if (!sessao) return
-    await alternarCurtida(post, sessao.usuario, sessao.nome)
-    await recarregar()
+    try {
+      await alternarCurtida(post, sessao.usuario, sessao.nome)
+      await recarregar()
+    } catch (err) {
+      registrarErro(err, 'Não foi possível curtir.')
+    }
   }
 
   async function onComentar(post: PostFeed) {
@@ -209,7 +226,7 @@ export function FeedMural({ empresaFiltro, mostrarComposer, composerEmpresa, vaz
       setResposta((atual) => (atual?.postId === post.id ? null : atual))
       await recarregar()
     } catch (err) {
-      setErro(err instanceof Error ? err.message : 'Não foi possível comentar.')
+      registrarErro(err, 'Não foi possível comentar.')
     }
   }
 
@@ -232,10 +249,11 @@ export function FeedMural({ empresaFiltro, mostrarComposer, composerEmpresa, vaz
     )
     try {
       await alternarCurtidaComentario(post, comentario, sessao.usuario, sessao.nome)
+      setErro(null)
       await recarregar()
     } catch (err) {
       await recarregar()
-      setErro(err instanceof Error ? err.message : 'Não foi possível curtir o comentário.')
+      registrarErro(err, 'Não foi possível curtir o comentário.')
     }
   }
 
