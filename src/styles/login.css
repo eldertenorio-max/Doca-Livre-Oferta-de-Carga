@@ -268,3 +268,87 @@
 .portal-login__demo-btn strong {
   color: #0f172a;
 }
+
+.portal-login__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.portal-login__field .portal-login__label {
+  margin-top: 0;
+}
+
+.portal-login--wide {
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 16px 20px 24px;
+  overflow: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.portal-login--wide .portal-login__card {
+  width: 100%;
+  max-width: none;
+  min-height: calc(100dvh - 40px);
+  box-sizing: border-box;
+  padding: 28px 32px 36px;
+}
+
+.portal-login--wide .portal-login__submit {
+  width: 100%;
+  max-width: 280px;
+}
+
+@media (min-width: 900px) {
+  .portal-login--wide {
+    padding: 16px 28px 24px;
+  }
+
+  .portal-login--wide .portal-login__card {
+    display: grid;
+    grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+    gap: 16px 40px;
+    align-items: start;
+    align-content: start;
+    padding: 32px 40px 40px;
+  }
+
+  .portal-login--wide .portal-login__header {
+    text-align: left;
+    margin-bottom: 0;
+  }
+
+  .portal-login--wide .portal-login__logo {
+    margin: 0 0 12px;
+  }
+
+  .portal-login--wide .portal-login__product {
+    justify-content: flex-start;
+  }
+
+  .portal-login--wide .portal-login__title,
+  .portal-login--wide .portal-login__tagline {
+    text-align: left;
+  }
+
+  .portal-login--wide .portal-login__form--dados {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 20px;
+    align-items: start;
+  }
+
+  .portal-login--wide .portal-login__form--dados .portal-login__erro,
+  .portal-login--wide .portal-login__form--dados .portal-login__submit {
+    grid-column: 1 / -1;
+  }
+
+  .portal-login--wide .portal-login__links {
+    grid-column: 2;
+    justify-content: flex-start;
+    margin-top: 4px;
+  }
+}

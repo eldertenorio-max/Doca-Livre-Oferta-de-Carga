@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useData } from '../context/DataContext'
 import { LOGO_DOCA_LIVRE_SRC } from '../lib/brandAssets'
 import { ProductMark } from '../components/ProductMark'
@@ -21,13 +21,16 @@ type Step = 'form' | 'codigo' | 'dados'
 
 export function LoginPage() {
   const { login, user, refreshTransportadores } = useData()
+  const [searchParams] = useSearchParams()
 
   useEffect(() => {
     void syncPortalAccounts()
     void refreshTransportadores()
   }, [refreshTransportadores])
 
-  const [mode, setMode] = useState<Mode>('login')
+  const [mode, setMode] = useState<Mode>(() =>
+    searchParams.get('cadastro') === 'embarcador' ? 'cadastro' : 'login',
+  )
   const [step, setStep] = useState<Step>('form')
   const [usuario, setUsuario] = useState('')
   const [senha, setSenha] = useState('')
@@ -260,7 +263,7 @@ export function LoginPage() {
           ? 'Confirmar e-mail'
           : step === 'dados'
             ? 'Criar conta'
-            : 'Cadastro'
+            : 'Cadastrar Embarcador'
         : step === 'codigo'
           ? 'Confirmar e-mail'
           : step === 'dados'
@@ -283,7 +286,7 @@ export function LoginPage() {
             : 'Informe usuário ou e-mail cadastrado'
 
   return (
-    <div className="portal-login">
+    <div className={`portal-login${mode === 'cadastro' ? ' portal-login--wide' : ''}`}>
       <div className="portal-login__card">
         <header className="portal-login__header">
           <img src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" className="portal-login__logo" />
@@ -338,20 +341,22 @@ export function LoginPage() {
 
         {mode === 'cadastro' && step === 'form' && (
           <form className="portal-login__form" onSubmit={handleCadastroEnviar}>
-            <label className="portal-login__label" htmlFor="cad-email">
-              E-mail
-            </label>
-            <input
-              id="cad-email"
-              className="portal-login__input"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-            <p className="portal-login__hint">
-              Enviaremos um código de 6 dígitos para confirmar o e-mail.
-            </p>
+            <div className="portal-login__field">
+              <label className="portal-login__label" htmlFor="cad-email">
+                E-mail
+              </label>
+              <input
+                id="cad-email"
+                className="portal-login__input"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              <p className="portal-login__hint">
+                Enviaremos um código de 6 dígitos para confirmar o e-mail.
+              </p>
+            </div>
             {error && <p className="portal-login__erro">{error}</p>}
             <button type="submit" className="portal-login__submit" disabled={loading}>
               {loading ? 'Enviando…' : 'Enviar código'}
@@ -365,20 +370,22 @@ export function LoginPage() {
               Enviamos um código para <strong>{email.trim().toLowerCase()}</strong>. Abra o
               e-mail, copie o código e cole abaixo.
             </p>
-            <label className="portal-login__label" htmlFor="cad-codigo">
-              Código
-            </label>
-            <input
-              id="cad-codigo"
-              className="portal-login__input portal-login__input--otp"
-              value={codigo}
-              onChange={(e) => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              required
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="0 0 0 0 0 0"
-              autoComplete="one-time-code"
-            />
+            <div className="portal-login__field">
+              <label className="portal-login__label" htmlFor="cad-codigo">
+                Código
+              </label>
+              <input
+                id="cad-codigo"
+                className="portal-login__input portal-login__input--otp"
+                value={codigo}
+                onChange={(e) => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                required
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="0 0 0 0 0 0"
+                autoComplete="one-time-code"
+              />
+            </div>
             {debugCodigo && (
               <p className="portal-login__info">
                 Debug — código: <strong>{debugCodigo}</strong>
@@ -399,47 +406,53 @@ export function LoginPage() {
         {mode === 'cadastro' && step === 'dados' && (
           <form
             key={`cadastro-dados-${verifyToken || 'new'}`}
-            className="portal-login__form"
+            className="portal-login__form portal-login__form--dados"
             onSubmit={handleCadastroConcluir}
             autoComplete="off"
           >
-            <label className="portal-login__label" htmlFor="cad-user-novo">
-              Usuário
-            </label>
-            <input
-              id="cad-user-novo"
-              name="cadastro_usuario_novo"
-              className="portal-login__input"
-              value={usuario}
-              onChange={(e) => setUsuario(e.target.value)}
-              required
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-              spellCheck={false}
-            />
-            <label className="portal-login__label" htmlFor="cad-senha-nova">
-              Senha
-            </label>
-            <PasswordInput
-              id="cad-senha-nova"
-              value={senha}
-              visible={visible}
-              onToggle={() => setVisible((v) => !v)}
-              onChange={setSenha}
-              autoComplete="new-password"
-            />
-            <label className="portal-login__label" htmlFor="cad-senha2-nova">
-              Confirmar senha
-            </label>
-            <PasswordInput
-              id="cad-senha2-nova"
-              value={confirmarSenha}
-              visible={visibleConfirm}
-              onToggle={() => setVisibleConfirm((v) => !v)}
-              onChange={setConfirmarSenha}
-              autoComplete="new-password"
-            />
+            <div className="portal-login__field">
+              <label className="portal-login__label" htmlFor="cad-user-novo">
+                Usuário
+              </label>
+              <input
+                id="cad-user-novo"
+                name="cadastro_usuario_novo"
+                className="portal-login__input"
+                value={usuario}
+                onChange={(e) => setUsuario(e.target.value)}
+                required
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+              />
+            </div>
+            <div className="portal-login__field">
+              <label className="portal-login__label" htmlFor="cad-senha-nova">
+                Senha
+              </label>
+              <PasswordInput
+                id="cad-senha-nova"
+                value={senha}
+                visible={visible}
+                onToggle={() => setVisible((v) => !v)}
+                onChange={setSenha}
+                autoComplete="new-password"
+              />
+            </div>
+            <div className="portal-login__field">
+              <label className="portal-login__label" htmlFor="cad-senha2-nova">
+                Confirmar senha
+              </label>
+              <PasswordInput
+                id="cad-senha2-nova"
+                value={confirmarSenha}
+                visible={visibleConfirm}
+                onToggle={() => setVisibleConfirm((v) => !v)}
+                onChange={setConfirmarSenha}
+                autoComplete="new-password"
+              />
+            </div>
             {error && <p className="portal-login__erro">{error}</p>}
             <button type="submit" className="portal-login__submit" disabled={loading}>
               {loading ? 'Criando…' : 'Criar conta'}
