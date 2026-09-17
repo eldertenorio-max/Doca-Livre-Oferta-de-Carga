@@ -22,6 +22,8 @@ type Props = {
   className?: string
   minChars?: number
   onBlur?: () => void
+  /** Clique/foco no campo (armar marcação no mapa). */
+  onFocus?: () => void
   /** Chamado ao escolher uma sugestão remota (com lat/lng). */
   onPick?: (sug: SugestaoEndereco) => void
 }
@@ -38,6 +40,7 @@ export function AddressSuggestInput({
   className,
   minChars = 2,
   onBlur,
+  onFocus,
   onPick,
 }: Props) {
   const listId = useId()
@@ -147,8 +150,10 @@ export function AddressSuggestInput({
         aria-autocomplete="list"
         onPointerDown={() => {
           userIntentRef.current = true
+          onFocus?.()
         }}
         onFocus={() => {
+          onFocus?.()
           if (userIntentRef.current) setOpen(true)
           userIntentRef.current = false
         }}

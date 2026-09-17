@@ -67,9 +67,9 @@ export const AJUDA_FAQ: AjudaFaqItem[] = [
   },
   {
     id: 'marcar-mapa',
-    pergunta: 'Como marcar origem e destino no mapa?',
+    pergunta: 'Como marcar pontos no mapa?',
     resposta:
-      'Toque em “Marcar origem e destino no mapa” e clique primeiro no ponto A (origem) e depois no ponto B (destino). Também dá para digitar o endereço ou usar o pino ao lado de cada campo. Depois de marcar os dois pontos, o cálculo roda sozinho.',
+      'Clique no campo de origem, passagem ou destino e em seguida no mapa para preencher. Sem campo focado, o 1º clique é a origem, o 2º o destino; cliques seguintes viram o destino anterior em ponto de passagem. O último clique é sempre o destino — para ajustar, arraste o pino. Com só dois pontos, calcula origem e destino.',
   },
   {
     id: 'salvar-rota',

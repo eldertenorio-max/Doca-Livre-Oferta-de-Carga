@@ -49,6 +49,12 @@ import { useRotaPublicoAuth } from '../../lib/rotaPublicoAuth'
 import type { SugestaoEndereco } from '../../lib/geocodeEndereco'
 import { geocodificarConsulta, labelPorCoordenadas } from '../../lib/geocodeEndereco'
 import {
+  aplicarPontoNoMapa,
+  novoIdVia,
+  rotuloMarcarPontos,
+  type AlvoRotaMarca,
+} from '../../lib/rotaMarcarMapa'
+import {
   consultarEstadoCalculosPublicos,
   estadoCalculosPublicos,
   isRotaPublicoIlimitado,
@@ -157,11 +163,7 @@ type ResultadoSnap = {
 }
 
 function novaVia(): Via {
-  const id =
-    typeof crypto !== 'undefined' && 'randomUUID' in crypto
-      ? crypto.randomUUID()
-      : `via-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-  return { id, endereco: '' }
+  return { id: novoIdVia(), endereco: '' }
 }
 
 export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?: boolean } = {}) {
@@ -177,9 +179,8 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
   const [destino, setDestino] = useState('')
   const [origemCoords, setOrigemCoords] = useState<Coord | null>(null)
   const [destinoCoords, setDestinoCoords] = useState<Coord | null>(null)
-  const [pickMode, setPickMode] = useState<'A' | 'B' | null>(null)
+  const [pickMode, setPickMode] = useState<string | null>(null)
   const pickBusy = useRef(false)
-  const pickSeq = useRef(false)
   const hidratouUrl = useRef(false)
   const [vias, setVias] = useState<Via[]>([])
   const [tipoVeiculo, setTipoVeiculo] = useState<TipoVeiculoUi>('caminhao')
@@ -266,56 +267,56 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
     }
   }
 
-  function iniciarMarcacaoNoMapa() {
-    if (pickMode) {
-      pickSeq.current = false
-      setPickMode(null)
-      return
-    }
-    pickSeq.current = true
+  function armarCampo(alvo: AlvoRotaMarca) {
+    setPickMode(alvo === 'auto' ? null : alvo)
     setShowResultado(false)
     setFormAberto(true)
-    setPickMode('A')
   }
 
-  async function marcarPontoNoMapa(ponto: 'A' | 'B', lat: number, lng: number) {
+  function iniciarMarcacaoNoMapa() {
+    setShowResultado(false)
+    setFormAberto(true)
+    setPickMode(null)
+  }
+
+  function aplicarEstadoRota(estado: {
+    origem: string
+    destino: string
+    origemCoords: Coord | null
+    destinoCoords: Coord | null
+    vias: Via[]
+  }) {
+    setOrigem(estado.origem)
+    setDestino(estado.destino)
+    setOrigemCoords(estado.origemCoords)
+    setDestinoCoords(estado.destinoCoords)
+    setVias(estado.vias)
+  }
+
+  async function marcarPontoNoMapa(ponto: string, lat: number, lng: number, origemCli: 'click' | 'drag' = 'click') {
     if (pickBusy.current) return
     pickBusy.current = true
     try {
       const label = await labelPorCoordenadas(lat, lng)
-      const seq = pickSeq.current
-      let oTxt = origem
-      let dTxt = destino
-      let oC = origemCoords
-      let dC = destinoCoords
-      if (ponto === 'A') {
-        oTxt = label
-        oC = { lat, lng }
-        setOrigem(label)
-        setOrigemCoords(oC)
-        if (seq || !dTxt.trim()) {
-          setPickMode('B')
-          return
-        }
-        setPickMode(null)
-      } else {
-        dTxt = label
-        dC = { lat, lng }
-        setDestino(label)
-        setDestinoCoords(dC)
-        pickSeq.current = false
-        if (!oTxt.trim()) {
-          setPickMode('A')
-          return
-        }
-        setPickMode(null)
-      }
-      void calcular({
-        origem: oTxt,
-        destino: dTxt,
-        origemCoords: oC,
-        destinoCoords: dC,
+      const r = aplicarPontoNoMapa(stopsRef.current, {
+        alvo: (ponto || 'auto') as AlvoRotaMarca,
+        label,
+        lat,
+        lng,
+        novaViaId: novoIdVia,
+        arrastar: origemCli === 'drag',
       })
+      aplicarEstadoRota(r.estado)
+      setPickMode(r.proximoAlvo === 'auto' ? null : r.proximoAlvo)
+      if (r.calcular) {
+        void calcular({
+          origem: r.estado.origem,
+          destino: r.estado.destino,
+          origemCoords: r.estado.origemCoords,
+          destinoCoords: r.estado.destinoCoords,
+          vias: r.estado.vias,
+        })
+      }
     } finally {
       pickBusy.current = false
     }
@@ -476,7 +477,6 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
     setShowResultado(false)
     setSnap(null)
     setPickMode(null)
-    pickSeq.current = false
     setEntrarId(0)
   }
 
@@ -730,20 +730,20 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
   }
 
   const logado = Boolean(user)
-  const viasValidas = vias.filter((v) => v.endereco.trim().length >= 3)
+  const viasValidas = vias.filter(
+    (v) =>
+      v.endereco.trim().length >= 3 ||
+      (v.lat != null && v.lng != null && Number.isFinite(v.lat) && Number.isFinite(v.lng)),
+  )
   const botaoMarcarNoMapa = (
     <button
       type="button"
       className={`rota-pub__no-mapa${pickMode ? ' is-on' : ''}`}
-      title="Marcar origem e destino no mapa"
+      title="Marcar pontos no mapa"
       onClick={iniciarMarcacaoNoMapa}
     >
       <MapPin size={14} />
-      {pickMode === 'A'
-        ? 'Clique no mapa para marcar a origem'
-        : pickMode === 'B'
-          ? 'Clique no mapa para marcar o destino'
-          : 'Marcar origem e destino no mapa'}
+      {rotuloMarcarPontos(pickMode)}
     </button>
   )
 
@@ -900,6 +900,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
                           setOrigemCoords(null)
                         }}
                         onPick={pickOrigem}
+                        onFocus={() => armarCampo('A')}
                         placeholder="Origem"
                         className="rota-pub__input"
                       />
@@ -907,15 +908,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
                         type="button"
                         className={`rota-pub__campo-btn${pickMode === 'A' ? ' is-on' : ''}`}
                         title="Marcar origem (ponto A) no mapa"
-                        onClick={() => {
-                          pickSeq.current = false
-                          const next = pickMode === 'A' ? null : 'A'
-                          setPickMode(next)
-                          if (next) {
-                            setShowResultado(false)
-                            setFormAberto(true)
-                          }
-                        }}
+                        onClick={() => armarCampo(pickMode === 'A' ? 'auto' : 'A')}
                       >
                         <MapPin size={18} />
                       </button>
@@ -975,6 +968,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
                                   ),
                                 )
                               }
+                              onFocus={() => armarCampo(via.id)}
                               placeholder="Ponto de passagem"
                               className="rota-pub__input"
                             />
@@ -1024,6 +1018,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
                           setDestinoCoords(null)
                         }}
                         onPick={pickDestino}
+                        onFocus={() => armarCampo('B')}
                         placeholder="Destino"
                         className="rota-pub__input"
                       />
@@ -1031,15 +1026,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
                         type="button"
                         className={`rota-pub__campo-btn${pickMode === 'B' ? ' is-on' : ''}`}
                         title="Marcar destino (ponto B) no mapa"
-                        onClick={() => {
-                          pickSeq.current = false
-                          const next = pickMode === 'B' ? null : 'B'
-                          setPickMode(next)
-                          if (next) {
-                            setShowResultado(false)
-                            setFormAberto(true)
-                          }
-                        }}
+                        onClick={() => armarCampo(pickMode === 'B' ? 'auto' : 'B')}
                       >
                         <MapPin size={18} />
                       </button>

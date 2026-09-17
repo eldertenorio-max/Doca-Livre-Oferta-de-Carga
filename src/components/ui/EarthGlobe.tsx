@@ -282,8 +282,7 @@ export function EarthGlobe({
         down = { x: e.point.x, y: e.point.y }
       })
       map.on('click', (e) => {
-        const modo = pickModeRef.current
-        if (!modo || !onPickRef.current) return
+        if (!onPickRef.current) return
         if (down) {
           const dist = Math.hypot(e.point.x - down.x, e.point.y - down.y)
           if (dist > 6) return

@@ -26,7 +26,7 @@ type RotaCoords = { lat: number; lng: number }
 
 export type RotaWaypointInput =
   | string
-  | { endereco: string; lat?: number | null; lng?: number | null }
+  | { id?: string; endereco: string; lat?: number | null; lng?: number | null }
 
 type Props = {
   origem: string
@@ -62,9 +62,9 @@ type Props = {
   /** Mesma preferência da calculadora (QualP / Rotas Brasil). */
   preferencia?: PreferenciaRota
   /** Clique no mapa para origem (A) ou destino (B). */
-  pickMode?: 'A' | 'B' | null
-  onPickModeChange?: (mode: 'A' | 'B' | null) => void
-  onPickPonto?: (ponto: 'A' | 'B', lat: number, lng: number) => void
+  pickMode?: string | null
+  onPickModeChange?: (mode: string | null) => void
+  onPickPonto?: (ponto: string, lat: number, lng: number, origem?: 'click' | 'drag') => void
   /** Esconde o cartão flutuante de km/custo (quando o resultado já está ao lado). */
   esconderCartao?: boolean
   /** Clique na linha da rota no mapa (abre o resultado). */
@@ -74,6 +74,7 @@ type Props = {
 }
 
 function normWaypoint(w: RotaWaypointInput): {
+  id?: string
   endereco: string
   lat: number | null
   lng: number | null
@@ -83,7 +84,7 @@ function normWaypoint(w: RotaWaypointInput): {
   }
   const lat = w.lat != null && Number.isFinite(Number(w.lat)) ? Number(w.lat) : null
   const lng = w.lng != null && Number.isFinite(Number(w.lng)) ? Number(w.lng) : null
-  return { endereco: (w.endereco || '').trim(), lat, lng }
+  return { id: w.id, endereco: (w.endereco || '').trim(), lat, lng }
 }
 
 function coordsOk(c?: RotaCoords | null): c is RotaCoords {
@@ -91,15 +92,39 @@ function coordsOk(c?: RotaCoords | null): c is RotaCoords {
 }
 
 function viasComCoord(
-  vias: Array<{ endereco: string; lat: number | null; lng: number | null }>,
-): Array<{ lat: number; lng: number; n: number; endereco: string }> {
-  const out: Array<{ lat: number; lng: number; n: number; endereco: string }> = []
+  vias: Array<{ id?: string; endereco: string; lat: number | null; lng: number | null }>,
+): Array<{ id?: string; lat: number; lng: number; n: number; endereco: string }> {
+  const out: Array<{ id?: string; lat: number; lng: number; n: number; endereco: string }> = []
   vias.forEach((w, i) => {
     if (w.lat == null || w.lng == null) return
     if (!Number.isFinite(w.lat) || !Number.isFinite(w.lng)) return
-    out.push({ lat: w.lat, lng: w.lng, n: i + 1, endereco: w.endereco })
+    out.push({ id: w.id, lat: w.lat, lng: w.lng, n: i + 1, endereco: w.endereco })
   })
   return out
+}
+
+function pinArrastavel(
+  latlng: L.LatLngExpression,
+  icon: L.DivIcon,
+  title: string,
+  tooltip: string,
+  onMover?: (lat: number, lng: number) => void,
+) {
+  const m = L.marker(latlng, {
+    icon,
+    title,
+    draggable: Boolean(onMover),
+    autoPan: Boolean(onMover),
+  })
+  m.bindTooltip(tooltip, TIP_PONTO)
+  m.on('click', (e) => L.DomEvent.stopPropagation(e))
+  if (onMover) {
+    m.on('dragend', (e) => {
+      const p = (e.target as L.Marker).getLatLng()
+      onMover(p.lat, p.lng)
+    })
+  }
+  return m
 }
 
 function desenharPinsConhecidos(
@@ -110,39 +135,46 @@ function desenharPinsConhecidos(
     destino: string
     origemCoords?: RotaCoords | null
     destinoCoords?: RotaCoords | null
-    vias: Array<{ endereco: string; lat: number | null; lng: number | null }>
+    vias: Array<{ id?: string; endereco: string; lat: number | null; lng: number | null }>
+    onMover?: (ponto: string, lat: number, lng: number) => void
   },
 ) {
   const bounds: L.LatLngTuple[] = []
+  const mover = opts.onMover
   if (coordsOk(opts.origemCoords)) {
-    L.marker([opts.origemCoords.lat, opts.origemCoords.lng], {
-      icon: origemIcon(),
-      title: opts.origem,
-    })
-      .bindTooltip(opts.origem.trim() || 'Origem', TIP_PONTO)
-      .addTo(layer)
+    pinArrastavel(
+      [opts.origemCoords.lat, opts.origemCoords.lng],
+      origemIcon(),
+      opts.origem,
+      opts.origem.trim() || 'Origem',
+      mover ? (lat, lng) => mover('A', lat, lng) : undefined,
+    ).addTo(layer)
     bounds.push([opts.origemCoords.lat, opts.origemCoords.lng])
   }
   for (const via of viasComCoord(opts.vias)) {
-    L.marker([via.lat, via.lng], {
-      icon: viaIcon(via.n),
-      title: `Passagem ${via.n}: ${via.endereco}`,
-    })
+    const id = via.id || `via-${via.n}`
+    pinArrastavel(
+      [via.lat, via.lng],
+      viaIcon(via.n),
+      `Passagem ${via.n}: ${via.endereco}`,
+      via.endereco.trim() || `Passagem ${via.n}`,
+      mover ? (lat, lng) => mover(id, lat, lng) : undefined,
+    )
       .bindPopup(
         `<div class="rota-map-popup"><p class="rota-map-popup__tit">Passagem ${via.n}</p><p>${escHtml(via.endereco)}</p></div>`,
         { className: 'rota-map-popup-wrap', maxWidth: 280 },
       )
-      .bindTooltip(via.endereco.trim() || `Passagem ${via.n}`, TIP_PONTO)
       .addTo(layer)
     bounds.push([via.lat, via.lng])
   }
   if (coordsOk(opts.destinoCoords)) {
-    L.marker([opts.destinoCoords.lat, opts.destinoCoords.lng], {
-      icon: destinoIcon(),
-      title: opts.destino,
-    })
-      .bindTooltip(opts.destino.trim() || 'Destino', TIP_PONTO)
-      .addTo(layer)
+    pinArrastavel(
+      [opts.destinoCoords.lat, opts.destinoCoords.lng],
+      destinoIcon(),
+      opts.destino,
+      opts.destino.trim() || 'Destino',
+      mover ? (lat, lng) => mover('B', lat, lng) : undefined,
+    ).addTo(layer)
     bounds.push([opts.destinoCoords.lat, opts.destinoCoords.lng])
   }
   if (bounds.length === 1) {
@@ -508,9 +540,8 @@ export function RotaMapPreview({
     }
 
     map.on('click', (e: L.LeafletMouseEvent) => {
-      const modo = pickModeRef.current
-      if (!modo || !onPickPontoRef.current) return
-      onPickPontoRef.current(modo, e.latlng.lat, e.latlng.lng)
+      if (!onPickPontoRef.current) return
+      onPickPontoRef.current(pickModeRef.current || 'auto', e.latlng.lat, e.latlng.lng)
     })
 
     const refresh = () => map.invalidateSize({ animate: false })
@@ -579,6 +610,9 @@ export function RotaMapPreview({
         origemCoords,
         destinoCoords,
         vias: viasNorm,
+        onMover: onPickPontoRef.current
+          ? (ponto, lat, lng) => onPickPontoRef.current?.(ponto, lat, lng, 'drag')
+          : undefined,
       })
       setStatus('idle')
       setMeta(null)
@@ -599,6 +633,9 @@ export function RotaMapPreview({
         origemCoords,
         destinoCoords,
         vias: viasNorm,
+        onMover: onPickPontoRef.current
+          ? (ponto, lat, lng) => onPickPontoRef.current?.(ponto, lat, lng, 'drag')
+          : undefined,
       })
       setStatus('idle')
       setMeta(null)
@@ -732,7 +769,6 @@ export function RotaMapPreview({
         layer.clearLayers()
         const latlngs = rota.polyline.map((p) => [p.lat, p.lng] as L.LatLngExpression)
         const abrirResultado = (e: L.LeafletMouseEvent) => {
-          if (pickModeRef.current) return
           L.DomEvent.stopPropagation(e)
           onClickRotaRef.current?.()
         }
@@ -776,40 +812,51 @@ export function RotaMapPreview({
           })
         }
 
-        L.marker([oCoords.lat, oCoords.lng], {
-          icon: origemIcon(),
-          title: o,
-        })
+        const moverPonto = onPickPontoRef.current
+          ? (ponto: string, lat: number, lng: number) => onPickPontoRef.current?.(ponto, lat, lng, 'drag')
+          : undefined
+
+        pinArrastavel(
+          [oCoords.lat, oCoords.lng],
+          origemIcon(),
+          o,
+          o.trim() || 'Origem',
+          moverPonto ? (lat, lng) => moverPonto('A', lat, lng) : undefined,
+        )
           .bindPopup(`<div class="rota-map-popup"><p class="rota-map-popup__tit">Origem</p><p>${escHtml(o)}</p></div>`, {
             className: 'rota-map-popup-wrap',
             maxWidth: 280,
           })
-          .bindTooltip(o.trim() || 'Origem', TIP_PONTO)
           .addTo(layer)
 
         viaCoords.forEach((c, idx) => {
           const viaNome = viasNorm[idx]?.endereco || `Ponto ${idx + 1}`
-          L.marker([c.lat, c.lng], {
-            icon: viaIcon(idx + 1),
-            title: viaNome,
-          })
+          const viaId = viasNorm[idx]?.id || `via-${idx + 1}`
+          pinArrastavel(
+            [c.lat, c.lng],
+            viaIcon(idx + 1),
+            viaNome,
+            viaNome,
+            moverPonto ? (lat, lng) => moverPonto(viaId, lat, lng) : undefined,
+          )
             .bindPopup(
               `<div class="rota-map-popup"><p class="rota-map-popup__tit">Passagem ${idx + 1}</p><p>${escHtml(viaNome)}</p></div>`,
               { className: 'rota-map-popup-wrap', maxWidth: 280 },
             )
-            .bindTooltip(viaNome, TIP_PONTO)
             .addTo(layer)
         })
 
-        L.marker([dCoords.lat, dCoords.lng], {
-          icon: destinoIcon(),
-          title: d,
-        })
+        pinArrastavel(
+          [dCoords.lat, dCoords.lng],
+          destinoIcon(),
+          d,
+          d.trim() || 'Destino',
+          moverPonto ? (lat, lng) => moverPonto('B', lat, lng) : undefined,
+        )
           .bindPopup(`<div class="rota-map-popup"><p class="rota-map-popup__tit">Destino</p><p>${escHtml(d)}</p></div>`, {
             className: 'rota-map-popup-wrap',
             maxWidth: 280,
           })
-          .bindTooltip(d.trim() || 'Destino', TIP_PONTO)
           .addTo(layer)
 
         const pracasMapa = [...ped.pracas]
@@ -1005,7 +1052,7 @@ export function RotaMapPreview({
   return (
     <div className="h-full min-h-[360px] w-full">
       <div
-        className={`rota-map-preview overflow-hidden rounded-lg border border-ink/15 bg-[#02040a] ${showGlobe && globeReady && !globeSaindo ? 'rota-map-preview--globe' : ''} ${pickMode ? 'is-picking' : ''} ${mapaCheio ? 'is-full' : 'relative z-0'} ${visaoCamada === 'sem-pedagio' ? 'is-hide-pedagio' : ''} ${visaoCamada === 'sem-rota' ? 'is-hide-rota' : ''} ${className}`}
+        className={`rota-map-preview overflow-hidden rounded-lg border border-ink/15 bg-[#02040a] ${showGlobe && globeReady && !globeSaindo ? 'rota-map-preview--globe' : ''} ${onPickPonto ? 'is-picking' : ''} ${mapaCheio ? 'is-full' : 'relative z-0'} ${visaoCamada === 'sem-pedagio' ? 'is-hide-pedagio' : ''} ${visaoCamada === 'sem-rota' ? 'is-hide-rota' : ''} ${className}`}
       >
         <div ref={mapEl} className="rota-map-preview__map" />
         <div className="rota-map-topo" data-pdf-ignore>
@@ -1059,7 +1106,7 @@ export function RotaMapPreview({
         ) : null}
         {showGlobe ? (
           <EarthGlobe
-            pickMode={pickMode}
+            pickMode={onPickPonto ? (pickMode === 'B' ? 'B' : 'A') : null}
             pontoA={coordsOk(origemCoords) ? origemCoords : null}
             pontoB={coordsOk(destinoCoords) ? destinoCoords : null}
             labelA={origem}
@@ -1078,9 +1125,7 @@ export function RotaMapPreview({
               setGlobeSaindo(true)
             }}
             onPick={(lat, lng) => {
-              const modo = pickModeRef.current
-              if (!modo) return
-              onPickPontoRef.current?.(modo, lat, lng)
+              onPickPontoRef.current?.(pickModeRef.current || 'auto', lat, lng)
             }}
           />
         ) : null}
@@ -1089,7 +1134,7 @@ export function RotaMapPreview({
             <button
               type="button"
               className={pickMode === 'A' ? 'is-on' : ''}
-              title="Marcar origem (ponto A) no mapa"
+              title="Marcar origem no mapa"
               onClick={() => onPickModeChange?.(pickMode === 'A' ? null : 'A')}
             >
               Origem
@@ -1097,16 +1142,22 @@ export function RotaMapPreview({
             <button
               type="button"
               className={pickMode === 'B' ? 'is-on' : ''}
-              title="Marcar destino (ponto B) no mapa"
+              title="Marcar destino no mapa"
               onClick={() => onPickModeChange?.(pickMode === 'B' ? null : 'B')}
             >
               Destino
             </button>
             {pickMode ? (
               <p className="rota-map-pick__hint">
-                Clique no mapa para marcar {pickMode === 'A' ? 'a origem' : 'o destino'}
+                {pickMode === 'A'
+                  ? 'Clique no mapa para marcar a origem'
+                  : pickMode === 'B'
+                    ? 'Clique no mapa para marcar o destino'
+                    : 'Clique no mapa para marcar o ponto de passagem'}
               </p>
-            ) : null}
+            ) : (
+              <p className="rota-map-pick__hint">Clique no mapa: o último ponto é o destino</p>
+            )}
           </div>
         ) : null}
         {status === 'erro' ? (
