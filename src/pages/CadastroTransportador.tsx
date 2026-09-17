@@ -707,6 +707,7 @@ export function CadastroTransportadorPage() {
                   ))}
                 </div>
 
+                <div className="cadastro-empresa-topo">
                 <div className="cadastro-logo">
                   <div className="cadastro-logo__preview" aria-hidden>
                     {logo ? (
@@ -758,7 +759,7 @@ export function CadastroTransportadorPage() {
                   </div>
                 </div>
 
-                <div className="form-fields">
+                <div className="form-fields cadastro-empresa-topo__campos">
                   <Field label="CNPJ" required>
                     <CnpjInput
                       value={empresa.cnpj}
@@ -807,6 +808,10 @@ export function CadastroTransportadorPage() {
                       autoComplete="organization"
                     />
                   </Field>
+                </div>
+                </div>
+
+                <div className="form-fields">
                   <Field label="RNTRC (ANTT)" required={ramificacao === 'transportadora' || ramificacao === 'motorista'}>
                     <input
                       value={empresa.rntrc}

@@ -937,6 +937,29 @@
   .cadastro-publico .form-fields--3 {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
+
+  .cadastro-publico .cadastro-empresa-topo {
+    display: grid;
+    grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+    gap: 16px 20px;
+    align-items: stretch;
+    margin-bottom: 4px;
+  }
+
+  .cadastro-publico .cadastro-empresa-topo .cadastro-logo {
+    margin: 0;
+    height: 100%;
+    align-items: flex-start;
+  }
+
+  .cadastro-publico .cadastro-empresa-topo__campos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+  }
+
+  .cadastro-publico .cadastro-empresa-topo__campos .form-field:nth-child(3) {
+    grid-column: 1 / -1;
+  }
 }
 
 .cadastro-publico__card .portal-login__brand {
@@ -1104,11 +1127,18 @@
   display: flex;
   gap: 14px;
   align-items: center;
+  width: 100%;
+  box-sizing: border-box;
   padding: 14px;
   margin: 0 0 16px;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   background: #f8fafc;
+}
+
+.cadastro-publico .cadastro-logo__meta {
+  flex: 1;
+  min-width: 0;
 }
 
 .cadastro-logo__preview {
