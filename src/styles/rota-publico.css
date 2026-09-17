@@ -151,10 +151,18 @@
 
 .rota-pub__hero-top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
   min-width: 0;
+}
+
+.rota-pub__hero-cota {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .rota-pub__kicker {
@@ -267,7 +275,6 @@
 
 .rota-pub__beneficios {
   display: inline-flex;
-  align-self: flex-start;
   margin: 0;
   padding: 6px 12px;
   border: 0;

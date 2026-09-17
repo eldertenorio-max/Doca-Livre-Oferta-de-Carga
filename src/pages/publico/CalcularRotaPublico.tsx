@@ -827,14 +827,16 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
             <div className="rota-pub__hero">
               <div className="rota-pub__hero-top">
                 <p className="rota-pub__kicker">Pedágio · km · combustível</p>
-                <p className="rota-pub__badge">{rotuloCotaPublica(ilimitado, cota)}</p>
+                <div className="rota-pub__hero-cota">
+                  <p className="rota-pub__badge">{rotuloCotaPublica(ilimitado, cota)}</p>
+                  {!modoSistema && !ilimitado ? (
+                    <button type="button" className="rota-pub__beneficios" onClick={() => setShowPaywall(true)}>
+                      Conheça os benefícios
+                    </button>
+                  ) : null}
+                </div>
               </div>
               <h1>Calcular rota</h1>
-              {!modoSistema && !ilimitado ? (
-                <button type="button" className="rota-pub__beneficios" onClick={() => setShowPaywall(true)}>
-                  Conheça os benefícios
-                </button>
-              ) : null}
             </div>
             <LinkFreteMinimo
               className="rota-pub__frete-link"
