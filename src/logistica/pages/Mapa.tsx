@@ -753,31 +753,30 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
               </span>
             </button>
             {catsAbertas ? (
-              <div className="mapa-log__cats-grid">
-                <button
-                  type="button"
-                  className={`mapa-log__cat${categoria == null ? ' is-on' : ''}`}
-                  onClick={() => setCat(null)}
-                >
-                  <span className="mapa-log__cat-label">Todas</span>
-                  <span className="mapa-log__cat-qtd">
-                    {aplicarFiltros(empresas, { ...filtros, categoria: null }).length}
-                  </span>
-                </button>
-                {CATEGORIAS.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className={`mapa-log__cat${categoria === c.id ? ' is-on' : ''}`}
-                    onClick={() => setCat(c.id)}
-                  >
-                    <span className="mapa-log__cat-ico" style={{ background: c.corFundo }}>
-                      {c.emoji}
-                    </span>
-                    <span className="mapa-log__cat-label">{c.label}</span>
-                    <span className="mapa-log__cat-qtd">{contagem[c.id] ?? 0}</span>
+              <div className="mapa-log__cats-painel">
+                {categoria ? (
+                  <button type="button" className="mapa-log__cats-voltar" onClick={() => setCat(null)}>
+                    Ver todas na lista
                   </button>
-                ))}
+                ) : (
+                  <p className="mapa-log__cats-dica">A lista já traz todas. Escolha um tipo para filtrar.</p>
+                )}
+                <div className="mapa-log__cats-grid">
+                  {CATEGORIAS.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className={`mapa-log__cat${categoria === c.id ? ' is-on' : ''}`}
+                      onClick={() => setCat(c.id)}
+                    >
+                      <span className="mapa-log__cat-ico" style={{ background: c.corFundo }}>
+                        {c.emoji}
+                      </span>
+                      <span className="mapa-log__cat-label">{c.label}</span>
+                      <span className="mapa-log__cat-qtd">{contagem[c.id] ?? 0}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : null}
           </div>
