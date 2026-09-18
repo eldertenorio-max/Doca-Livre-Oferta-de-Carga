@@ -550,6 +550,10 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
       const consumoCota = await registrarCalculoPublico()
       setCota(consumoCota)
       if (!consumoCota.ok) {
+        if ((consumoCota.creditos || 0) > 0 || consumoCota.motivo === 'ritmo') {
+          setErro('Não foi possível usar 1 crédito agora. Clique em Calcular de novo.')
+          return false
+        }
         setShowPaywall(true)
         return false
       }

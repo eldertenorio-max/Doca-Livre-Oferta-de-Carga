@@ -54,7 +54,7 @@ export function RotaPaywallModal({
 }: Props) {
   const esgotado = restamGratis <= 0
   const semSaldo = restamGratis <= 0 && creditos <= 0
-  const [aba, setAba] = useState<Aba>(esgotado ? 'creditos' : 'plano')
+  const [aba, setAba] = useState<Aba>(semSaldo ? 'creditos' : 'plano')
   const [pacote, setPacote] = useState<PacoteCreditoRota | null>(PACOTES_CREDITO_ROTA[0])
   const [txid, setTxid] = useState(() => novoTxidPix())
   const [copiado, setCopiado] = useState(false)
@@ -82,8 +82,8 @@ export function RotaPaywallModal({
   onCreditosLiberadosRef.current = onCreditosLiberados
 
   useEffect(() => {
-    setAba(esgotado ? 'creditos' : 'plano')
-  }, [esgotado])
+    setAba(semSaldo ? 'creditos' : 'plano')
+  }, [semSaldo])
 
   useEffect(() => {
     if (!pacote) return
@@ -329,7 +329,13 @@ export function RotaPaywallModal({
       <div className="mapa-pub-modal__card mapa-pub-modal__card--planos">
         <div className="mapa-pub-modal__topo">
           <h2 id="rota-pub-pay-title">
-            {semSaldo ? 'Comprar mais créditos' : esgotado ? 'Continuar calculando rotas' : 'Conheça os benefícios'}
+            {semSaldo
+              ? 'Comprar mais créditos'
+              : creditos > 0 && esgotado
+                ? 'Seus créditos'
+                : esgotado
+                  ? 'Continuar calculando rotas'
+                  : 'Conheça os benefícios'}
           </h2>
           <button type="button" className="mapa-pub-modal__x" aria-label="Fechar" onClick={onClose}>
             <X size={22} strokeWidth={2.7} />
@@ -338,10 +344,12 @@ export function RotaPaywallModal({
         <p>
           {semSaldo
             ? 'Seus créditos acabaram. Compre mais no PIX para continuar calculando, ou assine um plano.'
-            : esgotado
-              ? `Os ${ROTA_PUBLICO_LIMITE_CALCULOS} cálculos grátis de hoje acabaram. Compre créditos no PIX ou assine um plano.`
-              : `Você ainda tem ${restamGratis} de ${ROTA_PUBLICO_LIMITE_CALCULOS} cálculos grátis hoje. Créditos avulsos no PIX ou plano mensal ilimitado.`}
-          {creditos > 0
+            : creditos > 0 && esgotado
+              ? `Os ${ROTA_PUBLICO_LIMITE_CALCULOS} grátis de hoje acabaram. Os próximos cálculos usam os ${creditos} crédito${creditos === 1 ? '' : 's'} da sua conta (1 por rota). Feche e continue calculando.`
+              : esgotado
+                ? `Os ${ROTA_PUBLICO_LIMITE_CALCULOS} cálculos grátis de hoje acabaram. Compre créditos no PIX ou assine um plano.`
+                : `Você ainda tem ${restamGratis} de ${ROTA_PUBLICO_LIMITE_CALCULOS} cálculos grátis hoje. Créditos avulsos no PIX ou plano mensal ilimitado.`}
+          {creditos > 0 && !esgotado
             ? ` Você já tem ${creditos} crédito${creditos === 1 ? '' : 's'}${conta ? ' na sua conta' : ''}.`
             : ''}
         </p>
@@ -728,7 +736,11 @@ export function RotaPaywallModal({
             <span />
           )}
           <button type="button" className="mapa-pub-modal__fechar" onClick={onClose}>
-            {esgotado ? 'Continuar vendo o último cálculo' : 'Continuar com o cálculo grátis'}
+            {creditos > 0 && esgotado
+              ? `Usar meus ${creditos} crédito${creditos === 1 ? '' : 's'}`
+              : esgotado
+                ? 'Continuar vendo o último cálculo'
+                : 'Continuar com o cálculo grátis'}
           </button>
         </div>
       </div>

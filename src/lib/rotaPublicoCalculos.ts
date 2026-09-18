@@ -93,6 +93,12 @@ export type EstadoCalculosPublicos = {
   presenteIds?: string[]
 }
 
+async function tentarConsumirCredito(): Promise<boolean> {
+  if (await consumirCreditoRotaPublicoConta()) return true
+  await new Promise((r) => window.setTimeout(r, 450))
+  return consumirCreditoRotaPublicoConta()
+}
+
 function estadoComCreditos(
   reg: Registro,
   creditos: number,
@@ -140,10 +146,12 @@ export async function consultarEstadoCalculosPublicos(): Promise<EstadoCalculosP
 }
 
 /** Consome 1 cálculo: primeiro as 2 grátis do dia, depois créditos da conta (ou deste aparelho). */
-export async function registrarCalculoPublico(): Promise<EstadoCalculosPublicos & { ok: boolean }> {
+export async function registrarCalculoPublico(): Promise<
+  EstadoCalculosPublicos & { ok: boolean; motivo?: 'ritmo' | 'saldo' }
+> {
   if (isRotaPublicoIlimitado()) return { ok: true, ...ILIMITADO }
   if (!ritmoPublicoOk()) {
-    return { ok: false, ...(await estadoAtual()) }
+    return { ok: false, motivo: 'ritmo', ...(await estadoAtual()) }
   }
   const local = lerLocal()
   if (local.n < LIMITE) {
@@ -151,8 +159,9 @@ export async function registrarCalculoPublico(): Promise<EstadoCalculosPublicos 
     gravarLocal({ n, dia: diaBrasil() })
     return { ok: true, ...(await estadoAtual()) }
   }
-  if (await consumirCreditoRotaPublicoConta()) {
+  if (await tentarConsumirCredito()) {
     return { ok: true, ...(await estadoAtual()) }
   }
-  return { ok: false, ...(await estadoAtual()) }
+  const estado = await estadoAtual()
+  return { ok: false, motivo: estado.creditos > 0 ? 'ritmo' : 'saldo', ...estado }
 }

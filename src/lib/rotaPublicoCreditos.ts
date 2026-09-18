@@ -41,7 +41,7 @@ export const PACOTES_CREDITO_ROTA: PacoteCreditoRota[] = [
 ]
 
 type RpcCreditos = {
-  ok?: boolean
+  ok?: boolean | string
   creditos?: number
   erro?: string
   ja_creditado?: boolean
@@ -127,8 +127,21 @@ function zerarCreditosLocais() {
 }
 
 function rpcCreditos(data: unknown): RpcCreditos {
+  if (typeof data === 'string') {
+    try {
+      return rpcCreditos(JSON.parse(data))
+    } catch {
+      return {}
+    }
+  }
+  if (Array.isArray(data)) return rpcCreditos(data[0])
   if (!data || typeof data !== 'object') return {}
   return data as RpcCreditos
+}
+
+function rpcOk(data: unknown): boolean {
+  const o = rpcCreditos(data).ok
+  return o === true || o === 'true'
 }
 
 function rpcComTempo<T>(p: Promise<T>, ms = 6000): Promise<T | null> {
@@ -190,8 +203,8 @@ export function consumirCreditoRotaPublico(): boolean {
 export async function consumirCreditoRotaPublicoConta(): Promise<boolean> {
   const conta = await sessaoRotaPublico()
   if (conta && supabase) {
-    const res = await rpcComTempo(supabase.rpc('rota_publico_consumir_credito'))
-    if (res && !res.error && rpcCreditos(res.data).ok) return true
+    const res = await rpcComTempo(supabase.rpc('rota_publico_consumir_credito'), 12000)
+    if (res && !res.error && rpcOk(res.data)) return true
     return false
   }
   return consumirCreditoRotaPublico()
