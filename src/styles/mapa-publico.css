@@ -366,6 +366,11 @@
   overflow: hidden;
 }
 
+.mapa-pub.rota-pub .mapa-frota__lista {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
 .mapa-pub .mapa-frota__search:not(.is-collapsed) {
   min-height: 0;
 }
