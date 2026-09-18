@@ -3,8 +3,15 @@ import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { GoogleGIcon } from './GoogleGIcon'
 import { useRotaPublicoAuth } from '../../lib/rotaPublicoAuth'
+import {
+  rotaPublicoConfirmarCadastro,
+  rotaPublicoConfirmarNovaSenha,
+  rotaPublicoEnviarCodigoCadastro,
+  rotaPublicoEnviarCodigoSenha,
+} from '../../lib/rotaPublicoOtp'
 
 type Aba = 'entrar' | 'criar'
+type Passo = 'form' | 'codigo' | 'nova-senha'
 
 function RotaPublicoLoginCampos({
   onPronto,
@@ -13,14 +20,121 @@ function RotaPublicoLoginCampos({
 }) {
   const auth = useRotaPublicoAuth()
   const [aba, setAba] = useState<Aba>('entrar')
+  const [passo, setPasso] = useState<Passo>('form')
+  const [fluxo, setFluxo] = useState<'cadastro' | 'senha' | null>(null)
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [senha2, setSenha2] = useState('')
+  const [codigo, setCodigo] = useState('')
+  const [busyOtp, setBusyOtp] = useState(false)
+  const [erroOtp, setErroOtp] = useState('')
+  const [infoOtp, setInfoOtp] = useState('')
+
+  const busy = auth.busyEmail || busyOtp
+  const erro = erroOtp || auth.erro
+  const info = infoOtp || auth.info
 
   useEffect(() => {
     if (auth.conta && !auth.redefinirSenha) onPronto?.()
   }, [auth.conta, auth.redefinirSenha, onPronto])
+
+  function limparAvisos() {
+    setErroOtp('')
+    setInfoOtp('')
+  }
+
+  function voltarForm() {
+    setPasso('form')
+    setFluxo(null)
+    setCodigo('')
+    limparAvisos()
+  }
+
+  async function pedirCodigoCadastro() {
+    if (senha !== senha2) return
+    limparAvisos()
+    setBusyOtp(true)
+    const r = await rotaPublicoEnviarCodigoCadastro(email)
+    setBusyOtp(false)
+    if (!r.ok) {
+      setErroOtp(r.erro)
+      return
+    }
+    setFluxo('cadastro')
+    setPasso('codigo')
+    setInfoOtp(r.mensagem || 'Enviamos um código de 6 dígitos para o seu e-mail.')
+  }
+
+  async function pedirCodigoSenha() {
+    limparAvisos()
+    if (!email.includes('@')) {
+      setErroOtp('Informe o e-mail da conta para enviarmos o código.')
+      return
+    }
+    setBusyOtp(true)
+    const r = await rotaPublicoEnviarCodigoSenha(email)
+    setBusyOtp(false)
+    if (!r.ok) {
+      setErroOtp(r.erro)
+      return
+    }
+    setFluxo('senha')
+    setPasso('codigo')
+    setSenha('')
+    setSenha2('')
+    setInfoOtp(r.mensagem || 'Enviamos um código de 6 dígitos para o seu e-mail.')
+  }
+
+  async function reenviarCodigo() {
+    if (fluxo === 'cadastro') {
+      await pedirCodigoCadastro()
+      return
+    }
+    await pedirCodigoSenha()
+  }
+
+  async function confirmarCodigo() {
+    limparAvisos()
+    const digitos = codigo.replace(/\D/g, '')
+    if (digitos.length !== 6) {
+      setErroOtp('Digite o código de 6 números do e-mail.')
+      return
+    }
+    if (fluxo === 'cadastro') {
+      setBusyOtp(true)
+      const r = await rotaPublicoConfirmarCadastro({
+        email,
+        codigo: digitos,
+        senha,
+        nome,
+      })
+      setBusyOtp(false)
+      if (!r.ok) {
+        setErroOtp(r.erro)
+        return
+      }
+      const login = await auth.entrarEmail(email, senha)
+      if (!login.ok) setErroOtp(login.erro || 'Conta criada. Entre com o e-mail e a senha.')
+      return
+    }
+    await gravarNovaSenha()
+  }
+
+  async function gravarNovaSenha() {
+    limparAvisos()
+    if (senha !== senha2) return
+    const digitos = codigo.replace(/\D/g, '')
+    setBusyOtp(true)
+    const r = await rotaPublicoConfirmarNovaSenha({ email, codigo: digitos, senha })
+    setBusyOtp(false)
+    if (!r.ok) {
+      setErroOtp(r.erro)
+      return
+    }
+    const login = await auth.entrarEmail(email, senha)
+    if (!login.ok) setErroOtp(login.erro || 'Senha gravada. Entre com o e-mail e a senha nova.')
+  }
 
   async function enviar(e: FormEvent) {
     e.preventDefault()
@@ -29,9 +143,16 @@ function RotaPublicoLoginCampos({
       await auth.novaSenha(senha)
       return
     }
+    if (passo === 'codigo') {
+      await confirmarCodigo()
+      return
+    }
+    if (passo === 'nova-senha') {
+      await gravarNovaSenha()
+      return
+    }
     if (aba === 'criar') {
-      if (senha !== senha2) return
-      await auth.cadastrar(email, senha, nome)
+      await pedirCodigoCadastro()
       return
     }
     await auth.entrarEmail(email, senha)
@@ -66,11 +187,84 @@ function RotaPublicoLoginCampos({
         {senha && senha2 && senha !== senha2 ? (
           <p className="mapa-pub-login__erro">As senhas não são iguais.</p>
         ) : null}
-        <button type="submit" className="mapa-pub__btn mapa-pub__btn--solid" disabled={auth.busyEmail}>
-          {auth.busyEmail ? 'Salvando…' : 'Salvar senha'}
+        <button type="submit" className="mapa-pub__btn mapa-pub__btn--solid" disabled={busy}>
+          {busy ? 'Salvando…' : 'Salvar senha'}
         </button>
-        {auth.erro ? <p className="mapa-pub-login__erro">{auth.erro}</p> : null}
-        {auth.info ? <p className="mapa-pub-login__ok">{auth.info}</p> : null}
+        {erro ? <p className="mapa-pub-login__erro">{erro}</p> : null}
+        {info ? <p className="mapa-pub-login__ok">{info}</p> : null}
+      </form>
+    )
+  }
+
+  if (passo === 'codigo' || passo === 'nova-senha') {
+    return (
+      <form className="mapa-pub-login__form" onSubmit={(e) => void enviar(e)}>
+        <p className="mapa-pub-login__aviso">
+          {fluxo === 'senha'
+            ? `Digite o código enviado para ${email} e escolha a senha nova.`
+            : `Digite o código de 6 números que enviamos para ${email}.`}
+        </p>
+        <label>
+          Código do e-mail
+          <input
+            className="mapa-pub-login__codigo"
+            value={codigo}
+            onChange={(e) => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            placeholder="000000"
+            maxLength={6}
+            required
+          />
+        </label>
+        {fluxo === 'senha' ? (
+          <>
+            <label>
+              Nova senha
+              <input
+                type="password"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                minLength={6}
+                autoComplete="new-password"
+                required
+              />
+            </label>
+            <label>
+              Repetir senha
+              <input
+                type="password"
+                value={senha2}
+                onChange={(e) => setSenha2(e.target.value)}
+                minLength={6}
+                autoComplete="new-password"
+                required
+              />
+            </label>
+            {senha && senha2 && senha !== senha2 ? (
+              <p className="mapa-pub-login__erro">As senhas não são iguais.</p>
+            ) : null}
+          </>
+        ) : null}
+        <button
+          type="submit"
+          className="mapa-pub__btn mapa-pub__btn--solid"
+          disabled={busy || (fluxo === 'senha' && senha !== senha2)}
+        >
+          {busy
+            ? 'Aguarde…'
+            : fluxo === 'cadastro'
+              ? 'Confirmar e criar conta'
+              : 'Confirmar e salvar senha'}
+        </button>
+        <button type="button" className="mapa-pub-login__esqueci" disabled={busy} onClick={() => void reenviarCodigo()}>
+          Reenviar código
+        </button>
+        <button type="button" className="mapa-pub-login__esqueci" disabled={busy} onClick={voltarForm}>
+          Voltar
+        </button>
+        {erro ? <p className="mapa-pub-login__erro">{erro}</p> : null}
+        {info ? <p className="mapa-pub-login__ok">{info}</p> : null}
       </form>
     )
   }
@@ -83,7 +277,7 @@ function RotaPublicoLoginCampos({
       <button
         type="button"
         className="mapa-pub__btn mapa-pub__btn--google"
-        disabled={auth.busyGoogle || auth.busyEmail}
+        disabled={auth.busyGoogle || busy}
         onClick={() => void auth.entrar()}
       >
         <GoogleGIcon />
@@ -96,7 +290,10 @@ function RotaPublicoLoginCampos({
           role="tab"
           className={aba === 'entrar' ? 'is-on' : ''}
           aria-selected={aba === 'entrar'}
-          onClick={() => setAba('entrar')}
+          onClick={() => {
+            setAba('entrar')
+            limparAvisos()
+          }}
         >
           Entrar
         </button>
@@ -105,7 +302,10 @@ function RotaPublicoLoginCampos({
           role="tab"
           className={aba === 'criar' ? 'is-on' : ''}
           aria-selected={aba === 'criar'}
-          onClick={() => setAba('criar')}
+          onClick={() => {
+            setAba('criar')
+            limparAvisos()
+          }}
         >
           Criar conta
         </button>
@@ -160,25 +360,23 @@ function RotaPublicoLoginCampos({
         {aba === 'criar' && senha && senha2 && senha !== senha2 ? (
           <p className="mapa-pub-login__erro">As senhas não são iguais.</p>
         ) : null}
+        {aba === 'criar' ? (
+          <p className="mapa-pub-login__aviso">Vamos enviar um código de 6 números para este e-mail, para confirmar.</p>
+        ) : null}
         <button
           type="submit"
           className="mapa-pub__btn mapa-pub__btn--solid"
-          disabled={auth.busyEmail || (aba === 'criar' && senha !== senha2)}
+          disabled={busy || (aba === 'criar' && senha !== senha2)}
         >
-          {auth.busyEmail ? 'Aguarde…' : aba === 'criar' ? 'Criar conta' : 'Entrar'}
+          {busy ? 'Aguarde…' : aba === 'criar' ? 'Enviar código' : 'Entrar'}
         </button>
         {aba === 'entrar' ? (
-          <button
-            type="button"
-            className="mapa-pub-login__esqueci"
-            disabled={auth.busyEmail || !email.includes('@')}
-            onClick={() => void auth.recuperar(email)}
-          >
+          <button type="button" className="mapa-pub-login__esqueci" disabled={busy} onClick={() => void pedirCodigoSenha()}>
             Esqueci a senha
           </button>
         ) : null}
-        {auth.erro ? <p className="mapa-pub-login__erro">{auth.erro}</p> : null}
-        {auth.info ? <p className="mapa-pub-login__ok">{auth.info}</p> : null}
+        {erro ? <p className="mapa-pub-login__erro">{erro}</p> : null}
+        {info ? <p className="mapa-pub-login__ok">{info}</p> : null}
       </form>
     </div>
   )

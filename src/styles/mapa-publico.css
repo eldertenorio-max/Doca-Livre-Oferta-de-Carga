@@ -303,6 +303,14 @@
   color: #166534;
 }
 
+.mapa-pub-login__codigo {
+  font-size: 1.35rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.35em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
 .mapa-pub-login .mapa-pub__btn--google {
   width: 100%;
 }

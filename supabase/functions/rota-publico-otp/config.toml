@@ -1,0 +1,2 @@
+[functions.rota-publico-otp]
+verify_jwt = false
