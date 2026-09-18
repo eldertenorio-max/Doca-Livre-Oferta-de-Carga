@@ -150,6 +150,7 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
   const filtrosWrapRef = useRef<HTMLDivElement>(null)
   const legendaWrapRef = useRef<HTMLDivElement>(null)
   const mapWrapRef = useRef<HTMLDivElement>(null)
+  const clicarPinRef = useRef<(e: Empresa) => void>(() => {})
   // Mantém o endereço em que o mapa já está (raiz para visitante) ao filtrar.
   const basePath = publico ? pathname : '/embarcador/mapa-logistica'
   const visitante = publico && !sessao
@@ -312,23 +313,18 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
           `<strong>${escapeHtml(e.nome_fantasia)}</strong><br/>${cat.label}<br/>${e.cidade}/${e.uf}`,
           { direction: 'top', offset: [0, -28] },
         )
-        marker.on('click', () => {
-          manterFocoRef.current = true
-          setSelecionada(e.id)
-          navigate(`/embarcador/mapa-logistica/empresa/${e.slug}?from=mapa`)
-        })
-      } else {
-        marker.on('click', () => {
-          manterFocoRef.current = true
-          setSelecionada(e.id)
-        })
       }
+      marker.off('click')
+      marker.on('click', (ev) => {
+        L.DomEvent.stop(ev)
+        clicarPinRef.current(e)
+      })
       marker.addTo(camada)
       markersRef.current.set(e.id, marker)
     }
 
     window.setTimeout(() => map.invalidateSize(), 80)
-  }, [pinsNoMapa, navigate, visitante, selecionada, empresas])
+  }, [pinsNoMapa, visitante, selecionada, empresas])
 
   useEffect(() => {
     const map = mapRef.current
@@ -378,6 +374,25 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
     window.setTimeout(() => {
       document.getElementById(`emp-lista-${e.id}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
     }, 50)
+  }
+
+  async function clicarPin(e: Empresa) {
+    const marca = nomeMarca(e)
+    const irmaos = empresasPorNome(empresas, marca)
+    const jaNaMarca = semAcento(query.trim()) === semAcento(marca)
+    if (irmaos.length > 1 && !jaNaMarca) {
+      if (!(await consumirBusca())) return
+      manterFocoRef.current = true
+      setSelecionada(null)
+      setQuery(marca)
+      mapRef.current?.closePopup()
+      if (typeof window !== 'undefined' && window.innerWidth <= 900) setAbaMobile('lista')
+      return
+    }
+    irPara(e)
+  }
+  clicarPinRef.current = (e) => {
+    void clicarPin(e)
   }
 
   async function consumirBusca() {
@@ -431,8 +446,7 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
           const marca = nomeMarca(e)
           const irmaos = empresasPorNome(empresas, marca)
           setQuery(marca)
-          const filialEspecifica = Boolean(e.hierarquia_superior) || e.nome_fantasia.includes(' — ')
-          if (irmaos.length <= 1 || filialEspecifica) irPara(e)
+          if (irmaos.length <= 1) irPara(e)
         }
       }
     }
@@ -884,7 +898,7 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
         >
           <div className="mapa-log__map-help">
             <MapaFrotaAjuda
-              texto="Clique no campo, digite e escolha a sugestão. O mapa mostra só as empresas selecionadas."
+              texto="Clique no pin de uma empresa para listar todas as unidades no mapa. Clique de novo na que quiser para destacar."
               ariaLabel="Como usar o mapa"
             />
           </div>
