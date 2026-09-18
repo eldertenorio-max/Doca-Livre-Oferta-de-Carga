@@ -50,6 +50,12 @@ function temCoordenada(e: Empresa) {
   return Number.isFinite(e.lat) && Number.isFinite(e.lng)
 }
 
+function ufsDasRegioes(ids: string[]) {
+  return new Set(
+    ids.flatMap((id) => [...(REGIOES.find((r) => r.id === id)?.ufs ?? [])]),
+  )
+}
+
 function pinIcon(e: Empresa, selecionada = false) {
   const cat = categoriaPorId(e.categoria)
   const tamanho = selecionada ? 48 : 36
@@ -201,9 +207,37 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
     ) as Record<CategoriaId, number>
   }, [filtros, empresas])
 
-  const ufsOpcoes = useMemo(() => ufsDoCadastro(empresas), [empresas])
-  const cidadesOpcoes = useMemo(() => cidadesDoCadastro(empresas), [empresas])
+  const ufsOpcoes = useMemo(
+    () => ufsDoCadastro(aplicarFiltros(empresas, { ...filtros, ufs: [], cidades: [] })),
+    [empresas, filtros],
+  )
+  const cidadesOpcoes = useMemo(
+    () => cidadesDoCadastro(aplicarFiltros(empresas, { ...filtros, cidades: [] })),
+    [empresas, filtros],
+  )
   const funcoesOpcoes = useMemo(() => todasFuncoesFiltro(), [])
+  const regioesOpcoes = useMemo(() => {
+    const base = aplicarFiltros(empresas, { ...filtros, regioes: [] })
+    return REGIOES.map((r) => ({
+      ...r,
+      qtd: base.filter((e) => (r.ufs as readonly string[]).includes(e.uf)).length,
+    })).filter((r) => r.qtd > 0 || regioes.includes(r.id))
+  }, [empresas, filtros, regioes])
+  const niveisOpcoes = useMemo(() => {
+    const base = aplicarFiltros(empresas, { ...filtros, niveis: [] })
+    return NIVEIS_INTEGRACAO.map((n) => ({
+      ...n,
+      qtd: base.filter((e) => e.nivel_integracao === n.id).length,
+    })).filter((n) => n.qtd > 0 || niveis.includes(n.id))
+  }, [empresas, filtros, niveis])
+  const origensOpcoes = useMemo(() => {
+    const base = aplicarFiltros(empresas, { ...filtros, origens: [] })
+    return (Object.keys(ORIGEM_META) as OrigemCadastro[]).map((id) => ({
+      id,
+      label: ORIGEM_META[id].label,
+      qtd: base.filter((e) => e.origem === id).length,
+    })).filter((o) => o.qtd > 0 || origens.includes(o.id))
+  }, [empresas, filtros, origens])
 
   const chipsAtivos = useMemo(() => {
     const chips: { key: string; label: string; limpar: () => void }[] = []
@@ -484,6 +518,39 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
     navigate(escolhida ? `${basePath}?cat=${escolhida}` : basePath)
   }
 
+  function podarCidades(proximo: { ufs?: string[]; regioes?: string[] }) {
+    const pool = aplicarFiltros(empresas, {
+      ...filtros,
+      ufs: proximo.ufs ?? ufs,
+      regioes: proximo.regioes ?? regioes,
+      cidades: [],
+    })
+    const validas = new Set(
+      cidadesDoCadastro(pool).flatMap((c) => [c.cidade, `${c.cidade} ${c.uf}`]),
+    )
+    setCidades((atual) => atual.filter((c) => validas.has(c)))
+  }
+
+  function escolherUf(id: string) {
+    const uf = id.toUpperCase()
+    const next = toggleItem(ufs, uf)
+    setUfs(next)
+    podarCidades({ ufs: next })
+  }
+
+  function escolherRegiao(id: string) {
+    const next = toggleItem(regioes, id)
+    setRegioes(next)
+    const permitidas = ufsDasRegioes(next)
+    const nextUfs = next.length ? ufs.filter((uf) => permitidas.has(uf)) : ufs
+    if (next.length) setUfs(nextUfs)
+    podarCidades({ regioes: next, ufs: nextUfs })
+  }
+
+  function escolherCidade(id: string) {
+    setCidades((a) => toggleItem(a, id))
+  }
+
   // O popup do Leaflet corta a subida do evento, por isso escuto na descida (captura).
   useEffect(() => {
     function abrirPaywall(ev: MouseEvent) {
@@ -747,6 +814,7 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
                   id="rapidas"
                   titulo="Sugestões rápidas"
                   placeholder="Digite ou clique para ver sugestões"
+                  selecionados={funcoes}
                   aberto={filtroAberto === 'rapidas'}
                   onFoco={() => setFiltroAberto('rapidas')}
                   permitirLivre
@@ -762,6 +830,7 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
                   id="funcao"
                   titulo="Função"
                   placeholder="Digite a função, ex.: empilhadeira"
+                  selecionados={funcoes}
                   aberto={filtroAberto === 'funcao'}
                   onFoco={() => setFiltroAberto('funcao')}
                   permitirLivre
@@ -773,9 +842,29 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
                   onEscolher={(id) => setFuncoes((a) => toggleItem(a, id))}
                 />
                 <FiltroCampo
+                  id="regiao"
+                  titulo="Região"
+                  placeholder="Digite a região, ex.: Sudeste"
+                  selecionados={regioes.map((id) => REGIOES.find((r) => r.id === id)?.label ?? id)}
+                  aberto={filtroAberto === 'regiao'}
+                  onFoco={() => setFiltroAberto('regiao')}
+                  opcoes={regioesOpcoes.map((r) => ({
+                    id: r.id,
+                    label: r.label,
+                    detalhe: `${r.ufs.join(', ')} · ${r.qtd}`,
+                    ativo: regioes.includes(r.id),
+                  }))}
+                  onEscolher={escolherRegiao}
+                />
+                <FiltroCampo
                   id="estado"
                   titulo="Estado"
-                  placeholder="Digite a UF, ex.: SP"
+                  placeholder={
+                    regioes.length
+                      ? `Estados em ${regioes.map((id) => REGIOES.find((r) => r.id === id)?.label ?? id).join(', ')}`
+                      : 'Digite a UF, ex.: SP'
+                  }
+                  selecionados={ufs}
                   aberto={filtroAberto === 'estado'}
                   onFoco={() => setFiltroAberto('estado')}
                   opcoes={ufsOpcoes.map((u) => ({
@@ -784,47 +873,41 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
                     detalhe: `${u.qtd} empresas`,
                     ativo: ufs.includes(u.uf),
                   }))}
-                  onEscolher={(id) => setUfs((a) => toggleItem(a, id.toUpperCase()))}
-                />
-                <FiltroCampo
-                  id="regiao"
-                  titulo="Região"
-                  placeholder="Digite a região, ex.: Sudeste"
-                  aberto={filtroAberto === 'regiao'}
-                  onFoco={() => setFiltroAberto('regiao')}
-                  opcoes={REGIOES.map((r) => ({
-                    id: r.id,
-                    label: r.label,
-                    detalhe: r.ufs.join(', '),
-                    ativo: regioes.includes(r.id),
-                  }))}
-                  onEscolher={(id) => setRegioes((a) => toggleItem(a, id))}
+                  onEscolher={escolherUf}
                 />
                 <FiltroCampo
                   id="cidade"
                   titulo="Cidade"
-                  placeholder="Digite a cidade"
+                  placeholder={
+                    ufs.length
+                      ? `Cidades em ${ufs.join(', ')}`
+                      : regioes.length
+                        ? `Cidades da região`
+                        : 'Digite a cidade'
+                  }
+                  selecionados={cidades}
                   aberto={filtroAberto === 'cidade'}
                   onFoco={() => setFiltroAberto('cidade')}
                   permitirLivre
                   opcoes={cidadesOpcoes.map((c) => ({
-                    id: c.cidade,
+                    id: `${c.cidade} ${c.uf}`,
                     label: c.cidade,
                     detalhe: `${c.uf} · ${c.qtd}`,
-                    ativo: cidades.includes(c.cidade),
+                    ativo: cidades.includes(c.cidade) || cidades.includes(`${c.cidade} ${c.uf}`),
                   }))}
-                  onEscolher={(id) => setCidades((a) => toggleItem(a, id))}
+                  onEscolher={escolherCidade}
                 />
                 <FiltroCampo
                   id="nivel"
                   titulo="Nível de integração"
                   placeholder="Digite o nível"
+                  selecionados={niveis.map((id) => NIVEIS_INTEGRACAO.find((n) => n.id === id)?.label ?? id)}
                   aberto={filtroAberto === 'nivel'}
                   onFoco={() => setFiltroAberto('nivel')}
-                  opcoes={NIVEIS_INTEGRACAO.map((n) => ({
+                  opcoes={niveisOpcoes.map((n) => ({
                     id: n.id,
                     label: n.label,
-                    detalhe: n.resumo,
+                    detalhe: `${n.resumo} · ${n.qtd}`,
                     ativo: niveis.includes(n.id),
                   }))}
                   onEscolher={(id) => setNiveis((a) => toggleItem(a, id as NivelIntegracaoId))}
@@ -833,12 +916,14 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
                   id="origem"
                   titulo="Origem do cadastro"
                   placeholder="Digite a origem"
+                  selecionados={origens.map((id) => ORIGEM_META[id].label)}
                   aberto={filtroAberto === 'origem'}
                   onFoco={() => setFiltroAberto('origem')}
-                  opcoes={(Object.keys(ORIGEM_META) as OrigemCadastro[]).map((id) => ({
-                    id,
-                    label: ORIGEM_META[id].label,
-                    ativo: origens.includes(id),
+                  opcoes={origensOpcoes.map((o) => ({
+                    id: o.id,
+                    label: o.label,
+                    detalhe: `${o.qtd} empresas`,
+                    ativo: origens.includes(o.id),
                   }))}
                   onEscolher={(id) => setOrigens((a) => toggleItem(a, id as OrigemCadastro))}
                 />
@@ -983,6 +1068,7 @@ function FiltroCampo({
   titulo,
   placeholder,
   opcoes,
+  selecionados,
   aberto,
   onFoco,
   onEscolher,
@@ -992,6 +1078,7 @@ function FiltroCampo({
   titulo: string
   placeholder: string
   opcoes: { id: string; label: string; detalhe?: string; ativo?: boolean }[]
+  selecionados?: string[]
   aberto: boolean
   onFoco: () => void
   onEscolher: (id: string) => void
@@ -999,6 +1086,8 @@ function FiltroCampo({
 }) {
   const [texto, setTexto] = useState('')
   const [ativa, setAtiva] = useState(0)
+  const resumo = (selecionados ?? []).filter(Boolean).join(', ')
+  const exibindo = texto || resumo
 
   const lista = useMemo(() => {
     const q = semAcento(texto).trim()
@@ -1036,15 +1125,18 @@ function FiltroCampo({
       </label>
       <input
         id={`filtro-${id}`}
-        className="mapa-log__input"
+        className={`mapa-log__input${resumo && !texto ? ' is-filled' : ''}`}
         placeholder={placeholder}
-        value={texto}
+        value={exibindo}
         autoComplete="off"
         spellCheck={false}
         role="combobox"
         aria-expanded={aberto}
         aria-controls={`filtro-lista-${id}`}
-        onFocus={onFoco}
+        onFocus={(ev) => {
+          onFoco()
+          if (!texto && resumo) ev.currentTarget.select()
+        }}
         onClick={onFoco}
         onChange={(ev) => {
           setTexto(ev.target.value)
@@ -1076,7 +1168,7 @@ function FiltroCampo({
             <li className="mapa-log__filtro-vazia">
               {permitirLivre && texto.trim()
                 ? `Enter para usar “${texto.trim()}”`
-                : 'Nenhuma sugestão. Continue digitando.'}
+                : 'Nenhuma sugestão neste recorte. Ajuste o filtro anterior.'}
             </li>
           ) : (
             lista.map((o, i) => (

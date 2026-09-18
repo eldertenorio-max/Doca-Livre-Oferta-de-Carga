@@ -228,6 +228,13 @@
   border-color: #111827;
 }
 
+.mapa-log__input.is-filled {
+  font-weight: 700;
+  color: #0f172a;
+  background: #fffbeb;
+  border-color: #f59e0b;
+}
+
 .mapa-log__sugestoes {
   position: absolute;
   left: 0;
