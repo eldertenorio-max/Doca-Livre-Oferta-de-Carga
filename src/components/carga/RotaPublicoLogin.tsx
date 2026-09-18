@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { GoogleGIcon } from './GoogleGIcon'
@@ -34,10 +34,12 @@ function RotaPublicoLoginCampos({
   const busy = auth.busyEmail || busyOtp
   const erro = erroOtp || auth.erro
   const info = infoOtp || auth.info
+  const onProntoRef = useRef(onPronto)
+  onProntoRef.current = onPronto
 
   useEffect(() => {
-    if (auth.conta && !auth.redefinirSenha) onPronto?.()
-  }, [auth.conta, auth.redefinirSenha, onPronto])
+    if (auth.conta && !auth.redefinirSenha) onProntoRef.current?.()
+  }, [auth.conta, auth.redefinirSenha])
 
   function limparAvisos() {
     setErroOtp('')

@@ -646,6 +646,12 @@ export function RotaMapPreview({
     setStatus('loading')
     setMsg(mostrarCustos ? 'Calculando trajeto e pedágios…' : 'Calculando trajeto…')
     const id = ++reqId.current
+    const watchdog = window.setTimeout(() => {
+      if (id !== reqId.current) return
+      reqId.current += 1
+      setStatus('erro')
+      setMsg('O trajeto demorou demais. Clique em Calcular de novo.')
+    }, 22000)
     const eixos =
       eixosProp && eixosProp > 0
         ? Math.round(eixosProp)
@@ -926,6 +932,7 @@ export function RotaMapPreview({
           duration: 1.1,
         })
         window.setTimeout(() => map.invalidateSize(), 60)
+        if (id !== reqId.current) return
 
         setMeta({
           km: rota.distanciaKm,
@@ -943,9 +950,13 @@ export function RotaMapPreview({
           duracaoMin: rota.duracaoMin,
         })
       })()
+        .finally(() => window.clearTimeout(watchdog))
     }, 550)
 
-    return () => window.clearTimeout(timer)
+    return () => {
+      window.clearTimeout(timer)
+      window.clearTimeout(watchdog)
+    }
   }, [
     origem,
     destino,
@@ -1014,8 +1025,17 @@ export function RotaMapPreview({
   }, [globeSaindo])
 
   useEffect(() => {
-    if (!showGlobe) setGlobeReady(false)
-  }, [showGlobe])
+    if (!showGlobe) {
+      setGlobeReady(false)
+      return
+    }
+    if (globeReady) return
+    const t = window.setTimeout(() => {
+      autoSairGloboRef.current = true
+      setGlobeSaindo(true)
+    }, 16000)
+    return () => window.clearTimeout(t)
+  }, [showGlobe, globeReady])
 
   useEffect(() => {
     document.documentElement.classList.toggle('rota-map-is-full', mapaCheio)

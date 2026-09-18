@@ -98,13 +98,14 @@
 .rota-pub.mapa-pub .mapa-frota__search,
 .rota-pub .mapa-frota__search {
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 180px;
   display: flex;
   flex-direction: column;
   background: transparent;
   border-bottom: 0;
   padding: 2px 10px 8px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .rota-pub.mapa-pub .mapa-frota__search-body,

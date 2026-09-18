@@ -5,7 +5,7 @@ import { AppErrorBoundary } from './components/AppErrorBoundary'
 import { isSiteOfertaDeCarga, isSitePublicoLimpo } from './lib/siteOfertaDeCarga'
 import './index.css'
 
-const BUILD_ID = 'rota-publico-cache-v304'
+const BUILD_ID = 'rota-publico-cache-v305'
 
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (e) => {
@@ -32,6 +32,39 @@ function mostrarFalha(erro: unknown) {
   document.getElementById('doca-fail-retry')?.addEventListener('click', () => location.reload())
 }
 
+function comTempo<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise((resolve) => {
+    const t = window.setTimeout(() => resolve(fallback), ms)
+    void p.then(
+      (v) => {
+        window.clearTimeout(t)
+        resolve(v)
+      },
+      () => {
+        window.clearTimeout(t)
+        resolve(fallback)
+      },
+    )
+  })
+}
+
+/** SW antigo no site público intercepta JS e deixa o boot em branco. Não espera isso para pintar. */
+async function soltarServiceWorkerPublico(): Promise<boolean> {
+  if (!('serviceWorker' in navigator)) return false
+  const tinha = Boolean(navigator.serviceWorker.controller)
+  const regs = await comTempo(navigator.serviceWorker.getRegistrations(), 700, [] as ServiceWorkerRegistration[])
+  await Promise.all(regs.map((r) => r.unregister().catch(() => false)))
+  if (!tinha) return false
+  try {
+    if (sessionStorage.getItem('doca-sw-reload') === BUILD_ID) return false
+    sessionStorage.setItem('doca-sw-reload', BUILD_ID)
+  } catch {
+    return false
+  }
+  location.reload()
+  return true
+}
+
 function limparCacheMorto() {
   const key = `doca-build:${BUILD_ID}`
   try {
@@ -46,10 +79,6 @@ function limparCacheMorto() {
         const keys = await caches.keys()
         await Promise.all(keys.map((k) => caches.delete(k)))
       }
-      if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations()
-        await Promise.all(regs.map((r) => r.unregister()))
-      }
     } catch {
       /* ignore */
     }
@@ -57,12 +86,22 @@ function limparCacheMorto() {
 }
 
 async function boot() {
-  limparCacheMorto()
   const publico = isSitePublicoLimpo()
   const Router = publico ? BrowserRouter : HashRouter
 
   try {
-    const appMod = await (publico ? import('./PublicApp') : import('./App'))
+    if (publico) {
+      const recarregou = await soltarServiceWorkerPublico()
+      if (recarregou) return
+    }
+
+    const appP = publico ? import('./PublicApp') : import('./App')
+    if (publico && isSiteOfertaDeCarga()) {
+      void import('./pages/publico/CalcularRotaPublico')
+      void import('./components/carga/RotaMapPreview')
+    }
+    const appMod = await appP
+
     if (!publico) {
       const { registerSW } = await import('virtual:pwa-register')
       registerSW({
@@ -73,9 +112,6 @@ async function boot() {
           window.setInterval(() => void reg.update(), 60_000)
         },
       })
-    } else if ('serviceWorker' in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations()
-      await Promise.all(regs.map((r) => r.unregister()))
     }
 
     const App = appMod.default
@@ -108,6 +144,7 @@ async function boot() {
       )
     }
     marcarBoot()
+    limparCacheMorto()
   } catch (e) {
     console.error('[boot]', e)
     mostrarFalha(e)

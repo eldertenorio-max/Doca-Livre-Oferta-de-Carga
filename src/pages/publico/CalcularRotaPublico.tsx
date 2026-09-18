@@ -620,19 +620,27 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
           v.endereco.length >= 3 ||
           (v.lat != null && v.lng != null && Number.isFinite(v.lat) && Number.isFinite(v.lng)),
       )
-    const res = await calcularRotaOperacional({
-      origem: oTxt,
-      destino: dTxt,
-      eixos: ex,
-      consumoKmL: consKmL,
-      precoDiesel: diesel,
-      idaEVolta: volta,
-      preferencia: pref,
-      categoriaId: cat,
-      waypoints,
-      origemCoords: oHint,
-      destinoCoords: dHint,
-    })
+    const res = await Promise.race([
+      calcularRotaOperacional({
+        origem: oTxt,
+        destino: dTxt,
+        eixos: ex,
+        consumoKmL: consKmL,
+        precoDiesel: diesel,
+        idaEVolta: volta,
+        preferencia: pref,
+        categoriaId: cat,
+        waypoints,
+        origemCoords: oHint,
+        destinoCoords: dHint,
+      }),
+      new Promise<{ ok: false; erro: string }>((resolve) => {
+        window.setTimeout(
+          () => resolve({ ok: false, erro: 'O cálculo demorou demais. Tente de novo.' }),
+          25000,
+        )
+      }),
+    ])
     if (id !== reqId.current) return
     setBusy(false)
     if (!res.ok) {
@@ -733,6 +741,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
           ? dados.preferencia
           : 'eficiente',
       categoriaId: dados.categoriaId ?? null,
+      pularCota: true,
     })
     // Só na abertura do link compartilhado.
     // eslint-disable-next-line react-hooks/exhaustive-deps

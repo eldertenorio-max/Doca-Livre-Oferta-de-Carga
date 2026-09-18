@@ -45,9 +45,9 @@ export function redirectOAuthRotaPublico() {
 
 export async function sessaoRotaPublico(): Promise<ContaRotaPublico | null> {
   if (!supabase) return null
-  const { data } = await supabase.auth.getSession()
-  const user = data.session?.user
-  return user ? contaDeUser(user) : null
+  if (authPronto) return authLast
+  await garantirAuth()
+  return authLast
 }
 
 function mensagemErroGoogle(raw: string) {
@@ -224,24 +224,73 @@ export async function sairRotaPublico() {
 
 let senhaRecoveryAtiva = false
 
-export function ouvirSessaoRotaPublico(cb: (conta: ContaRotaPublico | null) => void): () => void {
+type AuthCb = (conta: ContaRotaPublico | null) => void
+const authCbs = new Set<AuthCb>()
+let authLast: ContaRotaPublico | null = null
+let authPronto = false
+let authStart: Promise<void> | null = null
+
+function emitirAuth(conta: ContaRotaPublico | null) {
+  authLast = conta
+  authPronto = true
+  authCbs.forEach((cb) => cb(conta))
+}
+
+function sessaoDeGet(data: { session: { user: User } | null } | null) {
+  const user = data?.session?.user
+  return user ? contaDeUser(user) : null
+}
+
+function garantirAuth(): Promise<void> {
+  if (!supabase) {
+    authPronto = true
+    authLast = null
+    return Promise.resolve()
+  }
+  if (authStart) return authStart
+  const client = supabase
+  authStart = new Promise<void>((resolve) => {
+    let done = false
+    const finish = (conta: ContaRotaPublico | null) => {
+      if (conta) emitirAuth(conta)
+      else if (!authPronto) emitirAuth(null)
+      if (done) return
+      done = true
+      resolve()
+    }
+    const t = window.setTimeout(() => finish(authLast), 4000)
+    void client.auth.getSession().then(
+      ({ data }) => {
+        window.clearTimeout(t)
+        finish(sessaoDeGet(data))
+      },
+      () => {
+        window.clearTimeout(t)
+        finish(authLast)
+      },
+    )
+    client.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') senhaRecoveryAtiva = true
+      emitirAuth(session?.user ? contaDeUser(session.user) : null)
+      if (!done) {
+        done = true
+        resolve()
+      }
+    })
+  })
+  return authStart
+}
+
+export function ouvirSessaoRotaPublico(cb: AuthCb): () => void {
   if (!supabase) {
     cb(null)
     return () => {}
   }
-  let alive = true
-  void supabase.auth.getSession().then(({ data }) => {
-    if (!alive) return
-    cb(data.session?.user ? contaDeUser(data.session.user) : null)
-  })
-  const { data } = supabase.auth.onAuthStateChange((event, session) => {
-    if (event === 'PASSWORD_RECOVERY') senhaRecoveryAtiva = true
-    if (!alive) return
-    cb(session?.user ? contaDeUser(session.user) : null)
-  })
+  authCbs.add(cb)
+  if (authPronto) cb(authLast)
+  void garantirAuth()
   return () => {
-    alive = false
-    data.subscription.unsubscribe()
+    authCbs.delete(cb)
   }
 }
 

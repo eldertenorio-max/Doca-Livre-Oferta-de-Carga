@@ -131,6 +131,22 @@ function rpcCreditos(data: unknown): RpcCreditos {
   return data as RpcCreditos
 }
 
+function rpcComTempo<T>(p: Promise<T>, ms = 6000): Promise<T | null> {
+  return new Promise((resolve) => {
+    const t = window.setTimeout(() => resolve(null), ms)
+    void p.then(
+      (v) => {
+        window.clearTimeout(t)
+        resolve(v)
+      },
+      () => {
+        window.clearTimeout(t)
+        resolve(null)
+      },
+    )
+  })
+}
+
 export function creditosRotaPublico(): number {
   return lerCreditosLocais()
 }
@@ -139,9 +155,9 @@ export async function consultarCreditosRotaPublico(): Promise<SaldoRotaPublico> 
   const vazio: SaldoRotaPublico = { creditos: 0, presente: 0, presenteIds: [] }
   const conta = await sessaoRotaPublico()
   if (conta && supabase) {
-    const { data, error } = await supabase.rpc('rota_publico_meus_creditos')
-    if (!error) {
-      const parsed = rpcCreditos(data)
+    const res = await rpcComTempo(supabase.rpc('rota_publico_meus_creditos'))
+    if (res && !res.error) {
+      const parsed = rpcCreditos(res.data)
       const n = Number(parsed.creditos)
       const presente = Number(parsed.presente)
       return {
@@ -174,8 +190,8 @@ export function consumirCreditoRotaPublico(): boolean {
 export async function consumirCreditoRotaPublicoConta(): Promise<boolean> {
   const conta = await sessaoRotaPublico()
   if (conta && supabase) {
-    const { data, error } = await supabase.rpc('rota_publico_consumir_credito')
-    if (!error && rpcCreditos(data).ok) return true
+    const res = await rpcComTempo(supabase.rpc('rota_publico_consumir_credito'))
+    if (res && !res.error && rpcCreditos(res.data).ok) return true
     return false
   }
   return consumirCreditoRotaPublico()
@@ -235,15 +251,15 @@ export async function migrarCreditosLocaisParaConta(): Promise<number | null> {
   const conta = await sessaoRotaPublico()
   if (!conta || !supabase) return local
   if (local > 0) {
-    const { data, error } = await supabase.rpc('rota_publico_migrar_local', { p_saldo: local })
-    if (error || !rpcCreditos(data).ok) return local
+    const res = await rpcComTempo(
+      supabase.rpc('rota_publico_migrar_local', { p_saldo: local }),
+    )
+    if (!res || res.error || !rpcCreditos(res.data).ok) return local
     zerarCreditosLocais()
-    const n = Number(rpcCreditos(data).creditos)
+    const n = Number(rpcCreditos(res.data).creditos)
     return Number.isFinite(n) ? Math.floor(n) : 0
   }
-  const { data } = await supabase.rpc('rota_publico_meus_creditos')
-  const n = Number(rpcCreditos(data).creditos)
-  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0
+  return local
 }
 
 export function novoTxidPix() {
