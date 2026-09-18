@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, lazy, Suspense, Fragment, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useId, useRef, useState, Fragment, type PointerEvent as ReactPointerEvent } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowUpDown,
@@ -74,15 +74,10 @@ import {
   listarRotasNesteAparelho,
   type RotaSalvaLocal,
 } from '../../lib/rotaResultadoAcoes'
+import { RotaMapPreview } from '../../components/carga/RotaMapPreview'
 import '../../styles/mapa-frota.css'
 import '../../styles/mapa-publico.css'
 import '../../styles/rota-publico.css'
-
-const RotaMapPreview = lazy(() =>
-  import('../../components/carga/RotaMapPreview').then((m) => ({
-    default: m.RotaMapPreview,
-  })),
-)
 
 type Coord = { lat: number; lng: number }
 type Via = { id: string; endereco: string; lat?: number | null; lng?: number | null }
@@ -179,6 +174,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
   const userRef = useRef(user)
   const cotaBusyRef = useRef(false)
   const paywallEsgotadoMostrado = useRef(false)
+  const paywallAuto = useRef(false)
   userRef.current = user
 
   const [origem, setOrigem] = useState('')
@@ -210,6 +206,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
   const [cota, setCota] = useState<EstadoCalculosPublicos>(() =>
     ilimitado ? COTA_ILIMITADA : estadoCalculosPublicos(),
   )
+  const [cotaPronta, setCotaPronta] = useState(() => ilimitado)
   const [showPaywall, setShowPaywall] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
   const [presente, setPresente] = useState<{ creditos: number; ids: string[] } | null>(null)
@@ -244,6 +241,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
       const estado = await consultarEstadoCalculosPublicos()
       if (!alive) return
       if (!ilimitado) setCota(estado)
+      setCotaPronta(true)
       const n = estado.presente || 0
       const ids = estado.presenteIds || []
       if (n > 0 && ids.length > 0 && !presenteJaVistoLocal(ids)) {
@@ -259,19 +257,37 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
     const t = window.setInterval(() => {
       if (googleAuth.conta) void checar()
     }, 45000)
+    const fallback = window.setTimeout(() => {
+      if (alive) setCotaPronta(true)
+    }, 4000)
     return () => {
       alive = false
       document.removeEventListener('visibilitychange', onVis)
       window.clearInterval(t)
+      window.clearTimeout(fallback)
     }
   }, [ilimitado, googleAuth.conta?.id])
 
-  useEffect(() => {
-    if (cota.restam > 0) paywallEsgotadoMostrado.current = false
-    if (ilimitado || cota.restam > 0 || paywallEsgotadoMostrado.current) return
-    paywallEsgotadoMostrado.current = true
+  function abrirPaywall() {
+    paywallAuto.current = false
     setShowPaywall(true)
-  }, [ilimitado, cota.restam])
+  }
+
+  useEffect(() => {
+    if (ilimitado) return
+    if (cota.restam > 0) {
+      if (paywallAuto.current) {
+        paywallAuto.current = false
+        setShowPaywall(false)
+      }
+      paywallEsgotadoMostrado.current = false
+      return
+    }
+    if (!cotaPronta || paywallEsgotadoMostrado.current) return
+    paywallEsgotadoMostrado.current = true
+    paywallAuto.current = true
+    setShowPaywall(true)
+  }, [ilimitado, cota.restam, cotaPronta])
 
   useEffect(() => {
     setConsumo(fmtConsumo(consumoPadraoKmL(eixos)))
@@ -554,7 +570,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
           setErro('Não foi possível usar 1 crédito agora. Clique em Calcular de novo.')
           return false
         }
-        setShowPaywall(true)
+        abrirPaywall()
         return false
       }
       return true
@@ -670,6 +686,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
       preferencia: pref,
     })
     setShowResultado(true)
+    setFormAberto(false)
     if (!modoSistema) {
       sincronizarBarraEndereco({
         origem: oTxt,
@@ -883,10 +900,10 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
       )}
 
       <div className="mapa-frota mapa-pub__shell">
-        {!modoSistema && !ilimitado && cota.restam === 0 ? (
+        {!modoSistema && !ilimitado && cotaPronta && cota.restam === 0 ? (
           <div className="mapa-pub__cta-esgotado">
             <span>Seus créditos acabaram. Compre mais no PIX para continuar calculando, ou assine um plano.</span>
-            <button type="button" onClick={() => setShowPaywall(true)}>
+            <button type="button" onClick={abrirPaywall}>
               Comprar mais créditos
             </button>
           </div>
@@ -900,7 +917,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
                 <div className="rota-pub__hero-cota">
                   <p className="rota-pub__badge">{rotuloCotaPublica(ilimitado, cota)}</p>
                   {!modoSistema && !ilimitado ? (
-                    <button type="button" className="rota-pub__beneficios" onClick={() => setShowPaywall(true)}>
+                    <button type="button" className="rota-pub__beneficios" onClick={abrirPaywall}>
                       Conheça os benefícios
                     </button>
                   ) : null}
@@ -918,7 +935,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
               <Calculator size={20} strokeWidth={2.4} />
               Calculadora de Frete
             </LinkFreteMinimo>
-            <div className={`mapa-frota__search${formAberto ? '' : ' is-collapsed'}`}>
+            <div className={`rota-pub__form-wrap${formAberto ? '' : ' is-collapsed'}`}>
               <div className="rota-pub__card-top">
                 <button
                   type="button"
@@ -951,7 +968,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
 
               {formAberto ? (
                 <>
-                <div className={`mapa-frota__search-body rota-pub__form${vias.length > 0 || rotasSalvas.length > 0 ? ' is-long' : ''}`}>
+                <div className={`rota-pub__form${vias.length > 0 || rotasSalvas.length > 0 ? ' is-long' : ''}`}>
                   <div className={`rota-pub__ab${draggingViaId ? ' is-sorting' : ''}`}>
                     <span
                       className={`rota-pub__pin rota-pub__pin--a${overStop === 'A' ? ' is-over' : ''}`}
@@ -1303,8 +1320,8 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
                     className="rota-pub__calc"
                     disabled={busy}
                     onClick={() => {
-                      if (!ilimitado && cota.restam === 0) {
-                        setShowPaywall(true)
+                      if (cotaPronta && !ilimitado && cota.restam === 0) {
+                        abrirPaywall()
                         return
                       }
                       void calcular()
@@ -1330,15 +1347,6 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
 
           <div className="mapa-frota__map-wrap">
               <RotaMapErroBoundary>
-            <Suspense
-              fallback={
-                <div
-                  className="h-full min-h-[360px] w-full"
-                  style={{ background: '#efe8dc' }}
-                  aria-hidden
-                />
-              }
-            >
                 <RotaMapPreview
               key={formId}
               origem={origem}
@@ -1363,7 +1371,6 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
               mostrarSuporte
               className="h-full min-h-[360px] w-full"
             />
-            </Suspense>
               </RotaMapErroBoundary>
             {showResultado && calc?.rota ? (
               <aside
@@ -1575,7 +1582,10 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
           restamGratis={cota.restamGratis}
           creditos={cota.creditos}
           conta={googleAuth.conta}
-          onClose={() => setShowPaywall(false)}
+          onClose={() => {
+            paywallAuto.current = false
+            setShowPaywall(false)
+          }}
           onCreditosLiberados={() => {
             void consultarEstadoCalculosPublicos().then(setCota)
           }}

@@ -78,8 +78,9 @@
   position: absolute;
   left: 10px;
   top: 10px;
-  bottom: 10px;
-  max-height: none;
+  bottom: auto;
+  height: auto;
+  max-height: calc(100% - 20px);
   z-index: 20;
   display: flex;
   flex-direction: column;
@@ -103,38 +104,51 @@
 
 .rota-pub.mapa-pub .mapa-frota__search,
 .rota-pub .mapa-frota__search,
-.rota-pub.mapa-pub .mapa-frota__search:not(.is-collapsed) {
-  flex: 0 1 auto;
-  min-height: auto;
+.rota-pub.mapa-pub .mapa-frota__search:not(.is-collapsed),
+.rota-pub__form-wrap {
+  flex: 0 0 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: #fff;
   border-bottom: 0;
-  padding: 2px 10px 8px;
+  padding: 2px 10px 10px;
   overflow: visible;
+}
+
+.rota-pub__form-wrap.is-collapsed {
+  flex: 0 0 auto;
+  overflow: visible;
+  padding-bottom: 8px;
 }
 
 .rota-pub.mapa-pub .mapa-frota__search-body,
 .rota-pub .mapa-frota__search-body,
-.rota-pub .mapa-frota__search-body.rota-pub__form {
-  flex: 0 1 auto;
-  min-height: auto;
+.rota-pub .mapa-frota__search-body.rota-pub__form,
+.rota-pub__form {
+  flex: 0 0 auto;
+  min-height: 0;
   overflow: visible;
+  display: flex;
+  flex-direction: column;
   gap: var(--rp-gap);
   padding-bottom: 4px;
   max-width: 100%;
   min-width: 0;
 }
 
-.rota-pub .mapa-frota__search-body.rota-pub__form > * {
+.rota-pub .mapa-frota__search-body.rota-pub__form > *,
+.rota-pub__form > * {
   flex-shrink: 0;
 }
 
-.rota-pub .mapa-frota__search-body.rota-pub__form > .rota-pub__sec {
+.rota-pub .mapa-frota__search-body.rota-pub__form > .rota-pub__sec,
+.rota-pub__form > .rota-pub__sec {
   display: block;
 }
 
-.rota-pub .mapa-frota__search-body.rota-pub__form > .rota-pub__prefs {
+.rota-pub .mapa-frota__search-body.rota-pub__form > .rota-pub__prefs,
+.rota-pub__form > .rota-pub__prefs {
   flex: 0 0 auto;
   align-content: stretch;
   min-height: 38px;
@@ -326,9 +340,10 @@
 }
 
 .rota-pub .mapa-frota__cats-title {
-  font-size: 0.76rem;
+  font-size: 0.78rem;
+  font-weight: 800;
   letter-spacing: 0.08em;
-  color: #64748b;
+  color: #0f172a;
 }
 
 .rota-pub__reset {
@@ -1105,28 +1120,33 @@
   position: absolute;
   top: 14px;
   right: 14px;
-  bottom: 14px;
+  bottom: auto;
   z-index: 22;
   display: flex;
-  align-items: stretch;
+  align-items: flex-start;
   justify-content: flex-end;
   width: min(380px, calc(100% - 28px));
+  max-height: calc(100% - 28px);
+  height: auto;
   padding: 0;
   background: transparent;
-  overflow: hidden;
+  overflow: visible;
   pointer-events: none;
 }
 
 .rota-pub-janela__card {
   pointer-events: auto;
   width: 100%;
-  height: 100%;
-  max-height: none;
+  height: auto;
+  max-height: calc(100dvh - 48px);
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   border-radius: 20px;
   background: #fff;
+  color: #0f172a;
   box-shadow:
     0 22px 50px rgb(15 23 42 / 0.18),
     0 0 0 1px rgb(255 255 255 / 0.7);
@@ -1137,6 +1157,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  flex-shrink: 0;
   padding: 16px 16px 12px;
   background: linear-gradient(135deg, #111111 0%, #1a1a1a 55%, #2a2400 100%);
   color: #fff;
@@ -1195,6 +1216,8 @@
 
 .rota-pub__resumo--janela {
   border-top: 0;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
 }
 
@@ -1463,8 +1486,9 @@
   color: #ffb300;
 }
 
-.rota-pub .mapa-frota__map-wrap > div:not(.rota-pub__map-links) {
+.rota-pub .mapa-frota__map-wrap > .rota-map-preview {
   height: 100%;
+  width: 100%;
 }
 
 .rota-pub .rota-map-pick {
@@ -1494,8 +1518,8 @@
   .rota-pub .mapa-frota__lista.rota-pub__panel {
     left: 8px;
     top: 8px;
-    bottom: 8px;
-    max-height: none;
+    bottom: auto;
+    max-height: calc(100% - 16px);
     width: min(400px, calc(100% - 16px));
   }
 
@@ -1528,8 +1552,9 @@
   .rota-pub-janela {
     top: 8px;
     right: 8px;
-    bottom: 8px;
+    bottom: auto;
     width: min(300px, calc(100% - 16px));
+    max-height: calc(100% - 16px);
   }
 }
 
