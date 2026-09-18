@@ -144,6 +144,7 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
   const [maisFiltros, setMaisFiltros] = useState(() =>
     typeof window !== 'undefined' ? window.innerWidth > 900 : true,
   )
+  const [catsAbertas, setCatsAbertas] = useState(false)
   const [abaMobile, setAbaMobile] = useState<'lista' | 'mapa'>('lista')
   const buscaWrapRef = useRef<HTMLDivElement>(null)
   const filtrosWrapRef = useRef<HTMLDivElement>(null)
@@ -464,8 +465,9 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
   }
 
   function setCat(next: CategoriaId | null) {
-    setCategoria(next)
-    navigate(next ? `${basePath}?cat=${next}` : basePath)
+    const escolhida = next && next === categoria ? null : next
+    setCategoria(escolhida)
+    navigate(escolhida ? `${basePath}?cat=${escolhida}` : basePath)
   }
 
   // O popup do Leaflet corta a subida do evento, por isso escuto na descida (captura).
@@ -649,34 +651,54 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
           </div>
 
           <div className="mapa-log__scroll">
-          <div className="mapa-log__cats">
-            <p className="mapa-log__cats-title">Categorias</p>
-            <div className="mapa-log__cats-grid">
-              <button
-                type="button"
-                className={`mapa-log__cat${categoria == null ? ' is-on' : ''}`}
-                onClick={() => setCat(null)}
-              >
-                <span className="mapa-log__cat-label">Todas</span>
-                <span className="mapa-log__cat-qtd">
-                  {aplicarFiltros(empresas, { ...filtros, categoria: null }).length}
+          <div className={`mapa-log__cats${catsAbertas ? ' is-open' : ''}`}>
+            <button
+              type="button"
+              className={`mapa-log__cats-toggle${catsAbertas ? ' is-on' : ''}${categoria ? ' has-filter' : ''}`}
+              aria-expanded={catsAbertas}
+              onClick={() => setCatsAbertas((v) => !v)}
+            >
+              <span className="mapa-log__cats-toggle-txt">
+                <span className="mapa-log__cats-title">Categorias</span>
+                <span className="mapa-log__cats-resumo">
+                  {categoria
+                    ? `${categoriaPorId(categoria).emoji} ${categoriaPorId(categoria).label}`
+                    : 'Todas as empresas na lista'}
                 </span>
-              </button>
-              {CATEGORIAS.map((c) => (
+              </span>
+              <span className="mapa-log__cats-toggle-acao">
+                {catsAbertas ? 'Esconder' : 'Mostrar'}
+                <span aria-hidden="true">{catsAbertas ? '▴' : '▾'}</span>
+              </span>
+            </button>
+            {catsAbertas ? (
+              <div className="mapa-log__cats-grid">
                 <button
-                  key={c.id}
                   type="button"
-                  className={`mapa-log__cat${categoria === c.id ? ' is-on' : ''}`}
-                  onClick={() => setCat(c.id)}
+                  className={`mapa-log__cat${categoria == null ? ' is-on' : ''}`}
+                  onClick={() => setCat(null)}
                 >
-                  <span className="mapa-log__cat-ico" style={{ background: c.corFundo }}>
-                    {c.emoji}
+                  <span className="mapa-log__cat-label">Todas</span>
+                  <span className="mapa-log__cat-qtd">
+                    {aplicarFiltros(empresas, { ...filtros, categoria: null }).length}
                   </span>
-                  <span className="mapa-log__cat-label">{c.label}</span>
-                  <span className="mapa-log__cat-qtd">{contagem[c.id] ?? 0}</span>
                 </button>
-              ))}
-            </div>
+                {CATEGORIAS.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={`mapa-log__cat${categoria === c.id ? ' is-on' : ''}`}
+                    onClick={() => setCat(c.id)}
+                  >
+                    <span className="mapa-log__cat-ico" style={{ background: c.corFundo }}>
+                      {c.emoji}
+                    </span>
+                    <span className="mapa-log__cat-label">{c.label}</span>
+                    <span className="mapa-log__cat-qtd">{contagem[c.id] ?? 0}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           {chipsAtivos.length > 0 ? (

@@ -507,6 +507,67 @@
   padding: 8px 10px 4px;
 }
 
+.mapa-log__cats-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+  padding: 8px 10px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.mapa-log__cats-toggle.is-on,
+.mapa-log__cats-toggle:hover {
+  border-color: #0f172a;
+  background: #f8fafc;
+}
+
+.mapa-log__cats-toggle.has-filter {
+  border-color: #0f172a;
+  background: #fffbeb;
+}
+
+.mapa-log__cats-toggle-txt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mapa-log__cats-toggle .mapa-log__cats-title {
+  margin: 0;
+}
+
+.mapa-log__cats-resumo {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #334155;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.mapa-log__cats-toggle-acao {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
 .mapa-log__cats-title {
   margin: 0 0 6px;
   font-size: 0.72rem;
@@ -520,6 +581,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  margin-top: 8px;
 }
 
 .mapa-log__cat {
