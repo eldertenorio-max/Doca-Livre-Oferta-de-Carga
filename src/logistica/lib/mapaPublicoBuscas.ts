@@ -14,9 +14,9 @@ export type ConsumoBuscaPublica = EstadoBuscasPublicas & {
 }
 
 export function carregarEstadoBuscasPublicas(): Promise<EstadoBuscasPublicas> {
-  return consultarEstadoBuscasPublicas()
+  return consultarEstadoBuscasPublicas('logistica')
 }
 
 export function registrarBuscaPublicaRemota(): Promise<ConsumoBuscaPublica> {
-  return registrarBuscaPublica()
+  return registrarBuscaPublica('logistica')
 }

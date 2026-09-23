@@ -13,6 +13,9 @@ import {
   MAPA_PUBLICO_LIMITE_BUSCAS,
   registrarBuscaPublicaRemota,
 } from '../lib/mapaPublicoBuscas'
+import type { EstadoBuscasPublicas } from '../../lib/mapaPublicoBuscas'
+import { RotaPaywallModal } from '../../components/carga/RotaPaywallModal'
+import { useRotaPublicoAuth } from '../../lib/rotaPublicoAuth'
 import { PLANOS_PUBLICOS } from '../lib/planosPublicos'
 import {
   aplicarFiltros,
@@ -160,9 +163,14 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
   // Mantém o endereço em que o mapa já está (raiz para visitante) ao filtrar.
   const basePath = publico ? pathname : '/embarcador/mapa-logistica'
   const visitante = publico && !sessao
+  const googleAuth = useRotaPublicoAuth()
   const [restam, setRestam] = useState(() =>
-    visitante ? estadoBuscasPublicas().restam : MAPA_PUBLICO_LIMITE_BUSCAS,
+    visitante ? estadoBuscasPublicas('logistica').restam : MAPA_PUBLICO_LIMITE_BUSCAS,
   )
+  const [restamGratis, setRestamGratis] = useState(() =>
+    visitante ? estadoBuscasPublicas('logistica').restamGratis : MAPA_PUBLICO_LIMITE_BUSCAS,
+  )
+  const [creditosBusca, setCreditosBusca] = useState(0)
   const [showPaywall, setShowPaywall] = useState<false | 'buscas' | 'contato'>(false)
   const consumindoRef = useRef(false)
 
@@ -170,12 +178,19 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
     if (catValida(catParam)) setCategoria(catParam)
   }, [catParam])
 
+  function aplicarCotaBusca(estado: EstadoBuscasPublicas) {
+    setRestam(estado.restam)
+    setRestamGratis(estado.restamGratis)
+    setCreditosBusca(estado.creditos)
+  }
+
   useEffect(() => {
     if (!visitante) return
     void carregarEstadoBuscasPublicas().then((estado) => {
-      setRestam(estado.restam)
+      aplicarCotaBusca(estado)
+      if (estado.restam === 0) setShowPaywall('buscas')
     })
-  }, [visitante])
+  }, [visitante, googleAuth.conta?.id])
 
   const filtros = useMemo(
     () => ({ query, categoria, ufs, regioes, niveis, origens, funcoes, cidades }),
@@ -435,7 +450,7 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
     consumindoRef.current = true
     try {
       const consumo = await registrarBuscaPublicaRemota()
-      setRestam(consumo.restam)
+      aplicarCotaBusca(consumo)
       if (!consumo.ok) {
         setShowPaywall('buscas')
         return false
@@ -718,15 +733,17 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
               Clique no campo para ver as sugestões, ou digite para filtrar a lista.
               {publico
                 ? visitante
-                  ? restam > 0
-                    ? ` ${restam} de ${MAPA_PUBLICO_LIMITE_BUSCAS} buscas grátis restantes hoje.`
-                    : ' Buscas grátis de hoje esgotadas.'
+                  ? creditosBusca > 0
+                    ? ` ${creditosBusca} crédito${creditosBusca === 1 ? '' : 's'}.`
+                    : restamGratis > 0
+                      ? ` ${restamGratis} de ${MAPA_PUBLICO_LIMITE_BUSCAS} buscas grátis.`
+                      : ' Sem créditos — compre mais.'
                   : ' Conta logada · buscas ilimitadas.'
                 : ''}
             </p>
             {visitante && restam === 0 ? (
               <button type="button" className="mapa-log__assinar" onClick={() => setShowPaywall('buscas')}>
-                Assinar para continuar
+                Comprar créditos
               </button>
             ) : null}
           </div>
@@ -1013,14 +1030,26 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
       </div>
       </div>
 
-      {showPaywall ? (
+      {showPaywall === 'buscas' && visitante ? (
+        <RotaPaywallModal
+          uso="busca"
+          restamGratis={restamGratis}
+          creditos={creditosBusca}
+          conta={googleAuth.conta}
+          onClose={() => setShowPaywall(false)}
+          onCreditosLiberados={() => {
+            void carregarEstadoBuscasPublicas().then(aplicarCotaBusca)
+          }}
+        />
+      ) : null}
+
+      {showPaywall === 'contato' ? (
         <div className="mapa-pub-modal" role="dialog" aria-modal="true" aria-labelledby="mapa-pub-pay-title">
           <div className="mapa-pub-modal__card mapa-pub-modal__card--planos">
             <h2 id="mapa-pub-pay-title">Escolha um plano</h2>
             <p>
-              {showPaywall === 'contato'
-                ? 'Telefone, WhatsApp e CNPJ das empresas ficam liberados para assinantes. Assine para falar direto com quem você achou no mapa.'
-                : `As ${MAPA_PUBLICO_LIMITE_BUSCAS} buscas grátis de hoje acabaram. Assine para continuar no mapa e ver contato das empresas.`}
+              Telefone, WhatsApp e CNPJ das empresas ficam liberados para assinantes. Assine para falar
+              direto com quem você achou no mapa.
             </p>
             <div className="mapa-pub-planos">
               {PLANOS_PUBLICOS.map((plano) => (

@@ -43,6 +43,8 @@ type Props = {
   conta: ContaRotaPublico | null
   onClose: () => void
   onCreditosLiberados: () => void
+  /** busca = mapa da frota ou da logística. calculo = calculadora. */
+  uso?: 'calculo' | 'busca'
 }
 
 export function RotaPaywallModal({
@@ -51,7 +53,11 @@ export function RotaPaywallModal({
   conta,
   onClose,
   onCreditosLiberados,
+  uso = 'calculo',
 }: Props) {
+  const ehBusca = uso === 'busca'
+  const unidade = ehBusca ? 'busca' : 'cálculo'
+  const unidades = ehBusca ? 'buscas' : 'cálculos'
   const esgotado = restamGratis <= 0
   const semSaldo = restamGratis <= 0 && creditos <= 0
   const [aba, setAba] = useState<Aba>(semSaldo ? 'creditos' : 'plano')
@@ -312,10 +318,10 @@ export function RotaPaywallModal({
               <h3 id="rota-pago-title">Pagamento confirmado</h3>
               <p id="rota-pago-desc">
                 <strong>+{pacote.creditos} créditos</strong> já foram adicionados à sua conta
-                {conta ? ` Google` : ''}. Pode continuar calculando rotas.
+                {conta ? ` Google` : ''}. Pode continuar {ehBusca ? 'buscando no mapa' : 'calculando rotas'}.
               </p>
               <button type="button" className="mapa-pub__btn mapa-pub-pago__btn" onClick={onClose}>
-                Continuar calculando
+                {ehBusca ? 'Continuar buscando' : 'Continuar calculando'}
               </button>
             </div>
           </div>,
@@ -334,7 +340,9 @@ export function RotaPaywallModal({
               : creditos > 0 && esgotado
                 ? 'Seus créditos'
                 : esgotado
-                  ? 'Continuar calculando rotas'
+                  ? ehBusca
+                    ? 'Continuar buscando'
+                    : 'Continuar calculando rotas'
                   : 'Conheça os benefícios'}
           </h2>
           <button type="button" className="mapa-pub-modal__x" aria-label="Fechar" onClick={onClose}>
@@ -343,12 +351,12 @@ export function RotaPaywallModal({
         </div>
         <p>
           {semSaldo
-            ? 'Seus créditos acabaram. Compre mais no PIX para continuar calculando, ou assine um plano.'
+            ? `Seus créditos acabaram. Compre mais no PIX para continuar ${ehBusca ? 'buscando' : 'calculando'}, ou assine um plano.`
             : creditos > 0
-              ? `Você tem ${creditos} crédito${creditos === 1 ? '' : 's'}${conta ? ' na sua conta' : ''}. Cada cálculo usa 1 crédito. Os grátis do dia não valem depois da compra.`
+              ? `Você tem ${creditos} crédito${creditos === 1 ? '' : 's'}${conta ? ' na sua conta' : ''}. Cada ${unidade} usa 1 crédito. Os grátis do dia não valem depois da compra.`
               : esgotado
-                ? `Os ${ROTA_PUBLICO_LIMITE_CALCULOS} cálculos grátis de hoje acabaram. Compre créditos no PIX ou assine um plano.`
-                : `Você ainda tem ${restamGratis} de ${ROTA_PUBLICO_LIMITE_CALCULOS} cálculos grátis hoje. Créditos avulsos no PIX ou plano mensal ilimitado.`}
+                ? `As ${ROTA_PUBLICO_LIMITE_CALCULOS} ${unidades} grátis de hoje acabaram. Compre créditos no PIX ou assine um plano.`
+                : `Você ainda tem ${restamGratis} de ${ROTA_PUBLICO_LIMITE_CALCULOS} ${unidades} grátis hoje. Créditos avulsos no PIX ou plano mensal ilimitado.`}
         </p>
 
         <div className="mapa-pub-pay-tabs" role="tablist" aria-label="Forma de continuar">
@@ -736,8 +744,12 @@ export function RotaPaywallModal({
             {creditos > 0 && esgotado
               ? `Usar meus ${creditos} crédito${creditos === 1 ? '' : 's'}`
               : esgotado
-                ? 'Continuar vendo o último cálculo'
-                : 'Continuar com o cálculo grátis'}
+                ? ehBusca
+                  ? 'Continuar só olhando o mapa'
+                  : 'Continuar vendo o último cálculo'
+                : ehBusca
+                  ? 'Continuar com a busca grátis'
+                  : 'Continuar com o cálculo grátis'}
           </button>
         </div>
       </div>

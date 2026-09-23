@@ -35,7 +35,10 @@ import {
   estadoBuscasPublicas,
   MAPA_PUBLICO_LIMITE_BUSCAS,
   registrarBuscaPublica,
+  type EstadoBuscasPublicas,
 } from '../../lib/mapaPublicoBuscas'
+import { RotaPaywallModal } from '../../components/carga/RotaPaywallModal'
+import { useRotaPublicoAuth } from '../../lib/rotaPublicoAuth'
 import '../../styles/mapa-frota.css'
 import '../../styles/mapa-publico.css'
 
@@ -43,49 +46,6 @@ const RAIOS_KM = [50, 100, 150, 200, 300, 500] as const
 const RAIO_GEO_MIN_KM = 10
 const RAIO_GEO_MAX_KM = 500
 const RAIO_GEO_DEFAULT_KM = 150
-
-const PLANOS_PUBLICOS = [
-  {
-    id: 'motorista',
-    nome: 'Motorista',
-    preco: 'R$ 49',
-    periodo: '/mês',
-    extra: 'ou R$ 14,90 /semana',
-    para: 'Caminhoneiro e transportador',
-    itens: ['Mapa ilimitado', 'Ver ofertas de carga', 'Perfil no sistema'],
-    destaque: false,
-  },
-  {
-    id: 'start',
-    nome: 'Embarcador Start',
-    preco: 'R$ 197',
-    periodo: '/mês',
-    extra: '2 usuários',
-    para: 'Empresa pequena',
-    itens: ['Publicar cargas', 'Mapa ilimitado', 'WhatsApp e placa da frota'],
-    destaque: true,
-  },
-  {
-    id: 'pro',
-    nome: 'Embarcador Pro',
-    preco: 'R$ 397',
-    periodo: '/mês',
-    extra: '5 usuários',
-    para: 'Operação com time',
-    itens: ['Tudo do Start', 'Malha logística', 'Kanban e áreas salvas'],
-    destaque: false,
-  },
-  {
-    id: 'empresa',
-    nome: 'Empresa',
-    preco: 'R$ 890',
-    periodo: '/mês',
-    extra: 'ou sob consulta',
-    para: 'Várias filiais',
-    itens: ['10 usuários', 'Usuários extras', 'Prioridade no suporte'],
-    destaque: false,
-  },
-] as const
 
 type OrigemRaio = { lat: number; lng: number; label: string }
 type FiltroStatus = 'disponiveis' | 'indisponiveis' | 'todos'
@@ -182,12 +142,15 @@ export function MapaFrotaPublicoPage() {
   const [geoErro, setGeoErro] = useState('')
   const [tipos, setTipos] = useState<FrotaIconeGrupo[]>([])
   const [pesquisaAberta, setPesquisaAberta] = useState(true)
+  const googleAuth = useRotaPublicoAuth()
   const [restam, setRestam] = useState(() =>
-    user ? MAPA_PUBLICO_LIMITE_BUSCAS : estadoBuscasPublicas().restam,
+    user ? MAPA_PUBLICO_LIMITE_BUSCAS : estadoBuscasPublicas('frota').restam,
   )
-  const [showPaywall, setShowPaywall] = useState(
-    () => !user && estadoBuscasPublicas().esgotado,
+  const [restamGratis, setRestamGratis] = useState(() =>
+    user ? MAPA_PUBLICO_LIMITE_BUSCAS : estadoBuscasPublicas('frota').restamGratis,
   )
+  const [creditosBusca, setCreditosBusca] = useState(0)
+  const [showPaywall, setShowPaywall] = useState(false)
 
   clicarOrigemRef.current = clicarOrigem
   userRef.current = user
@@ -202,17 +165,24 @@ export function MapaFrotaPublicoPage() {
     if (user) setRestam(MAPA_PUBLICO_LIMITE_BUSCAS)
   }, [user])
 
+  function aplicarCotaBusca(estado: EstadoBuscasPublicas) {
+    setRestam(estado.restam)
+    setRestamGratis(estado.restamGratis)
+    setCreditosBusca(estado.creditos)
+  }
+
   useEffect(() => {
     if (user) return
     let alive = true
-    void consultarEstadoBuscasPublicas().then((estado) => {
+    void consultarEstadoBuscasPublicas('frota').then((estado) => {
       if (!alive) return
-      setRestam(estado.restam)
+      aplicarCotaBusca(estado)
+      if (estado.restam === 0) setShowPaywall(true)
     })
     return () => {
       alive = false
     }
-  }, [user])
+  }, [user, googleAuth.conta?.id])
 
   useEffect(() => {
     function onAssinar(ev: MouseEvent) {
@@ -486,8 +456,8 @@ export function MapaFrotaPublicoPage() {
     if (cotaBusyRef.current) return false
     cotaBusyRef.current = true
     try {
-      const consumo = await registrarBuscaPublica()
-      setRestam(consumo.restam)
+      const consumo = await registrarBuscaPublica('frota')
+      aplicarCotaBusca(consumo)
       if (!consumo.ok) {
         setShowPaywall(true)
         return false
@@ -830,9 +800,11 @@ export function MapaFrotaPublicoPage() {
             <p className="mapa-pub__creditos">
               {user
                 ? 'Conta logada · buscas ilimitadas'
-                : restam > 0
-                  ? `${restam} de ${MAPA_PUBLICO_LIMITE_BUSCAS} buscas grátis hoje`
-                  : 'As 2 buscas grátis de hoje acabaram'}
+                : creditosBusca > 0
+                  ? `${creditosBusca} crédito${creditosBusca === 1 ? '' : 's'}`
+                  : restamGratis > 0
+                    ? `${restamGratis} de ${MAPA_PUBLICO_LIMITE_BUSCAS} buscas grátis`
+                    : 'Sem créditos — compre mais'}
             </p>
           </div>
           <div className="mapa-frota__filtros">
@@ -857,9 +829,9 @@ export function MapaFrotaPublicoPage() {
 
         {!user && restam === 0 ? (
           <div className="mapa-pub__cta-esgotado">
-            <span>Para continuar buscando hoje e ver contato da frota, assine o Doca Livre.</span>
+            <span>Suas buscas grátis acabaram. Compre créditos no PIX para continuar no mapa.</span>
             <button type="button" onClick={() => setShowPaywall(true)}>
-              Assinar para continuar
+              Comprar créditos
             </button>
           </div>
         ) : null}
@@ -1385,52 +1357,17 @@ export function MapaFrotaPublicoPage() {
         </div>
       </div>
 
-      {showPaywall ? (
-        <div className="mapa-pub-modal" role="dialog" aria-modal="true" aria-labelledby="mapa-pub-pay-title">
-          <div className="mapa-pub-modal__card mapa-pub-modal__card--planos">
-            <h2 id="mapa-pub-pay-title">Escolha um plano</h2>
-            <p>
-              As {MAPA_PUBLICO_LIMITE_BUSCAS} buscas grátis de hoje acabaram. Amanhã você tem mais
-              duas, ou assine para buscar sem limite.
-            </p>
-            <div className="mapa-pub-planos">
-              {PLANOS_PUBLICOS.map((plano) => (
-                <article
-                  key={plano.id}
-                  className={`mapa-pub-plano${plano.destaque ? ' is-destaque' : ''}`}
-                >
-                  {plano.destaque ? <span className="mapa-pub-plano__tag">Mais escolhido</span> : null}
-                  <h3>{plano.nome}</h3>
-                  <p className="mapa-pub-plano__para">{plano.para}</p>
-                  <p className="mapa-pub-plano__preco">
-                    <strong>{plano.preco}</strong>
-                    <small>{plano.periodo}</small>
-                  </p>
-                  <p className="mapa-pub-plano__extra">{plano.extra}</p>
-                  <ul>
-                    {plano.itens.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                  <LinkSistema
-                    className="mapa-pub__btn mapa-pub__btn--solid"
-                    to={`/cadastro-transportador?plano=${plano.id}`}
-                  >
-                    Assinar {plano.nome}
-                  </LinkSistema>
-                </article>
-              ))}
-            </div>
-            <div className="mapa-pub-modal__acoes">
-              <LinkSistema className="mapa-pub__btn mapa-pub__btn--ghost" to="/login">
-                Já tenho conta
-              </LinkSistema>
-              <button type="button" className="mapa-pub-modal__fechar" onClick={() => setShowPaywall(false)}>
-                Continuar só olhando o mapa
-              </button>
-            </div>
-          </div>
-        </div>
+      {showPaywall && !user ? (
+        <RotaPaywallModal
+          uso="busca"
+          restamGratis={restamGratis}
+          creditos={creditosBusca}
+          conta={googleAuth.conta}
+          onClose={() => setShowPaywall(false)}
+          onCreditosLiberados={() => {
+            void consultarEstadoBuscasPublicas('frota').then(aplicarCotaBusca)
+          }}
+        />
       ) : null}
     </div>
   )

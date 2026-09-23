@@ -1,6 +1,11 @@
 import { ritmoPublicoOk } from './publicoProtecao'
+import {
+  consultarCreditosRotaPublico,
+  consumirCreditoRotaPublicoConta,
+  contaJaComprouCreditos,
+  marcarContaComprouCreditos,
+} from './rotaPublicoCreditos'
 
-const STORAGE_KEY = 'doca-mapa-publico-buscas-v2'
 const VISITOR_KEY = 'doca-mapa-publico-vid'
 /** Duas buscas grátis por dia civil (Brasília). */
 const LIMITE = 2
@@ -19,18 +24,26 @@ function diaBrasil(ms = Date.now()): string {
   }).format(new Date(ms))
 }
 
+export type ProdutoBuscaPublica = 'frota' | 'logistica'
+
 export type EstadoBuscasPublicas = {
   usadas: number
+  restamGratis: number
+  creditos: number
   restam: number
   esgotado: boolean
 }
 
 export const MAPA_PUBLICO_LIMITE_BUSCAS = LIMITE
 
-function lerLocal(): Registro {
+function storageKey(produto: ProdutoBuscaPublica) {
+  return produto === 'logistica' ? 'doca-mapa-log-buscas-v1' : 'doca-mapa-frota-buscas-v1'
+}
+
+function lerLocal(produto: ProdutoBuscaPublica = 'frota'): Registro {
   const hoje = diaBrasil()
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(storageKey(produto))
     if (!raw) return { n: 0, dia: hoje }
     const parsed = JSON.parse(raw) as Partial<Registro> & { inicio?: number }
     if (!parsed || typeof parsed.n !== 'number') return { n: 0, dia: hoje }
@@ -42,18 +55,42 @@ function lerLocal(): Registro {
   }
 }
 
-function gravarLocal(reg: Registro) {
+function gravarLocal(produto: ProdutoBuscaPublica, reg: Registro) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(reg))
+    localStorage.setItem(storageKey(produto), JSON.stringify(reg))
   } catch {
     /* ignore */
   }
 }
 
-function estadoDeRegistro(reg: Registro): EstadoBuscasPublicas {
+function estadoComCreditos(reg: Registro, creditos: number, comprou = false): EstadoBuscasPublicas {
   const usadas = Math.min(LIMITE, Math.max(0, reg.n))
-  const restam = Math.max(0, LIMITE - usadas)
-  return { usadas, restam, esgotado: restam <= 0 }
+  const pago = comprou || creditos > 0 || contaJaComprouCreditos()
+  if (pago) marcarContaComprouCreditos()
+  const restamGratis = pago ? 0 : Math.max(0, LIMITE - usadas)
+  const restam = pago ? creditos : restamGratis + creditos
+  return {
+    usadas,
+    restamGratis,
+    creditos,
+    restam,
+    esgotado: restam <= 0,
+  }
+}
+
+function estadoDeRegistro(reg: Registro): EstadoBuscasPublicas {
+  return estadoComCreditos(reg, 0)
+}
+
+async function tentarConsumirCredito(): Promise<boolean> {
+  if (await consumirCreditoRotaPublicoConta()) return true
+  await new Promise((r) => window.setTimeout(r, 450))
+  return consumirCreditoRotaPublicoConta()
+}
+
+async function estadoAtual(produto: ProdutoBuscaPublica): Promise<EstadoBuscasPublicas> {
+  const saldo = await consultarCreditosRotaPublico()
+  return estadoComCreditos(lerLocal(produto), saldo.creditos, saldo.comprou)
 }
 
 function cookieGet(nome: string): string {
@@ -144,22 +181,41 @@ export async function deviceHashPublico(): Promise<string> {
   }
 }
 
-export function estadoBuscasPublicas(): EstadoBuscasPublicas {
-  return estadoDeRegistro(lerLocal())
+export function estadoBuscasPublicas(produto: ProdutoBuscaPublica = 'frota'): EstadoBuscasPublicas {
+  return estadoDeRegistro(lerLocal(produto))
 }
 
-export async function consultarEstadoBuscasPublicas(): Promise<EstadoBuscasPublicas> {
-  return estadoBuscasPublicas()
+export async function consultarEstadoBuscasPublicas(
+  produto: ProdutoBuscaPublica = 'frota',
+): Promise<EstadoBuscasPublicas> {
+  return estadoAtual(produto)
 }
 
-/** Consome 1 busca (cota no aparelho). */
-export async function registrarBuscaPublica(): Promise<EstadoBuscasPublicas & { ok: boolean }> {
+/** Consome 1 busca: 2 grátis do mapa, depois 1 crédito da mesma conta da calculadora. */
+export async function registrarBuscaPublica(
+  produto: ProdutoBuscaPublica = 'frota',
+): Promise<EstadoBuscasPublicas & { ok: boolean; motivo?: 'ritmo' | 'saldo' }> {
   if (!ritmoPublicoOk()) {
-    return { ok: false, usadas: LIMITE, restam: 0, esgotado: true }
+    return { ok: false, motivo: 'ritmo', ...(await estadoAtual(produto)) }
   }
-  const local = lerLocal()
-  if (local.n >= LIMITE) return { ok: false, usadas: LIMITE, restam: 0, esgotado: true }
-  const n = local.n + 1
-  gravarLocal({ n, dia: diaBrasil() })
-  return { ok: true, usadas: n, restam: Math.max(0, LIMITE - n), esgotado: n >= LIMITE }
+  const saldo = await consultarCreditosRotaPublico()
+  if (saldo.comprou || saldo.creditos > 0) {
+    marcarContaComprouCreditos()
+    if (await tentarConsumirCredito()) {
+      return { ok: true, ...(await estadoAtual(produto)) }
+    }
+    const estado = await estadoAtual(produto)
+    return { ok: false, motivo: estado.creditos > 0 ? 'ritmo' : 'saldo', ...estado }
+  }
+  const local = lerLocal(produto)
+  if (local.n < LIMITE) {
+    const n = local.n + 1
+    gravarLocal(produto, { n, dia: diaBrasil() })
+    return { ok: true, ...(await estadoAtual(produto)) }
+  }
+  if (await tentarConsumirCredito()) {
+    return { ok: true, ...(await estadoAtual(produto)) }
+  }
+  const estado = await estadoAtual(produto)
+  return { ok: false, motivo: estado.creditos > 0 ? 'ritmo' : 'saldo', ...estado }
 }
