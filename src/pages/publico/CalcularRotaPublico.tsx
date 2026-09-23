@@ -137,8 +137,9 @@ const COTA_ILIMITADA: EstadoCalculosPublicos = {
   esgotado: false,
 }
 
-function rotuloCotaPublica(ilimitado: boolean, cota: EstadoCalculosPublicos) {
+function rotuloCotaPublica(ilimitado: boolean, cota: EstadoCalculosPublicos, pronta = true) {
   if (ilimitado) return 'Ilimitado'
+  if (!pronta) return '…'
   if (cota.creditos > 0) return `${cota.creditos} crédito${cota.creditos === 1 ? '' : 's'}`
   if (cota.restamGratis > 0) return `${cota.restamGratis} de ${ROTA_PUBLICO_LIMITE_CALCULOS} grátis`
   return 'Sem créditos — compre mais'
@@ -915,7 +916,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
               <div className="rota-pub__hero-top">
                 <p className="rota-pub__kicker">Pedágio · km · combustível</p>
                 <div className="rota-pub__hero-cota">
-                  <p className="rota-pub__badge">{rotuloCotaPublica(ilimitado, cota)}</p>
+                  <p className="rota-pub__badge">{rotuloCotaPublica(ilimitado, cota, cotaPronta)}</p>
                   {!modoSistema && !ilimitado ? (
                     <button type="button" className="rota-pub__beneficios" onClick={abrirPaywall}>
                       Conheça os benefícios

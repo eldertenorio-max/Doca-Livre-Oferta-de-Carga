@@ -9,6 +9,8 @@ import {
   marcarContaComprouCreditos,
 } from './rotaPublicoCreditos'
 import { sessaoRotaPublico } from './rotaPublicoAuth'
+import { supabase } from './supabase'
+import { deviceHashPublico, visitorIdPublico } from './mapaPublicoBuscas'
 
 const STORAGE_KEY = 'doca-rota-publico-calculos-v1'
 const LIMITE = 2
@@ -85,6 +87,94 @@ function gravarLocal(reg: Registro) {
   }
 }
 
+type CotaMaquina = {
+  usadas: number
+  restam: number
+  esgotado: boolean
+  ok: boolean
+}
+
+function lerCotaMaquina(data: unknown): CotaMaquina | null {
+  let row: { ok?: boolean; usadas?: number; restam?: number; esgotado?: boolean } | null = null
+  if (typeof data === 'string') {
+    try {
+      row = JSON.parse(data) as typeof row
+    } catch {
+      row = null
+    }
+  } else if (data && typeof data === 'object') {
+    row = data as typeof row
+  }
+  if (!row) return null
+  const usadas = Number(row.usadas)
+  const restam = Number(row.restam)
+  if (!Number.isFinite(usadas) && !Number.isFinite(restam)) return null
+  const u = Number.isFinite(usadas) ? Math.max(0, Math.floor(usadas)) : 0
+  const r = Number.isFinite(restam) ? Math.max(0, Math.floor(restam)) : Math.max(0, LIMITE - u)
+  return {
+    usadas: Math.min(LIMITE, u),
+    restam: r,
+    esgotado: Boolean(row.esgotado) || r <= 0,
+    ok: row.ok !== false,
+  }
+}
+
+/** 2 grátis do computador (IP + aparelho). Aba anônima entra na mesma conta. */
+async function cotaNoComputador(consumir: boolean): Promise<CotaMaquina | null> {
+  if (!supabase) return null
+  const visitor = visitorIdPublico()
+  const device = await deviceHashPublico()
+  const pelaFuncao = await invocarCotaRota(visitor, device, false)
+  if (pelaFuncao) {
+    if (!consumir) return pelaFuncao
+    const gasto = (await invocarCotaRota(visitor, device, true)) || (await invocarCotaRota(visitor, device, true))
+    if (gasto) return gasto
+    return { ...pelaFuncao, ok: false }
+  }
+  try {
+    const { data, error } = await supabase.rpc('rota_publico_cota_cliente', {
+      p_visitor: visitor,
+      p_device: device,
+      p_consumir: consumir,
+    })
+    if (error) return null
+    return lerCotaMaquina(data)
+  } catch {
+    return null
+  }
+}
+
+async function invocarCotaRota(
+  visitor: string,
+  device: string,
+  consumir: boolean,
+): Promise<CotaMaquina | null> {
+  if (!supabase) return null
+  try {
+    const { data, error } = await supabase.functions.invoke('mapa-publico-busca', {
+      body: {
+        action: consumir ? 'consume' : 'status',
+        visitor_id: visitor,
+        device_hash: device,
+        produto: 'rota',
+      },
+    })
+    if (error || !data || typeof data !== 'object') return null
+    if ((data as { produto?: string }).produto !== 'rota') return null
+    return lerCotaMaquina(data)
+  } catch {
+    return null
+  }
+}
+
+function aplicarMaquina(local: Registro, maquina: CotaMaquina | null): Registro {
+  if (!maquina) return local
+  const n = Math.min(LIMITE, Math.max(local.n, maquina.usadas))
+  const reg = { n, dia: diaBrasil() }
+  if (n !== local.n) gravarLocal(reg)
+  return reg
+}
+
 export type EstadoCalculosPublicos = {
   usadas: number
   restamGratis: number
@@ -134,7 +224,8 @@ async function estadoAtual(): Promise<EstadoCalculosPublicos> {
   if (isRotaPublicoIlimitado()) {
     return { ...ILIMITADO, presente: saldo.presente, presenteIds: saldo.presenteIds }
   }
-  return estadoComCreditos(lerLocal(), saldo.creditos, {
+  const maquina = await cotaNoComputador(false)
+  return estadoComCreditos(aplicarMaquina(lerLocal(), maquina), saldo.creditos, {
     presente: saldo.presente,
     presenteIds: saldo.presenteIds,
     comprou: saldo.comprou,
@@ -166,6 +257,15 @@ export async function registrarCalculoPublico(): Promise<
     }
     const estado = await estadoAtual()
     return { ok: false, motivo: estado.creditos > 0 ? 'ritmo' : 'saldo', ...estado }
+  }
+  const maquina = await cotaNoComputador(true)
+  if (maquina) {
+    aplicarMaquina(lerLocal(), maquina.ok ? maquina : { ...maquina, usadas: LIMITE, restam: 0, esgotado: true })
+    if (!maquina.ok) {
+      const estado = await estadoAtual()
+      return { ok: false, motivo: 'saldo', ...estado }
+    }
+    return { ok: true, ...(await estadoAtual()) }
   }
   const local = lerLocal()
   if (local.n < LIMITE) {

@@ -79,6 +79,38 @@ export function visitorIdPublico(): string {
   }
 }
 
+function sinalCanvas(): string {
+  try {
+    const c = document.createElement('canvas')
+    const ctx = c.getContext('2d')
+    if (!ctx) return ''
+    ctx.textBaseline = 'alphabetic'
+    ctx.font = '14px Arial'
+    ctx.fillStyle = '#f60'
+    ctx.fillRect(0, 0, 80, 20)
+    ctx.fillStyle = '#069'
+    ctx.fillText('doca-maquina', 2, 14)
+    return c.toDataURL().slice(-48)
+  } catch {
+    return ''
+  }
+}
+
+function sinalGpu(): string {
+  try {
+    const c = document.createElement('canvas')
+    const gl = c.getContext('webgl') || c.getContext('experimental-webgl')
+    if (!gl || !('getParameter' in gl)) return ''
+    const ext = (gl as WebGLRenderingContext).getExtension('WEBGL_debug_renderer_info')
+    const renderer = ext
+      ? String((gl as WebGLRenderingContext).getParameter(ext.UNMASKED_RENDERER_WEBGL) || '')
+      : ''
+    return renderer.slice(0, 80)
+  } catch {
+    return ''
+  }
+}
+
 export async function deviceHashPublico(): Promise<string> {
   const nav = typeof navigator === 'undefined' ? null : navigator
   const scr = typeof screen === 'undefined' ? null : screen
@@ -86,13 +118,19 @@ export async function deviceHashPublico(): Promise<string> {
     typeof Intl === 'undefined'
       ? ''
       : Intl.DateTimeFormat().resolvedOptions().timeZone || ''
+  const navMem = nav as (Navigator & { deviceMemory?: number }) | null
   const raw = [
     nav?.language || '',
     tz,
-    scr ? `${scr.width}x${scr.height}x${scr.colorDepth}` : '',
+    scr ? `${scr.width}x${scr.height}x${scr.colorDepth}x${scr.availWidth}` : '',
     String(nav?.hardwareConcurrency || ''),
+    String(navMem?.deviceMemory || ''),
+    String(nav?.maxTouchPoints || ''),
+    String(typeof window === 'undefined' ? '' : window.devicePixelRatio || ''),
     nav?.platform || '',
     (nav?.userAgent || '').slice(0, 140),
+    sinalGpu(),
+    sinalCanvas(),
   ].join('|')
   try {
     const data = new TextEncoder().encode(`doca-dev:${raw}`)

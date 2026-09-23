@@ -180,5 +180,6 @@ Deno.serve(async (req) => {
     restam: Number.isFinite(restam) ? restam : Math.max(0, LIMITE - usadas),
     esgotado,
     limite: LIMITE,
+    produto: body.produto === 'rota' ? 'rota' : 'mapa',
   })
 })
