@@ -11,7 +11,7 @@ import {
 } from '../../lib/rotaPublicoOtp'
 
 type Aba = 'entrar' | 'criar'
-type Passo = 'form' | 'codigo' | 'nova-senha'
+type Passo = 'form' | 'codigo' | 'validado' | 'nova-senha'
 
 function RotaPublicoLoginCampos({
   onPronto,
@@ -27,6 +27,7 @@ function RotaPublicoLoginCampos({
   const [senha, setSenha] = useState('')
   const [senha2, setSenha2] = useState('')
   const [codigo, setCodigo] = useState('')
+  const [contaNova, setContaNova] = useState(false)
   const [busyOtp, setBusyOtp] = useState(false)
   const [erroOtp, setErroOtp] = useState('')
   const [infoOtp, setInfoOtp] = useState('')
@@ -40,6 +41,20 @@ function RotaPublicoLoginCampos({
   useEffect(() => {
     if (auth.conta && !auth.redefinirSenha) onProntoRef.current?.()
   }, [auth.conta, auth.redefinirSenha])
+
+  useEffect(() => {
+    if (passo !== 'validado') return
+    const t = window.setTimeout(() => {
+      setAba('entrar')
+      setPasso('form')
+      setFluxo(null)
+      setCodigo('')
+      setSenha2('')
+      setContaNova(true)
+      setInfoOtp('Código correto. Sua conta está pronta. Clique em Fazer login.')
+    }, 1600)
+    return () => window.clearTimeout(t)
+  }, [passo])
 
   function limparAvisos() {
     setErroOtp('')
@@ -116,8 +131,8 @@ function RotaPublicoLoginCampos({
         setErroOtp(r.erro)
         return
       }
-      const login = await auth.entrarEmail(email, senha)
-      if (!login.ok) setErroOtp(login.erro || 'Conta criada. Entre com o e-mail e a senha.')
+      setInfoOtp('Código validado. Está correto.')
+      setPasso('validado')
       return
     }
     await gravarNovaSenha()
@@ -195,6 +210,17 @@ function RotaPublicoLoginCampos({
         {erro ? <p className="mapa-pub-login__erro">{erro}</p> : null}
         {info ? <p className="mapa-pub-login__ok">{info}</p> : null}
       </form>
+    )
+  }
+
+  if (passo === 'validado') {
+    return (
+      <div className="mapa-pub-login__form">
+        <p className="mapa-pub-login__validado">Código validado. Está correto.</p>
+        <p className="mapa-pub-login__aviso">
+          Abrindo o login com o e-mail e a senha que você acabou de cadastrar.
+        </p>
+      </div>
     )
   }
 
@@ -294,6 +320,7 @@ function RotaPublicoLoginCampos({
           aria-selected={aba === 'entrar'}
           onClick={() => {
             setAba('entrar')
+            setContaNova(false)
             limparAvisos()
           }}
         >
@@ -306,6 +333,7 @@ function RotaPublicoLoginCampos({
           aria-selected={aba === 'criar'}
           onClick={() => {
             setAba('criar')
+            setContaNova(false)
             limparAvisos()
           }}
         >
@@ -313,6 +341,9 @@ function RotaPublicoLoginCampos({
         </button>
       </div>
       <form className="mapa-pub-login__form" onSubmit={(e) => void enviar(e)}>
+        {contaNova && aba === 'entrar' && info ? (
+          <p className="mapa-pub-login__validado">{info}</p>
+        ) : null}
         {aba === 'criar' ? (
           <label>
             Nome
@@ -370,7 +401,7 @@ function RotaPublicoLoginCampos({
           className="mapa-pub__btn mapa-pub__btn--solid"
           disabled={busy || (aba === 'criar' && senha !== senha2)}
         >
-          {busy ? 'Aguarde…' : aba === 'criar' ? 'Enviar código' : 'Entrar'}
+          {busy ? 'Aguarde…' : aba === 'criar' ? 'Enviar código' : contaNova ? 'Fazer login' : 'Entrar'}
         </button>
         {aba === 'entrar' ? (
           <button type="button" className="mapa-pub-login__esqueci" disabled={busy} onClick={() => void pedirCodigoSenha()}>
@@ -378,7 +409,7 @@ function RotaPublicoLoginCampos({
           </button>
         ) : null}
         {erro ? <p className="mapa-pub-login__erro">{erro}</p> : null}
-        {info ? <p className="mapa-pub-login__ok">{info}</p> : null}
+        {info && !(contaNova && aba === 'entrar') ? <p className="mapa-pub-login__ok">{info}</p> : null}
       </form>
     </div>
   )
