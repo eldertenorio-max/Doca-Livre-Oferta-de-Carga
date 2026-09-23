@@ -125,6 +125,27 @@ export function lerRotaDaUrl(search = typeof window === 'undefined' ? '' : windo
   }
 }
 
+const CHAVES_ROTA_URL = ['o', 'd', 'oc', 'dc', 'v', 'tv', 'iv', 'p', 'e', 'c', 'k', 'dl']
+
+/** Tira origem e destino da barra, para o próximo cálculo começar do zero. */
+export function limparBarraRota() {
+  if (typeof window === 'undefined') return
+  try {
+    const u = new URL(window.location.href)
+    let mudou = false
+    for (const k of CHAVES_ROTA_URL) {
+      if (u.searchParams.has(k)) {
+        u.searchParams.delete(k)
+        mudou = true
+      }
+    }
+    if (!mudou) return
+    window.history.replaceState(null, '', `${u.pathname}${u.search}${u.hash}`)
+  } catch {
+    /* ignore */
+  }
+}
+
 /** No Windows/Chrome o compartilhar usa a URL da barra. Grava os parâmetros antes. */
 export function sincronizarBarraEndereco(p: RotaShareDados) {
   if (typeof window === 'undefined') return

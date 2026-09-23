@@ -68,7 +68,7 @@ import {
   marcarPresenteRotaVisto,
   presenteJaVistoLocal,
 } from '../../lib/rotaPublicoCreditos'
-import { lerRotaDaUrl, sincronizarBarraEndereco } from '../../lib/rotaShareUrl'
+import { lerRotaDaUrl, limparBarraRota, sincronizarBarraEndereco } from '../../lib/rotaShareUrl'
 import {
   excluirRotaNesteAparelho,
   listarRotasNesteAparelho,
@@ -185,6 +185,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
   const [pickMode, setPickMode] = useState<string | null>(null)
   const pickBusy = useRef(false)
   const hidratouUrl = useRef(false)
+  const contaAoAbrir = useRef<string | null>(null)
   const [vias, setVias] = useState<Via[]>([])
   const [tipoVeiculo, setTipoVeiculo] = useState<TipoVeiculoUi>('caminhao')
   const [tipoVeiculoNome, setTipoVeiculoNome] = useState('Carreta LS')
@@ -557,7 +558,22 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
     setSnap(null)
     setPickMode(null)
     setEntrarId(0)
+    setFormAberto(true)
   }
+
+  useEffect(() => {
+    if (modoSistema || !googleAuth.pronto) return
+    const id = googleAuth.conta?.id || ''
+    if (contaAoAbrir.current === null) {
+      contaAoAbrir.current = id
+      return
+    }
+    const anterior = contaAoAbrir.current
+    contaAoAbrir.current = id
+    if (!id || id === anterior) return
+    limparRota()
+    limparBarraRota()
+  }, [modoSistema, googleAuth.pronto, googleAuth.conta?.id])
 
   async function consumirCalculo(): Promise<boolean> {
     if (modoSistema || userRef.current || isRotaPublicoIlimitado()) return true
