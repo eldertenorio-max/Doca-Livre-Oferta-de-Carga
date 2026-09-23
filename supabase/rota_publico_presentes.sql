@@ -184,7 +184,9 @@ begin
     'ok', true,
     'creditos', coalesce(v_saldo, 0),
     'presente', coalesce(v_presente, 0),
-    'presente_ids', to_jsonb(coalesce(v_ids, '{}'::uuid[]))
+    'presente_ids', to_jsonb(coalesce(v_ids, '{}'::uuid[])),
+    'comprou', coalesce(v_saldo, 0) > 0
+      or exists (select 1 from public.rota_publico_pix where user_id = v_uid)
   );
 end;
 $$;

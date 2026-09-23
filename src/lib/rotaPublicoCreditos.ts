@@ -5,6 +5,7 @@ import { sessaoRotaPublico } from './rotaPublicoAuth'
 
 const STORAGE_KEY = 'doca-rota-publico-creditos-v1'
 const TX_KEY = 'doca-rota-publico-pix-tx-v1'
+const COMPROU_KEY = 'doca-rota-publico-comprou-v1'
 
 export type PacoteCreditoRota = {
   id: string
@@ -55,12 +56,14 @@ type RpcCreditos = {
   status?: string
   presente?: number
   presente_ids?: unknown
+  comprou?: boolean | string
 }
 
 export type SaldoRotaPublico = {
   creditos: number
   presente: number
   presenteIds: string[]
+  comprou: boolean
 }
 
 const PRESENTE_VISTO_KEY = 'doca-rota-presente-visto-v1'
@@ -126,6 +129,36 @@ function zerarCreditosLocais() {
   }
 }
 
+function temPixLocal(): boolean {
+  try {
+    const raw = localStorage.getItem(TX_KEY)
+    const usados = raw ? (JSON.parse(raw) as unknown) : []
+    return Array.isArray(usados) && usados.length > 0
+  } catch {
+    return false
+  }
+}
+
+export function marcarContaComprouCreditos() {
+  try {
+    localStorage.setItem(COMPROU_KEY, '1')
+  } catch {
+    /* ignore */
+  }
+}
+
+export function contaJaComprouCreditos(): boolean {
+  if (temPixLocal()) {
+    marcarContaComprouCreditos()
+    return true
+  }
+  try {
+    return localStorage.getItem(COMPROU_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 function rpcCreditos(data: unknown): RpcCreditos {
   if (typeof data === 'string') {
     try {
@@ -164,8 +197,15 @@ export function creditosRotaPublico(): number {
   return lerCreditosLocais()
 }
 
+function saldoComprou(creditos: number, rpcComprou?: boolean | string): boolean {
+  const doRpc = rpcComprou === true || rpcComprou === 'true'
+  const comprou = doRpc || creditos > 0 || contaJaComprouCreditos()
+  if (comprou) marcarContaComprouCreditos()
+  return comprou
+}
+
 export async function consultarCreditosRotaPublico(): Promise<SaldoRotaPublico> {
-  const vazio: SaldoRotaPublico = { creditos: 0, presente: 0, presenteIds: [] }
+  const vazio: SaldoRotaPublico = { creditos: 0, presente: 0, presenteIds: [], comprou: contaJaComprouCreditos() }
   const conta = await sessaoRotaPublico()
   if (conta && supabase) {
     const res = await rpcComTempo(supabase.rpc('rota_publico_meus_creditos'))
@@ -173,14 +213,17 @@ export async function consultarCreditosRotaPublico(): Promise<SaldoRotaPublico> 
       const parsed = rpcCreditos(res.data)
       const n = Number(parsed.creditos)
       const presente = Number(parsed.presente)
+      const creditos = Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0
       return {
-        creditos: Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0,
+        creditos,
         presente: Number.isFinite(presente) && presente > 0 ? Math.floor(presente) : 0,
         presenteIds: idsPresente(parsed.presente_ids),
+        comprou: saldoComprou(creditos, parsed.comprou),
       }
     }
   }
-  return { ...vazio, creditos: lerCreditosLocais() }
+  const local = lerCreditosLocais()
+  return { ...vazio, creditos: local, comprou: saldoComprou(local) }
 }
 
 export async function saldoCreditosRotaPublico(): Promise<number> {
@@ -223,6 +266,7 @@ export function creditarPacoteRotaPublico(pacote: PacoteCreditoRota, txid: strin
     return false
   }
   gravarCreditosLocais(lerCreditosLocais() + pacote.creditos)
+  marcarContaComprouCreditos()
   return true
 }
 
@@ -256,6 +300,7 @@ export async function creditarPacoteRotaPublicoNaConta(
     }
     return { ok: false, erro: 'Não foi possível liberar os créditos.' }
   }
+  marcarContaComprouCreditos()
   return { ok: true, creditos: parsed.creditos }
 }
 

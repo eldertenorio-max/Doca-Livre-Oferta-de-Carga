@@ -139,8 +139,8 @@ const COTA_ILIMITADA: EstadoCalculosPublicos = {
 
 function rotuloCotaPublica(ilimitado: boolean, cota: EstadoCalculosPublicos) {
   if (ilimitado) return 'Ilimitado'
-  if (cota.restamGratis > 0) return `${cota.restamGratis} de ${ROTA_PUBLICO_LIMITE_CALCULOS} grátis`
   if (cota.creditos > 0) return `${cota.creditos} crédito${cota.creditos === 1 ? '' : 's'}`
+  if (cota.restamGratis > 0) return `${cota.restamGratis} de ${ROTA_PUBLICO_LIMITE_CALCULOS} grátis`
   return 'Sem créditos — compre mais'
 }
 

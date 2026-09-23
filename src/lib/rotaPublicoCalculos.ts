@@ -5,6 +5,8 @@ import {
   consultarCreditosRotaPublico,
   consumirCreditoRotaPublicoConta,
   migrarCreditosLocaisParaConta,
+  contaJaComprouCreditos,
+  marcarContaComprouCreditos,
 } from './rotaPublicoCreditos'
 import { sessaoRotaPublico } from './rotaPublicoAuth'
 
@@ -102,11 +104,13 @@ async function tentarConsumirCredito(): Promise<boolean> {
 function estadoComCreditos(
   reg: Registro,
   creditos: number,
-  extra?: { presente?: number; presenteIds?: string[] },
+  extra?: { presente?: number; presenteIds?: string[]; comprou?: boolean },
 ): EstadoCalculosPublicos {
   const usadas = Math.min(LIMITE, Math.max(0, reg.n))
-  const restamGratis = Math.max(0, LIMITE - usadas)
-  const restam = restamGratis + creditos
+  const pago = Boolean(extra?.comprou) || creditos > 0 || contaJaComprouCreditos()
+  if (pago) marcarContaComprouCreditos()
+  const restamGratis = pago ? 0 : Math.max(0, LIMITE - usadas)
+  const restam = pago ? creditos : restamGratis + creditos
   return {
     usadas,
     restamGratis,
@@ -133,6 +137,7 @@ async function estadoAtual(): Promise<EstadoCalculosPublicos> {
   return estadoComCreditos(lerLocal(), saldo.creditos, {
     presente: saldo.presente,
     presenteIds: saldo.presenteIds,
+    comprou: saldo.comprou,
   })
 }
 
@@ -145,13 +150,22 @@ export async function consultarEstadoCalculosPublicos(): Promise<EstadoCalculosP
   return estadoAtual()
 }
 
-/** Consome 1 cálculo: primeiro as 2 grátis do dia, depois créditos da conta (ou deste aparelho). */
+/** Consome 1 cálculo. Quem já comprou crédito não usa mais os 2 grátis do dia. */
 export async function registrarCalculoPublico(): Promise<
   EstadoCalculosPublicos & { ok: boolean; motivo?: 'ritmo' | 'saldo' }
 > {
   if (isRotaPublicoIlimitado()) return { ok: true, ...ILIMITADO }
   if (!ritmoPublicoOk()) {
     return { ok: false, motivo: 'ritmo', ...(await estadoAtual()) }
+  }
+  const saldo = await consultarCreditosRotaPublico()
+  if (saldo.comprou || saldo.creditos > 0) {
+    marcarContaComprouCreditos()
+    if (await tentarConsumirCredito()) {
+      return { ok: true, ...(await estadoAtual()) }
+    }
+    const estado = await estadoAtual()
+    return { ok: false, motivo: estado.creditos > 0 ? 'ritmo' : 'saldo', ...estado }
   }
   const local = lerLocal()
   if (local.n < LIMITE) {

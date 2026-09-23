@@ -344,14 +344,11 @@ export function RotaPaywallModal({
         <p>
           {semSaldo
             ? 'Seus créditos acabaram. Compre mais no PIX para continuar calculando, ou assine um plano.'
-            : creditos > 0 && esgotado
-              ? `Os ${ROTA_PUBLICO_LIMITE_CALCULOS} grátis de hoje acabaram. Os próximos cálculos usam os ${creditos} crédito${creditos === 1 ? '' : 's'} da sua conta (1 por rota). Feche e continue calculando.`
+            : creditos > 0
+              ? `Você tem ${creditos} crédito${creditos === 1 ? '' : 's'}${conta ? ' na sua conta' : ''}. Cada cálculo usa 1 crédito. Os grátis do dia não valem depois da compra.`
               : esgotado
                 ? `Os ${ROTA_PUBLICO_LIMITE_CALCULOS} cálculos grátis de hoje acabaram. Compre créditos no PIX ou assine um plano.`
                 : `Você ainda tem ${restamGratis} de ${ROTA_PUBLICO_LIMITE_CALCULOS} cálculos grátis hoje. Créditos avulsos no PIX ou plano mensal ilimitado.`}
-          {creditos > 0 && !esgotado
-            ? ` Você já tem ${creditos} crédito${creditos === 1 ? '' : 's'}${conta ? ' na sua conta' : ''}.`
-            : ''}
         </p>
 
         <div className="mapa-pub-pay-tabs" role="tablist" aria-label="Forma de continuar">
