@@ -15,6 +15,7 @@ type RespostaAsaas = {
   ok?: boolean
   erro?: string
   asaas?: boolean
+  doca?: boolean
   resend?: boolean
   sandbox?: boolean
   paymentId?: string
@@ -59,12 +60,13 @@ async function chamarAsaas(body: Record<string, unknown>): Promise<RespostaAsaas
 
 export function asaasNaoConfigurado(erro?: string) {
   const t = (erro || '').toLowerCase()
-  return t.includes('asaas_nao_configurado') || t.includes('asaas_api_key')
+  return t.includes('asaas_nao_configurado') || t.includes('asaas_api_key') || t.includes('doca_nao_configurado')
 }
 
 export async function statusConfigAsaas(): Promise<{
   ok: boolean
   asaas?: boolean
+  doca?: boolean
   resend?: boolean
   sandbox?: boolean
 }> {
@@ -72,6 +74,7 @@ export async function statusConfigAsaas(): Promise<{
   return {
     ok: Boolean(r.ok),
     asaas: Boolean(r.asaas),
+    doca: Boolean(r.doca),
     resend: Boolean(r.resend),
     sandbox: Boolean(r.sandbox),
   }

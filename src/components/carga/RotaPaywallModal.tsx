@@ -178,10 +178,10 @@ export function RotaPaywallModal({
     })
   }, [planoSel, txidPlano])
 
-  const qrCredito = cobranca?.imagem || (modoManual ? urlQrPix(payloadManual) : '')
   const copiaCredito = cobranca?.payload || (modoManual ? payloadManual : '')
-  const qrPlano = cobrancaPlano?.imagem || (modoManualPlano ? urlQrPix(payloadPlanoManual) : '')
   const copiaPlano = cobrancaPlano?.payload || (modoManualPlano ? payloadPlanoManual : '')
+  const qrCredito = cobranca?.imagem || (copiaCredito ? urlQrPix(copiaCredito) : '')
+  const qrPlano = cobrancaPlano?.imagem || (copiaPlano ? urlQrPix(copiaPlano) : '')
 
   async function copiarPix() {
     if (!copiaCredito) return
@@ -390,7 +390,7 @@ export function RotaPaywallModal({
             ) : (
               <>
                 <p className="mapa-pub-creditos__hint">
-                  Cada crédito vale 1 cálculo na conta de {conta.nome.split(' ')[0]}. PIX pelo Asaas:
+                  Cada crédito vale 1 cálculo na conta de {conta.nome.split(' ')[0]}. O PIX nasce na Doca Livre:
                   os créditos entram sozinhos e o comprovante vai por e-mail.
                 </p>
                 <div className="mapa-pub-creditos__packs">
@@ -527,7 +527,7 @@ export function RotaPaywallModal({
           <div className="mapa-pub-creditos">
             <p className="mapa-pub-creditos__hint">
               A conta da calculadora (Google ou e-mail e senha) não é a conta do sistema. O plano é
-              o sistema Oferta de Carga: pague o PIX Asaas e, quando o banco confirmar, o cadastro
+              o sistema Oferta de Carga: pague o PIX da Doca Livre e, quando o pagamento confirmar, o cadastro
               libera e o e-mail de confirmação chega.
             </p>
             <div className="mapa-pub-planos">

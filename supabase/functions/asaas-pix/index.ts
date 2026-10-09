@@ -1,13 +1,16 @@
 /**
- * PIX Asaas da calculadora pública: gera QR, confirma pagamento, libera crédito e envia e-mail.
+ * PIX da calculadora pública: gera QR, confirma pagamento, libera crédito e envia e-mail.
+ * A cobrança nasce na Doca Livre (instituição). O Asaas só permanece se a Doca ainda não estiver ligada.
  *
  * Deploy:
  *   supabase functions deploy asaas-pix --project-ref imnlbbfgaztfhwndfxwb
  *
- * Secrets:
- *   ASAAS_API_KEY   (obrigatório)
+ * Secrets da Doca Livre (preferidos):
+ *   DOCA_API_URL, DOCA_CLIENT_ID, DOCA_CLIENT_SECRET, DOCA_ACCOUNT_ID
+ *   DOCA_WEBHOOK_SECRET (opcional; confirma o aviso de pagamento)
+ * Secrets antigos, só se a Doca não estiver configurada:
+ *   ASAAS_API_KEY, ASAAS_WEBHOOK_TOKEN
  *   RESEND_API_KEY / RESEND_FROM
- *   ASAAS_WEBHOOK_TOKEN (opcional; se vazio, a função gera um token estável)
  */
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
@@ -172,6 +175,95 @@ async function asaasFetch(path: string, init?: RequestInit) {
   }
   if (!r.ok) console.error('asaas', method, path, r.status, text.slice(0, 400))
   return { ok: r.ok, status: r.status, body }
+}
+
+function docaConfig() {
+  const url = (Deno.env.get('DOCA_API_URL') || '').trim().replace(/\/$/, '')
+  const clientId = (Deno.env.get('DOCA_CLIENT_ID') || '').trim()
+  const clientSecret = (Deno.env.get('DOCA_CLIENT_SECRET') || '').trim()
+  const accountId = (Deno.env.get('DOCA_ACCOUNT_ID') || '').trim()
+  return { url, clientId, clientSecret, accountId, ok: Boolean(url && clientId && clientSecret && accountId) }
+}
+
+let docaTokenCache = { token: '', until: 0 }
+
+async function docaToken(): Promise<{ ok: true; token: string } | { ok: false; erro: string }> {
+  const cfg = docaConfig()
+  if (!cfg.ok) return { ok: false, erro: 'doca_nao_configurado' }
+  if (docaTokenCache.token && docaTokenCache.until > Date.now() + 15_000) {
+    return { ok: true, token: docaTokenCache.token }
+  }
+  const r = await fetch(`${cfg.url}/oauth/token`, {
+    method: 'POST',
+    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    body: JSON.stringify({
+      grant_type: 'client_credentials',
+      client_id: cfg.clientId,
+      client_secret: cfg.clientSecret,
+    }),
+  })
+  const body = (await r.json().catch(() => ({}))) as { access_token?: string; expires_in?: number }
+  if (!r.ok || !body.access_token) {
+    return { ok: false, erro: 'A Doca Livre recusou a credencial da Oferta de Carga.' }
+  }
+  docaTokenCache = {
+    token: body.access_token,
+    until: Date.now() + Number(body.expires_in || 3600) * 1000,
+  }
+  return { ok: true, token: body.access_token }
+}
+
+async function docaFetch(method: string, path: string, payload?: unknown) {
+  const cfg = docaConfig()
+  if (!cfg.ok) return { ok: false as const, status: 0, body: {} as Record<string, unknown>, erro: 'doca_nao_configurado' }
+  const auth = await docaToken()
+  if (!auth.ok) return { ok: false as const, status: 401, body: {} as Record<string, unknown>, erro: auth.erro }
+  const r = await fetch(`${cfg.url}${path}`, {
+    method,
+    headers: {
+      accept: 'application/json',
+      authorization: `Bearer ${auth.token}`,
+      ...(payload ? { 'content-type': 'application/json' } : {}),
+    },
+    body: payload ? JSON.stringify(payload) : undefined,
+  })
+  const text = await r.text()
+  let body: Record<string, unknown> = {}
+  try {
+    body = text ? (JSON.parse(text) as Record<string, unknown>) : {}
+  } catch {
+    body = { raw: text.slice(0, 240) }
+  }
+  if (!r.ok) {
+    const err = body.error as { message?: string } | undefined
+    return { ok: false as const, status: r.status, body, erro: err?.message || 'Falha na Doca Livre.' }
+  }
+  return { ok: true as const, status: r.status, body, erro: '' }
+}
+
+async function verificarAssinaturaDoca(raw: string, header: string, secret: string) {
+  const map = new Map(
+    header.split(',').map((part) => {
+      const i = part.indexOf('=')
+      return [part.slice(0, i).trim(), part.slice(i + 1).trim()] as const
+    }),
+  )
+  const t = map.get('t') || ''
+  const v1 = map.get('v1') || ''
+  if (!t || !v1) return false
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${t}.${raw}`))
+  const hex = [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('')
+  if (hex.length !== v1.length) return false
+  let diff = 0
+  for (let i = 0; i < hex.length; i++) diff |= hex.charCodeAt(i) ^ v1.charCodeAt(i)
+  return diff === 0
 }
 
 type ContaAsaas = {
@@ -468,8 +560,71 @@ async function processarPago(paymentId: string) {
   return { ok: true as const, emailEnviado, saldo, cobranca }
 }
 
+async function criarNaDocaLivre(input: {
+  tipo: 'credito' | 'plano'
+  pacote: string
+  creditos: number
+  valor: number
+  titulo: string
+  email: string
+  nome: string
+  cpfCnpj: string
+  userId: string | null
+}) {
+  const cfg = docaConfig()
+  const descricao = (input.tipo === 'credito'
+    ? `Oferta de Carga — ${input.titulo}`
+    : `Oferta de Carga — plano ${input.titulo}`).slice(0, 140)
+  const cobranca = await docaFetch('POST', '/charges', {
+    account_id: cfg.accountId,
+    payer_name: input.nome.slice(0, 120),
+    payer_document: input.cpfCnpj,
+    description: descricao,
+    amount: Math.round(Number(input.valor) * 100),
+    due_date: hojeISO(),
+    category: 'SERVICE',
+    reference_type: input.tipo === 'credito' ? 'OFERTA_CREDITO' : 'OFERTA_PLANO',
+    reference_id: `${input.tipo}:${input.userId || input.email}:${input.pacote}`.slice(0, 128),
+  })
+  const paymentId = String(cobranca.body.id || '')
+  const payload = String(cobranca.body.pix_copy_paste || '')
+  if (!cobranca.ok || !paymentId || !payload) return fail(cobranca.erro || 'Não foi possível gerar o QR Code PIX.')
+
+  let imagem = ''
+  const qr = await docaFetch('POST', '/pix/qr-image', { code: payload })
+  if (qr.ok && typeof qr.body.qr_code === 'string') imagem = qr.body.qr_code
+
+  const sb = admin()
+  const { error: insErr } = await sb.from('rota_publico_cobrancas').insert({
+    user_id: input.userId,
+    asaas_payment_id: paymentId,
+    asaas_customer_id: null,
+    tipo: input.tipo,
+    pacote_id: input.pacote,
+    creditos: input.creditos,
+    valor: input.valor,
+    status: 'pendente',
+    email: input.email || null,
+  })
+  if (insErr) return fail('Não foi possível gravar a cobrança. Rode o SQL do Pix no Supabase.')
+
+  return json({
+    ok: true,
+    asaas: true,
+    doca: true,
+    paymentId,
+    payload,
+    imagem,
+    valor: input.valor,
+    creditos: input.creditos,
+    pacoteId: input.pacote,
+    tipo: input.tipo,
+    expiracao: '',
+  })
+}
+
 async function criarCobranca(req: Request, body: Record<string, unknown>) {
-  if (!asaasKey()) return fail('asaas_nao_configurado')
+  if (!docaConfig().ok && !asaasKey()) return fail('doca_nao_configurado')
 
   const tipo = body.tipo === 'plano' ? 'plano' : 'credito'
   const pacote = String(body.pacote || '').trim()
@@ -503,6 +658,12 @@ async function criarCobranca(req: Request, body: Record<string, unknown>) {
   const nome = (conta?.nome || String(body.nome || '')).trim() || email.split('@')[0] || 'Cliente Doca Livre'
   if (tipo === 'plano' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return fail('Informe o e-mail para enviarmos a confirmação.')
+  }
+
+  if (docaConfig().ok) {
+    return await criarNaDocaLivre({
+      tipo, pacote, creditos, valor, titulo, email, nome, cpfCnpj, userId: conta?.id || null,
+    })
   }
 
   const situacao = await situacaoContaAsaas()
@@ -615,6 +776,16 @@ async function statusCobranca(req: Request, body: Record<string, unknown>) {
     })
   }
 
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(paymentId)) {
+    const consulta = await docaFetch('GET', `/charges/${encodeURIComponent(paymentId)}`)
+    if (!consulta.ok) return fail(consulta.erro)
+    const status = String(consulta.body.display_status || consulta.body.status || '')
+    if (status !== 'PAID') return json({ ok: true, pago: false, status })
+    const proc = await processarPago(paymentId)
+    if (!proc.ok) return json({ ok: false, erro: proc.erro }, 500)
+    return json({ ok: true, pago: true, status: 'pago', emailEnviado: proc.emailEnviado, saldo: proc.saldo })
+  }
+
   const consulta = await asaasFetch(`/payments/${encodeURIComponent(paymentId)}`)
   const status = String((consulta.body as { status?: string }).status || '')
   if (!consulta.ok) return fail(erroAsaas(consulta.body, consulta.status))
@@ -662,23 +833,45 @@ async function webhook(req: Request) {
   return json({ ok: true, pago: true, emailEnviado: proc.emailEnviado })
 }
 
+async function webhookDoca(raw: string, header: string) {
+  const secret = (Deno.env.get('DOCA_WEBHOOK_SECRET') || '').trim()
+  if (!secret || !(await verificarAssinaturaDoca(raw, header, secret))) {
+    return json({ ok: false, erro: 'Webhook não autorizado.' }, 401)
+  }
+  const body = JSON.parse(raw) as { event_type?: string; reference_id?: string; payload?: { charge_id?: string } }
+  if (body.event_type !== 'CHARGE_PAID') return json({ ok: true, ignored: true })
+  const paymentId = String(body.payload?.charge_id || body.reference_id || '')
+  if (!paymentId) return json({ ok: true, ignored: true })
+  const proc = await processarPago(paymentId)
+  if (!proc.ok && proc.erro === 'cobranca_nao_encontrada') {
+    return json({ ok: true, ignored: true, motivo: 'cobranca_nao_encontrada' })
+  }
+  if (!proc.ok) return json({ ok: false, erro: proc.erro }, 500)
+  return json({ ok: true, pago: true, emailEnviado: proc.emailEnviado })
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return json({ ok: false, erro: 'Método não permitido.' }, 405)
 
   try {
     if (req.headers.get('asaas-access-token')) return await webhook(req)
-    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>
+    const raw = await req.text()
+    const docaSignature = req.headers.get('x-doca-signature') || ''
+    if (docaSignature) return await webhookDoca(raw, docaSignature)
+    const body = (raw ? JSON.parse(raw) : {}) as Record<string, unknown>
     const action = String(body.action || '').trim()
     if (action === 'criar') return await criarCobranca(req, body)
     if (action === 'status') return await statusCobranca(req, body)
     if (action === 'config') {
-      const situacao = asaasKey() ? await situacaoContaAsaas() : null
+      const doca = docaConfig().ok
+      const situacao = !doca && asaasKey() ? await situacaoContaAsaas() : null
       return json({
         ok: true,
-        asaas: Boolean(asaasKey()),
+        asaas: doca || Boolean(asaasKey()),
+        doca,
         resend: Boolean(Deno.env.get('RESEND_API_KEY')?.trim()),
-        sandbox: asaasKey().includes('aact_hmlg'),
+        sandbox: doca ? Deno.env.get('DOCA_SANDBOX') === 'true' : asaasKey().includes('aact_hmlg'),
         conta: situacao && situacao.ok ? situacao.conta : undefined,
         contaErro: situacao && !situacao.ok ? situacao.erro : undefined,
       })

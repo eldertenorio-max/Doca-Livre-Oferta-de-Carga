@@ -21,6 +21,7 @@ export function ConferirPixCreditos() {
   const [erro, setErro] = useState('')
   const [dados, setDados] = useState<ConsultaPixCredito | null>(null)
   const [asaasOn, setAsaasOn] = useState<boolean | null>(null)
+  const [docaOn, setDocaOn] = useState(false)
   const [resendOn, setResendOn] = useState<boolean | null>(null)
   const [sandbox, setSandbox] = useState(false)
 
@@ -31,6 +32,7 @@ export function ConferirPixCreditos() {
         return
       }
       setAsaasOn(Boolean(r.asaas))
+      setDocaOn(Boolean(r.doca))
       setResendOn(Boolean(r.resend))
       setSandbox(Boolean(r.sandbox))
     })
@@ -54,15 +56,19 @@ export function ConferirPixCreditos() {
       <div>
         <h2 className="financeiro-pix__title">Conferir PIX da calculadora</h2>
         <p className="financeiro-pix__sub">
-          PIX do sistema: Asaas. Cole o código <code>pay_…</code>. Se já estiver creditado, é
+          PIX do sistema: {docaOn ? 'Doca Livre' : 'Asaas'}. Cole o código do pagamento. Se já estiver creditado, é
           comprovante antigo — não libere de novo.
           {asaasOn === false
-            ? ' A chave da API ainda não está no Supabase — até lá o site usa o PIX antigo.'
-            : asaasOn
+            ? ' A conexão ainda não está no Supabase — até lá o site usa o PIX antigo.'
+            : docaOn
               ? sandbox
-                ? ' Asaas ligado (sandbox).'
-                : ' Asaas ligado (produção).'
-              : ''}
+                ? ' Doca Livre ligada (testes). O valor cai na conta da instituição.'
+                : ' Doca Livre ligada. O valor cai na conta da instituição.'
+              : asaasOn
+                ? sandbox
+                  ? ' Asaas ligado (sandbox).'
+                  : ' Asaas ligado (produção).'
+                : ''}
           {resendOn === false ? ' E-mail de confirmação: falta RESEND_API_KEY.' : ''}
         </p>
       </div>
@@ -78,7 +84,7 @@ export function ConferirPixCreditos() {
           <input
             value={codigo}
             onChange={(e) => setCodigo(e.target.value)}
-            placeholder="Ex.: pay_080225913252"
+            placeholder="Código do pagamento"
             autoComplete="off"
             spellCheck={false}
           />
@@ -97,7 +103,7 @@ export function ConferirPixCreditos() {
       {dados?.encontrado && dados.status === 'pendente' && !dados.ja_creditado ? (
         <p className="financeiro-pix__vazio">
           PIX gerado, ainda <strong>não pago</strong> (código {dados.txid}). Não libere crédito na
-          mão até o Asaas confirmar.
+          mão até o pagamento confirmar.
         </p>
       ) : null}
       {dados?.encontrado && dados.status === 'pago' && !dados.ja_creditado ? (
