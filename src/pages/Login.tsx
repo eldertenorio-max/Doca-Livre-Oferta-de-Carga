@@ -12,7 +12,7 @@ import {
   portalSenhaRedefinir,
   portalSenhaVerificarCodigo,
 } from '../lib/portalApi'
-import { DEMO_TRANSPORTADORES, healPortalLoginAtivo, syncPortalAccounts } from '../lib/portalAuth'
+import { healPortalLoginAtivo, syncPortalAccounts } from '../lib/portalAuth'
 import '../styles/login.css'
 import '../styles/shell.css'
 
@@ -612,36 +612,6 @@ export function LoginPage() {
           )}
         </div>
 
-        {mode === 'login' && (
-          <div className="portal-login__demo-transportador">
-            <p className="portal-login__demos-title">Demo transportador (teste)</p>
-            <div className="portal-login__demo-list">
-              {DEMO_TRANSPORTADORES.map((demo) => (
-                <div key={demo.id} className="portal-login__demo-card">
-                  <p className="portal-login__hint">
-                    <strong>{demo.nome}</strong>
-                    <br />
-                    E-mail: {demo.email}
-                    <br />
-                    Senha: {demo.password}
-                  </p>
-                  <button
-                    type="button"
-                    className="portal-login__submit"
-                    onClick={() => {
-                      setUsuario(demo.email)
-                      setSenha(demo.password)
-                      setError('')
-                      setInfo(`Conta demo “${demo.nome}” preenchida. Clique em Entrar.`)
-                    }}
-                  >
-                    Usar conta demo
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )
