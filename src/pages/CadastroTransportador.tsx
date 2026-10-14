@@ -124,6 +124,7 @@ export function CadastroTransportadorPage() {
   const ultimoCepEmpresa = useRef('')
   const [cepEmpresaInfo, setCepEmpresaInfo] = useState('')
   const [cepEmpresaBuscando, setCepEmpresaBuscando] = useState(false)
+  const [usarResidencialNaOrigem, setUsarResidencialNaOrigem] = useState(false)
   const coordsManuais = useRef(false)
   const reverseTimer = useRef(0)
   const reverseSeq = useRef(0)
@@ -266,6 +267,65 @@ export function CadastroTransportadorPage() {
       window.clearTimeout(timer)
     }
   }, [empresa.cep])
+
+  // Origem pode repetir o endereço residencial e então buscar as coordenadas.
+  useEffect(() => {
+    if (!usarResidencialNaOrigem) return
+    const cepDigits = empresa.cep.replace(/\D/g, '')
+    let copiou = false
+    let limpouCoords = false
+    setOrigem((prev) => {
+      const igual =
+        prev.cep === empresa.cep &&
+        prev.cidade === empresa.cidade &&
+        prev.uf === empresa.uf &&
+        prev.endereco === empresa.endereco &&
+        prev.numero === empresa.numero &&
+        prev.bairro === empresa.bairro &&
+        prev.complemento === empresa.complemento
+      if (igual) return prev
+      copiou = true
+      const enderecoMudou =
+        prev.cep !== empresa.cep ||
+        prev.cidade !== empresa.cidade ||
+        prev.uf !== empresa.uf ||
+        prev.endereco !== empresa.endereco ||
+        prev.numero !== empresa.numero ||
+        prev.bairro !== empresa.bairro
+      limpouCoords = enderecoMudou
+      if (enderecoMudou) {
+        ultimoCepOrigem.current = cepDigits.length === 8 ? cepDigits : ''
+        coordsManuais.current = false
+      }
+      return {
+        ...prev,
+        cep: empresa.cep,
+        cidade: empresa.cidade,
+        uf: empresa.uf || prev.uf,
+        endereco: empresa.endereco,
+        numero: empresa.numero,
+        bairro: empresa.bairro,
+        complemento: empresa.complemento,
+        lat: enderecoMudou ? null : prev.lat,
+        lng: enderecoMudou ? null : prev.lng,
+      }
+    })
+    if (!copiou) return
+    if (limpouCoords) {
+      setLatStr('')
+      setLngStr('')
+      setOrigemInfo('Endereço residencial copiado. Localizando coordenadas…')
+    }
+  }, [
+    usarResidencialNaOrigem,
+    empresa.cep,
+    empresa.cidade,
+    empresa.uf,
+    empresa.endereco,
+    empresa.numero,
+    empresa.bairro,
+    empresa.complemento,
+  ])
 
   // CEP da origem → preenche rua/cidade (ViaCEP)
   useEffect(() => {
@@ -472,6 +532,7 @@ export function CadastroTransportadorPage() {
 
   function setOri<K extends keyof typeof origem>(key: K, value: (typeof origem)[K]) {
     const limpaCoords = key !== 'lat' && key !== 'lng' && key !== 'raio_km'
+    if (limpaCoords && usarResidencialNaOrigem) setUsarResidencialNaOrigem(false)
     if (limpaCoords) {
       coordsManuais.current = false
       setLatStr('')
@@ -537,7 +598,7 @@ export function CadastroTransportadorPage() {
       return
     }
     if (!empresa.cidade.trim() || !empresa.uf.trim()) {
-      setError('Preencha cidade e UF da empresa.')
+      setError('Preencha cidade e UF do endereço residencial.')
       return
     }
     if (!origem.cidade.trim() || !origem.uf.trim()) {
@@ -746,7 +807,7 @@ export function CadastroTransportadorPage() {
               <div className="form-card__body">
                 <p className="cadastro-publico__hint">
                   Primeiro escolha a ramificação da empresa na hierarquia Doca Livre. O endereço
-                  abaixo é o da empresa (CNPJ). Sua residência fica em &quot;Cadastre sua origem&quot;.
+                  residencial fica no bloco seguinte. A origem pode usar esse mesmo endereço.
                 </p>
 
                 <p className="cadastro-label" style={{ marginBottom: 8 }}>
@@ -917,6 +978,19 @@ export function CadastroTransportadorPage() {
                       placeholder="Número da IM (se houver)"
                     />
                   </Field>
+                </div>
+              </div>
+            </section>
+
+            <section className="form-card form-card--green" style={{ marginTop: 16 }}>
+              <header className="form-card__head">
+                <h2 className="form-card__title">Cadastre seu endereço residencial</h2>
+              </header>
+              <div className="form-card__body">
+                <p className="cadastro-publico__hint">
+                  Onde você mora. Ao digitar o CEP, a rua, o bairro e a cidade são preenchidos.
+                </p>
+                <div className="form-fields">
                   <Field label="CEP">
                     <input
                       value={empresa.cep}
@@ -1008,10 +1082,18 @@ export function CadastroTransportadorPage() {
               </header>
               <div className="form-card__body">
                 <p className="cadastro-publico__hint">
-                  Endereço onde você realmente mora (residência) — não use o endereço do CNPJ.
-                  Endereço preenche as coordenadas automaticamente; se você editar latitude/longitude
-                  ou mover o pin, o endereço é atualizado pelas coordenadas.
+                  Ponto de partida para buscar cargas. O endereço preenche as coordenadas
+                  automaticamente; se você editar latitude/longitude ou mover o pin, o endereço é
+                  atualizado pelas coordenadas.
                 </p>
+                <label className="cadastro-usar-residencial">
+                  <input
+                    type="checkbox"
+                    checked={usarResidencialNaOrigem}
+                    onChange={(e) => setUsarResidencialNaOrigem(e.target.checked)}
+                  />
+                  <span>Usar o endereço residencial</span>
+                </label>
                 <div className="form-fields" id="origem-endereco-campos">
                   <Field label="CEP da origem">
                     <input
