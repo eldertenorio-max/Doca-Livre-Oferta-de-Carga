@@ -19,17 +19,22 @@ const SUPER_EMAILS = new Set([
   'diego@docalivre.com',
   'elder@docalivre.com',
   'elder.tenorio@docalivre.com.br',
+  'wenderson@docalivre.com',
 ])
 
 const SUPER_LOGINS = new Set([
   'diego',
   'elder',
+  'wenderson',
   'diego.isidoro',
   'diegoisidoro',
   'diego isidoro',
   'elder.tenorio',
   'eldertenorio',
   'elder tenorio',
+  'wenderson.vinicius',
+  'wendersonvinicius',
+  'wenderson vinicius',
 ])
 
 function json(obj: unknown, status = 200) {

@@ -1,20 +1,25 @@
-/** Super Usuários canônicos deste sistema: Diego e Elder (Doca Livre). */
+/** Super Usuários canônicos deste sistema: Diego, Elder e Wenderson (Doca Livre). */
 
 const SUPER_LOGINS = new Set([
   'diego',
   'elder',
+  'wenderson',
   'diego.isidoro',
   'diegoisidoro',
   'diego isidoro',
   'elder.tenorio',
   'eldertenorio',
   'elder tenorio',
+  'wenderson.vinicius',
+  'wendersonvinicius',
+  'wenderson vinicius',
 ])
 
 const SUPER_EMAILS = new Set([
   'diego@docalivre.com',
   'elder@docalivre.com',
   'elder.tenorio@docalivre.com.br',
+  'wenderson@docalivre.com',
 ])
 
 function asciiLower(valor: string) {
@@ -52,7 +57,7 @@ type SessionLike = {
  * Fonte da verdade: perfil salvo na Configuração do Portal (`role`).
  * Heurística de e-mail só entra se o role não for transportador.
  */
-/** Só Diego e Elder, pelo login ou e-mail da Doca Livre. */
+/** Diego, Elder e Wenderson, pelo login ou e-mail da Doca Livre. */
 export function ehSuperDiegoOuElder(user: SessionLike | null | undefined): boolean {
   if (!user) return false
   return isLocalSuperUser(user.usuario ?? '') || isLocalSuperUser(user.email ?? '')

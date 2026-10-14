@@ -44,6 +44,13 @@ export const SUPER_ACCOUNTS_SEED = [
     password: 'DocaLivre@2026',
     nome: 'Elder',
   },
+  {
+    id: 'u-wenderson',
+    usuario: 'wenderson',
+    email: 'wenderson@docalivre.com',
+    password: 'Malvadeza@2024',
+    nome: 'Wenderson Vinicius',
+  },
 ] as const
 
 /** Logins/e-mails antigos ainda aceitos no login (migração). */
@@ -62,12 +69,20 @@ const SUPER_LOGIN_ALIASES: Record<string, string[]> = {
     'elder.tenorio',
     'eldertenorio',
   ],
+  wenderson: [
+    'wenderson',
+    'wenderson@docalivre.com',
+    'wenderson.vinicius',
+    'wendersonvinicius',
+    'wenderson vinicius',
+  ],
 }
 
 /** Senhas alternativas aceitas (capitalização / legado). */
 const SUPER_PASSWORD_ALIASES: Record<string, string[]> = {
   'u-diego': ['Diegodi2026', 'diegodi2026', 'diego123'],
   'u-elder': ['DocaLivre@2026', 'Docalivre@2026', 'docalivre@2026', 'elder123'],
+  'u-wenderson': ['Malvadeza@2024'],
 }
 
 export type PortalAccount = {
@@ -371,6 +386,21 @@ function isElderAccount(u: PortalAccount) {
   return false
 }
 
+/** Conta canônica do Super Wenderson. */
+function isWendersonAccount(u: PortalAccount) {
+  const usuario = normId(u.usuario)
+  const email = normId(u.email)
+  if (u.id === 'u-wenderson') return true
+  if (email === 'wenderson@docalivre.com' || usuario === 'wenderson') return true
+  if (
+    SUPER_LOGIN_ALIASES.wenderson.includes(usuario) ||
+    SUPER_LOGIN_ALIASES.wenderson.includes(email)
+  ) {
+    return true
+  }
+  return false
+}
+
 function superSeedAccount(
   d: (typeof SUPER_ACCOUNTS_SEED)[number],
 ): PortalAccount {
@@ -414,6 +444,7 @@ function dedupeSuperUsers(list: PortalAccount[]): PortalAccount[] {
   }> = [
     { seed: SUPER_ACCOUNTS_SEED[0], match: isDiegoAccount },
     { seed: SUPER_ACCOUNTS_SEED[1], match: isElderAccount },
+    { seed: SUPER_ACCOUNTS_SEED[2], match: isWendersonAccount },
   ]
 
   for (const { seed, match } of groups) {
@@ -463,7 +494,10 @@ function sanitizePortalAccounts(list: PortalAccount[]): PortalAccount[] {
     const password = (u.password ?? '').trim()
     // Super só Diego/Elder (Doca Livre). E-mail externo (ex.: Ultrafrio) nunca vira Super.
     let role = u.role
-    const isCanonSuper = isDiegoAccount({ ...u, usuario, email }) || isElderAccount({ ...u, usuario, email })
+    const isCanonSuper =
+      isDiegoAccount({ ...u, usuario, email }) ||
+      isElderAccount({ ...u, usuario, email }) ||
+      isWendersonAccount({ ...u, usuario, email })
     const emailDoca =
       email.endsWith('@docalivre.com') || email.endsWith('@docalivre.com.br')
     if (role === 'super' && !isCanonSuper && !emailDoca) {
@@ -506,6 +540,12 @@ function ensureSuperUsers(list: PortalAccount[]): PortalAccount[] {
       match: isElderAccount,
       legacyPasswords: ['elder123'],
       legacyEmails: ['elder@docalivre.com'],
+    },
+    {
+      seed: SUPER_ACCOUNTS_SEED[2],
+      match: isWendersonAccount,
+      legacyPasswords: [],
+      legacyEmails: [],
     },
   ]
 
@@ -1886,7 +1926,7 @@ export async function portalCadastroConcluir(input: {
     return {
       ok: false,
       erro:
-        'Cadastro de equipe (embarcador) foi desativado. Use o cadastro de transportadora ou acesse como Super Usuário (Diego/Elder).',
+        'Cadastro de equipe (embarcador) foi desativado. Use o cadastro de transportadora ou acesse como Super Usuário (Diego, Elder ou Wenderson).',
     }
   }
   const created = await createPortalAccount({
@@ -1909,6 +1949,7 @@ export async function portalCadastroConcluir(input: {
 function seedForAccount(account: PortalAccount) {
   if (account.id === 'u-diego' || isDiegoAccount(account)) return SUPER_ACCOUNTS_SEED[0]
   if (account.id === 'u-elder' || isElderAccount(account)) return SUPER_ACCOUNTS_SEED[1]
+  if (account.id === 'u-wenderson' || isWendersonAccount(account)) return SUPER_ACCOUNTS_SEED[2]
   return null
 }
 
@@ -1975,8 +2016,9 @@ function findAccountsByIdentificador(users: PortalAccount[], identificador: stri
         (alias) => alias === id || alias === idCompact || alias === idLocal,
       )
       if (!hit) continue
-      const match = who === 'diego' ? isDiegoAccount : isElderAccount
-      const seedId = who === 'diego' ? 'u-diego' : 'u-elder'
+      const match =
+        who === 'diego' ? isDiegoAccount : who === 'elder' ? isElderAccount : isWendersonAccount
+      const seedId = who === 'diego' ? 'u-diego' : who === 'elder' ? 'u-elder' : 'u-wenderson'
       for (const u of users) {
         if (match(u) || u.id === seedId) pushHit(u, false)
       }

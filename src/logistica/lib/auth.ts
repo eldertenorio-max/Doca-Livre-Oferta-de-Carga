@@ -54,6 +54,15 @@ export const SUPER_USUARIOS: ContaUsuario[] = [
     nivelHierarquia: 'super',
     superior: null,
   },
+  {
+    usuario: 'Wenderson',
+    email: 'wenderson@docalivre.com',
+    senha: 'Malvadeza@2024',
+    nome: 'Wenderson Vinicius',
+    papel: 'super',
+    nivelHierarquia: 'super',
+    superior: null,
+  },
 ]
 
 /** Conta de empresa do mapa, para configurar a interface como a operação vê. */
