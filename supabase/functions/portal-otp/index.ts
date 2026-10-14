@@ -54,6 +54,14 @@ function emailValido(email: string) {
   return Boolean(email) && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) && email.length <= 254
 }
 
+/** Senha gravada no cadastro (texto). Hash bcrypt não é reenviado. */
+function senhaPortalUsavel(raw: string) {
+  const senha = (raw || '').trim()
+  if (senha.length < 4 || senha.length > 72) return false
+  if (senha.startsWith('$2')) return false
+  return true
+}
+
 function maskEmail(email: string) {
   const [name, domain] = email.split('@')
   if (!name || !domain) return email
@@ -510,6 +518,104 @@ Deno.serve(async (req) => {
       return json({
         ok: true,
         mensagem: 'E-mail de recusa enviado.',
+        email,
+        email_mascarado: maskEmail(email),
+      })
+    }
+
+    if (action === 'cadastro_aprovado_enviar') {
+      const transportadorId = String(body.transportador_id || '').trim()
+      const nomeInformado = String(body.nome || '').trim()
+      const link =
+        String(body.link_login || '').trim() ||
+        'https://ofertadecargas.docalivre.com.br/#/login'
+      if (!transportadorId) {
+        return json({ ok: false, erro: 'Transportador não informado.' }, 400)
+      }
+
+      const { data: contas, error: contasErr } = await sb
+        .from('usuarios')
+        .select('id, usuario, email, senha_hash, nome')
+        .eq('transportador_id', transportadorId)
+      if (contasErr) return json({ ok: false, erro: contasErr.message }, 400)
+
+      const lista = contas ?? []
+      const conta =
+        lista.find((row) => senhaPortalUsavel(String(row.senha_hash || ''))) || lista[0]
+      const senha = String(conta?.senha_hash || '').trim()
+      if (!senhaPortalUsavel(senha)) {
+        return json(
+          {
+            ok: false,
+            erro:
+              'Não encontrei a senha deste cadastro. Defina a senha em Configuração do Portal e aprove de novo.',
+          },
+          400,
+        )
+      }
+
+      const { data: empresa } = await sb
+        .from('transportadores')
+        .select('email, nome_fantasia, contato_nome')
+        .eq('id', transportadorId)
+        .maybeSingle()
+
+      const email = normalizeEmail(
+        String(empresa?.email || conta?.email || body.email || ''),
+      )
+      if (!emailValido(email)) {
+        return json({ ok: false, erro: 'Cadastro sem e-mail válido.' }, 400)
+      }
+
+      const nome =
+        nomeInformado ||
+        String(empresa?.nome_fantasia || empresa?.contato_nome || conta?.nome || '').trim() ||
+        'Transportador'
+      const usuario = String(conta?.usuario || '').trim() || email
+
+      const assunto = 'Doca Livre — cadastro aprovado'
+      const texto =
+        `Olá, ${nome}.\n\n` +
+        `Seu cadastro de transportador na Doca Livre Oferta de Carga foi aprovado. ` +
+        `Os documentos foram validados e o acesso ao sistema está liberado.\n\n` +
+        `Dados para entrar:\n` +
+        `Usuário: ${usuario}\n` +
+        `E-mail: ${email}\n` +
+        `Senha: ${senha}\n\n` +
+        `Acesse:\n${link}\n\n` +
+        `Guarde estes dados. Você pode entrar com o usuário ou com o e-mail. ` +
+        `Se precisar trocar a senha depois, use “Esqueci a senha” na tela de login.`
+      const html =
+        `<p>Olá, <strong>${escapeHtml(nome)}</strong>.</p>` +
+        `<p>Seu cadastro de transportador na <strong>Doca Livre Oferta de Carga</strong> foi <strong>aprovado</strong>. ` +
+        `Os documentos foram validados e o acesso ao sistema está liberado.</p>` +
+        `<p><strong>Dados para entrar</strong></p>` +
+        `<p style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;line-height:1.6">` +
+        `Usuário: <strong>${escapeHtml(usuario)}</strong><br>` +
+        `E-mail: <strong>${escapeHtml(email)}</strong><br>` +
+        `Senha: <strong>${escapeHtml(senha)}</strong>` +
+        `</p>` +
+        `<p>Acesse: <a href="${escapeHtml(link)}">${escapeHtml(link)}</a></p>` +
+        `<p>Guarde estes dados. Você pode entrar com o usuário ou com o e-mail. ` +
+        `Se precisar trocar a senha depois, use “Esqueci a senha” na tela de login.</p>`
+
+      const mail = await enviarResendLivre(email, assunto, texto, html)
+      if (!mail.ok) {
+        if (debugEnabled()) {
+          return json({
+            ok: true,
+            mensagem: 'Aprovação registrada (modo debug — e-mail não enviado).',
+            smtp_motivo: mail.motivo,
+          })
+        }
+        return json(
+          { ok: false, erro: msgFalhaEmail(mail.motivo), smtp_motivo: mail.motivo },
+          503,
+        )
+      }
+      return json({
+        ok: true,
+        mensagem: `E-mail com usuário e senha enviado para ${email}.`,
         email,
         email_mascarado: maskEmail(email),
       })

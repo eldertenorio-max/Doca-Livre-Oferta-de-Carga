@@ -111,7 +111,7 @@ import {
 import { normalizePerfilPublico } from '../lib/perfilPublicoTransportador'
 import { atualizarAvatarUsuarioRemoto, buscarAvatarUsuarioRemoto } from '../lib/userAvatar'
 import { canonicalTransportadorId, sameTransportadorId } from '../lib/transportadorIds'
-import { portalEmailRecusaCadastro } from '../lib/portalApi'
+import { portalEmailAprovaCadastro, portalEmailRecusaCadastro } from '../lib/portalApi'
 import {
   ensureHierarquiaPadrao,
   gruposDaHierarquia,
@@ -374,7 +374,9 @@ interface DataContextValue extends DataState, AuthState {
     veiculoId: string,
     disponivel: boolean,
   ) => Promise<{ ok: boolean; error?: string }>
-  aprovarTransportador: (id: string) => Promise<{ ok: boolean; error?: string }>
+  aprovarTransportador: (
+    id: string,
+  ) => Promise<{ ok: boolean; error?: string; mensagem?: string }>
   recusarTransportador: (
     id: string,
     motivo?: string,
@@ -4840,17 +4842,41 @@ export function DataProvider({ children }: { children: ReactNode }) {
   )
 
   const aprovarTransportador = useCallback(async (id: string) => {
+    const atual = stateRef.current.transportadores.find((t) => t.id === id)
+    const emailDestino = (atual?.email || '').trim()
+    if (!emailDestino || !emailDestino.includes('@')) {
+      return {
+        ok: false,
+        error: 'Cadastro sem e-mail válido. Não é possível enviar o acesso por e-mail.',
+      }
+    }
+
+    const linkLogin =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}${window.location.pathname || '/'}#/login`
+        : 'https://ofertadecargas.docalivre.com.br/#/login'
+
+    const mail = await portalEmailAprovaCadastro({
+      email: emailDestino,
+      nome: atual?.nome_fantasia || atual?.contato_nome || 'Transportador',
+      transportadorId: id,
+      linkLogin,
+    })
+    if (!mail.ok) {
+      return { ok: false, error: mail.erro || 'Falha ao enviar e-mail de aprovação.' }
+    }
+
     const remote = await gravarSituacaoTransportador(id, 'ativo')
     if (!remote.ok) return remote
 
     setPortalAccountAtivoPorTransportador(id, true)
     const prev = stateRef.current
-    const atual = prev.transportadores.find((t) => t.id === id)
-    if (atual) {
+    const aprovado = prev.transportadores.find((t) => t.id === id)
+    if (aprovado) {
       const tree = syncTransportadoraNaHierarquia({
-        id: atual.id,
-        nome_fantasia: atual.nome_fantasia,
-        cnpj: atual.cnpj,
+        id: aprovado.id,
+        nome_fantasia: aprovado.nome_fantasia,
+        cnpj: aprovado.cnpj,
       })
       Object.assign(prev, mergeOrgGruposNoState(prev, tree))
     }
@@ -4866,7 +4892,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     stateRef.current = next
     setState(next)
     flushKanbanPush(next)
-    return { ok: true }
+    return {
+      ok: true,
+      mensagem: mail.mensagem || `E-mail com usuário e senha enviado para ${emailDestino}.`,
+    }
   }, [flushKanbanPush, gravarSituacaoTransportador])
 
   const recusarTransportador = useCallback(async (id: string, motivo?: string) => {

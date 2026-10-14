@@ -70,6 +70,20 @@ const emptyForm = (): Partial<Transportador> => ({
   perfil_publico: { ...EMPTY_PERFIL_PUBLICO },
 })
 
+function montarMotivoRecusa(docs: TipoDocumentoTransportador[], outro: string): string {
+  const partes: string[] = []
+  if (docs.length > 0) {
+    partes.push('Documento(s) não aceito(s):')
+    for (const tipo of docs) partes.push(`- ${labelDocumento(tipo)}`)
+  }
+  const extra = outro.trim()
+  if (extra) {
+    if (partes.length > 0) partes.push('')
+    partes.push(partes.length > 0 ? `Outro motivo: ${extra}` : extra)
+  }
+  return partes.join('\n').trim()
+}
+
 function abrirCredenciaisWhatsApp(t: Transportador) {
   const conta = contaPortalPorTransportador(t.id, t.email) ?? null
   const msg = mensagemCredenciaisTransportador(t, conta)
@@ -161,6 +175,7 @@ export function TransportadoresPage() {
   const [searchParams] = useSearchParams()
   const [error, setError] = useState('')
   const [motivoRecusa, setMotivoRecusa] = useState('')
+  const [docsRecusados, setDocsRecusados] = useState<TipoDocumentoTransportador[]>([])
   const [busy, setBusy] = useState(false)
   const [linkCopiado, setLinkCopiado] = useState(false)
   const replaceInputRef = useRef<HTMLInputElement>(null)
@@ -314,6 +329,7 @@ export function TransportadoresPage() {
     setOrigemVoltar('lista')
     setRevisaoId(t.id)
     setMotivoRecusa(t.motivo_recusa ?? '')
+    setDocsRecusados([])
     setError('')
     setMode('revisao')
   }
@@ -499,18 +515,22 @@ export function TransportadoresPage() {
     setFiltro(aindaPendentes ? 'pendente' : 'todos')
     setMode('lista')
     setRevisaoId(null)
+    window.alert(res.mensagem || 'Cadastro aprovado. E-mail com usuário e senha enviado.')
     void refreshTransportadores()
   }
 
   async function handleRecusar() {
     if (!revisaoId) return
-    if (!motivoRecusa.trim()) {
-      setError('Informe o motivo da recusa. Ele será enviado por e-mail ao transportador.')
+    const motivo = montarMotivoRecusa(docsRecusados, motivoRecusa)
+    if (!motivo) {
+      setError(
+        'Marque o documento que não foi aceito ou escreva o motivo. Ele será enviado por e-mail.',
+      )
       return
     }
     setBusy(true)
     setError('')
-    const res = await recusarTransportador(revisaoId, motivoRecusa.trim())
+    const res = await recusarTransportador(revisaoId, motivo)
     setBusy(false)
     if (!res.ok) {
       setError(res.error ?? 'Falha ao recusar.')
@@ -523,6 +543,7 @@ export function TransportadoresPage() {
     setMode('lista')
     setRevisaoId(null)
     setMotivoRecusa('')
+    setDocsRecusados([])
     window.alert(res.mensagem || 'Cadastro recusado e e-mail enviado.')
   }
 
@@ -1080,15 +1101,42 @@ export function TransportadoresPage() {
             </header>
             <div className="form-card__body">
               <div className="form-field">
-                <label>Motivo da recusa (obrigatório — enviado por e-mail)</label>
-                <input
+                <label>Documentos não aceitos</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                  {DOCUMENTOS_TRANSPORTADOR.map((d) => (
+                    <label
+                      key={d.tipo}
+                      style={{ display: 'flex', gap: 8, alignItems: 'center', fontWeight: 500 }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={docsRecusados.includes(d.tipo)}
+                        onChange={() =>
+                          setDocsRecusados((prev) =>
+                            prev.includes(d.tipo)
+                              ? prev.filter((t) => t !== d.tipo)
+                              : [...prev, d.tipo],
+                          )
+                        }
+                      />
+                      {d.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="form-field">
+                <label>Outro motivo (enviado por e-mail)</label>
+                <textarea
                   value={motivoRecusa}
                   onChange={(e) => setMotivoRecusa(e.target.value)}
-                  placeholder="Explique o que precisa ser corrigido..."
+                  placeholder="Escreva aqui se o motivo não for um documento, ou complemente a recusa."
+                  rows={4}
                 />
                 <p className="form-field-hint" style={{ marginTop: 6, fontSize: 12, color: '#1a1d21' }}>
-                  O transportador recebe este motivo no e-mail do cadastro
-                  {revisao.email ? ` (${revisao.email})` : ''} para poder se cadastrar de novo.
+                  Marque o documento que não foi aceito, escreva outro motivo, ou os dois.
+                  O transportador recebe isso no e-mail
+                  {revisao.email ? ` (${revisao.email})` : ''} para corrigir e se cadastrar de novo.
+                  Ao aprovar, o e-mail leva o usuário e a senha do cadastro.
                 </p>
               </div>
               {error && <p style={{ color: '#dc2626', marginTop: 10 }}>{error}</p>}

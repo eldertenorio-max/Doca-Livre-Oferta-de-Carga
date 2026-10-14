@@ -279,6 +279,39 @@ export async function portalEmailRecusaCadastro(input: {
   })
 }
 
+/** Avisa o transportador que o cadastro foi aprovado e manda usuário e senha. */
+export async function portalEmailAprovaCadastro(input: {
+  email: string
+  nome: string
+  transportadorId: string
+  linkLogin?: string
+}): Promise<OkMail | Fail> {
+  const email = input.email.trim().toLowerCase()
+  if (!email.includes('@')) return { ok: false, erro: 'E-mail do cadastro inválido.' }
+  if (!input.transportadorId.trim()) {
+    return { ok: false, erro: 'Transportador não informado.' }
+  }
+
+  if (!useRemoteOtp()) {
+    console.info('[portal] e-mail de aprovação (local):', {
+      email,
+      transportadorId: input.transportadorId,
+    })
+    return {
+      ok: true,
+      mensagem: 'Aprovação registrada (modo local — e-mail simulado no console).',
+      email,
+    }
+  }
+
+  return invokeOtp<OkMail>('cadastro_aprovado_enviar', {
+    email,
+    nome: input.nome,
+    transportador_id: input.transportadorId,
+    link_login: input.linkLogin || '',
+  })
+}
+
 /** Cria usuário Auth já confirmado (Edge) — sem reenviar e-mail do Supabase. */
 export async function portalCriarUsuarioAuth(input: {
   verifyToken: string

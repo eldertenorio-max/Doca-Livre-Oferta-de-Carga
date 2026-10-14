@@ -624,7 +624,7 @@ export function CadastroTransportadorPage() {
     }
     setInfo(
       result.mensagem ??
-        'Cadastro enviado. Aguarde aprovação para acessar o sistema. Fique atento ao seu e-mail para possíveis correções de cadastro.',
+        'Cadastro enviado. Aguarde a aprovação dos documentos. Quando for aprovado, o usuário e a senha chegam neste e-mail. Se for recusado, o e-mail explica o motivo.',
     )
     setStep('ok')
   }
@@ -1364,10 +1364,11 @@ export function CadastroTransportadorPage() {
         {step === 'ok' && (
           <div className="cadastro-publico__ok">
             <p className="portal-login__ok">
-              Cadastro enviado. Aguarde aprovação para acessar o sistema.
+              Cadastro enviado. Aguarde a aprovação dos documentos para acessar o sistema.
             </p>
             <p className="portal-login__hint">
-              Fique atento ao seu e-mail para possíveis correções de cadastro.
+              Quando o cadastro for aprovado, você recebe neste e-mail o usuário e a senha.
+              Se for recusado, o e-mail informa qual documento não foi aceito ou o outro motivo.
             </p>
             <Link to="/login" className="portal-login__submit" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
               Ir para o login
