@@ -880,7 +880,13 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
             >
               Ir para o sistema
             </LinkSistema>
-          ) : googleAuth.conta ? (
+          ) : (
+            <LinkSistema className="mapa-pub__btn mapa-pub__btn--solid" to="/login">
+              <LogIn size={15} strokeWidth={2.4} />
+              Entrar
+            </LinkSistema>
+          )}
+          {googleAuth.conta ? (
             <div className="mapa-pub-conta">
               {googleAuth.conta.foto ? (
                 <img src={googleAuth.conta.foto} alt="" referrerPolicy="no-referrer" />
@@ -898,19 +904,13 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
               </button>
             </div>
           ) : (
-            <>
-              <button
-                type="button"
-                className="mapa-pub__btn mapa-pub__btn--solid"
-                onClick={() => setShowLogin(true)}
-              >
-                <LogIn size={15} strokeWidth={2.4} />
-                Entrar
-              </button>
-              <LinkSistema className="mapa-pub__btn mapa-pub__btn--ghost" to="/login">
-                Sistema
-              </LinkSistema>
-            </>
+            <button
+              type="button"
+              className="mapa-pub__btn mapa-pub__btn--ghost"
+              onClick={() => setShowLogin(true)}
+            >
+              Conta
+            </button>
           )}
         </div>
       </header>
