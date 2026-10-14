@@ -18,6 +18,8 @@ import {
 import { isAcceptedImageFile } from '../lib/veiculoFotos'
 import { ImageCropModal } from '../components/ui/ImageCropModal'
 import type { TipoDocumentoTransportador } from '../types'
+import { VerificacaoFacial } from '../components/verificacao/VerificacaoFacial'
+import type { FacialCaptura } from '../lib/verificacaoFacial'
 import { CnpjInput } from '../components/ui/CnpjInput'
 import { PontoMapPreview } from '../components/ui/PontoMapPreview'
 import { cnpjDigits, formatCnpj, isValidCnpj } from '../lib/cnpj'
@@ -86,6 +88,7 @@ export function CadastroTransportadorPage() {
     ramificacaoSugeridaDoPlano(planoQuery || lerPlanoPago()?.planoId),
   )
   const [step, setStep] = useState<Step>(1)
+  const [facial, setFacial] = useState<FacialCaptura | null>(null)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
@@ -524,6 +527,10 @@ export function CadastroTransportadorPage() {
       setError('Anexe todos os documentos obrigatórios.')
       return
     }
+    if (!facial) {
+      setError('Faça a verificação facial do responsável antes de continuar.')
+      return
+    }
     setStep(4)
   }
 
@@ -603,6 +610,7 @@ export function CadastroTransportadorPage() {
         nome: acesso.nome.trim() || empresa.contato_nome.trim(),
         verifyToken: verifyToken || undefined,
       },
+      facial,
       documentos: DOCUMENTOS_TRANSPORTADOR.flatMap((d) => {
         const item = docs[d.tipo]
         if (!item) return []
@@ -1194,6 +1202,34 @@ export function CadastroTransportadorPage() {
                     )
                   })}
                 </div>
+                <div style={{ marginTop: 18 }}>
+                  {facial ? (
+                    <div className="facial-ok">
+                      <img src={facial.imagemDataUrl} alt="Rosto confirmado na verificação" />
+                      <div>
+                        <strong>Verificação facial concluída.</strong>
+                        <p className="cadastro-publico__hint">
+                          O rosto fica guardado para confirmar, de tempos em tempos, que é você quem acessa.
+                        </p>
+                        <button
+                          type="button"
+                          className="cadastro-btn cadastro-btn--ghost"
+                          onClick={() => setFacial(null)}
+                        >
+                          Refazer
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="cadastro-publico__hint">
+                        Verificação ao vivo, no estilo do banco: enquadre o rosto, pisque e vire a cabeça.
+                        Não aceitamos foto pronta.
+                      </p>
+                      <VerificacaoFacial modo="cadastrar" onConcluido={setFacial} />
+                    </>
+                  )}
+                </div>
               </div>
             </section>
             {error && <p className="portal-login__erro">{error}</p>}
@@ -1201,7 +1237,7 @@ export function CadastroTransportadorPage() {
               <button type="button" className="cadastro-btn cadastro-btn--ghost" onClick={() => setStep(2)}>
                 Voltar
               </button>
-              <button type="submit" className="portal-login__submit">
+              <button type="submit" className="portal-login__submit" disabled={!facial}>
                 Continuar
               </button>
             </div>

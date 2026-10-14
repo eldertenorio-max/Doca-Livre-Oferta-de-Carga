@@ -12,6 +12,7 @@ import {
 } from './portalAuth'
 import { canonicalTransportadorId } from './transportadorIds'
 import { DOCUMENTOS_TRANSPORTADOR, TIPOS_DOC_OBRIGATORIOS } from './transportadorDocs'
+import { agendarProximaFacial, descritorValido, type FacialCaptura } from './verificacaoFacial'
 import type {
   Transportador,
   TransportadorDocumento,
@@ -76,6 +77,8 @@ export type CadastroTransportadorInput = {
     data_url: string
     file?: File
   } | null
+  /** Prova de vida + descritor do rosto do responsável. */
+  facial?: FacialCaptura | null
 }
 
 function uid(prefix: string) {
@@ -122,6 +125,10 @@ export function validarCadastroTransportador(
       const label = DOCUMENTOS_TRANSPORTADOR.find((x) => x.tipo === tipo)?.label ?? tipo
       return `Anexo obrigatório faltando: ${label}.`
     }
+  }
+
+  if (!input.facial?.imagemDataUrl?.startsWith('data:image/') || !descritorValido(input.facial.descriptor)) {
+    return 'Faça a verificação facial do responsável antes de continuar.'
   }
 
   const a = input.acesso
@@ -197,6 +204,10 @@ export function cadastrarTransportadorLocal(
     contato_nome: input.empresa.contato_nome,
     contato_telefone: input.empresa.contato_telefone,
     logo_url: input.logo?.data_url || undefined,
+    facial_descriptor: input.facial?.descriptor,
+    facial_foto_url: input.facial?.imagemDataUrl,
+    facial_verificado_em: input.facial ? now : undefined,
+    facial_proxima_em: input.facial ? agendarProximaFacial() : undefined,
     created_at: now,
   }
 
@@ -283,6 +294,10 @@ const COLUNAS_OPCIONAIS_TRANSPORTADOR = [
   'motivo_recusa',
   'ramificacao',
   'plano',
+  'facial_descriptor',
+  'facial_foto_url',
+  'facial_verificado_em',
+  'facial_proxima_em',
 ] as const
 
 function colunaFaltandoNoSchema(msg: string): string | null {
@@ -334,6 +349,78 @@ async function upsertTransportadorComFallback(
   }
 
   return { ok: false, erro: traduzirErroTransportador('Falha ao salvar transportadora.') }
+}
+
+export async function gravarVerificacaoFacial(
+  transportadorId: string,
+  facial: FacialCaptura,
+): Promise<
+  | {
+      ok: true
+      campos: {
+        facial_descriptor: number[]
+        facial_foto_url: string
+        facial_verificado_em: string
+        facial_proxima_em: string
+      }
+    }
+  | { ok: false; erro: string }
+> {
+  const verificadoEm = new Date().toISOString()
+  const proximaEm = agendarProximaFacial()
+  const descriptor = descritorValido(facial.descriptor)
+  if (!descriptor || !facial.imagemDataUrl.startsWith('data:image/')) {
+    return { ok: false, erro: 'Verificação facial incompleta. Tente de novo.' }
+  }
+
+  if (!isSupabaseConfigured || !supabase) {
+    return {
+      ok: true,
+      campos: {
+        facial_descriptor: descriptor,
+        facial_foto_url: facial.imagemDataUrl,
+        facial_verificado_em: verificadoEm,
+        facial_proxima_em: proximaEm,
+      },
+    }
+  }
+
+  const blob = await (await fetch(facial.imagemDataUrl)).blob()
+  const path = `${transportadorId}/verificacao-facial.jpg`
+  const { error: upErr } = await supabase.storage
+    .from('documentos-transportadores')
+    .upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
+  if (upErr) {
+    return { ok: false, erro: `Falha ao salvar a foto da verificação: ${upErr.message}` }
+  }
+  const { data: pub } = supabase.storage.from('documentos-transportadores').getPublicUrl(path)
+  const fotoUrl = `${pub.publicUrl}?v=${Date.now()}`
+  const up = await upsertTransportadorComFallback(
+    'update',
+    {
+      facial_descriptor: descriptor,
+      facial_foto_url: fotoUrl,
+      facial_verificado_em: verificadoEm,
+      facial_proxima_em: proximaEm,
+    },
+    transportadorId,
+  )
+  if (!up.ok) return { ok: false, erro: up.erro }
+  if (!descritorValido(up.row.facial_descriptor)) {
+    return {
+      ok: false,
+      erro: 'O banco ainda não tem os campos da verificação facial. Rode supabase/verificacao_facial.sql no Supabase.',
+    }
+  }
+  return {
+    ok: true,
+    campos: {
+      facial_descriptor: descriptor,
+      facial_foto_url: fotoUrl,
+      facial_verificado_em: verificadoEm,
+      facial_proxima_em: proximaEm,
+    },
+  }
 }
 
 async function sleep(ms: number) {
@@ -790,6 +877,17 @@ export async function cadastrarTransportadorRemoto(
     })
   }
 
+  let facialSalvo: Awaited<ReturnType<typeof gravarVerificacaoFacial>> extends infer R
+    ? R extends { ok: true; campos: infer C }
+      ? C
+      : null
+    : null = null
+  if (input.facial) {
+    const facialRes = await gravarVerificacaoFacial(String(tRow.id), input.facial)
+    if (!facialRes.ok) return { ok: false, erro: facialRes.erro }
+    facialSalvo = facialRes.campos
+  }
+
   const transportador: Transportador = {
     id: tRow.id,
     razao_social: tRow.razao_social,
@@ -827,6 +925,10 @@ export async function cadastrarTransportadorRemoto(
     contato_nome: tRow.contato_nome ?? undefined,
     contato_telefone: tRow.contato_telefone ?? undefined,
     logo_url: (tRow.logo_url as string | null) ?? undefined,
+    facial_descriptor: facialSalvo?.facial_descriptor,
+    facial_foto_url: facialSalvo?.facial_foto_url,
+    facial_verificado_em: facialSalvo?.facial_verificado_em,
+    facial_proxima_em: facialSalvo?.facial_proxima_em,
     created_at: tRow.created_at,
   }
 
@@ -1016,6 +1118,10 @@ function mapTransportadorRow(row: Record<string, unknown>): Transportador {
         ? (row.perfil_publico as Transportador['perfil_publico'])
         : undefined,
     motivo_recusa: (row.motivo_recusa as string | null) ?? undefined,
+    facial_descriptor: descritorValido(row.facial_descriptor) ?? undefined,
+    facial_foto_url: (row.facial_foto_url as string | null) ?? undefined,
+    facial_verificado_em: (row.facial_verificado_em as string | null) ?? undefined,
+    facial_proxima_em: (row.facial_proxima_em as string | null) ?? undefined,
     created_at: (row.created_at as string | null) ?? undefined,
   }
 }

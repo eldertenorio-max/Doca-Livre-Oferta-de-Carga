@@ -165,6 +165,12 @@ export interface Transportador {
     galeria: string[]
   } | null
   motivo_recusa?: string
+  /** Vetor do rosto usado para comparar a mesma pessoa no acesso. */
+  facial_descriptor?: number[] | null
+  facial_foto_url?: string | null
+  facial_verificado_em?: string | null
+  /** Próxima cobrança da verificação facial. */
+  facial_proxima_em?: string | null
   created_at?: string
 }
 

@@ -28,6 +28,7 @@ import {
 } from '../../lib/credenciaisTransportadorMsg'
 import type { ClassificacaoTransportador, SituacaoTransportador, TipoDocumentoTransportador, Transportador } from '../../types'
 import '../../styles/cadastro.css'
+import '../../components/verificacao/verificacaoFacial.css'
 import '../../styles/grid-cargas.css'
 
 type FilterSit = 'todos' | SituacaoTransportador
@@ -70,11 +71,16 @@ const emptyForm = (): Partial<Transportador> => ({
   perfil_publico: { ...EMPTY_PERFIL_PUBLICO },
 })
 
-function montarMotivoRecusa(docs: TipoDocumentoTransportador[], outro: string): string {
+function montarMotivoRecusa(
+  docs: TipoDocumentoTransportador[],
+  outro: string,
+  facial = false,
+): string {
   const partes: string[] = []
-  if (docs.length > 0) {
+  if (docs.length > 0 || facial) {
     partes.push('Documento(s) não aceito(s):')
     for (const tipo of docs) partes.push(`- ${labelDocumento(tipo)}`)
+    if (facial) partes.push('- Verificação facial')
   }
   const extra = outro.trim()
   if (extra) {
@@ -176,6 +182,7 @@ export function TransportadoresPage() {
   const [error, setError] = useState('')
   const [motivoRecusa, setMotivoRecusa] = useState('')
   const [docsRecusados, setDocsRecusados] = useState<TipoDocumentoTransportador[]>([])
+  const [recusarFacial, setRecusarFacial] = useState(false)
   const [busy, setBusy] = useState(false)
   const [linkCopiado, setLinkCopiado] = useState(false)
   const replaceInputRef = useRef<HTMLInputElement>(null)
@@ -330,6 +337,7 @@ export function TransportadoresPage() {
     setRevisaoId(t.id)
     setMotivoRecusa(t.motivo_recusa ?? '')
     setDocsRecusados([])
+    setRecusarFacial(false)
     setError('')
     setMode('revisao')
   }
@@ -521,7 +529,7 @@ export function TransportadoresPage() {
 
   async function handleRecusar() {
     if (!revisaoId) return
-    const motivo = montarMotivoRecusa(docsRecusados, motivoRecusa)
+    const motivo = montarMotivoRecusa(docsRecusados, motivoRecusa, recusarFacial)
     if (!motivo) {
       setError(
         'Marque o documento que não foi aceito ou escreva o motivo. Ele será enviado por e-mail.',
@@ -544,6 +552,7 @@ export function TransportadoresPage() {
     setRevisaoId(null)
     setMotivoRecusa('')
     setDocsRecusados([])
+    setRecusarFacial(false)
     window.alert(res.mensagem || 'Cadastro recusado e e-mail enviado.')
   }
 
@@ -1020,6 +1029,23 @@ export function TransportadoresPage() {
                   if (file) await handleArquivoDocumento(file)
                 }}
               />
+              {revisao.facial_foto_url ? (
+                <div className="facial-ok" style={{ marginBottom: 16 }}>
+                  <img src={revisao.facial_foto_url} alt="Verificação facial do responsável" />
+                  <div>
+                    <strong>Verificação facial</strong>
+                    <p className="form-field-hint">
+                      Rosto gravado no cadastro
+                      {revisao.facial_verificado_em
+                        ? ` em ${formatDateTime(revisao.facial_verificado_em)}`
+                        : ''}
+                      .
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="cadastro-empty">Verificação facial ainda não feita.</p>
+              )}
               {docsRevisao.length === 0 ? (
                 <p className="cadastro-empty">Nenhum documento anexado.</p>
               ) : (
@@ -1122,6 +1148,14 @@ export function TransportadoresPage() {
                       {d.label}
                     </label>
                   ))}
+                  <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontWeight: 500 }}>
+                    <input
+                      type="checkbox"
+                      checked={recusarFacial}
+                      onChange={(e) => setRecusarFacial(e.target.checked)}
+                    />
+                    Verificação facial
+                  </label>
                 </div>
               </div>
               <div className="form-field">

@@ -104,10 +104,12 @@ import { autenticar as autenticarLogistica, saveSessao as saveSessaoLogistica } 
 import {
   atualizarLogoTransportadorRemoto,
   carregarTransportadoresDoSupabase,
+  gravarVerificacaoFacial,
   salvarPerfilPublicoRemoto,
   submeterCadastroTransportador,
   type CadastroTransportadorInput,
 } from '../lib/cadastroTransportador'
+import type { FacialCaptura } from '../lib/verificacaoFacial'
 import { normalizePerfilPublico } from '../lib/perfilPublicoTransportador'
 import { atualizarAvatarUsuarioRemoto, buscarAvatarUsuarioRemoto } from '../lib/userAvatar'
 import { canonicalTransportadorId, sameTransportadorId } from '../lib/transportadorIds'
@@ -360,6 +362,10 @@ interface DataContextValue extends DataState, AuthState {
   registrarCadastroTransportador: (
     input: CadastroTransportadorInput,
   ) => Promise<{ ok: boolean; error?: string; mensagem?: string }>
+  /** Grava o rosto e agenda a próxima cobrança da verificação facial. */
+  concluirVerificacaoFacial: (
+    captura: FacialCaptura,
+  ) => Promise<{ ok: boolean; error?: string }>
   /** Recarrega transportadoras/docs do Supabase (fila de aprovação). */
   refreshTransportadores: () => Promise<void>
   /** Força pull do kanban_sync (útil se o embarcador abriu com board vazio). */
@@ -4718,6 +4724,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [flushKanbanPush],
   )
 
+  const concluirVerificacaoFacial = useCallback(
+    async (captura: FacialCaptura) => {
+      const id = user?.transportador_id
+      if (!id) return { ok: false, error: 'Conta sem transportadora vinculada.' }
+      const res = await gravarVerificacaoFacial(id, captura)
+      if (!res.ok) return { ok: false, error: res.erro }
+      setState((prev) => {
+        const next = {
+          ...prev,
+          transportadores: prev.transportadores.map((t) =>
+            t.id === id ? { ...t, ...res.campos } : t,
+          ),
+        }
+        stateRef.current = next
+        return next
+      })
+      return { ok: true }
+    },
+    [user?.transportador_id],
+  )
+
   const gravarSituacaoTransportador = useCallback(
     async (
       id: string,
@@ -5713,6 +5740,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       substituirDocumentoTransportador,
       enviarDocumentoTransportador,
       registrarCadastroTransportador,
+      concluirVerificacaoFacial,
       refreshTransportadores,
       forcarSincronizarKanban,
       aprovarTransportador,
@@ -5792,6 +5820,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       substituirDocumentoTransportador,
       enviarDocumentoTransportador,
       registrarCadastroTransportador,
+      concluirVerificacaoFacial,
       refreshTransportadores,
       aprovarTransportador,
       recusarTransportador,

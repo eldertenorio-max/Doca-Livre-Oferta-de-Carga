@@ -6,6 +6,7 @@ import { ProductMark } from '../ProductMark'
 import { ChatModal } from '../carga/ChatModal'
 import { PerfilPanel } from './PerfilPanel'
 import { ActionFlashHost } from '../ui/ActionFlashHost'
+import { FacialGate } from '../verificacao/FacialGate'
 import { DisponibilidadeMapaFlag } from '../transportador/DisponibilidadeMapaFlag'
 import { canOpenModulo, moduloFromPath } from '../../lib/portalModules'
 import { isSuperSession } from '../../lib/superUsers'
@@ -830,6 +831,7 @@ export function AppLayout() {
           style={{ ['--brand-logo-url' as string]: `url("${LOGO_DOCA_LIVRE_SRC}")` }}
         >
           <Outlet />
+          <FacialGate />
         </main>
       </div>
 
