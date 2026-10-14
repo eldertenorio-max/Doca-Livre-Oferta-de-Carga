@@ -40,22 +40,20 @@ export const ORG_UNIDADE_CD_GUARULHOS_ID = 'org-unidade-cd-guarulhos'
 export const SUPER_HIERARQUIA = [
   { nome: 'Diego', usuario: 'diego' },
   { nome: 'Elder', usuario: 'elder' },
+  { nome: 'Wenderson', usuario: 'wenderson' },
 ] as const
 
-/** Tipos antigos: não criar mais (a árvore nova começa no embarcador). */
-const ORG_TIPOS_OCULTOS_NO_CADASTRO: OrgTipo[] = ['operador_logistico', 'filial_operador']
-
+/** Super → operador ou embarcador → unidade → transportadora. */
 export function allowedOrgChildTypes(tipoPai: string | null | undefined): OrgTipo[] {
+  if (!tipoPai) return ['operador_logistico', 'embarcador']
   const map: Record<string, OrgTipo[]> = {
-    '': ['embarcador'],
+    operador_logistico: ['filial_operador', 'embarcador'],
+    filial_operador: ['embarcador', 'unidade'],
     embarcador: ['unidade'],
     unidade: ['transportadora'],
     transportadora: [],
-    operador_logistico: ['embarcador'],
-    filial_operador: ['embarcador', 'unidade'],
   }
-  if (!tipoPai) return ['embarcador']
-  return (map[tipoPai] ?? []).filter((t) => !ORG_TIPOS_OCULTOS_NO_CADASTRO.includes(t))
+  return map[tipoPai] ?? []
 }
 
 export function grupoIdDaHierarquia(orgId: string) {
