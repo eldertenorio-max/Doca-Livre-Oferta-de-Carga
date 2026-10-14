@@ -75,6 +75,17 @@ function urlRota() {
   return 'https://ofertadecarga.com.br/#/rota'
 }
 
+function ehDiegoOuElder(email: string, usuario: string) {
+  const e = asciiLower(email)
+  const u = asciiLower(usuario)
+  if (SUPER_EMAILS.has(e) || SUPER_LOGINS.has(u)) return true
+  if (e.endsWith('@docalivre.com') || e.endsWith('@docalivre.com.br')) {
+    const local = (e.split('@')[0] || '').trim()
+    return SUPER_LOGINS.has(local)
+  }
+  return false
+}
+
 async function conferirSuper(adminEmail: string, adminUsuario: string) {
   const email = asciiLower(adminEmail)
   const usuario = asciiLower(adminUsuario)
@@ -160,6 +171,142 @@ async function enviarEmailPresente(opts: {
   return { ok: false as const, motivo: `resend_http_${r.status}: ${body}` }
 }
 
+const SITES = new Set(['calculadora', 'frota', 'logistica', 'render'])
+
+function metaUsuario(user: { user_metadata?: Record<string, unknown> }) {
+  return user.user_metadata || {}
+}
+
+function siteDoUsuario(user: { user_metadata?: Record<string, unknown> }) {
+  const site = String(metaUsuario(user).site || '')
+  return SITES.has(site) ? site : ''
+}
+
+function cpfDoUsuario(user: { user_metadata?: Record<string, unknown> }) {
+  return String(metaUsuario(user).cpf || '').replace(/\D/g, '')
+}
+
+function nomeDoUsuario(user: { email?: string; user_metadata?: Record<string, unknown> }) {
+  const meta = metaUsuario(user)
+  return (
+    String(meta.nome || meta.full_name || meta.name || user.email || 'Conta').trim() || 'Conta'
+  )
+}
+
+async function listarAuthUsers(sb: ReturnType<typeof admin>) {
+  const users: Array<{
+    id: string
+    email?: string
+    user_metadata?: Record<string, unknown>
+  }> = []
+  for (let page = 1; page <= 25; page++) {
+    const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 200 })
+    if (error) throw new Error(error.message)
+    const lote = data.users || []
+    users.push(...lote)
+    if (lote.length < 200) break
+  }
+  return users
+}
+
+async function acaoContas(
+  sb: ReturnType<typeof admin>,
+  action: string,
+  body: Record<string, unknown>,
+) {
+  if (action === 'listar_contas') {
+    const site = String(body.site || '')
+    if (!SITES.has(site)) return fail('Escolha o site.')
+    const busca = asciiLower(String(body.busca || ''))
+    const buscaCpf = busca.replace(/\D/g, '')
+
+    const [users, saldosRes, portalRes] = await Promise.all([
+      listarAuthUsers(sb),
+      sb.from('rota_publico_creditos').select('user_id, saldo'),
+      sb.from('usuarios').select('email'),
+    ])
+    if (saldosRes.error) return fail(saldosRes.error.message)
+    const saldoPorId = new Map<string, number>()
+    for (const row of saldosRes.data || []) {
+      saldoPorId.set(String(row.user_id), Number(row.saldo) || 0)
+    }
+    const emailsPortal = new Set<string>()
+    if (!portalRes.error) {
+      for (const row of portalRes.data || []) {
+        const email = asciiLower(String((row as { email?: string }).email || ''))
+        if (email) emailsPortal.add(email)
+      }
+    }
+
+    const contas = users
+      .filter((u) => {
+        const origem = String(metaUsuario(u).origem || '')
+        const email = asciiLower(u.email || '')
+        const contaPublica =
+          origem === 'rota_publico' ||
+          saldoPorId.has(u.id) ||
+          (Boolean(email) && !emailsPortal.has(email))
+        if (!contaPublica) return false
+        const marcado = siteDoUsuario(u)
+        if (marcado && marcado !== site) return false
+        if (!busca) return true
+        const nome = asciiLower(nomeDoUsuario(u))
+        const cpf = cpfDoUsuario(u)
+        const bateCpf = buscaCpf.length >= 3 && cpf.includes(buscaCpf)
+        return email.includes(busca) || nome.includes(busca) || bateCpf
+      })
+      .map((u) => ({
+        id: u.id,
+        email: asciiLower(u.email || ''),
+        nome: nomeDoUsuario(u),
+        cpf: cpfDoUsuario(u),
+        site: siteDoUsuario(u),
+        saldo: saldoPorId.get(u.id) || 0,
+      }))
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+      .slice(0, 200)
+
+    return json({ ok: true, contas })
+  }
+
+  const userId = String(body.userId || '').trim()
+  const creditos = Math.floor(Number(body.creditos))
+  if (!/^[0-9a-f-]{36}$/i.test(userId)) return fail('Selecione uma pessoa da lista.')
+  if (!Number.isFinite(creditos) || creditos < 1 || creditos > 10000) {
+    return fail('Informe de 1 a 10.000 créditos.')
+  }
+
+  const { data: achado, error: userErr } = await sb.auth.admin.getUserById(userId)
+  if (userErr || !achado.user) return fail('Conta não encontrada.')
+  const origem = String(achado.user.user_metadata?.origem || '')
+  const emailConta = asciiLower(achado.user.email || '')
+  const { data: saldoAtual } = await sb
+    .from('rota_publico_creditos')
+    .select('saldo')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (origem !== 'rota_publico' && !saldoAtual) {
+    const { data: portal } = emailConta
+      ? await sb.from('usuarios').select('id').ilike('email', emailConta).maybeSingle()
+      : { data: { id: 'sem-email' } }
+    if (portal) return fail('Esta conta não é dos sites públicos.')
+  }
+
+  const saldo = (Number(saldoAtual?.saldo) || 0) + creditos
+  const { error } = await sb.from('rota_publico_creditos').upsert({
+    user_id: userId,
+    saldo,
+    updated_at: new Date().toISOString(),
+  })
+  if (error) return fail(error.message || 'Não foi possível gravar os créditos.')
+  return json({
+    ok: true,
+    saldo,
+    email: asciiLower(achado.user.email || ''),
+    creditos,
+  })
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return fail('method_not_allowed', 405)
@@ -178,6 +325,7 @@ Deno.serve(async (req) => {
 
   const adminEmail = String(body.adminEmail || '')
   const adminUsuario = String(body.adminUsuario || '')
+  if (!ehDiegoOuElder(adminEmail, adminUsuario)) return fail('somente_super')
   const superOk = await conferirSuper(adminEmail, adminUsuario)
   if (!superOk) return fail('somente_super')
 
@@ -193,6 +341,15 @@ Deno.serve(async (req) => {
       .limit(20)
     if (error) return fail('Rode o SQL de presentes no Supabase.')
     return json({ ok: true, presentes: data || [] })
+  }
+
+  if (action === 'listar_contas' || action === 'dar_creditos') {
+    try {
+      return await acaoContas(sb, action, body)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Não foi possível listar as contas.'
+      return fail(msg)
+    }
   }
 
   if (action !== 'presentear') return fail('acao_invalida')

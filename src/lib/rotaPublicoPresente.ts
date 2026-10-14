@@ -81,6 +81,50 @@ export async function listarPresentesRota(input: {
   return { ok: true, presentes: Array.isArray(r.presentes) ? r.presentes : [] }
 }
 
+export type ContaCreditoPublica = {
+  id: string
+  email: string
+  nome: string
+  cpf: string
+  site: string
+  saldo: number
+}
+
+export async function listarContasCreditoPublico(input: {
+  site: string
+  busca: string
+  adminEmail: string
+  adminUsuario: string
+}): Promise<{ ok: boolean; erro?: string; contas: ContaCreditoPublica[] }> {
+  const r = await chamarPresente({
+    action: 'listar_contas',
+    site: input.site,
+    busca: input.busca,
+    adminEmail: input.adminEmail,
+    adminUsuario: input.adminUsuario,
+  })
+  const contas = (r as { contas?: ContaCreditoPublica[] }).contas
+  if (!r.ok) return { ok: false, erro: r.erro, contas: [] }
+  return { ok: true, contas: Array.isArray(contas) ? contas : [] }
+}
+
+export async function darCreditosContaPublica(input: {
+  userId: string
+  creditos: number
+  adminEmail: string
+  adminUsuario: string
+}): Promise<{ ok: boolean; erro?: string; saldo?: number; email?: string }> {
+  const r = await chamarPresente({
+    action: 'dar_creditos',
+    userId: input.userId,
+    creditos: input.creditos,
+    adminEmail: input.adminEmail,
+    adminUsuario: input.adminUsuario,
+  })
+  if (!r.ok) return { ok: false, erro: r.erro }
+  return { ok: true, saldo: r.saldo, email: r.email }
+}
+
 export async function statusPresenteRota(): Promise<{ ok: boolean; resend?: boolean }> {
   const r = await chamarPresente({ action: 'config' })
   return { ok: Boolean(r.ok), resend: Boolean(r.resend) }

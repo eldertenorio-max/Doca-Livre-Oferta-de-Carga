@@ -277,6 +277,17 @@ Deno.serve(async (req) => {
       if (!emailValido(email)) return fail('Informe um e-mail válido.')
       const senha = String(body.senha || body.password || '')
       const nome = String(body.nome || '').trim() || email.split('@')[0] || 'Conta'
+      const cpf = String(body.cpf || '').replace(/\D/g, '').slice(0, 11)
+      const site = ['calculadora', 'frota', 'logistica', 'render'].includes(String(body.site || ''))
+        ? String(body.site)
+        : 'calculadora'
+      const meta = {
+        origem: ORIGEM,
+        nome,
+        full_name: nome,
+        ...(cpf.length === 11 ? { cpf } : {}),
+        site,
+      }
       if (senha.length < 6) return fail('A senha precisa ter pelo menos 6 caracteres.')
       const check = await consumirCodigo(sb, 'rota_cadastro', email, String(body.codigo || ''))
       if (!check.ok) return fail(msgCodigo(check.motivo))
@@ -289,7 +300,7 @@ Deno.serve(async (req) => {
         const { error } = await sb.auth.admin.updateUserById(existente.id, {
           password: senha,
           email_confirm: true,
-          user_metadata: { origem: ORIGEM, nome, full_name: nome },
+          user_metadata: meta,
         })
         if (error) return fail(error.message || 'Não foi possível gravar a conta.')
         return json({ ok: true, email })
@@ -299,7 +310,7 @@ Deno.serve(async (req) => {
         email,
         password: senha,
         email_confirm: true,
-        user_metadata: { origem: ORIGEM, nome, full_name: nome },
+        user_metadata: meta,
       })
       if (error || !data.user?.id) {
         return fail(error?.message || 'Não foi possível criar a conta.')

@@ -1334,6 +1334,68 @@
   gap: 8px;
 }
 
+.dar-creditos .financeiro-pix__label input,
+.dar-creditos .financeiro-pix__label select {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+}
+
+.dar-creditos .financeiro-pix__label select {
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 10px 12px;
+  border: 1px solid #86efac;
+  border-radius: 10px;
+  background: #fff;
+  color: #0f172a;
+}
+
+.dar-creditos__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.dar-creditos__lista button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1.2fr 1.4fr 0.9fr auto;
+  gap: 8px;
+  align-items: center;
+  text-align: left;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.dar-creditos__lista button.is-on {
+  border-color: #14532d;
+  background: #f0fdf4;
+}
+
+.dar-creditos__lista span,
+.dar-creditos__lista em {
+  color: #475569;
+  font-size: 0.82rem;
+  font-style: normal;
+}
+
+@media (max-width: 800px) {
+  .dar-creditos__lista button {
+    grid-template-columns: 1fr;
+  }
+}
+
 .financeiro-pix {
   margin: 0 0 18px;
   padding: 16px 18px 18px;

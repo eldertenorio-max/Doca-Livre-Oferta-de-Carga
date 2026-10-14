@@ -49,6 +49,8 @@ export async function rotaPublicoConfirmarCadastro(input: {
   codigo: string
   senha: string
   nome: string
+  cpf?: string
+  site?: string
 }) {
   return chamar('cadastro_confirmar', input)
 }

@@ -9,6 +9,7 @@ import {
   rotaPublicoEnviarCodigoCadastro,
   rotaPublicoEnviarCodigoSenha,
 } from '../../lib/rotaPublicoOtp'
+import { siteContaAtual } from '../../lib/siteOfertaDeCarga'
 
 type Aba = 'entrar' | 'criar'
 type Passo = 'form' | 'codigo' | 'validado' | 'nova-senha'
@@ -25,6 +26,7 @@ function RotaPublicoLoginCampos({
   const [passo, setPasso] = useState<Passo>('form')
   const [fluxo, setFluxo] = useState<'cadastro' | 'senha' | null>(null)
   const [nome, setNome] = useState('')
+  const [cpf, setCpf] = useState('')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [senha2, setSenha2] = useState('')
@@ -127,6 +129,8 @@ function RotaPublicoLoginCampos({
         codigo: digitos,
         senha,
         nome,
+        cpf: cpf.replace(/\D/g, ''),
+        site: siteContaAtual(),
       })
       setBusyOtp(false)
       if (!r.ok) {
@@ -354,6 +358,18 @@ function RotaPublicoLoginCampos({
               onChange={(e) => setNome(e.target.value)}
               autoComplete="name"
               placeholder="Como quer ser chamado"
+            />
+          </label>
+        ) : null}
+        {aba === 'criar' ? (
+          <label>
+            CPF
+            <input
+              value={cpf}
+              onChange={(e) => setCpf(e.target.value.replace(/\D/g, '').slice(0, 11))}
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="Somente números, para achar a conta"
             />
           </label>
         ) : null}

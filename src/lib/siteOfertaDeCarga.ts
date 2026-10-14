@@ -15,6 +15,17 @@ export const URL_ROTA_PUBLICA = `${URL_SITE_ROTA}/`
 export const URL_MAPA_FROTA = `${URL_SITE_MAPA}/`
 export const URL_MAPA_LOGISTICA = `https://${HOST_MAPA_LOGISTICA}/`
 
+export type SiteContaPublica = 'calculadora' | 'frota' | 'logistica' | 'render'
+
+/** Site público em que a pessoa criou a conta de créditos. */
+export function siteContaAtual(hostname = hostAtual()): SiteContaPublica {
+  const h = hostCanonico(hostname)
+  if (h === HOST_MAPA_FROTA) return 'frota'
+  if (h === HOST_MAPA_LOGISTICA) return 'logistica'
+  if (h.endsWith('.onrender.com')) return 'render'
+  return 'calculadora'
+}
+
 function hostAtual(): string {
   if (typeof window === 'undefined') return ''
   return window.location.hostname.toLowerCase()

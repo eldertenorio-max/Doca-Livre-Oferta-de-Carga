@@ -16,6 +16,7 @@ import { IndicadoresPage } from './pages/minerva/Indicadores'
 import { ConfiguracoesPage } from './pages/minerva/Configuracoes'
 import { HistoricoPage } from './pages/minerva/Historico'
 import { FinanceiroPage } from './pages/minerva/Financeiro'
+import { DarCreditosPage } from './pages/minerva/DarCreditos'
 import { VeiculosPage } from './pages/minerva/Veiculos'
 import { MotoristasPage } from './pages/minerva/Motoristas'
 import { PortalConfigPage } from './pages/minerva/PortalConfig'
@@ -401,6 +402,14 @@ export default function App() {
           element={
             <Protected role={['super']}>
               <FinanceiroPage />
+            </Protected>
+          }
+        />
+        <Route
+          path="/embarcador/dar-creditos"
+          element={
+            <Protected role={['super']}>
+              <DarCreditosPage />
             </Protected>
           }
         />

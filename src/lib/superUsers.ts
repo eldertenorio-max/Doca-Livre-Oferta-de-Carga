@@ -52,6 +52,12 @@ type SessionLike = {
  * Fonte da verdade: perfil salvo na Configuração do Portal (`role`).
  * Heurística de e-mail só entra se o role não for transportador.
  */
+/** Só Diego e Elder, pelo login ou e-mail da Doca Livre. */
+export function ehSuperDiegoOuElder(user: SessionLike | null | undefined): boolean {
+  if (!user) return false
+  return isLocalSuperUser(user.usuario ?? '') || isLocalSuperUser(user.email ?? '')
+}
+
 export function isSuperSession(user: SessionLike | null | undefined): boolean {
   if (!user) return false
   if (user.role === 'transportador' || user.role === 'logistica') return false

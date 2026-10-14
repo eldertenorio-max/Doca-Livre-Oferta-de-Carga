@@ -9,7 +9,7 @@ import { ActionFlashHost } from '../ui/ActionFlashHost'
 import { FacialGate } from '../verificacao/FacialGate'
 import { DisponibilidadeMapaFlag } from '../transportador/DisponibilidadeMapaFlag'
 import { canOpenModulo, moduloFromPath } from '../../lib/portalModules'
-import { isSuperSession } from '../../lib/superUsers'
+import { ehSuperDiegoOuElder, isSuperSession } from '../../lib/superUsers'
 import { canonicalTransportadorId } from '../../lib/transportadorIds'
 import '../../styles/shell.css'
 
@@ -155,6 +155,15 @@ function IconRadar() {
         strokeWidth="1.75"
         strokeLinecap="round"
       />
+    </svg>
+  )
+}
+
+function IconCredito() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M12 8v8M9.5 10.5c.4-.8 1.2-1.2 2.5-1.2 1.5 0 2.4.7 2.4 1.7S13.5 12.6 12 12.6 9.6 13.3 9.6 14.4 10.6 16 12.2 16c1.2 0 2-.4 2.4-1.1" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
     </svg>
   )
 }
@@ -459,8 +468,14 @@ export function AppLayout() {
   const links = useMemo(() => {
     if (user?.role === 'logistica') return logisticaLinks
     if (isSuper) {
+      const darCreditos = ehSuperDiegoOuElder(user)
+        ? [{ to: '/embarcador/dar-creditos', label: 'Dar créditos', icon: <IconCredito /> }]
+        : []
+      const financeiro = minervaLinks.findIndex((item) => item.to === '/embarcador/financeiro')
+      const menu = [...minervaLinks]
+      menu.splice(financeiro >= 0 ? financeiro + 1 : menu.length, 0, ...darCreditos)
       return [
-        ...minervaLinks,
+        ...menu,
         { to: '/transportador/painel', label: 'Painel Transportador', icon: <IconChart /> },
         { to: '/transportador', label: 'Ofertas', icon: <IconGrid />, end: true },
         { to: '/transportador/viagens', label: 'Viagens', icon: <IconTruck /> },
