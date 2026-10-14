@@ -6,6 +6,12 @@ import { RotaPublicoLoginModal } from '../carga/RotaPublicoLogin'
 import { useRotaPublicoAuth, type ContaRotaPublico } from '../../lib/rotaPublicoAuth'
 import { consultarEstadoCalculosPublicos } from '../../lib/rotaPublicoCalculos'
 import { consultarEstadoBuscasPublicas, type ProdutoBuscaPublica } from '../../lib/mapaPublicoBuscas'
+import {
+  consultarCreditosRotaPublico,
+  marcarPresenteRotaVisto,
+  presenteJaVistoLocal,
+} from '../../lib/rotaPublicoCreditos'
+import { RotaPresenteModal } from '../carga/RotaPresenteModal'
 
 type Props = {
   uso: 'calculo' | 'busca'
@@ -28,6 +34,7 @@ export function PublicoCreditoAcoes({
   const [comprar, setComprar] = useState(false)
   const [gratis, setGratis] = useState(restamGratis ?? 0)
   const [saldo, setSaldo] = useState(creditos ?? 0)
+  const [presente, setPresente] = useState<{ creditos: number; ids: string[] } | null>(null)
   const conta: ContaRotaPublico | null = auth.conta
 
   useEffect(() => {
@@ -44,6 +51,34 @@ export function PublicoCreditoAcoes({
       setSaldo(estado.creditos)
     })
   }, [uso, produto, restamGratis, creditos, auth.conta?.id])
+
+  useEffect(() => {
+    if (!conta) {
+      setPresente(null)
+      return
+    }
+    let vivo = true
+    async function checar() {
+      const saldoConta = await consultarCreditosRotaPublico()
+      if (!vivo) return
+      const ids = saldoConta.presenteIds
+      if (saldoConta.presente > 0 && ids.length > 0 && !presenteJaVistoLocal(ids)) {
+        setPresente({ creditos: saldoConta.presente, ids })
+        setSaldo(saldoConta.creditos)
+      }
+    }
+    void checar()
+    const timer = window.setInterval(() => void checar(), 15000)
+    const aoVoltar = () => {
+      if (document.visibilityState === 'visible') void checar()
+    }
+    document.addEventListener('visibilitychange', aoVoltar)
+    return () => {
+      vivo = false
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', aoVoltar)
+    }
+  }, [conta?.id])
 
   return (
     <>
@@ -88,6 +123,16 @@ export function PublicoCreditoAcoes({
           onClose={() => setComprar(false)}
           onCreditosLiberados={() => {
             onCreditosLiberados?.()
+          }}
+        />
+      ) : null}
+      {presente ? (
+        <RotaPresenteModal
+          creditos={presente.creditos}
+          onClose={() => {
+            const ids = presente.ids
+            setPresente(null)
+            void marcarPresenteRotaVisto(ids).then(() => onCreditosLiberados?.())
           }}
         />
       ) : null}

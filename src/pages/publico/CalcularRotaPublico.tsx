@@ -45,7 +45,6 @@ import { MapaFrotaAjuda } from '../../components/mapa/MapaFrotaAjuda'
 import { RotaResultadoAcoes, RotaFaleConosco } from '../../components/carga/RotaResultadoAcoes'
 import { RotaMapErroBoundary } from '../../components/carga/RotaMapErroBoundary'
 import { RotaPaywallModal } from '../../components/carga/RotaPaywallModal'
-import { RotaPresenteModal } from '../../components/carga/RotaPresenteModal'
 import { RotaPublicoLoginModal } from '../../components/carga/RotaPublicoLogin'
 import { useRotaPublicoAuth } from '../../lib/rotaPublicoAuth'
 import type { SugestaoEndereco } from '../../lib/geocodeEndereco'
@@ -64,10 +63,6 @@ import {
   ROTA_PUBLICO_LIMITE_CALCULOS,
   type EstadoCalculosPublicos,
 } from '../../lib/rotaPublicoCalculos'
-import {
-  marcarPresenteRotaVisto,
-  presenteJaVistoLocal,
-} from '../../lib/rotaPublicoCreditos'
 import { lerRotaDaUrl, limparBarraRota, sincronizarBarraEndereco } from '../../lib/rotaShareUrl'
 import {
   excluirRotaNesteAparelho,
@@ -211,7 +206,6 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
   const [cotaPronta, setCotaPronta] = useState(() => ilimitado)
   const [showPaywall, setShowPaywall] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
-  const [presente, setPresente] = useState<{ creditos: number; ids: string[] } | null>(null)
   const [showResultado, setShowResultado] = useState(false)
   const [snap, setSnap] = useState<ResultadoSnap | null>(null)
   const [rotasSalvas, setRotasSalvas] = useState<RotaSalvaLocal[]>(() => listarRotasNesteAparelho())
@@ -244,11 +238,6 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
       if (!alive) return
       if (!ilimitado) setCota(estado)
       setCotaPronta(true)
-      const n = estado.presente || 0
-      const ids = estado.presenteIds || []
-      if (n > 0 && ids.length > 0 && !presenteJaVistoLocal(ids)) {
-        setPresente({ creditos: n, ids })
-      }
     }
     if (ilimitado && !googleAuth.conta) return
     void checar()
@@ -1581,19 +1570,6 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
         <RotaPublicoLoginModal onClose={() => setShowLogin(false)} />
       ) : null}
 
-      {presente && !modoSistema ? (
-        <RotaPresenteModal
-          creditos={presente.creditos}
-          onClose={() => {
-            const ids = presente.ids
-            setPresente(null)
-            void marcarPresenteRotaVisto(ids).then(() => {
-              if (ilimitado) return
-              void consultarEstadoCalculosPublicos().then(setCota)
-            })
-          }}
-        />
-      ) : null}
     </div>
   )
 }

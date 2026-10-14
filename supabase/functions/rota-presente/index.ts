@@ -126,16 +126,17 @@ async function enviarEmailPresente(opts: {
   const creditosTxt = `${n} crédito${n === 1 ? '' : 's'}`
   const emailSafe = escapeHtml(email)
   const creditosSafe = escapeHtml(creditosTxt)
-  const assunto = `Parabéns! Você ganhou ${creditosTxt} do Doca Livre Oferta de Carga`
+  const assunto = `Parabéns! Você acabou de ganhar ${creditosTxt}`
   const comoUsar = opts.contaExiste
-    ? 'Os créditos já estão na sua conta Google. Abra a calculadora e aproveite.'
-    : 'Entre com o Google neste mesmo e-mail na calculadora para usar o presente.'
+    ? 'Os créditos já estão na sua conta. Abra o site para ver o aviso.'
+    : 'Entre com este mesmo e-mail no site para usar os créditos e ver o aviso.'
   const texto =
     `Parabéns!\n\n` +
-    `Você acabou de ganhar ${creditosTxt} do Doca Livre Oferta de Carga.\n\n` +
-    `${comoUsar}\n` +
-    `Cada crédito vale 1 cálculo de rota (pedágio, km e combustível).\n\n` +
+    `Você acabou de ganhar ${creditosTxt}.\n\n` +
+    `${comoUsar}\n\n` +
     `Calculadora: ${urlRota()}\n` +
+    `Mapa da Frota: https://mapadafrota.com.br/\n` +
+    `Mapa da Logística: https://mapadalogistica.com.br/\n` +
     `Conta: ${email}\n`
   const html =
     `<div style="font-family:Arial,Helvetica,sans-serif;background:#0f172a;padding:28px 12px">` +
@@ -146,13 +147,13 @@ async function enviarEmailPresente(opts: {
     `</div>` +
     `<div style="padding:26px 24px 28px">` +
     `<p style="margin:0 0 14px;color:#0f172a;font-size:18px;font-weight:800;line-height:1.35">` +
-    `Você acabou de ganhar <span style="color:#15803d">${creditosSafe}</span> do Doca Livre Oferta de Carga.` +
+    `Você acabou de ganhar <span style="color:#15803d">${creditosSafe}</span>.` +
     `</p>` +
     `<p style="margin:0 0 18px;color:#334155;font-size:15px;line-height:1.55">${escapeHtml(comoUsar)}</p>` +
     `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;padding:16px 18px;margin:0 0 22px">` +
     `<p style="margin:0 0 4px;font-size:12px;font-weight:800;letter-spacing:.08em;color:#166534">PRESENTE</p>` +
     `<p style="margin:0;font-size:26px;font-weight:800;color:#14532d">+${n}</p>` +
-    `<p style="margin:6px 0 0;color:#166534;font-size:14px">Cada crédito vale 1 cálculo de rota.</p>` +
+    `<p style="margin:6px 0 0;color:#166534;font-size:14px">Eles já estão na sua conta.</p>` +
     `</div>` +
     `<p style="margin:0 0 18px;color:#64748b;font-size:13px">Conta: <strong style="color:#0f172a">${emailSafe}</strong></p>` +
     `<p style="margin:0"><a href="${urlRota()}" style="display:inline-block;background:#facc15;color:#0f172a;text-decoration:none;font-weight:800;padding:13px 20px;border-radius:12px">Abrir a calculadora</a></p>` +
@@ -179,6 +180,7 @@ function metaUsuario(user: { user_metadata?: Record<string, unknown> }) {
 
 function siteDoUsuario(user: { user_metadata?: Record<string, unknown> }) {
   const site = String(metaUsuario(user).site || '')
+  if (site === 'render') return 'calculadora'
   return SITES.has(site) ? site : ''
 }
 
@@ -292,18 +294,58 @@ async function acaoContas(
     if (portal) return fail('Esta conta não é dos sites públicos.')
   }
 
-  const saldo = (Number(saldoAtual?.saldo) || 0) + creditos
+  const saldoAnterior = saldoAtual ? Number(saldoAtual.saldo) || 0 : null
+  const saldo = (saldoAnterior || 0) + creditos
+  const agora = new Date().toISOString()
   const { error } = await sb.from('rota_publico_creditos').upsert({
     user_id: userId,
     saldo,
-    updated_at: new Date().toISOString(),
+    updated_at: agora,
   })
   if (error) return fail(error.message || 'Não foi possível gravar os créditos.')
+
+  const por = asciiLower(String(body.adminEmail || body.adminUsuario || 'super')) || 'super'
+  const { data: aviso, error: avisoErr } = await sb
+    .from('rota_publico_presentes')
+    .insert({
+      email: emailConta,
+      creditos,
+      criado_por: por,
+      aplicado_em: agora,
+      user_id: userId,
+    })
+    .select('id')
+    .single()
+  if (avisoErr || !aviso?.id) {
+    if (saldoAnterior == null) {
+      await sb.from('rota_publico_creditos').delete().eq('user_id', userId)
+    } else {
+      await sb.from('rota_publico_creditos').upsert({
+        user_id: userId,
+        saldo: saldoAnterior,
+        updated_at: agora,
+      })
+    }
+    return fail(avisoErr?.message || 'Não foi possível registrar o aviso de créditos.')
+  }
+
+  const mail = emailConta
+    ? await enviarEmailPresente({ email: emailConta, creditos, contaExiste: true })
+    : { ok: false as const, motivo: 'sem_email' }
+  await sb
+    .from('rota_publico_presentes')
+    .update({
+      email_enviado_em: mail.ok ? new Date().toISOString() : null,
+      email_erro: mail.ok ? null : mail.motivo,
+    })
+    .eq('id', aviso.id)
+
   return json({
     ok: true,
     saldo,
-    email: asciiLower(achado.user.email || ''),
+    email: emailConta,
     creditos,
+    emailEnviado: mail.ok,
   })
 }
 

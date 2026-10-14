@@ -28,11 +28,9 @@ export function RotaPresenteModal({ creditos, onClose }: Props) {
         <p className="mapa-pub-presente__kicker">Presente da Doca Livre</p>
         <h3 id="rota-presente-title">Parabéns!</h3>
         <p id="rota-presente-desc">
-          Você acabou de ganhar <strong>{label}</strong> do Doca Livre Oferta de Carga.
+          Você acabou de ganhar <strong>{label}</strong>.
         </p>
-        <p className="mapa-pub-presente__sub">
-          Cada crédito vale 1 cálculo de rota — pedágio, km e combustível.
-        </p>
+        <p className="mapa-pub-presente__sub">Eles já estão na sua conta.</p>
         <button type="button" className="mapa-pub__btn mapa-pub-presente__btn" onClick={onClose}>
           Aproveitar agora
         </button>

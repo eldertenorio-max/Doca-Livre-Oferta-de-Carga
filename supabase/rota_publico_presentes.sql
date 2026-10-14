@@ -6,7 +6,7 @@
 create table if not exists public.rota_publico_presentes (
   id uuid primary key default gen_random_uuid(),
   email text not null,
-  creditos integer not null check (creditos > 0 and creditos <= 500),
+  creditos integer not null check (creditos > 0 and creditos <= 10000),
   criado_em timestamptz not null default now(),
   criado_por text not null,
   aplicado_em timestamptz,

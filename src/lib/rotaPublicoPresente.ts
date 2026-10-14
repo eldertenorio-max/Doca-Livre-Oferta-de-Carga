@@ -113,7 +113,7 @@ export async function darCreditosContaPublica(input: {
   creditos: number
   adminEmail: string
   adminUsuario: string
-}): Promise<{ ok: boolean; erro?: string; saldo?: number; email?: string }> {
+}): Promise<{ ok: boolean; erro?: string; saldo?: number; email?: string; emailEnviado?: boolean }> {
   const r = await chamarPresente({
     action: 'dar_creditos',
     userId: input.userId,
@@ -122,7 +122,7 @@ export async function darCreditosContaPublica(input: {
     adminUsuario: input.adminUsuario,
   })
   if (!r.ok) return { ok: false, erro: r.erro }
-  return { ok: true, saldo: r.saldo, email: r.email }
+  return { ok: true, saldo: r.saldo, email: r.email, emailEnviado: r.emailEnviado }
 }
 
 export async function statusPresenteRota(): Promise<{ ok: boolean; resend?: boolean }> {

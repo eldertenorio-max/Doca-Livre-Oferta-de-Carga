@@ -13,7 +13,6 @@ const SITES = [
   { id: 'calculadora', label: 'Calculadora de rota', host: 'ofertadecarga.com.br' },
   { id: 'frota', label: 'Mapa da Frota', host: 'mapadafrota.com.br' },
   { id: 'logistica', label: 'Mapa da Logística', host: 'mapadalogistica.com.br' },
-  { id: 'render', label: 'Oferta de Carga', host: 'no Render' },
 ] as const
 
 type SiteId = (typeof SITES)[number]['id']
@@ -101,8 +100,11 @@ export function DarCreditosPage() {
       )
       return
     }
+    const avisoEmail = r.emailEnviado
+      ? 'O e-mail de parabéns foi enviado.'
+      : 'Os créditos entraram, mas o e-mail não saiu agora.'
     setOk(
-      `${n} crédito${n === 1 ? '' : 's'} para ${selecionada.email}. Saldo agora: ${r.saldo ?? '—'}.`,
+      `${n} crédito${n === 1 ? '' : 's'} para ${selecionada.email}. Saldo agora: ${r.saldo ?? '—'}. ${avisoEmail} Na próxima vez que ela abrir o site, o aviso aparece no meio da tela.`,
     )
     setCreditos(10)
     void carregar(site, buscaAplicada)
