@@ -34,38 +34,97 @@ export function formatCepBr(raw: string): string {
   return `${d.slice(0, 5)}-${d.slice(5)}`
 }
 
-/** Preenche logradouro/cidade/UF a partir do CEP (ViaCEP). */
+type CepBruto = {
+  erro?: boolean | string
+  cep?: string
+  logradouro?: string
+  street?: string
+  bairro?: string
+  neighborhood?: string
+  localidade?: string
+  city?: string
+  uf?: string
+  state?: string
+  complemento?: string
+}
+
+type CepTentativa =
+  | { tipo: 'ok'; dados: Partial<EnderecoCampos> }
+  | { tipo: 'ausente' }
+  | { tipo: 'falha' }
+
+function dadosDeCep(digits: string, data: CepBruto): Partial<EnderecoCampos> | null {
+  if (data.erro === true || data.erro === 'true') return null
+  const cidade = String(data.localidade || data.city || '').trim()
+  const uf = String(data.uf || data.state || '').trim().toUpperCase()
+  if (!cidade || uf.length !== 2) return null
+  const complemento = String(data.complemento || '').trim()
+  return {
+    cep: formatCepBr(String(data.cep || digits)),
+    endereco: String(data.logradouro || data.street || '').trim(),
+    bairro: String(data.bairro || data.neighborhood || '').trim(),
+    cidade,
+    uf,
+    complemento: complemento || undefined,
+  }
+}
+
+function primeiraCepUtil(tarefas: Array<Promise<CepTentativa>>): Promise<CepTentativa[]> {
+  return new Promise((resolve) => {
+    const saidas: CepTentativa[] = []
+    let faltam = tarefas.length
+    if (faltam === 0) {
+      resolve(saidas)
+      return
+    }
+    for (const tarefa of tarefas) {
+      void tarefa.then((item) => {
+        saidas.push(item)
+        faltam -= 1
+        if (item.tipo === 'ok' || faltam === 0) resolve(saidas)
+      })
+    }
+  })
+}
+
+async function consultarUrlCep(url: string, digits: string): Promise<CepTentativa> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 8000)
+  try {
+    const res = await fetch(url, {
+      headers: { Accept: 'application/json' },
+      signal: ctrl.signal,
+    })
+    if (res.status === 404) return { tipo: 'ausente' }
+    if (!res.ok) return { tipo: 'falha' }
+    const data = (await res.json()) as CepBruto
+    const dados = dadosDeCep(digits, data)
+    if (!dados) return { tipo: 'ausente' }
+    return { tipo: 'ok', dados }
+  } catch {
+    return { tipo: 'falha' }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** Preenche logradouro/cidade/UF a partir do CEP. */
 export async function buscarEnderecoPorCep(
   cepRaw: string,
 ): Promise<{ ok: true; dados: Partial<EnderecoCampos> } | { ok: false; erro: string }> {
   const cep = onlyCepDigits(cepRaw)
   if (cep.length !== 8) return { ok: false, erro: 'CEP incompleto.' }
-  try {
-    const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
-    if (!res.ok) return { ok: false, erro: 'Falha ao consultar CEP.' }
-    const data = (await res.json()) as {
-      erro?: boolean
-      logradouro?: string
-      bairro?: string
-      localidade?: string
-      uf?: string
-      complemento?: string
-    }
-    if (data.erro) return { ok: false, erro: 'CEP não encontrado.' }
-    return {
-      ok: true,
-      dados: {
-        cep: formatCepBr(cep),
-        endereco: (data.logradouro || '').trim(),
-        bairro: (data.bairro || '').trim(),
-        cidade: (data.localidade || '').trim(),
-        uf: (data.uf || '').trim().toUpperCase(),
-        complemento: (data.complemento || '').trim() || undefined,
-      },
-    }
-  } catch {
-    return { ok: false, erro: 'Não foi possível consultar o CEP.' }
+  const tentativas = await primeiraCepUtil([
+    consultarUrlCep(`https://viacep.com.br/ws/${cep}/json/`, cep),
+    consultarUrlCep(`https://brasilapi.com.br/api/cep/v2/${cep}`, cep),
+    consultarUrlCep(`https://opencep.com/v1/${cep}`, cep),
+  ])
+  const achou = tentativas.find((t) => t.tipo === 'ok')
+  if (achou?.tipo === 'ok') return { ok: true, dados: achou.dados }
+  if (tentativas.some((t) => t.tipo === 'ausente')) {
+    return { ok: false, erro: 'CEP não encontrado.' }
   }
+  return { ok: false, erro: 'Não foi possível consultar o CEP.' }
 }
 
 function montarQueryEndereco(e: EnderecoCampos): string {

@@ -121,6 +121,9 @@ export function CadastroTransportadorPage() {
   const [lngStr, setLngStr] = useState('')
   const [origemReverseBusy, setOrigemReverseBusy] = useState(false)
   const ultimoCepOrigem = useRef('')
+  const ultimoCepEmpresa = useRef('')
+  const [cepEmpresaInfo, setCepEmpresaInfo] = useState('')
+  const [cepEmpresaBuscando, setCepEmpresaBuscando] = useState(false)
   const coordsManuais = useRef(false)
   const reverseTimer = useRef(0)
   const reverseSeq = useRef(0)
@@ -213,6 +216,56 @@ export function CadastroTransportadorPage() {
       window.clearTimeout(timer)
     }
   }, [empresa.cnpj, cnpjConsulta])
+
+  // CEP da empresa → preenche rua, bairro, cidade e UF
+  useEffect(() => {
+    const cep = empresa.cep.replace(/\D/g, '')
+    if (cep.length !== 8) {
+      setCepEmpresaBuscando(false)
+      setCepEmpresaInfo('')
+      return
+    }
+    if (ultimoCepEmpresa.current === cep) return
+
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        setCepEmpresaBuscando(true)
+        setCepEmpresaInfo('Consultando CEP…')
+        const res = await buscarEnderecoPorCep(cep)
+        if (cancelled) return
+        setCepEmpresaBuscando(false)
+        if (!res.ok) {
+          setCepEmpresaInfo(
+            res.erro === 'CEP não encontrado.'
+              ? 'CEP não encontrado. Confira o número ou preencha o endereço.'
+              : res.erro,
+          )
+          return
+        }
+        ultimoCepEmpresa.current = cep
+        setEmpresa((prev) => ({
+          ...prev,
+          cep: res.dados.cep || prev.cep,
+          cidade: res.dados.cidade || prev.cidade,
+          uf: res.dados.uf || prev.uf,
+          endereco: res.dados.endereco ?? prev.endereco,
+          bairro: res.dados.bairro ?? prev.bairro,
+          complemento: res.dados.complemento || prev.complemento,
+        }))
+        setCepEmpresaInfo(
+          res.dados.endereco
+            ? 'Endereço preenchido pelo CEP. Informe o número.'
+            : 'Cidade preenchida pelo CEP. Este CEP não traz a rua — complete o endereço.',
+        )
+      })()
+    }, 350)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [empresa.cep])
 
   // CEP da origem → preenche rua/cidade (ViaCEP)
   useEffect(() => {
@@ -867,11 +920,33 @@ export function CadastroTransportadorPage() {
                   <Field label="CEP">
                     <input
                       value={empresa.cep}
-                      onChange={(e) => setEmp('cep', formatCep(e.target.value))}
+                      onChange={(e) => {
+                        const next = formatCep(e.target.value)
+                        if (next.replace(/\D/g, '') !== ultimoCepEmpresa.current) {
+                          ultimoCepEmpresa.current = ''
+                        }
+                        setEmp('cep', next)
+                      }}
                       placeholder="00000-000"
                       inputMode="numeric"
                       autoComplete="postal-code"
                     />
+                    {(cepEmpresaBuscando || cepEmpresaInfo) && (
+                      <p
+                        style={{
+                          marginTop: 6,
+                          fontSize: 12,
+                          color: cepEmpresaBuscando
+                            ? '#64748b'
+                            : cepEmpresaInfo.startsWith('Endereço preenchido') ||
+                                cepEmpresaInfo.startsWith('Cidade preenchida')
+                              ? '#047857'
+                              : '#b45309',
+                        }}
+                      >
+                        {cepEmpresaBuscando ? 'Consultando CEP…' : cepEmpresaInfo}
+                      </p>
+                    )}
                   </Field>
                   <Field label="Cidade" required>
                     <input
