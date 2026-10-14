@@ -149,13 +149,14 @@ export function CadastroTransportadorPage() {
   const [cnpjBuscando, setCnpjBuscando] = useState(false)
   const [cnpjInfo, setCnpjInfo] = useState('')
   const [cnpjInfoOk, setCnpjInfoOk] = useState(false)
+  const [cnpjConsulta, setCnpjConsulta] = useState(0)
   const ultimoCnpjBuscado = useRef('')
 
   const docsOk = useMemo(() => {
     return DOCUMENTOS_TRANSPORTADOR.filter((d) => d.obrigatorio).every((d) => Boolean(docs[d.tipo]))
   }, [docs])
 
-  // Ao completar CNPJ válido, puxa dados da Receita (BrasilAPI)
+  // Ao completar CNPJ válido, puxa razão social, endereço e contato.
   useEffect(() => {
     const digits = cnpjDigits(empresa.cnpj)
     if (digits.length !== 14 || !isValidCnpj(digits)) {
@@ -174,8 +175,6 @@ export function CadastroTransportadorPage() {
         const res = await buscarDadosPorCnpj(digits)
         if (cancelled) return
         setCnpjBuscando(false)
-        // Evita repetir a mesma consulta até o usuário alterar o CNPJ
-        ultimoCnpjBuscado.current = digits
         if (!res.ok) {
           setCnpjInfoOk(false)
           // CNPJ já passou na validação local — só a consulta externa falhou
@@ -187,6 +186,7 @@ export function CadastroTransportadorPage() {
           )
           return
         }
+        ultimoCnpjBuscado.current = digits
         const d = res.dados
         setEmpresa((prev) => ({
           ...prev,
@@ -212,7 +212,7 @@ export function CadastroTransportadorPage() {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [empresa.cnpj])
+  }, [empresa.cnpj, cnpjConsulta])
 
   // CEP da origem → preenche rua/cidade (ViaCEP)
   useEffect(() => {
@@ -797,6 +797,27 @@ export function CadastroTransportadorPage() {
                         }}
                       >
                         {cnpjBuscando ? 'Consultando CNPJ na Receita…' : cnpjInfo}
+                        {!cnpjBuscando && !cnpjInfoOk ? (
+                          <>
+                            {' '}
+                            <button
+                              type="button"
+                              onClick={() => setCnpjConsulta((n) => n + 1)}
+                              style={{
+                                background: 'none',
+                                border: 0,
+                                padding: 0,
+                                color: '#14532d',
+                                font: 'inherit',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                textDecoration: 'underline',
+                              }}
+                            >
+                              Tentar de novo
+                            </button>
+                          </>
+                        ) : null}
                       </p>
                     )}
                   </Field>

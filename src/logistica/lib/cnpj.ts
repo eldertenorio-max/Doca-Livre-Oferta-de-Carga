@@ -1,3 +1,5 @@
+import { buscarDadosPorCnpj } from '../../lib/cnpjLookup'
+
 export type CnpjConsulta = {
   cnpj: string
   razao_social: string
@@ -25,46 +27,27 @@ export function maskCnpj(value: string) {
     .replace(/(\d{4})(\d)/, '$1-$2')
 }
 
-/** Consulta pública via BrasilAPI. */
+/** Consulta pública da Receita (OpenCNPJ, com BrasilAPI de reserva). */
 export async function consultarCnpj(cnpj: string): Promise<CnpjConsulta | null> {
   const digits = somenteDigitosCnpj(cnpj)
   if (digits.length !== 14) return null
-
-  const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`)
-  if (res.status === 404) return null
-  if (!res.ok) throw new Error('Falha ao consultar CNPJ')
-
-  const data = (await res.json()) as {
-    razao_social?: string | null
-    nome_fantasia?: string | null
-    ddd_telefone_1?: string | null
-    email?: string | null
-    logradouro?: string | null
-    numero?: string | null
-    bairro?: string | null
-    cep?: string | null
-    municipio?: string | null
-    uf?: string | null
-    descricao_tipo_de_logradouro?: string | null
+  const res = await buscarDadosPorCnpj(digits)
+  if (!res.ok) {
+    if (/não encontrado/i.test(res.erro)) return null
+    throw new Error(res.erro)
   }
-
-  const razao = (data.razao_social || '').trim()
-  const fantasia = (data.nome_fantasia || '').trim() || razao
-  const tipo = (data.descricao_tipo_de_logradouro || '').trim()
-  const logradouroBase = (data.logradouro || '').trim()
-  const logradouro = [tipo, logradouroBase].filter(Boolean).join(' ')
-
+  const d = res.dados
   return {
     cnpj: digits,
-    razao_social: razao,
-    nome_fantasia: fantasia,
-    telefone: data.ddd_telefone_1?.trim() || undefined,
-    email: data.email?.trim() || undefined,
-    logradouro: logradouro || undefined,
-    numero: data.numero?.trim() || undefined,
-    bairro: data.bairro?.trim() || undefined,
-    cep: data.cep?.replace(/\D/g, '') || undefined,
-    cidade: data.municipio?.trim() || undefined,
-    uf: data.uf?.trim() || undefined,
+    razao_social: d.razao_social,
+    nome_fantasia: d.nome_fantasia,
+    telefone: d.telefone || undefined,
+    email: d.email || undefined,
+    logradouro: d.endereco || undefined,
+    numero: d.numero || undefined,
+    bairro: d.bairro || undefined,
+    cep: d.cep || undefined,
+    cidade: d.cidade || undefined,
+    uf: d.uf || undefined,
   }
 }
