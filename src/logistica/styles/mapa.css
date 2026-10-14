@@ -19,8 +19,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
   flex-shrink: 0;
+  min-width: 0;
   padding: 10px 16px;
   background: #fff;
   border-bottom: 1px solid #e2e8f0;
@@ -85,7 +87,8 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
-  flex-shrink: 0;
+  flex: 1 1 280px;
+  min-width: 0;
 }
 
 .mapa-log__btn {

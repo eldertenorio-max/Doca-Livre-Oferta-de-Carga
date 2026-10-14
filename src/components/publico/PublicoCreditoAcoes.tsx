@@ -47,6 +47,10 @@ export function PublicoCreditoAcoes({
 
   return (
     <>
+      <LinkSistema className="mapa-pub__btn mapa-pub__btn--solid mapa-pub__entrar" to="/login">
+        <LogIn size={15} strokeWidth={2.4} />
+        Entrar no sistema
+      </LinkSistema>
       {conta ? (
         <div className="mapa-pub-conta">
           {conta.foto ? (
@@ -72,10 +76,6 @@ export function PublicoCreditoAcoes({
       <button type="button" className="mapa-pub__btn mapa-pub__btn--ghost" onClick={() => setComprar(true)}>
         Comprar créditos
       </button>
-      <LinkSistema className="mapa-pub__btn mapa-pub__btn--solid" to="/login">
-        <LogIn size={15} strokeWidth={2.4} />
-        Entrar
-      </LinkSistema>
       {criar && !conta ? (
         <RotaPublicoLoginModal abaInicial="criar" onClose={() => setCriar(false)} />
       ) : null}
