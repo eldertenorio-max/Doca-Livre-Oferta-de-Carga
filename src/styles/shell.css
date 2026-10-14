@@ -427,6 +427,41 @@
   border-color: #268556 !important;
 }
 
+.app-topbar-dar-creditos {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #14532d;
+  border-radius: 8px;
+  background: #fff;
+  color: #14532d;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.app-topbar-dar-creditos:hover,
+.app-topbar-dar-creditos.is-on {
+  background: #14532d;
+  color: #fff;
+}
+
+.app-topbar-dar-creditos__icon {
+  display: flex;
+  width: 16px;
+  height: 16px;
+}
+
+.app-topbar-dar-creditos__icon svg {
+  width: 16px;
+  height: 16px;
+}
+
 .app-topbar-disp {
   position: relative;
   display: flex;
@@ -910,6 +945,16 @@ a.sidebar-section:first-of-type {
     height: 34px;
     padding: 0 10px;
     font-size: 0.72rem;
+  }
+
+  .app-topbar-dar-creditos {
+    height: 34px;
+    padding: 0 8px;
+    font-size: 0.72rem;
+  }
+
+  .app-topbar-dar-creditos__label {
+    display: none;
   }
 
   .app-topbar-disp-btn {

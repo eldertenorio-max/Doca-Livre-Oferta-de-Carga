@@ -468,14 +468,8 @@ export function AppLayout() {
   const links = useMemo(() => {
     if (user?.role === 'logistica') return logisticaLinks
     if (isSuper) {
-      const darCreditos = ehSuperDiegoOuElder(user)
-        ? [{ to: '/embarcador/dar-creditos', label: 'Dar créditos', icon: <IconCredito /> }]
-        : []
-      const financeiro = minervaLinks.findIndex((item) => item.to === '/embarcador/financeiro')
-      const menu = [...minervaLinks]
-      menu.splice(financeiro >= 0 ? financeiro + 1 : menu.length, 0, ...darCreditos)
       return [
-        ...menu,
+        ...minervaLinks,
         { to: '/transportador/painel', label: 'Painel Transportador', icon: <IconChart /> },
         { to: '/transportador', label: 'Ofertas', icon: <IconGrid />, end: true },
         { to: '/transportador/viagens', label: 'Viagens', icon: <IconTruck /> },
@@ -544,6 +538,23 @@ export function AppLayout() {
               </span>
               <span className="app-topbar-nova-carga__label">Nova carga</span>
             </button>
+          ) : null}
+
+          {ehSuperDiegoOuElder(user) ? (
+            <NavLink
+              to="/embarcador/dar-creditos"
+              className={({ isActive }) =>
+                `app-topbar-dar-creditos${isActive ? ' is-on' : ''}`
+              }
+              title="Dar créditos"
+              aria-label="Dar créditos"
+              onClick={() => setNotifOpen(false)}
+            >
+              <span className="app-topbar-dar-creditos__icon" aria-hidden>
+                <IconCredito />
+              </span>
+              <span className="app-topbar-dar-creditos__label">Dar créditos</span>
+            </NavLink>
           ) : null}
 
           <div className="app-topbar-notif-wrap" ref={notifWrapRef}>
