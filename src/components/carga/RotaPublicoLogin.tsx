@@ -15,11 +15,13 @@ type Passo = 'form' | 'codigo' | 'validado' | 'nova-senha'
 
 function RotaPublicoLoginCampos({
   onPronto,
+  abaInicial = 'entrar',
 }: {
   onPronto?: () => void
+  abaInicial?: Aba
 }) {
   const auth = useRotaPublicoAuth()
-  const [aba, setAba] = useState<Aba>('entrar')
+  const [aba, setAba] = useState<Aba>(abaInicial)
   const [passo, setPasso] = useState<Passo>('form')
   const [fluxo, setFluxo] = useState<'cadastro' | 'senha' | null>(null)
   const [nome, setNome] = useState('')
@@ -419,17 +421,23 @@ export function RotaPublicoLoginPanel() {
   return <RotaPublicoLoginCampos />
 }
 
-export function RotaPublicoLoginModal({ onClose }: { onClose: () => void }) {
+export function RotaPublicoLoginModal({
+  onClose,
+  abaInicial = 'entrar',
+}: {
+  onClose: () => void
+  abaInicial?: Aba
+}) {
   return createPortal(
     <div className="mapa-pub-modal" role="dialog" aria-modal="true" aria-labelledby="rota-pub-login-title">
       <div className="mapa-pub-modal__card mapa-pub-modal__card--login">
         <div className="mapa-pub-modal__topo">
-          <h2 id="rota-pub-login-title">Entrar na calculadora</h2>
+          <h2 id="rota-pub-login-title">{abaInicial === 'criar' ? 'Criar conta' : 'Entrar na calculadora'}</h2>
           <button type="button" className="mapa-pub-modal__x" aria-label="Fechar" onClick={onClose}>
             <X size={22} strokeWidth={2.7} />
           </button>
         </div>
-        <RotaPublicoLoginCampos onPronto={onClose} />
+        <RotaPublicoLoginCampos onPronto={onClose} abaInicial={abaInicial} />
       </div>
     </div>,
     document.body,

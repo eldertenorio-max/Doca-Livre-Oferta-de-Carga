@@ -12,7 +12,6 @@ import {
   Fuel,
   Gauge,
   GripVertical,
-  LogIn,
   MapPin,
   Plus,
   RotateCcw,
@@ -36,7 +35,8 @@ import {
 } from '../../lib/anttFrete'
 import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
-import { LinkSistema, LinkMapaFrota, LinkMapaLogistica, LinkFreteMinimo } from '../../components/ui/HostLink'
+import { LinkMapaFrota, LinkMapaLogistica, LinkFreteMinimo } from '../../components/ui/HostLink'
+import { PublicoCreditoAcoes } from '../../components/publico/PublicoCreditoAcoes'
 import { isSiteOfertaDeCarga } from '../../lib/siteOfertaDeCarga'
 import { lerPerfilLocal } from '../../lib/perfilLocal'
 import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
@@ -840,7 +840,6 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
     })
   }
 
-  const logado = Boolean(user)
   const viasValidas = vias.filter(
     (v) =>
       v.endereco.trim().length >= 3 ||
@@ -873,45 +872,14 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
           <LinkMapaFrota className="mapa-pub__btn mapa-pub__btn--ghost">
             Mapa da Frota
           </LinkMapaFrota>
-          {logado ? (
-            <LinkSistema
-              className="mapa-pub__btn mapa-pub__btn--solid"
-              to={user?.role === 'transportador' ? '/transportador' : '/embarcador'}
-            >
-              Ir para o sistema
-            </LinkSistema>
-          ) : (
-            <LinkSistema className="mapa-pub__btn mapa-pub__btn--solid" to="/login">
-              <LogIn size={15} strokeWidth={2.4} />
-              Entrar
-            </LinkSistema>
-          )}
-          {googleAuth.conta ? (
-            <div className="mapa-pub-conta">
-              {googleAuth.conta.foto ? (
-                <img src={googleAuth.conta.foto} alt="" referrerPolicy="no-referrer" />
-              ) : (
-                <span className="mapa-pub-conta__iniciais" aria-hidden>
-                  {googleAuth.conta.nome.slice(0, 1).toUpperCase()}
-                </span>
-              )}
-              <span>
-                {googleAuth.conta.nome.split(/\s+/)[0]}
-                {cota.creditos > 0 ? ` · ${cota.creditos} crédito${cota.creditos === 1 ? '' : 's'}` : ''}
-              </span>
-              <button type="button" className="mapa-pub__btn mapa-pub__btn--ghost" onClick={() => void googleAuth.sair()}>
-                Sair
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="mapa-pub__btn mapa-pub__btn--ghost"
-              onClick={() => setShowLogin(true)}
-            >
-              Conta
-            </button>
-          )}
+          <PublicoCreditoAcoes
+            uso="calculo"
+            restamGratis={cota.restamGratis}
+            creditos={cota.creditos}
+            onCreditosLiberados={() => {
+              void consultarEstadoCalculosPublicos().then(setCota)
+            }}
+          />
         </div>
       </header>
       )}

@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
-import { lerPerfilLocal } from '../../lib/perfilLocal'
 import { isSiteOfertaDeCarga } from '../../lib/siteOfertaDeCarga'
-import { LinkMapaFrota, LinkMapaLogistica, LinkRota, LinkSistema } from '../../components/ui/HostLink'
+import { LinkMapaFrota, LinkMapaLogistica, LinkRota } from '../../components/ui/HostLink'
+import { PublicoCreditoAcoes } from '../../components/publico/PublicoCreditoAcoes'
 import { FreteMinimoCalc } from '../../components/carga/FreteMinimoCalc'
 import { EIXOS_ANTT } from '../../lib/anttFrete'
 import '../../styles/mapa-publico.css'
@@ -11,8 +11,6 @@ import '../../styles/rota-publico.css'
 import '../../styles/frete-minimo.css'
 
 export function FreteMinimoPublicoPage() {
-  const user = lerPerfilLocal()
-  const logado = Boolean(user)
   const navigate = useNavigate()
   const [sp] = useSearchParams()
   const kmRota = useMemo(() => {
@@ -48,23 +46,7 @@ export function FreteMinimoPublicoPage() {
           <LinkMapaFrota className="mapa-pub__btn mapa-pub__btn--ghost">
             Mapa da Frota
           </LinkMapaFrota>
-          {logado ? (
-            <LinkSistema
-              className="mapa-pub__btn mapa-pub__btn--solid"
-              to={user?.role === 'transportador' ? '/transportador' : '/embarcador'}
-            >
-              Ir para o sistema
-            </LinkSistema>
-          ) : (
-            <>
-              <LinkSistema className="mapa-pub__btn mapa-pub__btn--ghost" to="/login">
-                Entrar
-              </LinkSistema>
-              <LinkSistema className="mapa-pub__btn mapa-pub__btn--solid" to="/cadastro-transportador">
-                Cadastrar
-              </LinkSistema>
-            </>
-          )}
+          <PublicoCreditoAcoes uso="calculo" />
         </div>
       </header>
 

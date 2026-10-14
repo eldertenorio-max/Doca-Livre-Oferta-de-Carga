@@ -38,6 +38,7 @@ import '../styles/mapa.css'
 import '../styles/mapa-publico.css'
 
 import { hrefMapaFrota, hrefRota, hrefSistema } from '../../lib/siteOfertaDeCarga'
+import { PublicoCreditoAcoes } from '../../components/publico/PublicoCreditoAcoes'
 import { MapaFrotaAjuda } from '../../components/mapa/MapaFrotaAjuda'
 import '../../styles/mapa-frota.css'
 
@@ -610,12 +611,15 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
             <a className="mapa-log__btn mapa-log__btn--ghost" href={hrefRota()}>
               Calcular rota
             </a>
-            <a className="mapa-log__btn mapa-log__btn--ghost" href={hrefSistema('/login')}>
-              Entrar
-            </a>
-            <a className="mapa-log__btn mapa-log__btn--solid" href={hrefSistema('/cadastro-logistica')}>
-              Cadastrar
-            </a>
+            <PublicoCreditoAcoes
+              uso="busca"
+              produto="logistica"
+              restamGratis={restamGratis}
+              creditos={creditosBusca}
+              onCreditosLiberados={() => {
+                void carregarEstadoBuscasPublicas().then(aplicarCotaBusca)
+              }}
+            />
           </div>
         </header>
       ) : null}

@@ -79,8 +79,16 @@ export function isPublicSitePath(): boolean {
   )
 }
 
+export function isOnrenderHome(hostname = hostAtual()): boolean {
+  const h = hostCanonico(hostname)
+  if (!h.endsWith('.onrender.com')) return false
+  const hash = (typeof window === 'undefined' ? '' : window.location.hash).replace(/^#/, '')
+  const path = hash.split('?')[0] || '/'
+  return path === '/' || path === ''
+}
+
 export function devePularSplash(): boolean {
-  return isPublicSitePath() || isSitePublicoLimpo()
+  return isPublicSitePath() || isSitePublicoLimpo() || isOnrenderHome()
 }
 
 function normPath(path: string): string {

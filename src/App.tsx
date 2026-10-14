@@ -41,6 +41,7 @@ import { CalcularRotaPublicoPage } from './pages/publico/CalcularRotaPublico'
 import { FreteMinimoPublicoPage } from './pages/publico/FreteMinimoPublico'
 import {
   devePularSplash,
+  isOnrenderHome,
   isSiteMapaFrota,
   isSiteMapaLogistica,
   isSiteOfertaDeCarga,
@@ -203,7 +204,18 @@ export default function App() {
       <Route path="/calcular-rota" element={<PublicoGuard><CalcularRotaPublicoPage /></PublicoGuard>} />
       <Route path="/frete-minimo" element={<PublicoGuard><FreteMinimoPublicoPage /></PublicoGuard>} />
       <Route path="/diego-lab" element={<PublicoGuard><CalcularRotaPublicoPage /></PublicoGuard>} />
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route
+        path="/"
+        element={
+          isOnrenderHome() ? (
+            <PublicoGuard>
+              <CalcularRotaPublicoPage />
+            </PublicoGuard>
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
       <Route
         element={
           <Protected>

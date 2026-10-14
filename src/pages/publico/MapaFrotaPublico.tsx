@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import { LinkRota, LinkSistema, LinkMapaLogistica } from '../../components/ui/HostLink'
+import { LinkRota, LinkMapaLogistica } from '../../components/ui/HostLink'
+import { PublicoCreditoAcoes } from '../../components/publico/PublicoCreditoAcoes'
 import { isSiteMapaFrota } from '../../lib/siteOfertaDeCarga'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -752,7 +753,6 @@ export function MapaFrotaPublicoPage() {
     }
   }, [filtrados, raioGeo, raioGeoAtivo, origemRaio, chaveFiltro])
 
-  const logado = Boolean(user)
   const blocoCarroceria = (
     <CarroceriaFilterSelect
       value={carroceriasFiltro}
@@ -773,23 +773,15 @@ export function MapaFrotaPublicoPage() {
             Mapa da Logística
           </LinkMapaLogistica>
           <LinkRota className="mapa-pub__btn mapa-pub__btn--ghost">Calcular rota</LinkRota>
-          {logado ? (
-            <Link
-              className="mapa-pub__btn mapa-pub__btn--ghost"
-              to={user?.role === 'transportador' ? '/transportador' : '/embarcador/mapa-frota'}
-            >
-              Ir para o sistema
-            </Link>
-          ) : (
-            <>
-              <LinkSistema className="mapa-pub__btn mapa-pub__btn--ghost" to="/login">
-                Entrar
-              </LinkSistema>
-              <LinkSistema className="mapa-pub__btn mapa-pub__btn--solid" to="/cadastro-transportador">
-                Cadastrar
-              </LinkSistema>
-            </>
-          )}
+          <PublicoCreditoAcoes
+            uso="busca"
+            produto="frota"
+            restamGratis={restamGratis}
+            creditos={creditosBusca}
+            onCreditosLiberados={() => {
+              void consultarEstadoBuscasPublicas('frota').then(aplicarCotaBusca)
+            }}
+          />
         </div>
       </header>
 
