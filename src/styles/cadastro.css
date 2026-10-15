@@ -1476,6 +1476,57 @@
   font-style: italic;
 }
 
+.dar-creditos-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 6000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(15 23 42 / 0.55);
+}
+
+.dar-creditos-modal__card {
+  width: min(440px, 100%);
+  display: grid;
+  gap: 8px;
+  text-align: center;
+  padding: 28px 24px 22px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgb(15 23 42 / 0.28);
+}
+
+.dar-creditos-modal__kicker {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #15803d;
+}
+
+.dar-creditos-modal__card h2 {
+  margin: 0 0 4px;
+  font-size: 1.7rem;
+  color: #14532d;
+}
+
+.dar-creditos-modal__card p {
+  margin: 0;
+  color: #1e293b;
+  font-size: 1rem;
+}
+
+.dar-creditos-modal__detalhe {
+  color: #475569 !important;
+  font-size: 0.9rem !important;
+}
+
+.dar-creditos-modal__card .cadastro-btn {
+  margin-top: 10px;
+}
+
 .dar-creditos__acao {
   display: grid;
   grid-template-columns: 1fr minmax(160px, 220px) auto;

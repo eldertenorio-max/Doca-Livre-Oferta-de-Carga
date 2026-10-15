@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Navigate } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
 import {
@@ -32,6 +33,58 @@ function cpfNaLista(digitos: string) {
   return formatarCpf(d)
 }
 
+type AvisoEnvio = {
+  nome: string
+  email: string
+  creditos: number
+  saldo: number | null
+  emailEnviado: boolean
+}
+
+function AvisoCreditoEnviado({ aviso, onClose }: { aviso: AvisoEnvio; onClose: () => void }) {
+  const n = aviso.creditos
+  const label = `${n} crédito${n === 1 ? '' : 's'}`
+
+  useEffect(() => {
+    function noTeclado(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', noTeclado)
+    return () => window.removeEventListener('keydown', noTeclado)
+  }, [onClose])
+
+  return createPortal(
+    <div className="dar-creditos-modal" role="presentation" onClick={onClose}>
+      <div
+        className="dar-creditos-modal__card"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="dar-creditos-aviso-titulo"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="dar-creditos-modal__kicker">Créditos enviados</p>
+        <h2 id="dar-creditos-aviso-titulo">Pronto</h2>
+        <p>
+          <strong>{aviso.nome}</strong> acabou de receber <strong>{label}</strong>.
+        </p>
+        <p className="dar-creditos-modal__detalhe">{aviso.email}</p>
+        <p className="dar-creditos-modal__detalhe">
+          Saldo agora: {aviso.saldo ?? '—'} crédito{aviso.saldo === 1 ? '' : 's'}.
+        </p>
+        <p className="dar-creditos-modal__detalhe">
+          {aviso.emailEnviado
+            ? 'O e-mail de parabéns foi enviado. No site, a mensagem abre no meio da tela.'
+            : 'Os créditos entraram. O e-mail não saiu agora. No site, a mensagem ainda abre no meio da tela.'}
+        </p>
+        <button type="button" className="cadastro-btn cadastro-btn--primary" onClick={onClose}>
+          Fechar
+        </button>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 export function DarCreditosPage() {
   const { user } = useData()
   const [site, setSite] = useState<SiteId>('calculadora')
@@ -43,7 +96,7 @@ export function DarCreditosPage() {
   const [carregando, setCarregando] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
-  const [ok, setOk] = useState('')
+  const [aviso, setAviso] = useState<AvisoEnvio | null>(null)
 
   const adminEmail = user?.email || ''
   const adminUsuario = user?.usuario || ''
@@ -93,9 +146,9 @@ export function DarCreditosPage() {
     }
     setEnviando(true)
     setErro('')
-    setOk('')
+    const pessoa = selecionada
     const r = await darCreditosContaPublica({
-      userId: selecionada.id,
+      userId: pessoa.id,
       creditos: n,
       adminEmail,
       adminUsuario,
@@ -109,12 +162,13 @@ export function DarCreditosPage() {
       )
       return
     }
-    const avisoEmail = r.emailEnviado
-      ? 'O e-mail de parabéns foi enviado.'
-      : 'Os créditos entraram, mas o e-mail não saiu agora.'
-    setOk(
-      `${n} crédito${n === 1 ? '' : 's'} para ${selecionada.email}. Saldo agora: ${r.saldo ?? '—'}. ${avisoEmail} Na próxima vez que ela abrir o site, o aviso aparece no meio da tela.`,
-    )
+    setAviso({
+      nome: pessoa.nome,
+      email: pessoa.email,
+      creditos: n,
+      saldo: r.saldo ?? null,
+      emailEnviado: Boolean(r.emailEnviado),
+    })
     setCreditos(10)
     void carregar(site, buscaAplicada)
   }
@@ -249,9 +303,9 @@ export function DarCreditosPage() {
             </button>
           </div>
           {erro ? <p className="financeiro-pix__erro">{erro}</p> : null}
-          {ok ? <p className="financeiro-presente__ok">{ok}</p> : null}
         </div>
       </section>
+      {aviso ? <AvisoCreditoEnviado aviso={aviso} onClose={() => setAviso(null)} /> : null}
     </div>
   )
 }

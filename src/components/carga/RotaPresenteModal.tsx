@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Gift } from 'lucide-react'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
@@ -11,16 +12,25 @@ export function RotaPresenteModal({ creditos, onClose }: Props) {
   const n = Math.max(1, Math.floor(Number(creditos) || 0))
   const label = `${n} crédito${n === 1 ? '' : 's'}`
 
+  useEffect(() => {
+    function noTeclado(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', noTeclado)
+    return () => window.removeEventListener('keydown', noTeclado)
+  }, [onClose])
+
   return createPortal(
-    <div
-      className="mapa-pub-presente"
-      role="alertdialog"
-      aria-modal="true"
-      aria-labelledby="rota-presente-title"
-      aria-describedby="rota-presente-desc"
-    >
+    <div className="mapa-pub-presente" role="presentation" onClick={onClose}>
       <div className="mapa-pub-presente__shine" aria-hidden />
-      <div className="mapa-pub-presente__card">
+      <div
+        className="mapa-pub-presente__card"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="rota-presente-title"
+        aria-describedby="rota-presente-desc"
+        onClick={(e) => e.stopPropagation()}
+      >
         <img className="mapa-pub-presente__logo" src={LOGO_DOCA_LIVRE_SRC} alt="" />
         <div className="mapa-pub-presente__icon" aria-hidden>
           <Gift size={40} strokeWidth={2.4} />
