@@ -20,6 +20,7 @@ import { DarCreditosPage } from './pages/minerva/DarCreditos'
 import { VeiculosPage } from './pages/minerva/Veiculos'
 import { MotoristasPage } from './pages/minerva/Motoristas'
 import { PortalConfigPage } from './pages/minerva/PortalConfig'
+import { NovaContaPortalPage } from './pages/minerva/NovaContaPortal'
 import { KanbanTransportador } from './pages/transportador/KanbanTransportador'
 import { KanbanTarefasPage } from './pages/transportador/KanbanTarefas'
 import { ViagensTransportadorPage } from './pages/transportador/Viagens'
@@ -417,6 +418,14 @@ export default function App() {
           }
         />
         <Route path="/embarcador/hierarquia" element={<Navigate to="/embarcador/config" replace />} />
+        <Route
+          path="/embarcador/config/nova-conta"
+          element={
+            <Protected>
+              <NovaContaPortalPage />
+            </Protected>
+          }
+        />
         <Route
           path="/embarcador/config"
           element={

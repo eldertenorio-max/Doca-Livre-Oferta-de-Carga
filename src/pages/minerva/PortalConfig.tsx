@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
 import {
-  createPortalAccount,
   ensureContasTransportadores,
   gravarContaPortalNoBanco,
   hydratePermissoesMap,
@@ -43,7 +42,14 @@ type Tab = 'hierarquia' | 'permissoes' | 'usuarios'
 
 export function PortalConfigPage() {
   const { user, refreshPermissoes, transportadores, salvarGrupo } = useData()
-  const [tab, setTab] = useState<Tab>('hierarquia')
+  const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const abaInicial = params.get('aba')
+  const [tab, setTab] = useState<Tab>(
+    abaInicial === 'usuarios' || abaInicial === 'permissoes' || abaInicial === 'hierarquia'
+      ? abaInicial
+      : 'hierarquia',
+  )
   const [tree, setTree] = useState<OrgNo[]>(() => loadOrgTree())
   const [accounts, setAccounts] = useState<PortalAccount[]>(() => loadPortalAccounts())
   const [perms, setPerms] = useState<Record<string, OfertaPermissao>>(() => loadPermissoesMap())
@@ -429,69 +435,6 @@ export function PortalConfigPage() {
     setMsg(`Conta “${a.usuario}” excluída. Lista e acessos atualizados.`)
   }
 
-  async function novaConta() {
-    const usuario = window.prompt('Login (usuário):')?.trim()
-    if (!usuario) return
-    const email =
-      window.prompt('E-mail:', `${usuario.toLowerCase().replace(/\s+/g, '')}@empresa.com`)
-        ?.trim()
-        .toLowerCase() || `${usuario.toLowerCase().replace(/\s+/g, '')}@empresa.com`
-    const password = window.prompt('Senha inicial:', '1234') || '1234'
-    const roleDefault =
-      isLocalSuperUser(usuario) || isLocalSuperUser(email) ? 'super' : 'transportador'
-    const roleAsk = window.prompt(
-      'Perfil (super ou transportador):',
-      roleDefault,
-    )
-      ?.trim()
-      .toLowerCase()
-    const role =
-      roleAsk === 'super' || roleAsk === 'transportador' ? roleAsk : roleDefault
-    let transportadorId: string | null = null
-    let nome = usuario
-    if (role === 'transportador') {
-      const opcoes = transportadores.filter((t) => t.situacao === 'ativo')
-      if (opcoes.length === 0) {
-        setMsg('Não há transportadoras ativas para associar à nova conta.')
-        return
-      }
-      const lista = opcoes
-        .map((t, i) => `${i + 1} - ${t.nome_fantasia || t.razao_social || t.cnpj}`)
-        .join('\n')
-      const escolha = window.prompt(
-        `Escolha a transportadora pelo número:\n\n${lista}`,
-        '1',
-      )
-      if (escolha == null) return
-      const indice = Number.parseInt(escolha.trim(), 10) - 1
-      const selecionada = opcoes[indice]
-      if (!selecionada) {
-        setMsg('Transportadora inválida. Clique em “+ Nova conta” e tente novamente.')
-        return
-      }
-      transportadorId = selecionada.id
-      nome = selecionada.nome_fantasia || selecionada.razao_social || usuario
-    }
-    setMsg('Criando conta no banco…')
-    const created = await createPortalAccount({
-      usuario,
-      email,
-      password,
-      nome,
-      role,
-      transportador_id: transportadorId,
-    })
-    if (!created.ok) {
-      setMsg(created.erro)
-      setAccounts(loadPortalAccounts())
-      return
-    }
-    setAccounts(created.list)
-    setMsg(
-      `Conta “${created.account.usuario}” criada${created.account.role === 'super' ? ' (Super)' : ''} e salva no banco.`,
-    )
-  }
-
   const selectedPerm = selectedUser ? perms[selectedUser] : null
 
   return (
@@ -651,7 +594,7 @@ export function PortalConfigPage() {
             <button
               type="button"
               className="cadastro-btn cadastro-btn--save"
-              onClick={() => void novaConta()}
+              onClick={() => navigate('/embarcador/config/nova-conta')}
             >
               + Nova conta
             </button>
