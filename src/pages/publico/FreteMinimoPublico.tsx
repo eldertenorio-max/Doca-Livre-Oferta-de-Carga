@@ -36,7 +36,7 @@ export function FreteMinimoPublicoPage() {
       <header className="mapa-pub__top">
         <LinkRota className="mapa-pub__brand">
           <img src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
-          <strong>Oferta de carga</strong>
+          <strong>Frete mínimo</strong>
         </LinkRota>
         <div className="mapa-pub__top-actions">
           <LinkRota className="mapa-pub__btn mapa-pub__btn--ghost">Calcular rota</LinkRota>

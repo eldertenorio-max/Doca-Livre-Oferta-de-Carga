@@ -118,6 +118,15 @@
   text-align: center;
 }
 
+.portal-login__site img {
+  display: block;
+  height: 28px;
+  width: auto;
+  max-width: 100%;
+  margin: 0 auto 2px;
+  object-fit: contain;
+}
+
 .portal-login__site strong {
   font-size: 0.82rem;
   font-weight: 700;

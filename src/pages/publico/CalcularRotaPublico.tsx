@@ -852,7 +852,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
       <header className="mapa-pub__top">
         <Link to={isSiteOfertaDeCarga() ? '/' : '/rota'} className="mapa-pub__brand">
           <img src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" />
-          <strong>Oferta de carga</strong>
+          <strong>Calculadora de rota</strong>
         </Link>
         <div className="mapa-pub__top-actions">
           <LinkMapaLogistica className="mapa-pub__btn mapa-pub__btn--ghost">

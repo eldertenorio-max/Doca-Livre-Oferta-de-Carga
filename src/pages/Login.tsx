@@ -623,6 +623,7 @@ export function LoginPage() {
               target="_blank"
               rel="noopener noreferrer"
             >
+              <img src={LOGO_DOCA_LIVRE_SRC} alt="" />
               <strong>{site.label}</strong>
               <span>{site.host}</span>
             </a>
