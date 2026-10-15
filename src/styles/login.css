@@ -83,14 +83,15 @@
   margin-top: 18px;
   padding-top: 14px;
   border-top: 1px solid #e2e8f0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
 }
 
 .portal-login__sites-title {
-  grid-column: 1 / -1;
-  margin: 0;
+  flex: 1 0 100%;
+  margin: 0 0 2px;
   text-align: center;
   font-size: 0.75rem;
   font-weight: 700;
@@ -102,8 +103,13 @@
 .portal-login__site {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 8px 10px;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+  flex: 0 1 calc(50% - 4px);
+  width: calc(50% - 4px);
+  min-height: 72px;
+  padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid #e2e8f0;
   background: #f8fafc;
@@ -115,11 +121,20 @@
 .portal-login__site strong {
   font-size: 0.82rem;
   font-weight: 700;
+  line-height: 1.25;
 }
 
 .portal-login__site span {
   font-size: 0.68rem;
+  line-height: 1.3;
   color: #64748b;
+}
+
+@media (max-width: 380px) {
+  .portal-login__site {
+    flex-basis: 100%;
+    width: 100%;
+  }
 }
 
 .portal-login__site:hover {
