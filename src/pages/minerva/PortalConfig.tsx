@@ -589,7 +589,7 @@ export function PortalConfigPage() {
 
       {tab === 'usuarios' && (
         <section className="form-card form-card--green">
-          <header className="form-card__head" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <header className="form-card__head portal-contas__head" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <h2 className="form-card__title">Contas do portal</h2>
             <button
               type="button"

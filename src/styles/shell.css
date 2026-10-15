@@ -910,6 +910,7 @@ a.sidebar-section:first-of-type {
   .app-topbar-brand {
     gap: 6px;
     min-width: 0;
+    overflow: hidden;
   }
 
   .app-topbar-logo {
@@ -943,8 +944,32 @@ a.sidebar-section:first-of-type {
 
   .app-topbar-nova-carga {
     height: 34px;
-    padding: 0 10px;
+    width: 34px;
+    padding: 0;
     font-size: 0.72rem;
+  }
+
+  .app-topbar-nova-carga__label {
+    display: none;
+  }
+
+  .app-topbar-brand .product-mark,
+  .app-topbar-wms {
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .app-topbar-notif-panel,
+  .app-topbar-avatar-menu {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    top: calc(var(--app-topbar-h, 50px) + 6px);
+    width: auto;
+    max-width: none;
+    z-index: 200;
   }
 
   .app-topbar-dar-creditos {

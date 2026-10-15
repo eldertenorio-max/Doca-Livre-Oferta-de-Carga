@@ -1075,9 +1075,59 @@
   box-shadow: 0 0 0 2px rgb(15 23 42 / 0.12);
 }
 
+.nova-conta__modos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 @media (max-width: 640px) {
   .cadastro-ramificacoes {
     grid-template-columns: 1fr;
+  }
+
+  .cadastro-publico {
+    padding: 8px 8px 20px;
+  }
+
+  .cadastro-publico .cadastro-publico__card {
+    padding: 16px 12px 24px;
+    border-radius: 12px;
+  }
+
+  .cadastro-publico .cadastro-steps {
+    gap: 4px;
+  }
+
+  .cadastro-publico .cadastro-steps__item {
+    font-size: 0.62rem;
+  }
+
+  .nova-conta__modos {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .nova-conta__modos .cadastro-btn,
+  .nova-conta__modos .portal-login__link {
+    width: 100%;
+  }
+
+  .portal-contas__head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .portal-contas__head .cadastro-btn--save {
+    width: 100%;
+    margin: 0;
+  }
+
+  .cadastro-input,
+  .portal-login input,
+  .portal-login select,
+  .portal-login textarea {
+    font-size: 16px;
   }
 }
 

@@ -269,7 +269,7 @@ export function NovaContaPortalPage() {
       ) : (
         <form onSubmit={(e) => void salvar(e)}>
           <section className="form-card form-card--blue" style={{ marginBottom: 16 }}>
-            <header className="form-card__head" style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+            <header className="form-card__head" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
               <h2 className="form-card__title">{tipoEscolhido?.label}</h2>
               <button type="button" className="cadastro-btn cadastro-btn--ghost" onClick={() => setTipo(null)}>
                 Trocar tipo
@@ -279,7 +279,7 @@ export function NovaContaPortalPage() {
               <p className="portal-login__hint" style={{ margin: 0 }}>
                 {tipoEscolhido?.resumo}
               </p>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div className="nova-conta__modos">
                 <button
                   type="button"
                   className={`cadastro-btn ${modo === 'nova' ? 'cadastro-btn--primary' : 'cadastro-btn--ghost'}`}
@@ -406,7 +406,7 @@ export function NovaContaPortalPage() {
               </label>
               {erro ? <p className="portal-login__erro">{erro}</p> : null}
               {msg ? <p className="portal-login__info">{msg}</p> : null}
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div className="nova-conta__modos">
                 <button type="submit" className="cadastro-btn cadastro-btn--primary" disabled={salvando}>
                   {salvando ? 'Abrindo conta…' : 'Abrir conta'}
                 </button>
