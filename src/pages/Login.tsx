@@ -24,11 +24,6 @@ const SITES_ATALHO = [
   { href: URL_ROTA_PUBLICA, label: 'Calculadora de rota', host: 'ofertadecarga.com.br' },
   { href: URL_MAPA_FROTA, label: 'Mapa da Frota', host: 'mapadafrota.com.br' },
   { href: URL_MAPA_LOGISTICA, label: 'Mapa da Logística', host: 'mapadalogistica.com.br' },
-  {
-    href: 'https://doca-livre-oferta-de-carga.onrender.com/',
-    label: 'Oferta de Carga',
-    host: 'no Render',
-  },
 ] as const
 
 export function LoginPage() {
@@ -619,7 +614,7 @@ export function LoginPage() {
         </div>
 
         <nav className="portal-login__sites" aria-label="Sites">
-          <p className="portal-login__sites-title">Abrir os sites</p>
+          <p className="portal-login__sites-title">Confira também</p>
           {SITES_ATALHO.map((site) => (
             <a
               key={site.href}
