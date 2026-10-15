@@ -2,10 +2,8 @@
 export const HOST_OFERTA_DE_CARGA = 'custodarota.com.br'
 /** Mapa da Frota público. */
 export const HOST_MAPA_FROTA = 'mapadafrota.com.br'
-/** Sistema (login, kanban, cadastro). */
+/** Sistema (login, kanban, cadastro). Só este host e o www. */
 export const HOST_SISTEMA = 'ofertadecarga.com.br'
-/** Endereço antigo do sistema. Continua abrindo o mesmo app. */
-export const HOST_SISTEMA_ANTIGO = 'ofertadecargas.docalivre.com.br'
 /** Mapa da Logística (outro produto). */
 export const HOST_MAPA_LOGISTICA = 'mapadalogistica.com.br'
 
@@ -65,15 +63,20 @@ export function isSitePublicoLimpo(hostname = hostAtual()): boolean {
   )
 }
 
-/** Sistema: ofertadecarga.com.br. O endereço antigo também entra. */
+/** Painel: só ofertadecarga.com.br e www.ofertadecarga.com.br. */
 export function isSiteSistema(hostname = hostAtual()): boolean {
+  return hostCanonico(hostname) === HOST_SISTEMA
+}
+
+/** Endereço antigo ou o Render: manda para o painel oficial, com o mesmo caminho. */
+export function redirecionarPainelOficial(hostname = hostAtual()): boolean {
   const h = hostCanonico(hostname)
-  return (
-    h === HOST_SISTEMA ||
-    h === HOST_SISTEMA_ANTIGO ||
-    h === 'sistema.ofertadecarga.com.br' ||
-    h.endsWith('.onrender.com')
+  const fora = h === 'ofertadecargas.docalivre.com.br' || h === 'sistema.ofertadecarga.com.br' || h.endsWith('.onrender.com')
+  if (!fora || typeof window === 'undefined') return false
+  window.location.replace(
+    `${URL_SISTEMA}${window.location.pathname}${window.location.search}${window.location.hash}`,
   )
+  return true
 }
 
 export function isPublicSitePath(): boolean {

@@ -216,7 +216,7 @@ export function TransportadoresPage() {
   const linkCadastroPublico =
     typeof window !== 'undefined'
       ? `${window.location.origin}${window.location.pathname}#/cadastro-transportador`
-      : 'https://doca-livre-oferta-de-carga.onrender.com/#/cadastro-transportador'
+      : 'https://ofertadecarga.com.br/#/cadastro-transportador'
 
   const filtered = useMemo(() => {
     let list = transportadores

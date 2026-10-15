@@ -71,6 +71,14 @@
           return
         }
         var h = (location.hostname || '').toLowerCase().replace(/^www\./, '')
+        if (
+          h === 'ofertadecargas.docalivre.com.br' ||
+          h === 'sistema.ofertadecarga.com.br' ||
+          h.slice(-12) === '.onrender.com'
+        ) {
+          location.replace('https://ofertadecarga.com.br' + location.pathname + location.search + location.hash)
+          return
+        }
         var canon = document.querySelector('link[rel="canonical"]')
         if (h === 'custodarota.com.br') {
           document.title = 'Calcular rota — Oferta de Carga'
@@ -113,11 +121,7 @@
               history.replaceState(null, '', '/' + (hqL || location.search || ''))
             }
           }
-        } else if (
-          h === 'ofertadecarga.com.br' ||
-          h === 'sistema.ofertadecarga.com.br' ||
-          h === 'ofertadecargas.docalivre.com.br'
-        ) {
+        } else if (h === 'ofertadecarga.com.br') {
           document.title = 'Sistema — Oferta de Carga'
           if (canon) canon.setAttribute('href', 'https://ofertadecarga.com.br/')
         }
@@ -138,7 +142,7 @@
       })
       // Marca o build. Não recarrega a página — isso deixava a 1ª visita em branco.
       ;(function () {
-        var BUILD = 'rota-publico-cache-v350'
+        var BUILD = 'rota-publico-cache-v351'
         try {
           localStorage.setItem('doca-html-bust', BUILD)
         } catch (e) {}

@@ -2,10 +2,10 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, HashRouter } from 'react-router-dom'
 import { AppErrorBoundary } from './components/AppErrorBoundary'
-import { isSiteOfertaDeCarga, isSitePublicoLimpo } from './lib/siteOfertaDeCarga'
+import { isSiteOfertaDeCarga, isSitePublicoLimpo, redirecionarPainelOficial } from './lib/siteOfertaDeCarga'
 import './index.css'
 
-const BUILD_ID = 'rota-publico-cache-v350'
+const BUILD_ID = 'rota-publico-cache-v351'
 
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (e) => {
@@ -86,6 +86,7 @@ function limparCacheMorto() {
 }
 
 async function boot() {
+  if (redirecionarPainelOficial()) return
   const publico = isSitePublicoLimpo()
   const Router = publico ? BrowserRouter : HashRouter
 
