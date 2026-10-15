@@ -3,8 +3,9 @@ import { canonicalTransportadorId, sameTransportadorId } from './transportadorId
 import type { GrupoTransportador } from '../types'
 
 /** Hierarquia organizacional do Oferta de Carga.
- * Super Usuários (Diego / Elder) ficam acima de tudo.
- * Abaixo: Embarcador → Unidade → Transportadoras.
+ * Super Usuários ficam acima de tudo.
+ * Abaixo: Operador logístico ou Embarcador → Unidade → Transportadoras.
+ * Quem está num ponto vê a si mesmo e quem está abaixo. Quem está acima vê esse ponto.
  */
 
 export type OrgTipo =
@@ -40,22 +41,22 @@ export const ORG_UNIDADE_CD_GUARULHOS_ID = 'org-unidade-cd-guarulhos'
 export const SUPER_HIERARQUIA = [
   { nome: 'Diego', usuario: 'diego' },
   { nome: 'Elder', usuario: 'elder' },
+  { nome: 'Wenderson', usuario: 'wenderson' },
 ] as const
 
-/** Tipos antigos: não criar mais (a árvore nova começa no embarcador). */
-const ORG_TIPOS_OCULTOS_NO_CADASTRO: OrgTipo[] = ['operador_logistico', 'filial_operador']
-
+/** Super → operador ou embarcador → unidade → transportadora. */
 export function allowedOrgChildTypes(tipoPai: string | null | undefined): OrgTipo[] {
-  const map: Record<string, OrgTipo[]> = {
-    '': ['embarcador'],
-    embarcador: ['unidade'],
-    unidade: ['transportadora'],
-    transportadora: [],
-    operador_logistico: ['embarcador'],
-    filial_operador: ['embarcador', 'unidade'],
-  }
-  if (!tipoPai) return ['embarcador']
-  return (map[tipoPai] ?? []).filter((t) => !ORG_TIPOS_OCULTOS_NO_CADASTRO.includes(t))
+  if (!tipoPai) return ['operador_logistico', 'embarcador']
+  if (tipoPai === 'operador_logistico') return ['filial_operador', 'embarcador']
+  if (tipoPai === 'filial_operador') return ['embarcador', 'unidade']
+  if (tipoPai === 'embarcador') return ['unidade']
+  if (tipoPai === 'unidade') return ['transportadora']
+  return []
+}
+
+/** Tipos que o Super pode criar em cada ponto. O cadastro público não usa esta lista. */
+export function tiposCadastroSuper(tipoPai: string | null | undefined): OrgTipo[] {
+  return allowedOrgChildTypes(tipoPai)
 }
 
 export function grupoIdDaHierarquia(orgId: string) {
@@ -192,6 +193,98 @@ export function listarUnidades(tree: OrgNo[], embarcadorId?: string | null): Org
   return all.filter((n) => n.parent_id === embarcadorId)
 }
 
+/** Do ponto até a raiz, sem incluir o próprio ponto. */
+export function ancestraisOrg(tree: OrgNo[], id: string): OrgNo[] {
+  const byId = new Map(flattenOrg(tree).map((n) => [n.id, n]))
+  const out: OrgNo[] = []
+  const seen = new Set<string>()
+  let cur = byId.get(id)
+  while (cur?.parent_id && !seen.has(cur.parent_id)) {
+    seen.add(cur.parent_id)
+    const pai = byId.get(cur.parent_id)
+    if (!pai) break
+    out.push(pai)
+    cur = pai
+  }
+  return out
+}
+
+/** Todos os pontos abaixo, sem incluir o próprio ponto. */
+export function descendentesOrg(tree: OrgNo[], id: string): OrgNo[] {
+  const no = findOrgNo(tree, id)
+  if (!no) return []
+  const out: OrgNo[] = []
+  function walk(n: OrgNo) {
+    for (const c of n.children ?? []) {
+      out.push(c)
+      walk(c)
+    }
+  }
+  walk(no)
+  return out
+}
+
+/** Este ponto enxerga a si mesmo e quem está abaixo dele. */
+export function nosVisiveis(tree: OrgNo[], orgId: string | null | undefined): OrgNo[] {
+  const no = findOrgNo(tree, orgId)
+  if (!no) return []
+  return [no, ...descendentesOrg(tree, no.id)]
+}
+
+/** Quem enxerga este ponto: ele mesmo e quem está acima. */
+export function quemVeEsteNo(tree: OrgNo[], orgId: string): OrgNo[] {
+  const no = findOrgNo(tree, orgId)
+  if (!no) return []
+  return [...ancestraisOrg(tree, orgId).reverse(), no]
+}
+
+/** Marca da carga publicada por quem está neste ponto. */
+export function marcasPublicacaoDoNo(tree: OrgNo[], orgId: string | null | undefined): {
+  org_embarcador_id: string | null
+  org_unidade_id: string | null
+} {
+  const no = findOrgNo(tree, orgId)
+  if (!no) return { org_embarcador_id: null, org_unidade_id: null }
+  const cadeia = [no, ...ancestraisOrg(tree, no.id)]
+  const ancora =
+    cadeia.find((n) => n.tipo === 'embarcador' || n.tipo === 'operador_logistico') ?? no
+  const unidade = cadeia.find((n) => n.tipo === 'unidade' || n.tipo === 'filial_operador')
+  const publicaNaUnidade =
+    no.tipo === 'unidade' || no.tipo === 'filial_operador' || no.tipo === 'transportadora'
+  return {
+    org_embarcador_id: ancora.id,
+    org_unidade_id: publicaNaUnidade ? (unidade?.id ?? null) : null,
+  }
+}
+
+export function cargaPertenceAoEscopo(
+  carga: {
+    org_embarcador_id?: string | null
+    org_unidade_id?: string | null
+    grupo_ids?: string[] | null
+  },
+  visiveis: Set<string>,
+): boolean {
+  const tags = [carga.org_unidade_id, carga.org_embarcador_id].filter((id): id is string => Boolean(id))
+  if (tags.some((id) => visiveis.has(id))) return true
+  return (carga.grupo_ids ?? []).some((grupo) => {
+    const prefixo = 'g-org-'
+    if (!grupo.startsWith(prefixo)) return false
+    return visiveis.has(grupo.slice(prefixo.length))
+  })
+}
+
+function parentAceitaTransportadora(tree: OrgNo[], parentId: string | null | undefined) {
+  const pai = findOrgNo(tree, parentId)
+  if (!pai) return false
+  return (
+    pai.tipo === 'unidade' ||
+    pai.tipo === 'embarcador' ||
+    pai.tipo === 'filial_operador' ||
+    pai.tipo === 'operador_logistico'
+  )
+}
+
 /** IDs de transportadoras abaixo deste nó (unidade ou embarcador). */
 export function tidsSobNo(tree: OrgNo[], orgId: string | null | undefined): string[] {
   const no = findOrgNo(tree, orgId)
@@ -208,10 +301,16 @@ export function tidsSobNo(tree: OrgNo[], orgId: string | null | undefined): stri
 export function gruposDaHierarquia(tree: OrgNo[]): GrupoTransportador[] {
   const agora = new Date().toISOString()
   return flattenOrg(tree)
-    .filter((n) => n.tipo === 'embarcador' || n.tipo === 'unidade')
+    .filter(
+      (n) =>
+        n.tipo === 'embarcador' ||
+        n.tipo === 'unidade' ||
+        n.tipo === 'operador_logistico' ||
+        n.tipo === 'filial_operador',
+    )
     .map((n) => ({
       id: grupoIdDaHierarquia(n.id),
-      descricao: n.tipo === 'embarcador' ? `Embarcador: ${n.nome}` : `Unidade: ${n.nome}`,
+      descricao: `${ORG_TIPO_LABEL[n.tipo]}: ${n.nome}`,
       situacao: 'ativo' as const,
       observacao: 'Sincronizado da hierarquia (quem vê as publicações)',
       transportador_ids: tidsSobNo(tree, n.id),
@@ -384,12 +483,13 @@ export function dedupeTransportadorasNaArvore(
 function precisaMigrar(tree: OrgNo[]): boolean {
   if (!tree.length) return true
   const flat = flattenOrg(tree)
-  if (flat.some((n) => n.tipo === 'operador_logistico' || n.tipo === 'filial_operador')) {
-    return true
-  }
-  if (!flat.some((n) => n.id === ORG_EMBARCADOR_ULTRAFRIO_ID)) return true
-  if (!flat.some((n) => n.id === ORG_UNIDADE_CD_GUARULHOS_ID)) return true
-  return false
+  return !flat.some(
+    (n) =>
+      n.tipo === 'embarcador' ||
+      n.tipo === 'operador_logistico' ||
+      n.tipo === 'filial_operador' ||
+      n.tipo === 'unidade',
+  )
 }
 
 function coletarTransportadoras(
@@ -489,15 +589,21 @@ export function ensureHierarquiaPadrao(
 
 function aplicarTransportadoraNaArvore(
   tree: OrgNo[],
-  t: { id: string; nome_fantasia: string; cnpj?: string | null },
+  t: { id: string; nome_fantasia: string; cnpj?: string | null; parentId?: string | null },
 ): OrgNo[] {
   const existing = acharNoTransportadora(tree, t)
-  const parentId = existing?.parent_id ?? findDefaultTransportadoraParentId(tree)
+  const parentEscolhido =
+    t.parentId && parentAceitaTransportadora(tree, t.parentId) ? t.parentId : null
+  let parentId = parentEscolhido ?? existing?.parent_id ?? findDefaultTransportadoraParentId(tree)
+  let base = tree
   if (!parentId) {
-    return montarArvoreUltrafrio(tree, [t])
+    const jaTemPadrao = flattenOrg(base).some((n) => n.id === ORG_EMBARCADOR_ULTRAFRIO_ID)
+    if (!jaTemPadrao) base = [...base, ...structuredClone(SEED_ORG_TREE)]
+    parentId = parentEscolhido ?? existing?.parent_id ?? findDefaultTransportadoraParentId(base)
   }
+  if (!parentId) return base
 
-  const flat = flattenOrg(tree)
+  const flat = flattenOrg(base)
   const siblings = flat.filter((n) => n.parent_id === parentId)
   const no: OrgNo = {
     id: existing?.id ?? `org-${t.id}`,
@@ -509,7 +615,7 @@ function aplicarTransportadoraNaArvore(
     ordem: existing?.ordem ?? siblings.length + 1,
     children: existing?.children ?? [],
   }
-  return upsertOrgNo(tree, no)
+  return upsertOrgNo(base, no)
 }
 
 /**
@@ -520,6 +626,8 @@ export function syncTransportadoraNaHierarquia(t: {
   id: string
   nome_fantasia: string
   cnpj?: string | null
+  /** Unidade ou embarcador escolhido no cadastro. Sem isso, fica no pai que já tinha. */
+  parentId?: string | null
 }): OrgNo[] {
   const next = aplicarTransportadoraNaArvore(
     dedupeTransportadorasNaArvore(loadOrgTree(), [t]),

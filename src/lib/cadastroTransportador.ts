@@ -26,6 +26,8 @@ import type {
 
 export type CadastroTransportadorInput = {
   ramificacao?: string
+  /** Unidade ou embarcador da hierarquia sob o qual a transportadora entra. */
+  orgParentId?: string | null
   plano?: string
   empresa: {
     razao_social: string

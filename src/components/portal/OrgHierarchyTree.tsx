@@ -157,6 +157,10 @@ export function OrgHierarchyTree({
   onAdd,
   onEdit,
   onRemove,
+  onSelect,
+  selectedId,
+  tiposFilhos = allowedOrgChildTypes,
+  rotuloRaiz = '+ Embarcador',
 }: {
   nodes: OrgNo[]
   accounts: PortalAccount[]
@@ -164,6 +168,10 @@ export function OrgHierarchyTree({
   onAdd: (parent: OrgNo | null) => void
   onEdit: (node: OrgNo) => void
   onRemove: (id: string) => void
+  onSelect?: (node: OrgNo) => void
+  selectedId?: string | null
+  tiposFilhos?: (tipoPai: string | null | undefined) => OrgTipo[]
+  rotuloRaiz?: string
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
   const logos = useMemo(() => {
@@ -188,7 +196,7 @@ export function OrgHierarchyTree({
     <div>
       <div className="org-tree__toolbar">
         <button type="button" className="cadastro-btn cadastro-btn--ghost" onClick={() => onAdd(null)}>
-          + Embarcador
+          {rotuloRaiz}
         </button>
       </div>
       {nodes.length === 0 ? (
@@ -204,6 +212,9 @@ export function OrgHierarchyTree({
           onAdd={onAdd}
           onEdit={onEdit}
           onRemove={onRemove}
+          onSelect={onSelect}
+          selectedId={selectedId}
+          tiposFilhos={tiposFilhos}
           nested={false}
         />
       )}
@@ -221,6 +232,9 @@ function OrgNodes({
   onAdd,
   onEdit,
   onRemove,
+  onSelect,
+  selectedId,
+  tiposFilhos,
   nested = true,
 }: {
   nodes: OrgNo[]
@@ -232,6 +246,9 @@ function OrgNodes({
   onAdd: (parent: OrgNo | null) => void
   onEdit: (node: OrgNo) => void
   onRemove: (id: string) => void
+  onSelect?: (node: OrgNo) => void
+  selectedId?: string | null
+  tiposFilhos: (tipoPai: string | null | undefined) => OrgTipo[]
   nested?: boolean
 }) {
   return (
@@ -239,7 +256,8 @@ function OrgNodes({
       {nodes.map((n) => {
         const children = n.children ?? []
         const open = !collapsed.has(n.id)
-        const canAdd = allowedOrgChildTypes(n.tipo).length > 0
+        const filhos = tiposFilhos(n.tipo)
+        const canAdd = filhos.length > 0
         const tidLogo = canonicalTransportadorId(n.transportador_id)
         const logoUrl = tidLogo
           ? logos.get(tidLogo) ||
@@ -258,9 +276,11 @@ function OrgNodes({
               canAdd={canAdd}
               canEdit
               canRemove
-              addTitle={`Adicionar ${ORG_TIPO_LABEL[allowedOrgChildTypes(n.tipo)[0] ?? n.tipo]}`}
+              selected={selectedId === n.id}
+              addTitle={`Adicionar ${ORG_TIPO_LABEL[filhos[0] ?? n.tipo]}`}
               onToggle={() => onToggle(n.id)}
               onAdd={() => onAdd(n)}
+              onSelect={onSelect ? () => onSelect(n) : undefined}
               onEdit={() => onEdit(n)}
               onRemove={() => onRemove(n.id)}
             />
@@ -275,6 +295,9 @@ function OrgNodes({
                 onAdd={onAdd}
                 onEdit={onEdit}
                 onRemove={onRemove}
+                onSelect={onSelect}
+                selectedId={selectedId}
+                tiposFilhos={tiposFilhos}
               />
             )}
           </li>
@@ -296,9 +319,11 @@ function OrgCard({
   canAdd,
   canEdit,
   canRemove,
+  selected,
   addTitle,
   onToggle,
   onAdd,
+  onSelect,
   onEdit,
   onRemove,
 }: {
@@ -313,9 +338,11 @@ function OrgCard({
   canAdd: boolean
   canEdit: boolean
   canRemove: boolean
+  selected?: boolean
   addTitle: string
   onToggle: () => void
   onAdd?: () => void
+  onSelect?: () => void
   onEdit?: () => void
   onRemove?: () => void
 }) {
@@ -326,7 +353,7 @@ function OrgCard({
   const extra = (subtitulo || '').trim()
 
   return (
-    <div className={`org-tree__card ${meta.card}`}>
+    <div className={`org-tree__card ${meta.card}${selected ? ' is-selected' : ''}`}>
       <div className="org-tree__left">
         {hasChildren ? (
           <button
@@ -347,7 +374,15 @@ function OrgCard({
           </span>
         )}
         <div className="org-tree__meta">
-          <strong className="org-tree__name">{nome}</strong>
+          <strong className="org-tree__name">
+            {onSelect ? (
+              <button type="button" className="org-tree__select" onClick={onSelect}>
+                {nome}
+              </button>
+            ) : (
+              nome
+            )}
+          </strong>
           {doc ? (
             <span className="org-tree__cnpj">
               <FileText size={12} strokeWidth={2.2} />

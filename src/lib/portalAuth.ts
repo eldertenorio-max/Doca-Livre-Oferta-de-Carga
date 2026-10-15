@@ -270,7 +270,7 @@ function clearLegacyAccountKeys() {
 }
 
 function normalizePortalList(parsed: PortalAccount[]): PortalAccount[] {
-  // Só Super + transportadores (demos / cadastro público). Sem equipe Minerva/embarcador.
+  // Super, transportadores e contas presas a um ponto da hierarquia.
   let list = parsed.filter(
     (u) => u && !isContaEquipeMinerva(u) && !foiExcluida(u) && !isContaDemoGerada(u),
   )
@@ -294,8 +294,9 @@ export function loadPortalAccounts(): PortalAccount[] {
   return seedAccounts()
 }
 
-/** Contas de equipe embarcador (legado) — removidas do portal. */
+/** Contas de equipe sem ponto na hierarquia (legado) — removidas do portal. */
 function isContaEquipeMinerva(u: PortalAccount) {
+  if (contaEhEquipeHierarquia(u)) return false
   if (u.role === 'minerva') return true
   if (u.role === 'transportador' || u.role === 'super') return false
   if (isLocalSuperUser(u.usuario) || isLocalSuperUser(u.email)) return false
@@ -503,7 +504,7 @@ function sanitizePortalAccounts(list: PortalAccount[]): PortalAccount[] {
     if (role === 'super' && !isCanonSuper && !emailDoca) {
       role = 'transportador'
     }
-    if (email.includes('ultrafrio') || usuario.includes('ultrafrio')) {
+    if (role !== 'minerva' && (email.includes('ultrafrio') || usuario.includes('ultrafrio'))) {
       role = 'transportador'
     }
     return {
@@ -632,6 +633,21 @@ function seedAccounts(): PortalAccount[] {
   return seed
 }
 
+function roleRemoto(role: PortalAccount['role']): 'super' | 'minerva' | 'transportador' {
+  if (role === 'super') return 'super'
+  if (role === 'minerva') return 'minerva'
+  return 'transportador'
+}
+
+/** Conta da equipe (embarcador, operador, unidade) presa a um ponto da árvore. */
+export function contaEhEquipeHierarquia(account: {
+  role?: string | null
+  empresa_org_id?: string | null
+}) {
+  const org = (account.empresa_org_id || '').trim()
+  return account.role === 'minerva' && org.length > 0 && !org.startsWith('transportador:')
+}
+
 /** Cria conta no portal e grava no banco na hora (retorna lista atualizada). */
 export async function createPortalAccount(input: {
   usuario: string
@@ -640,6 +656,9 @@ export async function createPortalAccount(input: {
   nome?: string
   role?: PortalAccount['role']
   transportador_id?: string | null
+  empresa_org_id?: string | null
+  nivel?: PortalAccount['nivel']
+  perfil_operacional?: PortalAccount['perfil_operacional']
 }): Promise<
   { ok: true; account: PortalAccount; list: PortalAccount[] } | { ok: false; erro: string }
 > {
@@ -658,27 +677,40 @@ export async function createPortalAccount(input: {
     return { ok: false, erro: 'Já existe uma conta com esse e-mail.' }
   }
 
+  const querMinerva = input.role === 'minerva'
+  const orgId = (input.empresa_org_id || '').trim()
+  if (querMinerva && !orgId) {
+    return { ok: false, erro: 'Selecione o ponto da hierarquia antes de criar a conta.' }
+  }
   // Perfil explícito do painel manda; heurística só quando role não veio
   const isSuper =
-    input.role === 'transportador'
+    input.role === 'transportador' || input.role === 'minerva'
       ? false
       : input.role === 'super' || isLocalSuperUser(usuario) || isLocalSuperUser(email)
-  if (!isSuper && !input.transportador_id) {
+  if (!isSuper && !querMinerva && !input.transportador_id) {
     return {
       ok: false,
       erro: 'Selecione a transportadora antes de criar a conta.',
     }
   }
+  const nivelConta: PortalAccount['nivel'] = isSuper
+    ? 'super'
+    : input.nivel === 'gestor'
+      ? 'gestor'
+      : 'operador'
   const account: PortalAccount = {
     id: uid(),
     usuario,
     email,
     password,
     nome: (input.nome || usuario).trim() || usuario,
-    role: isSuper ? 'super' : input.role === 'transportador' ? 'transportador' : 'transportador',
-    transportador_id: isSuper ? null : (input.transportador_id ?? null),
-    nivel: isSuper ? 'super' : 'operador',
-    perfil_operacional: isSuper ? 'administrador' : undefined,
+    role: isSuper ? 'super' : querMinerva ? 'minerva' : 'transportador',
+    transportador_id: isSuper || querMinerva ? null : (input.transportador_id ?? null),
+    empresa_org_id: querMinerva ? orgId : null,
+    nivel: nivelConta,
+    perfil_operacional: isSuper
+      ? 'administrador'
+      : (input.perfil_operacional ?? (nivelConta === 'gestor' ? 'administrador' : 'operador')),
     ativo: true,
     created_at: new Date().toISOString(),
   }
@@ -722,6 +754,7 @@ function transportadorRefText(account: {
   transportador_id?: string | null
   empresa_org_id?: string | null
 }) {
+  if (account.role === 'minerva') return account.empresa_org_id ?? null
   if (
     account.role === 'transportador' &&
     account.transportador_id &&
@@ -995,7 +1028,7 @@ async function persistPortalAccountsRemote(list: PortalAccount[]) {
         usuario: account.usuario.trim(),
         email: account.email.trim().toLowerCase(),
         nome: account.nome || account.usuario,
-        role: account.role === 'super' ? 'super' : 'transportador',
+        role: roleRemoto(account.role),
         nivel: account.role === 'super' ? 'super' : (account.nivel ?? 'operador'),
         perfil_operacional: account.perfil_operacional ?? null,
         transportador_id: validUuid(account.transportador_id)
@@ -1080,7 +1113,7 @@ export async function gravarContaPortalNoBanco(
     email,
     senha_hash: localSenha,
     nome: account.nome || usuario,
-    role: account.role === 'super' ? 'super' : 'transportador',
+    role: roleRemoto(account.role),
     nivel: account.role === 'super' ? 'super' : (account.nivel ?? 'operador'),
     perfil_operacional: account.perfil_operacional ?? null,
     transportador_id: validUuid(account.transportador_id)
@@ -1328,7 +1361,10 @@ export async function syncPortalAccounts(): Promise<PortalAccount[]> {
     if (error) return local
 
     const remoteRowsAll = ((data ?? []) as RemotePortalAccount[]).filter(
-      (row) => row.role === 'super' || row.role === 'transportador',
+      (row) =>
+        row.role === 'super' ||
+        row.role === 'transportador' ||
+        contaEhEquipeHierarquia(row),
     )
 
     // Contas de demonstração geradas automaticamente por versões antigas do app
@@ -2126,7 +2162,8 @@ export function portalLoginLocal(
   }
   // Fonte da verdade: role salva na Configuração do Portal
   const isSuperuser = account.role === 'super'
-  if (!isSuperuser && account.role !== 'transportador') {
+  const equipeHierarquia = contaEhEquipeHierarquia(account)
+  if (!isSuperuser && account.role !== 'transportador' && !equipeHierarquia) {
     return {
       ok: false,
       erro:
@@ -2157,14 +2194,14 @@ export function portalLoginLocal(
     account: {
       ...account,
       // Garante sessão alinhada ao perfil do portal (nunca promove por heurística)
-      role: isSuperuser ? 'super' : 'transportador',
+      role: isSuperuser ? 'super' : equipeHierarquia ? 'minerva' : 'transportador',
       nivel: isSuperuser ? 'super' : account.nivel === 'super' ? 'operador' : account.nivel || 'operador',
-      transportador_id: isSuperuser ? null : (account.transportador_id ?? null),
+      transportador_id: isSuperuser || equipeHierarquia ? null : (account.transportador_id ?? null),
     },
     isSuperuser,
     permissoes: getPermissaoUsuario({
       ...account,
-      role: isSuperuser ? 'super' : 'transportador',
+      role: isSuperuser ? 'super' : equipeHierarquia ? 'minerva' : 'transportador',
     }),
   }
 }
@@ -2217,7 +2254,7 @@ async function repararSenhaPortal(account: PortalAccount, senha: string) {
         email,
         senha_hash: senhaLimpa,
         nome: account.nome || usuario,
-        role: account.role === 'super' ? 'super' : 'transportador',
+        role: roleRemoto(account.role),
         nivel: account.role === 'super' ? 'super' : (account.nivel ?? 'operador'),
         perfil_operacional: account.perfil_operacional ?? null,
         transportador_id: validUuid(account.transportador_id)

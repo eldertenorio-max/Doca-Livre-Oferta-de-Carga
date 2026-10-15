@@ -2365,6 +2365,22 @@
   box-shadow: 0 1px 3px rgb(15 23 42 / 0.06);
 }
 
+.org-tree__card.is-selected {
+  outline: 2px solid #2f9e6a;
+  outline-offset: 2px;
+}
+
+.org-tree__select {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  text-align: left;
+}
+
 .org-tree__card--super,
 .org-tree__card--operador {
   border-left-color: #7c3aed;
