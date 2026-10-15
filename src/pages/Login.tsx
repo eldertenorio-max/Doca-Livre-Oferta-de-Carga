@@ -611,6 +611,12 @@ export function LoginPage() {
               <Link to="/cadastro-transportador" className="portal-login__link">
                 Quero ser transportador
               </Link>
+              <Link to="/cadastro-logistica" className="portal-login__link">
+                Cadastrar empresa no Mapa da Logística
+              </Link>
+              <button type="button" className="portal-login__link" onClick={() => goMode('cadastro')}>
+                Cadastrar Embarcador
+              </button>
               <button type="button" className="portal-login__link" onClick={() => goMode('senha')}>
                 Esqueci a senha
               </button>

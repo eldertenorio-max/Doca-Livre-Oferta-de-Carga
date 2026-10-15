@@ -39,30 +39,11 @@ import {
   ramificacaoSugeridaDoPlano,
   type RamificacaoCadastro,
 } from '../lib/planosOfertaCarga'
-import {
-  ORG_TIPO_LABEL,
-  ancestraisOrg,
-  flattenOrg,
-  hydrateOrgTree,
-  type OrgNo,
-} from '../lib/orgHierarchy'
 import '../styles/login.css'
 import '../styles/cadastro.css'
 import '../styles/shell.css'
 
 type Step = 1 | 2 | 3 | 4 | 'ok'
-
-const RAMIFICACOES_PUBLICAS = RAMIFICACOES_CADASTRO.filter(
-  (r) => r.id === 'transportadora' || r.id === 'motorista',
-)
-
-function trilhaHierarquia(tree: OrgNo[], no: OrgNo) {
-  const acima = ancestraisOrg(tree, no.id)
-    .reverse()
-    .map((n) => n.nome)
-  const tipo = ORG_TIPO_LABEL[no.tipo]
-  return `${tipo}: ${[...acima, no.nome].join(' → ')}`
-}
 
 type DocState = Partial<
   Record<TipoDocumentoTransportador, { nome_arquivo: string; data_url: string; file?: File }>
@@ -103,12 +84,9 @@ export function CadastroTransportadorPage() {
   const planoQuery = params.get('plano')
   const veioPago = params.get('pago') === '1'
   const planoEscolhido = planoOfertaPorId(planoQuery) ?? planoOfertaPorId(lerPlanoPago()?.planoId)
-  const [ramificacao, setRamificacao] = useState<RamificacaoCadastro>(() => {
-    const sugerida = ramificacaoSugeridaDoPlano(planoQuery || lerPlanoPago()?.planoId)
-    return sugerida === 'motorista' ? 'motorista' : 'transportadora'
-  })
-  const [paisHierarquia, setPaisHierarquia] = useState<Array<{ id: string; rotulo: string }>>([])
-  const [orgParentId, setOrgParentId] = useState('')
+  const [ramificacao, setRamificacao] = useState<RamificacaoCadastro>(() =>
+    ramificacaoSugeridaDoPlano(planoQuery || lerPlanoPago()?.planoId),
+  )
   const [step, setStep] = useState<Step>(1)
   const [facial, setFacial] = useState<FacialCaptura | null>(null)
   const [error, setError] = useState('')
@@ -177,28 +155,6 @@ export function CadastroTransportadorPage() {
   const [cnpjInfoOk, setCnpjInfoOk] = useState(false)
   const [cnpjConsulta, setCnpjConsulta] = useState(0)
   const ultimoCnpjBuscado = useRef('')
-
-  useEffect(() => {
-    let ativo = true
-    void hydrateOrgTree().then((tree) => {
-      if (!ativo) return
-      const flat = flattenOrg(tree)
-      const unidades = flat.filter((n) => n.tipo === 'unidade' || n.tipo === 'filial_operador')
-      const base =
-        unidades.length > 0
-          ? unidades
-          : flat.filter((n) => n.tipo === 'embarcador' || n.tipo === 'operador_logistico')
-      const opcoes = base.map((n) => ({
-        id: n.id,
-        rotulo: trilhaHierarquia(tree, n),
-      }))
-      setPaisHierarquia(opcoes)
-      setOrgParentId((atual) => atual || (opcoes.length === 1 ? opcoes[0].id : ''))
-    })
-    return () => {
-      ativo = false
-    }
-  }, [])
 
   const docsOk = useMemo(() => {
     return DOCUMENTOS_TRANSPORTADOR.filter((d) => d.obrigatorio).every((d) => Boolean(docs[d.tipo]))
@@ -628,12 +584,8 @@ export function CadastroTransportadorPage() {
   function nextFromEmpresa(e: FormEvent) {
     e.preventDefault()
     setError('')
-    if (ramificacao !== 'transportadora' && ramificacao !== 'motorista') {
-      setError('No cadastro público a empresa entra como transportadora ou motorista.')
-      return
-    }
-    if (!orgParentId) {
-      setError('Escolha a unidade ou o embarcador da hierarquia ao qual você pertence.')
+    if (!ramificacao) {
+      setError('Escolha a ramificação da empresa (embarcador, unidade, transportadora ou motorista).')
       return
     }
     if (!empresa.cnpj.trim() || !empresa.nome_fantasia.trim() || !empresa.razao_social.trim()) {
@@ -752,8 +704,7 @@ export function CadastroTransportadorPage() {
     }
     setLoading(true)
     const result = await registrarCadastroTransportador({
-      ramificacao: ramificacao === 'motorista' ? 'motorista' : 'transportadora',
-      orgParentId,
+      ramificacao,
       plano: planoEscolhido?.id,
       empresa,
       origem: {
@@ -855,40 +806,15 @@ export function CadastroTransportadorPage() {
               </header>
               <div className="form-card__body">
                 <p className="cadastro-publico__hint">
-                  Você entra como transportadora ou motorista, abaixo da unidade ou do embarcador
-                  escolhido. Embarcador e operador são cadastrados pelo Super Usuário. O endereço
+                  Primeiro escolha a ramificação da empresa na hierarquia Doca Livre. O endereço
                   residencial fica no bloco seguinte. A origem pode usar esse mesmo endereço.
                 </p>
 
                 <p className="cadastro-label" style={{ marginBottom: 8 }}>
-                  Onde você entra na hierarquia <span>*</span>
+                  Ramificação <span>*</span>
                 </p>
-                {paisHierarquia.length === 0 ? (
-                  <p className="cadastro-publico__hint">
-                    Ainda não há unidade ou embarcador na hierarquia. Peça ao Super Usuário para
-                    cadastrar esse ponto antes de continuar.
-                  </p>
-                ) : (
-                  <select
-                    className="cadastro-input"
-                    value={orgParentId}
-                    required
-                    onChange={(e) => setOrgParentId(e.target.value)}
-                  >
-                    <option value="">Selecione a unidade ou o embarcador</option>
-                    {paisHierarquia.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.rotulo}
-                      </option>
-                    ))}
-                  </select>
-                )}
-
-                <p className="cadastro-label" style={{ margin: '14px 0 8px' }}>
-                  Tipo <span>*</span>
-                </p>
-                <div className="cadastro-ramificacoes" role="radiogroup" aria-label="Tipo de cadastro">
-                  {RAMIFICACOES_PUBLICAS.map((r) => (
+                <div className="cadastro-ramificacoes" role="radiogroup" aria-label="Ramificação da empresa">
+                  {RAMIFICACOES_CADASTRO.map((r) => (
                     <button
                       key={r.id}
                       type="button"

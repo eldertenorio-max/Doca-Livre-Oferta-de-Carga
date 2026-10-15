@@ -20,7 +20,6 @@ import { DarCreditosPage } from './pages/minerva/DarCreditos'
 import { VeiculosPage } from './pages/minerva/Veiculos'
 import { MotoristasPage } from './pages/minerva/Motoristas'
 import { PortalConfigPage } from './pages/minerva/PortalConfig'
-import { HierarquiaCadastroPage } from './pages/minerva/HierarquiaCadastro'
 import { KanbanTransportador } from './pages/transportador/KanbanTransportador'
 import { KanbanTarefasPage } from './pages/transportador/KanbanTarefas'
 import { ViagensTransportadorPage } from './pages/transportador/Viagens'
@@ -113,8 +112,6 @@ function AppBanners() {
     </>
   )
 }
-
-const EQUIPE: UserRole[] = ['super', 'minerva']
 
 function Protected({ role, children }: { role?: UserRole | UserRole[]; children: React.ReactNode }) {
   const { user } = useData()
@@ -238,7 +235,7 @@ export default function App() {
         <Route
           path="/embarcador"
           element={
-            <Protected role={EQUIPE}>
+            <Protected role={['super']}>
               <KanbanMinerva />
             </Protected>
           }
@@ -246,7 +243,7 @@ export default function App() {
         <Route
           path="/embarcador/tarefas"
           element={
-            <Protected role={EQUIPE}>
+            <Protected role={['super']}>
               <KanbanTarefasPage />
             </Protected>
           }
@@ -254,7 +251,7 @@ export default function App() {
         <Route
           path="/embarcador/viagens"
           element={
-            <Protected role={EQUIPE}>
+            <Protected role={['super']}>
               <ViagensEmbarcadorPage />
             </Protected>
           }
@@ -262,7 +259,7 @@ export default function App() {
         <Route
           path="/embarcador/rotas"
           element={
-            <Protected role={EQUIPE}>
+            <Protected role={['super']}>
               <RotasPage />
             </Protected>
           }
@@ -270,7 +267,7 @@ export default function App() {
         <Route
           path="/embarcador/calcular-rota"
           element={
-            <Protected role={EQUIPE}>
+            <Protected role={['super']}>
               <CalcularRotaPublicoPage modoSistema />
             </Protected>
           }
@@ -278,7 +275,7 @@ export default function App() {
         <Route
           path="/embarcador/tabelas-frete"
           element={
-            <Protected role={EQUIPE}>
+            <Protected role={['super']}>
               <TabelasFretePage />
             </Protected>
           }
@@ -286,7 +283,7 @@ export default function App() {
         <Route
           path="/embarcador/pontuacao"
           element={
-            <Protected role={EQUIPE}>
+            <Protected role={['super']}>
               <PontuacaoTransportadoresPage />
             </Protected>
           }
@@ -294,7 +291,7 @@ export default function App() {
         <Route
           path="/embarcador/transportadores"
           element={
-            <Protected role={EQUIPE}>
+            <Protected role={['super']}>
               <TransportadoresPage />
             </Protected>
           }
@@ -302,7 +299,7 @@ export default function App() {
         <Route
           path="/embarcador/veiculos"
           element={
-            <Protected role={['super', 'minerva', 'transportador']}>
+            <Protected role={['super', 'transportador']}>
               <VeiculosPage />
             </Protected>
           }
@@ -310,7 +307,7 @@ export default function App() {
         <Route
           path="/embarcador/motoristas"
           element={
-            <Protected role={['super', 'minerva', 'transportador']}>
+            <Protected role={['super', 'transportador']}>
               <MotoristasPage />
             </Protected>
           }
@@ -318,7 +315,7 @@ export default function App() {
         <Route
           path="/embarcador/mapa-frota"
           element={
-            <Protected role={EQUIPE}>
+            <Protected role={['super']}>
               <MapaFrotaPage />
             </Protected>
           }
@@ -363,7 +360,7 @@ export default function App() {
         <Route
           path="/embarcador/malha-radar"
           element={
-            <Protected role={EQUIPE}>
+            <Protected role={['super']}>
               <MapaLogisticaPage />
             </Protected>
           }
@@ -371,7 +368,7 @@ export default function App() {
         <Route
           path="/embarcador/grupos"
           element={
-            <Protected role={EQUIPE}>
+            <Protected role={['super']}>
               <GruposPage />
             </Protected>
           }
@@ -379,7 +376,7 @@ export default function App() {
         <Route
           path="/embarcador/indicadores"
           element={
-            <Protected role={EQUIPE}>
+            <Protected role={['super']}>
               <IndicadoresPage />
             </Protected>
           }
@@ -395,7 +392,7 @@ export default function App() {
         <Route
           path="/embarcador/historico"
           element={
-            <Protected role={EQUIPE}>
+            <Protected role={['super']}>
               <HistoricoPage />
             </Protected>
           }
@@ -413,14 +410,6 @@ export default function App() {
           element={
             <Protected role={['super']}>
               <DarCreditosPage />
-            </Protected>
-          }
-        />
-        <Route
-          path="/embarcador/hierarquia"
-          element={
-            <Protected role={['super']}>
-              <HierarquiaCadastroPage />
             </Protected>
           }
         />
