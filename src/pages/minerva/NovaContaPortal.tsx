@@ -77,12 +77,17 @@ export function NovaContaPortalPage() {
   const existentes = useMemo(() => {
     if (!tipo) return []
     if (tipo === 'transportadora') {
-      return transportadores
+      const dasFichas = transportadores
         .filter((t) => t.situacao !== 'inativo' && t.situacao !== 'recusado')
         .map((t) => ({
-          id: t.id,
+          id: `t:${t.id}`,
           rotulo: t.nome_fantasia || t.razao_social || t.cnpj || t.id,
         }))
+      const idsFicha = new Set(transportadores.map((t) => t.id))
+      const daArvore = flat
+        .filter((n) => n.tipo === 'transportadora' && !idsFicha.has(n.transportador_id || ''))
+        .map((n) => ({ id: `org:${n.id}`, rotulo: n.nome }))
+      return [...dasFichas, ...daArvore]
     }
     return flat
       .filter((n) => n.tipo === tipo)
@@ -146,8 +151,9 @@ export function NovaContaPortalPage() {
         setErro('Escolha a empresa em que esta conta vai entrar.')
         return
       }
-      if (tipo === 'transportadora') {
-        const t = transportadores.find((x) => x.id === existenteId)
+      if (tipo === 'transportadora' && existenteId.startsWith('t:')) {
+        const tid = existenteId.slice(2)
+        const t = transportadores.find((x) => x.id === tid)
         if (!t) {
           setErro('Transportadora não encontrada.')
           return
@@ -155,8 +161,14 @@ export function NovaContaPortalPage() {
         transportadorId = t.id
         nomeDaEmpresa = t.nome_fantasia || t.razao_social || nomeDaEmpresa
       } else {
-        orgId = existenteId
-        nomeDaEmpresa = flat.find((n) => n.id === existenteId)?.nome || nomeDaEmpresa
+        orgId = tipo === 'transportadora' && existenteId.startsWith('org:') ? existenteId.slice(4) : existenteId
+        const no = flat.find((n) => n.id === orgId)
+        if (!no || no.tipo !== tipo) {
+          setErro('Empresa não encontrada nessa lista.')
+          return
+        }
+        if (no.transportador_id) transportadorId = no.transportador_id
+        nomeDaEmpresa = no.nome || nomeDaEmpresa
       }
     } else {
       if (!nomeDaEmpresa) {
@@ -202,11 +214,20 @@ export function NovaContaPortalPage() {
       setErro(created.erro)
       return
     }
-    setMsg(`Conta ${created.account.usuario} aberta como ${ORG_TIPO_LABEL[tipo]}.`)
+    setMsg(
+      modo === 'nova'
+        ? `${nomeDaEmpresa} entrou na hierarquia e a conta ${created.account.usuario} foi aberta.`
+        : `Conta ${created.account.usuario} aberta em ${nomeDaEmpresa}. Nenhuma empresa nova foi criada.`,
+    )
     setLogin('')
     setEmail('')
     setSenha('')
     setContaNome('')
+    if (modo === 'nova') {
+      setNomeEmpresa('')
+      setCnpj('')
+      setParentId('')
+    }
   }
 
   const tipoEscolhido = TIPOS_CONTA.find((t) => t.id === tipo) ?? null
@@ -262,36 +283,54 @@ export function NovaContaPortalPage() {
                 <button
                   type="button"
                   className={`cadastro-btn ${modo === 'nova' ? 'cadastro-btn--primary' : 'cadastro-btn--ghost'}`}
-                  onClick={() => setModo('nova')}
+                  onClick={() => {
+                    setModo('nova')
+                    setErro('')
+                    setMsg('')
+                  }}
                 >
                   Cadastrar nova
                 </button>
                 <button
                   type="button"
                   className={`cadastro-btn ${modo === 'existente' ? 'cadastro-btn--primary' : 'cadastro-btn--ghost'}`}
-                  onClick={() => setModo('existente')}
-                  disabled={existentes.length === 0}
+                  onClick={() => {
+                    setModo('existente')
+                    setErro('')
+                    setMsg('')
+                  }}
                 >
                   Abrir conta numa já cadastrada
                 </button>
               </div>
+              <p className="portal-login__hint" style={{ margin: 0 }}>
+                {modo === 'nova'
+                  ? 'Cria a empresa na hierarquia e abre o login dela.'
+                  : 'Só abre o login. A empresa escolhida continua a mesma.'}
+              </p>
 
               {modo === 'existente' ? (
-                <label>
-                  <span className="cadastro-label">Empresa</span>
-                  <select
-                    className="cadastro-input"
-                    value={existenteId}
-                    onChange={(e) => setExistenteId(e.target.value)}
-                  >
-                    <option value="">Selecione</option>
-                    {existentes.map((n) => (
-                      <option key={n.id} value={n.id}>
-                        {n.rotulo}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                existentes.length === 0 ? (
+                  <p className="portal-login__hint">
+                    Ainda não há empresa deste tipo. Use Cadastrar nova.
+                  </p>
+                ) : (
+                  <label>
+                    <span className="cadastro-label">Empresa</span>
+                    <select
+                      className="cadastro-input"
+                      value={existenteId}
+                      onChange={(e) => setExistenteId(e.target.value)}
+                    >
+                      <option value="">Selecione</option>
+                      {existentes.map((n) => (
+                        <option key={n.id} value={n.id}>
+                          {n.rotulo}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )
               ) : (
                 <>
                   <label>
