@@ -1374,9 +1374,76 @@
   color: #0f172a;
 }
 
+.dar-creditos__sites {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.dar-creditos__sites button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  background: #fff;
+  color: #14532d;
+  font: inherit;
+  cursor: pointer;
+}
+
+.dar-creditos__sites button.is-on {
+  background: #14532d;
+  border-color: #14532d;
+  color: #fff;
+}
+
+.dar-creditos__sites strong {
+  font-size: 0.92rem;
+}
+
+.dar-creditos__sites span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.dar-creditos__antigas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.dar-creditos__antigas button {
+  border: 0;
+  border-radius: 8px;
+  background: #14532d;
+  color: #fff;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
 .dar-creditos__filtros {
   display: grid;
-  grid-template-columns: minmax(220px, 320px) 1fr;
+  grid-template-columns: 1fr;
   gap: 12px;
   align-items: end;
 }
@@ -1554,6 +1621,10 @@
 }
 
 @media (max-width: 800px) {
+  .dar-creditos__sites {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .dar-creditos__filtros,
   .dar-creditos__acao {
     grid-template-columns: 1fr;

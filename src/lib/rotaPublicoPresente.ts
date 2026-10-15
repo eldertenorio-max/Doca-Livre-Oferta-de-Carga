@@ -95,7 +95,7 @@ export async function listarContasCreditoPublico(input: {
   busca: string
   adminEmail: string
   adminUsuario: string
-}): Promise<{ ok: boolean; erro?: string; contas: ContaCreditoPublica[] }> {
+}): Promise<{ ok: boolean; erro?: string; contas: ContaCreditoPublica[]; semSite: number }> {
   const r = await chamarPresente({
     action: 'listar_contas',
     site: input.site,
@@ -104,8 +104,9 @@ export async function listarContasCreditoPublico(input: {
     adminUsuario: input.adminUsuario,
   })
   const contas = (r as { contas?: ContaCreditoPublica[] }).contas
-  if (!r.ok) return { ok: false, erro: r.erro, contas: [] }
-  return { ok: true, contas: Array.isArray(contas) ? contas : [] }
+  const semSite = Number((r as { semSite?: number }).semSite) || 0
+  if (!r.ok) return { ok: false, erro: r.erro, contas: [], semSite: 0 }
+  return { ok: true, contas: Array.isArray(contas) ? contas : [], semSite }
 }
 
 export async function darCreditosContaPublica(input: {

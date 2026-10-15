@@ -333,6 +333,18 @@ async function garantirWebhook() {
   })
 }
 
+async function gravarCpfNaConta(userId: string, cpf: string) {
+  if (cpf.length !== 11) return
+  const sb = admin()
+  const atual = await sb.auth.admin.getUserById(userId)
+  const anterior = (atual.data.user?.user_metadata || {}) as Record<string, unknown>
+  const ja = String(anterior.cpf || '').replace(/\D/g, '')
+  if (ja.length === 11) return
+  await sb.auth.admin.updateUserById(userId, {
+    user_metadata: { ...anterior, cpf },
+  })
+}
+
 async function usuarioDoPedido(req: Request) {
   const auth = req.headers.get('Authorization') || ''
   const token = auth.replace(/^Bearer\s+/i, '').trim()
@@ -658,6 +670,14 @@ async function criarCobranca(req: Request, body: Record<string, unknown>) {
   const nome = (conta?.nome || String(body.nome || '')).trim() || email.split('@')[0] || 'Cliente Doca Livre'
   if (tipo === 'plano' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return fail('Informe o e-mail para enviarmos a confirmação.')
+  }
+
+  if (conta?.id && cpfCnpj.length === 11) {
+    try {
+      await gravarCpfNaConta(conta.id, cpfCnpj)
+    } catch {
+      /* o CPF da compra não pode impedir o PIX */
+    }
   }
 
   if (docaConfig().ok) {

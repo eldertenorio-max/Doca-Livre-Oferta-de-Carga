@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase, supabaseAnonKey, supabaseUrl } from './supabase'
 import { cpfValido, soDigitos } from './cpfCnpj'
-import { isLocalDev, isSiteOfertaDeCarga, siteContaAtual } from './siteOfertaDeCarga'
+import { isLocalDev, isSiteOfertaDeCarga, isSitePublicoLimpo, siteContaAtual } from './siteOfertaDeCarga'
 
 const ERRO_GOOGLE_DESLIGADO =
   'O login Google ainda não está ligado no Supabase. Painel → Authentication → Providers → Google → Enable (Client ID e Secret do Google Cloud).'
@@ -41,25 +41,21 @@ function contaDeUser(user: User): ContaRotaPublico {
   }
 }
 
-function emSitePublicoCredito() {
-  if (typeof window === 'undefined') return false
-  const h = window.location.hostname.toLowerCase().replace(/^www\./, '')
-  return (
-    h === 'ofertadecarga.com.br' ||
-    h === 'mapadafrota.com.br' ||
-    h === 'mapadalogistica.com.br' ||
-    h.endsWith('.onrender.com') ||
-    isLocalDev(h)
-  )
-}
-
-/** Marca o site da conta pública na primeira visita, sem apagar um CPF já gravado. */
+/** Marca origem e site na primeira visita ao site público, sem apagar CPF já gravado. */
 function complementarContaPublica(user: User) {
-  if (!supabase || !emSitePublicoCredito()) return
+  if (!supabase) return
+  if (!isSitePublicoLimpo() && !isLocalDev()) return
   const meta = user.user_metadata || {}
-  if (String(meta.origem || '') !== ORIGEM_ROTA_PUBLICO) return
-  if (String(meta.site || '').trim()) return
-  void supabase.auth.updateUser({ data: { site: siteContaAtual() } })
+  const origem = String(meta.origem || '').trim()
+  if (origem && origem !== ORIGEM_ROTA_PUBLICO) return
+  const patch: Record<string, string> = {}
+  if (!origem) patch.origem = ORIGEM_ROTA_PUBLICO
+  if (!String(meta.site || '').trim()) {
+    const site = siteContaAtual()
+    patch.site = site === 'render' ? 'calculadora' : site
+  }
+  if (!Object.keys(patch).length) return
+  void supabase.auth.updateUser({ data: patch })
 }
 
 export async function gravarCpfRotaPublico(cpf: string): Promise<{ ok: boolean; erro?: string }> {

@@ -248,23 +248,23 @@ async function acaoContas(
       }
     }
 
-    const contas = users
-      .filter((u) => {
-        const origem = String(metaUsuario(u).origem || '')
-        const email = asciiLower(u.email || '')
-        const contaPublica =
-          origem === 'rota_publico' ||
-          saldoPorId.has(u.id) ||
-          (Boolean(email) && !emailsPortal.has(email))
-        if (!contaPublica) return false
-        const marcado = siteDoUsuario(u)
-        if (!todos && marcado !== site) return false
-        if (!busca) return true
-        const nome = asciiLower(nomeDoUsuario(u))
-        const cpf = cpfDoUsuario(u)
-        const bateCpf = buscaCpf.length >= 3 && cpf.includes(buscaCpf)
-        return email.includes(busca) || nome.includes(busca) || bateCpf
-      })
+    const elegiveis = users.filter((u) => {
+      const origem = String(metaUsuario(u).origem || '')
+      const email = asciiLower(u.email || '')
+      const contaPublica =
+        origem === 'rota_publico' ||
+        saldoPorId.has(u.id) ||
+        (Boolean(email) && !emailsPortal.has(email))
+      if (!contaPublica) return false
+      if (!busca) return true
+      const nome = asciiLower(nomeDoUsuario(u))
+      const cpf = cpfDoUsuario(u)
+      const bateCpf = buscaCpf.length >= 3 && cpf.includes(buscaCpf)
+      return email.includes(busca) || nome.includes(busca) || bateCpf
+    })
+    const semSite = elegiveis.filter((u) => !siteDoUsuario(u)).length
+    const contas = elegiveis
+      .filter((u) => todos || siteDoUsuario(u) === site)
       .map((u) => ({
         id: u.id,
         email: asciiLower(u.email || ''),
@@ -276,7 +276,7 @@ async function acaoContas(
       .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
       .slice(0, 500)
 
-    return json({ ok: true, contas })
+    return json({ ok: true, contas, semSite })
   }
 
   const userId = String(body.userId || '').trim()

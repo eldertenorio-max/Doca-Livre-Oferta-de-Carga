@@ -12,10 +12,10 @@ import { ehSuperDiegoOuElder } from '../../lib/superUsers'
 import '../../styles/cadastro.css'
 
 const SITES = [
-  { id: 'todos', label: 'Mostrar todos', host: 'calculadora, frota e logística' },
-  { id: 'calculadora', label: 'Calculadora de rota', host: 'ofertadecarga.com.br' },
+  { id: 'calculadora', label: 'Calculadora', host: 'ofertadecarga.com.br' },
   { id: 'frota', label: 'Mapa da Frota', host: 'mapadafrota.com.br' },
   { id: 'logistica', label: 'Mapa da Logística', host: 'mapadalogistica.com.br' },
+  { id: 'todos', label: 'Mostrar todos', host: 'todas as contas' },
 ] as const
 
 type SiteId = (typeof SITES)[number]['id']
@@ -28,9 +28,14 @@ function rotuloSite(id: string) {
 }
 
 function cpfNaLista(digitos: string) {
-  const d = digitos.replace(/\D/g, '')
+  const d = String(digitos || '').replace(/\D/g, '')
   if (d.length !== 11) return ''
   return formatarCpf(d)
+}
+
+function siteDaConta(id: string) {
+  if (id === 'render') return 'calculadora'
+  return id
 }
 
 type AvisoEnvio = {
@@ -91,6 +96,7 @@ export function DarCreditosPage() {
   const [busca, setBusca] = useState('')
   const [buscaAplicada, setBuscaAplicada] = useState('')
   const [contas, setContas] = useState<ContaCreditoPublica[]>([])
+  const [semSite, setSemSite] = useState(0)
   const [selecionada, setSelecionada] = useState<ContaCreditoPublica | null>(null)
   const [creditos, setCreditos] = useState(10)
   const [carregando, setCarregando] = useState(false)
@@ -113,6 +119,7 @@ export function DarCreditosPage() {
     setCarregando(false)
     if (!r.ok) {
       setContas([])
+      setSemSite(0)
       setErro(
         r.erro === 'somente_super'
           ? 'Só um Super Usuário pode dar créditos.'
@@ -121,6 +128,7 @@ export function DarCreditosPage() {
       return
     }
     setContas(r.contas)
+    setSemSite(r.semSite)
     setSelecionada((atual) => r.contas.find((c) => c.id === atual?.id) || null)
   }
 
@@ -173,32 +181,42 @@ export function DarCreditosPage() {
     void carregar(site, buscaAplicada)
   }
 
-  const siteAtual = SITES.find((s) => s.id === site) ?? SITES[1]
+  const siteAtual = SITES.find((s) => s.id === site) ?? SITES[0]
   const mostrandoTodos = site === 'todos'
+  const lista = mostrandoTodos
+    ? contas
+    : contas.filter((c) => siteDaConta(c.site) === site)
+  const antigas =
+    mostrandoTodos ? 0 : semSite || contas.filter((c) => !siteDaConta(c.site)).length
 
   return (
     <div className="cadastro-page">
       <h1 className="cadastro-page-title">Dar créditos</h1>
       <p className="financeiro-pix__sub">
-        Escolha o site para ver só quem criou a conta nele. Em Mostrar todos entram todas as
-        contas, inclusive as antigas sem site marcado. O CPF vem do cadastro. O saldo é o mesmo
-        na calculadora e nos mapas.
+        Escolha a página para ver só quem criou a conta nela. Mostrar todos junta calculadora,
+        mapas e as contas antigas que ainda não têm site. O CPF é obrigatório no cadastro novo.
+        Conta antiga mostra “Não informado” até a pessoa abrir o site e salvar o CPF.
       </p>
 
       <section className="form-card dar-creditos" style={{ marginTop: 16 }}>
         <div className="form-card__body" style={{ display: 'grid', gap: 14 }}>
-          <div className="dar-creditos__filtros">
-            <label className="financeiro-pix__label">
-              Site
-              <select value={site} onChange={(e) => setSite(e.target.value as SiteId)}>
-                {SITES.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.label} — {s.host}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div className="dar-creditos__sites" role="tablist" aria-label="Página">
+            {SITES.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                role="tab"
+                aria-selected={site === s.id}
+                className={site === s.id ? 'is-on' : ''}
+                onClick={() => setSite(s.id)}
+              >
+                <strong>{s.label}</strong>
+                <span>{s.host}</span>
+              </button>
+            ))}
+          </div>
 
+          <div className="dar-creditos__filtros">
             <form
               className="dar-creditos__busca"
               onSubmit={(e) => {
@@ -224,10 +242,21 @@ export function DarCreditosPage() {
           <p className="dar-creditos__resumo">
             {carregando
               ? 'Carregando contas…'
-              : `${contas.length} pessoa${contas.length === 1 ? '' : 's'} · ${siteAtual.label}`}
+              : `${lista.length} pessoa${lista.length === 1 ? '' : 's'} · ${siteAtual.label}`}
           </p>
 
-          {contas.length === 0 && !carregando ? (
+          {!carregando && antigas > 0 ? (
+            <p className="dar-creditos__antigas">
+              {antigas} conta{antigas === 1 ? '' : 's'} antiga{antigas === 1 ? '' : 's'} ainda sem a
+              página marcada. Elas ficam em Mostrar todos. Quando a pessoa abrir o site, entra na
+              lista dessa página.
+              <button type="button" onClick={() => setSite('todos')}>
+                Mostrar todos
+              </button>
+            </p>
+          ) : null}
+
+          {lista.length === 0 && !carregando ? (
             <p className="financeiro-pix__vazio">
               {mostrandoTodos
                 ? 'Nenhuma conta com esse filtro.'
@@ -243,7 +272,7 @@ export function DarCreditosPage() {
                 <span>Créditos</span>
               </div>
               <ul className="dar-creditos__lista">
-                {contas.map((c) => {
+                {lista.map((c) => {
                   const cpf = cpfNaLista(c.cpf)
                   return (
                     <li key={c.id}>
