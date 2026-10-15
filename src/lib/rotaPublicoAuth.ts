@@ -42,9 +42,18 @@ function contaDeUser(user: User): ContaRotaPublico {
 }
 
 /** Marca origem e site na primeira visita ao site público, sem apagar CPF já gravado. */
+function papelDeSistema(user: User) {
+  const role = String(user.user_metadata?.role || '').trim()
+  return role === 'transportador' || role === 'minerva' || role === 'super'
+}
+
 function complementarContaPublica(user: User) {
   if (!supabase) return
   if (!isSitePublicoLimpo() && !isLocalDev()) return
+  if (papelDeSistema(user)) {
+    void supabase.auth.signOut()
+    return
+  }
   const meta = user.user_metadata || {}
   const origem = String(meta.origem || '').trim()
   if (origem && origem !== ORIGEM_ROTA_PUBLICO) return
@@ -208,6 +217,7 @@ export async function cadastrarEmailRotaPublico(input: {
       emailRedirectTo: redirectOAuthRotaPublico(),
       data: {
         origem: ORIGEM_ROTA_PUBLICO,
+        site: siteContaAtual(),
         nome,
         full_name: nome,
       },
@@ -237,8 +247,16 @@ export async function entrarEmailRotaPublico(input: {
   const senha = input.senha
   if (!emailOk(email)) return { ok: false, erro: 'Informe um e-mail válido.' }
   if (!senha) return { ok: false, erro: 'Informe a senha.' }
-  const { error } = await supabase.auth.signInWithPassword({ email, password: senha })
-  if (error) return { ok: false, erro: mensagemErroAuthRota(error.message) }
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha })
+  if (error || !data.user) return { ok: false, erro: mensagemErroAuthRota(error?.message || '') }
+  const origem = String(data.user.user_metadata?.origem || '').trim()
+  if (papelDeSistema(data.user) || (origem && origem !== ORIGEM_ROTA_PUBLICO)) {
+    await supabase.auth.signOut()
+    return {
+      ok: false,
+      erro: 'Esta conta é do sistema Oferta de Carga. Aqui, crie uma conta só deste site.',
+    }
+  }
   return { ok: true }
 }
 

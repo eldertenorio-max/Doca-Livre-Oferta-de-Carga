@@ -463,6 +463,7 @@ export function MapaFrotaPublicoPage() {
         setShowPaywall(true)
         return false
       }
+      if (consumo.restam <= 0) setShowPaywall(true)
       return true
     } finally {
       cotaBusyRef.current = false

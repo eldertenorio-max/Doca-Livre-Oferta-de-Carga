@@ -2333,7 +2333,7 @@ export async function portalLogin(
       return {
         ok: false,
         erro:
-          'Esta conta é só do site da calculadora. Para o sistema Oferta de Carga, use o cadastro de transportadora ou embarcador.',
+          'Esta conta é só dos sites públicos (calculadora ou mapas). Para o sistema Oferta de Carga, use o cadastro de transportadora ou embarcador.',
       }
     }
 

@@ -137,8 +137,12 @@ Deno.serve(async (req) => {
   const action = body.action === 'consume' ? 'consume' : 'status'
   const visitor = limparToken(body.visitor_id)
   const device = limparToken(body.device_hash)
-  const prefixo = body.produto === 'rota' ? 'rota:' : ''
-  const salt = body.produto === 'rota' ? 'doca-rota-cota:' : 'doca-mapa-cota:'
+  const produto =
+    body.produto === 'rota' || body.produto === 'frota' || body.produto === 'logistica'
+      ? body.produto
+      : 'mapa'
+  const prefixo = `${produto}:`
+  const salt = `doca-${produto}-cota:`
 
   const chaves: string[] = []
   if (ip) {
@@ -182,6 +186,6 @@ Deno.serve(async (req) => {
     restam: Number.isFinite(restam) ? restam : Math.max(0, LIMITE - usadas),
     esgotado,
     limite: LIMITE,
-    produto: body.produto === 'rota' ? 'rota' : 'mapa',
+    produto,
   })
 })

@@ -456,6 +456,7 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
         setShowPaywall('buscas')
         return false
       }
+      if (consumo.restam <= 0) setShowPaywall('buscas')
       return true
     } finally {
       consumindoRef.current = false

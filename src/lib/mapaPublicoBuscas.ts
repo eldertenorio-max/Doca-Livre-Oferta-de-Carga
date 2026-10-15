@@ -1,4 +1,5 @@
 import { ritmoPublicoOk } from './publicoProtecao'
+import { supabase } from './supabase'
 import {
   consultarCreditosRotaPublico,
   consumirCreditoRotaPublicoConta,
@@ -88,9 +89,60 @@ async function tentarConsumirCredito(): Promise<boolean> {
   return consumirCreditoRotaPublicoConta()
 }
 
+type CotaMaquina = {
+  usadas: number
+  restam: number
+  esgotado: boolean
+  ok: boolean
+}
+
+function lerCotaMaquina(data: unknown, produto: ProdutoBuscaPublica): CotaMaquina | null {
+  const row = data && typeof data === 'object' ? (data as { ok?: boolean; usadas?: number; restam?: number; esgotado?: boolean; produto?: string }) : null
+  if (!row || row.produto !== produto) return null
+  const usadas = Number(row.usadas)
+  const restam = Number(row.restam)
+  if (!Number.isFinite(usadas) && !Number.isFinite(restam)) return null
+  const u = Number.isFinite(usadas) ? Math.max(0, Math.floor(usadas)) : 0
+  const r = Number.isFinite(restam) ? Math.max(0, Math.floor(restam)) : Math.max(0, LIMITE - u)
+  return {
+    usadas: Math.min(LIMITE, u),
+    restam: r,
+    esgotado: Boolean(row.esgotado) || r <= 0,
+    ok: row.ok !== false,
+  }
+}
+
+/** 2 grátis do computador, separados por link (frota ou logística). */
+async function cotaNoComputador(produto: ProdutoBuscaPublica, consumir: boolean): Promise<CotaMaquina | null> {
+  if (!supabase) return null
+  try {
+    const { data, error } = await supabase.functions.invoke('mapa-publico-busca', {
+      body: {
+        action: consumir ? 'consume' : 'status',
+        visitor_id: visitorIdPublico(),
+        device_hash: await deviceHashPublico(),
+        produto,
+      },
+    })
+    if (error) return null
+    return lerCotaMaquina(data, produto)
+  } catch {
+    return null
+  }
+}
+
+function aplicarMaquina(produto: ProdutoBuscaPublica, local: Registro, maquina: CotaMaquina | null): Registro {
+  if (!maquina) return local
+  const n = Math.min(LIMITE, Math.max(local.n, maquina.usadas))
+  const reg = { n, dia: diaBrasil() }
+  if (n !== local.n) gravarLocal(produto, reg)
+  return reg
+}
+
 async function estadoAtual(produto: ProdutoBuscaPublica): Promise<EstadoBuscasPublicas> {
   const saldo = await consultarCreditosRotaPublico()
-  return estadoComCreditos(lerLocal(produto), saldo.creditos, saldo.comprou)
+  const maquina = await cotaNoComputador(produto, false)
+  return estadoComCreditos(aplicarMaquina(produto, lerLocal(produto), maquina), saldo.creditos, saldo.comprou)
 }
 
 function cookieGet(nome: string): string {
@@ -206,6 +258,15 @@ export async function registrarBuscaPublica(
     }
     const estado = await estadoAtual(produto)
     return { ok: false, motivo: estado.creditos > 0 ? 'ritmo' : 'saldo', ...estado }
+  }
+  const maquina = await cotaNoComputador(produto, true)
+  if (maquina) {
+    aplicarMaquina(produto, lerLocal(produto), maquina.ok ? maquina : { ...maquina, usadas: LIMITE, restam: 0, esgotado: true })
+    if (!maquina.ok) {
+      const estado = await estadoAtual(produto)
+      return { ok: false, motivo: 'saldo', ...estado }
+    }
+    return { ok: true, ...(await estadoAtual(produto)) }
   }
   const local = lerLocal(produto)
   if (local.n < LIMITE) {
