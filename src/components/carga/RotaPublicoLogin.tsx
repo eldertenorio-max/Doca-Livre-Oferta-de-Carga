@@ -10,6 +10,7 @@ import {
   rotaPublicoEnviarCodigoSenha,
 } from '../../lib/rotaPublicoOtp'
 import { siteContaAtual } from '../../lib/siteOfertaDeCarga'
+import { cpfValido, formatarCpf, soDigitos } from '../../lib/cpfCnpj'
 
 type Aba = 'entrar' | 'criar'
 type Passo = 'form' | 'codigo' | 'validado' | 'nova-senha'
@@ -75,6 +76,14 @@ function RotaPublicoLoginCampos({
   async function pedirCodigoCadastro() {
     if (senha !== senha2) return
     limparAvisos()
+    if (nome.trim().length < 2) {
+      setErroOtp('Informe o nome.')
+      return
+    }
+    if (!cpfValido(cpf)) {
+      setErroOtp('Informe um CPF válido. Ele aparece na hora de dar créditos.')
+      return
+    }
     setBusyOtp(true)
     const r = await rotaPublicoEnviarCodigoCadastro(email)
     setBusyOtp(false)
@@ -129,7 +138,7 @@ function RotaPublicoLoginCampos({
         codigo: digitos,
         senha,
         nome,
-        cpf: cpf.replace(/\D/g, ''),
+        cpf: soDigitos(cpf),
         site: siteContaAtual(),
       })
       setBusyOtp(false)
@@ -365,11 +374,12 @@ function RotaPublicoLoginCampos({
           <label>
             CPF
             <input
-              value={cpf}
-              onChange={(e) => setCpf(e.target.value.replace(/\D/g, '').slice(0, 11))}
+              value={formatarCpf(cpf)}
+              onChange={(e) => setCpf(soDigitos(e.target.value).slice(0, 11))}
               inputMode="numeric"
               autoComplete="off"
-              placeholder="Somente números, para achar a conta"
+              placeholder="000.000.000-00"
+              required
             />
           </label>
         ) : null}

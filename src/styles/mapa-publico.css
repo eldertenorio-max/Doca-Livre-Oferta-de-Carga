@@ -125,6 +125,38 @@
   line-height: 1.35;
 }
 
+.mapa-pub-cpf {
+  display: inline-flex;
+  align-items: end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mapa-pub-cpf label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #334155;
+}
+
+.mapa-pub-cpf input {
+  width: 132px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.mapa-pub-cpf__erro {
+  color: #b91c1c;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
 .mapa-pub-conta {
   display: inline-flex;
   align-items: center;

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { LogIn } from 'lucide-react'
 import { LinkSistema } from '../ui/HostLink'
 import { RotaPaywallModal } from '../carga/RotaPaywallModal'
 import { RotaPublicoLoginModal } from '../carga/RotaPublicoLogin'
-import { useRotaPublicoAuth, type ContaRotaPublico } from '../../lib/rotaPublicoAuth'
+import { gravarCpfRotaPublico, useRotaPublicoAuth, type ContaRotaPublico } from '../../lib/rotaPublicoAuth'
+import { formatarCpf, soDigitos } from '../../lib/cpfCnpj'
 import { consultarEstadoCalculosPublicos } from '../../lib/rotaPublicoCalculos'
 import { consultarEstadoBuscasPublicas, type ProdutoBuscaPublica } from '../../lib/mapaPublicoBuscas'
 import {
@@ -35,6 +36,9 @@ export function PublicoCreditoAcoes({
   const [gratis, setGratis] = useState(restamGratis ?? 0)
   const [saldo, setSaldo] = useState(creditos ?? 0)
   const [presente, setPresente] = useState<{ creditos: number; ids: string[] } | null>(null)
+  const [cpf, setCpf] = useState('')
+  const [cpfErro, setCpfErro] = useState('')
+  const [cpfBusy, setCpfBusy] = useState(false)
   const conta: ContaRotaPublico | null = auth.conta
 
   useEffect(() => {
@@ -86,6 +90,36 @@ export function PublicoCreditoAcoes({
         <LogIn size={15} strokeWidth={2.4} />
         Entrar no sistema
       </LinkSistema>
+      {conta && !conta.cpf ? (
+        <form
+          className="mapa-pub-cpf"
+          onSubmit={(e: FormEvent) => {
+            e.preventDefault()
+            setCpfErro('')
+            setCpfBusy(true)
+            void gravarCpfRotaPublico(cpf).then((r) => {
+              setCpfBusy(false)
+              if (!r.ok) setCpfErro(r.erro || 'Não foi possível gravar o CPF.')
+              else setCpf('')
+            })
+          }}
+        >
+          <label>
+            CPF
+            <input
+              value={formatarCpf(cpf)}
+              onChange={(e) => setCpf(soDigitos(e.target.value).slice(0, 11))}
+              inputMode="numeric"
+              placeholder="000.000.000-00"
+              required
+            />
+          </label>
+          <button type="submit" className="mapa-pub__btn mapa-pub__btn--solid" disabled={cpfBusy}>
+            {cpfBusy ? 'Salvando…' : 'Salvar CPF'}
+          </button>
+          {cpfErro ? <span className="mapa-pub-cpf__erro">{cpfErro}</span> : null}
+        </form>
+      ) : null}
       {conta ? (
         <div className="mapa-pub-conta">
           {conta.foto ? (

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase, supabaseAnonKey, supabaseUrl } from './supabase'
-import { isLocalDev, isSiteOfertaDeCarga } from './siteOfertaDeCarga'
+import { cpfValido, soDigitos } from './cpfCnpj'
+import { isLocalDev, isSiteOfertaDeCarga, siteContaAtual } from './siteOfertaDeCarga'
 
 const ERRO_GOOGLE_DESLIGADO =
   'O login Google ainda não está ligado no Supabase. Painel → Authentication → Providers → Google → Enable (Client ID e Secret do Google Cloud).'
@@ -14,6 +15,7 @@ export type ContaRotaPublico = {
   email: string
   nome: string
   foto: string | null
+  cpf: string
 }
 
 export function ehContaSoSiteAberto(user: User | null | undefined): boolean {
@@ -30,7 +32,55 @@ function contaDeUser(user: User): ContaRotaPublico {
       : typeof meta.picture === 'string'
         ? meta.picture
         : null
-  return { id: user.id, email: user.email || '', nome, foto }
+  return {
+    id: user.id,
+    email: user.email || '',
+    nome,
+    foto,
+    cpf: String(meta.cpf || '').replace(/\D/g, ''),
+  }
+}
+
+function emSitePublicoCredito() {
+  if (typeof window === 'undefined') return false
+  const h = window.location.hostname.toLowerCase().replace(/^www\./, '')
+  return (
+    h === 'ofertadecarga.com.br' ||
+    h === 'mapadafrota.com.br' ||
+    h === 'mapadalogistica.com.br' ||
+    h.endsWith('.onrender.com') ||
+    isLocalDev(h)
+  )
+}
+
+/** Marca o site da conta pública na primeira visita, sem apagar um CPF já gravado. */
+function complementarContaPublica(user: User) {
+  if (!supabase || !emSitePublicoCredito()) return
+  const meta = user.user_metadata || {}
+  if (String(meta.origem || '') !== ORIGEM_ROTA_PUBLICO) return
+  if (String(meta.site || '').trim()) return
+  void supabase.auth.updateUser({ data: { site: siteContaAtual() } })
+}
+
+export async function gravarCpfRotaPublico(cpf: string): Promise<{ ok: boolean; erro?: string }> {
+  if (!supabase) return { ok: false, erro: 'Supabase não configurado.' }
+  const digits = soDigitos(cpf)
+  if (!cpfValido(digits)) return { ok: false, erro: 'Informe um CPF válido.' }
+  const { data } = await supabase.auth.getUser()
+  const meta = data.user?.user_metadata || {}
+  const origem = String(meta.origem || '')
+  if (origem && origem !== ORIGEM_ROTA_PUBLICO) {
+    return { ok: false, erro: 'Esta conta é do sistema.' }
+  }
+  const { error } = await supabase.auth.updateUser({
+    data: {
+      cpf: digits,
+      origem: ORIGEM_ROTA_PUBLICO,
+      site: String(meta.site || '').trim() || siteContaAtual(),
+    },
+  })
+  if (error) return { ok: false, erro: 'Não foi possível gravar o CPF.' }
+  return { ok: true }
 }
 
 export function redirectOAuthRotaPublico() {
@@ -262,6 +312,7 @@ function garantirAuth(): Promise<void> {
     void client.auth.getSession().then(
       ({ data }) => {
         window.clearTimeout(t)
+        if (data.session?.user) complementarContaPublica(data.session.user)
         finish(sessaoDeGet(data))
       },
       () => {
@@ -271,6 +322,7 @@ function garantirAuth(): Promise<void> {
     )
     client.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') senhaRecoveryAtiva = true
+      if (session?.user) complementarContaPublica(session.user)
       emitirAuth(session?.user ? contaDeUser(session.user) : null)
       if (!done) {
         done = true

@@ -32,6 +32,20 @@ function fail(erro: string, status = 200) {
   return json({ ok: false, erro }, status)
 }
 
+function dvCpf(nums: number[], factor: number) {
+  const soma = nums.reduce((acc, n, i) => acc + n * (factor - i), 0)
+  const rest = (soma * 10) % 11
+  return rest === 10 ? 0 : rest
+}
+
+function cpfValido(valor: string) {
+  const d = valor.replace(/\D/g, '')
+  if (d.length !== 11 || /^(\d)\1+$/.test(d)) return false
+  const nums = d.split('').map(Number)
+  if (dvCpf(nums.slice(0, 9), 10) !== nums[9]) return false
+  return dvCpf(nums.slice(0, 10), 11) === nums[10]
+}
+
 function otpSecret() {
   return (
     Deno.env.get('PORTAL_OTP_SECRET')?.trim() ||
@@ -278,6 +292,7 @@ Deno.serve(async (req) => {
       const senha = String(body.senha || body.password || '')
       const nome = String(body.nome || '').trim() || email.split('@')[0] || 'Conta'
       const cpf = String(body.cpf || '').replace(/\D/g, '').slice(0, 11)
+      if (!cpfValido(cpf)) return fail('Informe um CPF válido.')
       const site = ['calculadora', 'frota', 'logistica', 'render'].includes(String(body.site || ''))
         ? String(body.site)
         : 'calculadora'
@@ -285,7 +300,7 @@ Deno.serve(async (req) => {
         origem: ORIGEM,
         nome,
         full_name: nome,
-        ...(cpf.length === 11 ? { cpf } : {}),
+        cpf,
         site,
       }
       if (senha.length < 6) return fail('A senha precisa ter pelo menos 6 caracteres.')
@@ -297,10 +312,12 @@ Deno.serve(async (req) => {
         if (!soCalculadora(existente) || !existente.id) {
           return fail('Este e-mail já está em uso.')
         }
+        const atual = await sb.auth.admin.getUserById(existente.id)
+        const anterior = (atual.data.user?.user_metadata || {}) as Record<string, unknown>
         const { error } = await sb.auth.admin.updateUserById(existente.id, {
           password: senha,
           email_confirm: true,
-          user_metadata: meta,
+          user_metadata: { ...anterior, ...meta },
         })
         if (error) return fail(error.message || 'Não foi possível gravar a conta.')
         return json({ ok: true, email })

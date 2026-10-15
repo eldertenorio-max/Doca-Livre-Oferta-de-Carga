@@ -39,6 +39,14 @@ export function cpfCnpjValido(valor: string) {
   return false
 }
 
+export function formatarCpf(valor: string) {
+  const d = soDigitos(valor).slice(0, 11)
+  return d
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+}
+
 export function formatarCpfCnpj(valor: string) {
   const d = soDigitos(valor).slice(0, 14)
   if (d.length <= 11) {

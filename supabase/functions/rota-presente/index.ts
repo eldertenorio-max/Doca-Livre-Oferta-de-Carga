@@ -190,7 +190,8 @@ function siteDoUsuario(user: { user_metadata?: Record<string, unknown> }) {
 }
 
 function cpfDoUsuario(user: { user_metadata?: Record<string, unknown> }) {
-  return String(metaUsuario(user).cpf || '').replace(/\D/g, '')
+  const meta = metaUsuario(user)
+  return String(meta.cpf || meta.CPF || meta.documento || '').replace(/\D/g, '').slice(0, 11)
 }
 
 function nomeDoUsuario(user: { email?: string; user_metadata?: Record<string, unknown> }) {
@@ -222,8 +223,10 @@ async function acaoContas(
   body: Record<string, unknown>,
 ) {
   if (action === 'listar_contas') {
-    const site = String(body.site || '')
-    if (!SITES.has(site)) return fail('Escolha o site.')
+    const sitePedido = String(body.site || '')
+    const todos = sitePedido === 'todos'
+    const site = sitePedido === 'render' ? 'calculadora' : sitePedido
+    if (!todos && !SITES.has(site)) return fail('Escolha o site.')
     const busca = asciiLower(String(body.busca || ''))
     const buscaCpf = busca.replace(/\D/g, '')
 
@@ -255,7 +258,7 @@ async function acaoContas(
           (Boolean(email) && !emailsPortal.has(email))
         if (!contaPublica) return false
         const marcado = siteDoUsuario(u)
-        if (marcado && marcado !== site) return false
+        if (!todos && marcado !== site) return false
         if (!busca) return true
         const nome = asciiLower(nomeDoUsuario(u))
         const cpf = cpfDoUsuario(u)
@@ -271,7 +274,7 @@ async function acaoContas(
         saldo: saldoPorId.get(u.id) || 0,
       }))
       .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-      .slice(0, 200)
+      .slice(0, 500)
 
     return json({ ok: true, contas })
   }
