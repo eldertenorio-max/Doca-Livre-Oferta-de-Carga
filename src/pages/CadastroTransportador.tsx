@@ -791,11 +791,11 @@ export function CadastroTransportadorPage() {
           <ProductMark size="md" />
         </div>
 
-        <h1 className="portal-login__title">Cadastro Oferta de Carga</h1>
+        <h1 className="portal-login__title">Cadastro de Transportador</h1>
         <p className="portal-login__subtitle">
           {veioPago && planoEscolhido
-            ? `Plano ${planoEscolhido.nome} com PIX confirmado. Complete a ficha da transportadora.`
-            : 'Preencha os dados da empresa, anexe os documentos e crie seu acesso. Após o envio, aguarde a aprovação.'}
+            ? `Plano ${planoEscolhido.nome} com PIX confirmado. Complete o cadastro de transportador.`
+            : 'Cadastro de transportador. Preencha os dados da transportadora, anexe os documentos e crie seu acesso. Após o envio, aguarde a aprovação.'}
         </p>
 
         {!isSupabaseConfigured && step !== 'ok' && (
@@ -838,7 +838,7 @@ export function CadastroTransportadorPage() {
               </header>
               <div className="form-card__body">
                 <p className="cadastro-publico__hint">
-                  Este cadastro é só de transportadora. Ela entra abaixo de uma unidade ou de uma
+                  Cadastro de transportador: a empresa entra como transportadora, abaixo de uma unidade ou de uma
                   filial do operador. Operador, filial, embarcador e unidade são cadastrados pelo
                   Super Usuário, na aba Hierarquia. O endereço residencial fica no bloco seguinte.
                   A origem pode usar esse mesmo endereço.
