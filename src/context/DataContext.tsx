@@ -98,6 +98,7 @@ import {
   savePortalAccounts,
   setPortalAccountAtivoPorTransportador,
   syncPortalAccounts,
+  contaEhEquipeHierarquia,
   vincularContasAosTransportadores,
 } from '../lib/portalAuth'
 import { autenticar as autenticarLogistica, saveSessao as saveSessaoLogistica } from '../logistica/lib/auth'
@@ -115,11 +116,17 @@ import { atualizarAvatarUsuarioRemoto, buscarAvatarUsuarioRemoto } from '../lib/
 import { canonicalTransportadorId, sameTransportadorId } from '../lib/transportadorIds'
 import { portalEmailAprovaCadastro, portalEmailRecusaCadastro } from '../lib/portalApi'
 import {
+  cargaPertenceAoEscopo,
   ensureHierarquiaPadrao,
+  grupoIdDaHierarquia,
   gruposDaHierarquia,
   hydrateOrgTree,
+  loadOrgTree,
+  marcasPublicacaoDoNo,
+  nosVisiveis,
   removeTransportadoraDaHierarquia,
   syncTransportadoraNaHierarquia,
+  tidsSobNo,
   type OrgNo,
 } from '../lib/orgHierarchy'
 import { hydratePagamentos } from '../lib/financeiroPagamentos'
@@ -1238,8 +1245,8 @@ function loadAuth(): Profile | null {
       : sessionStorage.getItem(AUTH_KEY)
     if (!raw) return null
     const profile = JSON.parse(raw) as Profile
-    // Equipe Minerva/embarcador removida — força novo login
-    if (profile.role === 'minerva' && !profile.is_superuser) {
+    // Equipe antiga sem ponto na hierarquia não entra. Conta criada na aba Hierarquia entra.
+    if (profile.role === 'minerva' && !profile.is_superuser && !profile.empresa_org_id) {
       sessionStorage.removeItem(AUTH_KEY)
       localStorage.removeItem(AUTH_KEY)
       return null
@@ -1265,6 +1272,38 @@ function ptsCfg(
   carga?: Pick<Carga, 'org_embarcador_id'> | null,
 ) {
   return configPontuacaoDe(db, embarcadorIdDaCarga(carga))
+}
+
+function tidNoEscopo(id: string | null | undefined, tids: string[]) {
+  if (!id) return false
+  return tids.some((t) => t === id || sameTransportadorId(t, id))
+}
+
+/** Equipe da hierarquia só enxerga o próprio ponto e quem está abaixo. */
+function estadoVisivelNaHierarquia(base: DataState, session: Profile | null): DataState {
+  if (!session || session.role !== 'minerva' || session.is_superuser) return base
+  const orgId = (session.empresa_org_id || '').trim()
+  if (!orgId || orgId.startsWith('transportador:')) return base
+  const tree = loadOrgTree()
+  const visiveis = new Set(nosVisiveis(tree, orgId).map((n) => n.id))
+  const tids = tidsSobNo(tree, orgId)
+  const cargas = base.cargas.filter((c) => cargaPertenceAoEscopo(c, visiveis))
+  const cargaIds = new Set(cargas.map((c) => c.id))
+  const gruposOk = new Set([...visiveis].map((id) => grupoIdDaHierarquia(id)))
+  return {
+    ...base,
+    cargas,
+    lances: base.lances.filter((l) => cargaIds.has(l.carga_id)),
+    transportadores: base.transportadores.filter((t) => tidNoEscopo(t.id, tids)),
+    veiculos: (base.veiculos ?? []).filter((v) => tidNoEscopo(v.transportador_id, tids)),
+    motoristas: (base.motoristas ?? []).filter((m) => tidNoEscopo(m.transportador_id, tids)),
+    documentos: (base.documentos ?? []).filter((d) => tidNoEscopo(d.transportador_id, tids)),
+    grupos: base.grupos.filter((g) => gruposOk.has(g.id)),
+    historico: base.historico.filter(
+      (h) => (h.carga_id && cargaIds.has(h.carga_id)) || tidNoEscopo(h.transportador_id, tids),
+    ),
+    historicoPropostas: (base.historicoPropostas ?? []).filter((h) => cargaIds.has(h.carga_id)),
+  }
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {
@@ -2087,6 +2126,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     let { account, isSuperuser, permissoes } = result
 
+    if (contaEhEquipeHierarquia(account)) {
+      setUser({
+        id: account.id,
+        email: account.email,
+        nome: account.nome,
+        usuario: account.usuario,
+        role: 'minerva',
+        transportador_id: null,
+        empresa_org_id: account.empresa_org_id ?? null,
+        is_superuser: false,
+        perfil_operacional: account.perfil_operacional ?? null,
+        permissoes_modulos: permissoes.modulos,
+        avatar_url: account.avatar_url?.trim() || null,
+      })
+      return { ok: true }
+    }
+
     // Garante vínculo conta ↔ transportadora (ex.: Ultrafrio sem transportador_id)
     if (account.role === 'transportador') {
       const linked = vincularContasAosTransportadores(
@@ -2178,9 +2234,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (!account) return prev
       // Perfil da Configuração do Portal é a fonte da verdade
       const isSuperuser = account.role === 'super'
+      const equipe = contaEhEquipeHierarquia(account)
       const perms = getPermissaoUsuario(account)
-      const transportador_id =
-        account.role === 'transportador'
+      const transportador_id = equipe
+        ? null
+        : account.role === 'transportador'
           ? (account.transportador_id ?? prev.transportador_id ?? null)
           : null
       if (transportador_id) {
@@ -2197,7 +2255,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
           })
         }
       }
-      const role = isSuperuser ? ('super' as const) : ('transportador' as const)
+      const role = isSuperuser
+        ? ('super' as const)
+        : equipe
+          ? ('minerva' as const)
+          : ('transportador' as const)
       if (
         prev.transportador_id === transportador_id &&
         prev.is_superuser === isSuperuser &&
@@ -2245,6 +2307,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const publicarCarga = useCallback(
     (payload: PublishPayload) => {
+      const actorEscopo = userRef.current
+      let grupoIdsEscopo = payload.grupoIds
+      let diretoIds = (payload.transportadorDiretoIds ?? []).filter(Boolean)
+      let orgEmbarcadorId = payload.orgEmbarcadorId
+      let orgUnidadeId = payload.orgUnidadeId
+      if (
+        actorEscopo?.role === 'minerva' &&
+        actorEscopo.empresa_org_id &&
+        !actorEscopo.empresa_org_id.startsWith('transportador:')
+      ) {
+        const tree = loadOrgTree()
+        const vis = new Set(nosVisiveis(tree, actorEscopo.empresa_org_id).map((n) => n.id))
+        const marcas = marcasPublicacaoDoNo(tree, actorEscopo.empresa_org_id)
+        orgEmbarcadorId = marcas.org_embarcador_id
+        orgUnidadeId = marcas.org_unidade_id
+        const gruposOk = new Set([...vis].map((id) => grupoIdDaHierarquia(id)))
+        grupoIdsEscopo = payload.grupoIds.filter((id) => gruposOk.has(id))
+        const tids = tidsSobNo(tree, actorEscopo.empresa_org_id)
+        diretoIds = diretoIds.filter((id) => tidNoEscopo(id, tids))
+      }
       const regra = config.usar_regra_prioridade_modo !== false
       const sugerido = calcularPrioridadeEModo(
         payload.prazoLeilaoMinutos,
@@ -2267,7 +2349,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
             : 'Justificativa obrigatória para prioridade alta',
         }
       }
-      const diretoIds = (payload.transportadorDiretoIds ?? []).filter(Boolean)
       const isDireta = modo === 'negociacao_direta'
       if (isDireta) {
         if (diretoIds.length === 0) {
@@ -2276,7 +2357,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             error: 'Selecione ao menos uma transportadora para negociação direta',
           }
         }
-      } else if (payload.grupoIds.length === 0) {
+      } else if (grupoIdsEscopo.length === 0) {
         return { ok: false, error: 'Selecione ao menos um grupo de transportadores' }
       }
       if (payload.prazoLeilaoMinutos < config.prazo_oferta_minimo_minutos) {
@@ -2293,7 +2374,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
 
       const escalonar =
-        !isDireta && Boolean(payload.escalonarGrupos) && payload.grupoIds.length > 1
+        !isDireta && Boolean(payload.escalonarGrupos) && grupoIdsEscopo.length > 1
       const prev = stateRef.current
       const cargaAtual = prev.cargas.find((c) => c.id === payload.cargaId)
       if (!cargaAtual) return { ok: false, error: 'Carga não encontrada' }
@@ -2306,12 +2387,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       )
       const lim = limitesLance(freteOferta, config)
       const actor = userRef.current
-      const grupoIdsPub = isDireta ? [] : payload.grupoIds
+      const grupoIdsPub = isDireta ? [] : grupoIdsEscopo
       const gruposNotif = isDireta
         ? []
         : escalonar
-          ? [payload.grupoIds[0]]
-          : [...payload.grupoIds]
+          ? [grupoIdsEscopo[0]]
+          : [...grupoIdsEscopo]
 
       const cargas = prev.cargas.map((c) => {
         if (c.id !== payload.cargaId) return c
@@ -2323,8 +2404,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
           frete_maximo: lim.max,
           grupo_ids: grupoIdsPub,
           grupos_notificados: gruposNotif,
-          org_embarcador_id: payload.orgEmbarcadorId ?? c.org_embarcador_id ?? null,
-          org_unidade_id: payload.orgUnidadeId ?? c.org_unidade_id ?? null,
+          org_embarcador_id: orgEmbarcadorId ?? c.org_embarcador_id ?? null,
+          org_unidade_id: orgUnidadeId ?? c.org_unidade_id ?? null,
           transportador_direto_ids: isDireta ? [...diretoIds] : [],
           prazo_leilao_minutos: payload.prazoLeilaoMinutos,
           prazo_alocacao_minutos: payload.prazoAlocacaoMinutos,
@@ -2356,7 +2437,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const carga = cargas.find((c) => c.id === payload.cargaId)
       const destDetalhe = isDireta
         ? `${diretoIds.length} transportadora(s)`
-        : `${payload.grupoIds.length} grupo(s)`
+        : `${grupoIdsEscopo.length} grupo(s)`
       const hist = makeHistorico(
         'carga_publicada',
         `Carga ${carga?.numero ?? ''} publicada`,
@@ -4712,6 +4793,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         id: result.transportador.id,
         nome_fantasia: result.transportador.nome_fantasia,
         cnpj: result.transportador.cnpj,
+        parentId: input.orgParentId,
       })
       setState((prev) => {
         const next = mergeOrgGruposNoState(prev, tree)
@@ -5183,8 +5265,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const criarCarga = useCallback(
     (partial?: Partial<Carga>) => {
+      let marcas: Partial<Carga> = {}
+      if (
+        user?.role === 'minerva' &&
+        user.empresa_org_id &&
+        !user.empresa_org_id.startsWith('transportador:')
+      ) {
+        marcas = marcasPublicacaoDoNo(loadOrgTree(), user.empresa_org_id)
+      }
       const nova = normalizeCarga(
-        montarNovaCarga(partial, user?.id ?? null, { persistir: true }),
+        montarNovaCarga({ ...partial, ...marcas }, user?.id ?? null, { persistir: true }),
       )
       setState((prev) => {
         const next = {
@@ -5664,9 +5754,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [state.transportadores],
   )
 
+  const stateVisivel = useMemo(() => estadoVisivelNaHierarquia(state, user), [state, user])
+
   const value = useMemo<DataContextValue>(
     () => ({
-      ...state,
+      ...stateVisivel,
       tick,
       config,
       salvarConfig,
@@ -5747,6 +5839,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       recusarTransportador,
     }),
     [
+      stateVisivel,
       state,
       tick,
       config,

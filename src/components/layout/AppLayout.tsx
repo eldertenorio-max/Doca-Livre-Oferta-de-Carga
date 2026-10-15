@@ -9,6 +9,7 @@ import { ActionFlashHost } from '../ui/ActionFlashHost'
 import { FacialGate } from '../verificacao/FacialGate'
 import { DisponibilidadeMapaFlag } from '../transportador/DisponibilidadeMapaFlag'
 import { canOpenModulo, moduloFromPath } from '../../lib/portalModules'
+import { findOrgNo, loadOrgTree, ORG_TIPO_LABEL } from '../../lib/orgHierarchy'
 import { ehSuperDiegoOuElder, isSuperSession } from '../../lib/superUsers'
 import { canonicalTransportadorId } from '../../lib/transportadorIds'
 import '../../styles/shell.css'
@@ -109,6 +110,18 @@ function IconTruck() {
   )
 }
 
+function IconHierarquia() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M12 4v4M12 12v8M6 16h12" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+      <circle cx="12" cy="4" r="1.6" fill="currentColor" />
+      <circle cx="6" cy="16" r="1.6" fill="currentColor" />
+      <circle cx="12" cy="20" r="1.6" fill="currentColor" />
+      <circle cx="18" cy="16" r="1.6" fill="currentColor" />
+    </svg>
+  )
+}
+
 function IconShield() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -203,6 +216,7 @@ const minervaLinks: NavItem[] = [
   { to: '/embarcador/veiculos', label: 'Veículos', icon: <IconTruck /> },
   { to: '/embarcador/motoristas', label: 'Motoristas', icon: <IconUsers /> },
   { to: '/embarcador/grupos', label: 'Grupos', icon: <IconGroups /> },
+  { to: '/embarcador/hierarquia', label: 'Hierarquia', icon: <IconHierarquia /> },
   { to: '/embarcador/indicadores', label: 'Indicadores', icon: <IconChart /> },
   { to: '/embarcador/pontuacao', label: 'Pontuação', icon: <IconStar /> },
   { to: '/embarcador/financeiro', label: 'Financeiro', icon: <IconWallet /> },
@@ -475,6 +489,20 @@ export function AppLayout() {
         { to: '/transportador/viagens', label: 'Viagens', icon: <IconTruck /> },
       ]
     }
+    if (user?.role === 'minerva') {
+      const ocultos = new Set([
+        '/embarcador/hierarquia',
+        '/embarcador/config',
+        '/embarcador/financeiro',
+        '/embarcador/configuracoes',
+      ])
+      return minervaLinks.filter((item) => {
+        if (ocultos.has(item.to)) return false
+        const mod = moduloFromPath(item.to)
+        if (!mod) return true
+        return canOpenModulo(user?.permissoes_modulos, mod)
+      })
+    }
     // Só transportador (demos / cadastro público) — sem equipe Minerva
     return transportadorLinks.filter((item) => {
       const mod = moduloFromPath(item.to)
@@ -489,8 +517,17 @@ export function AppLayout() {
     return () => window.clearInterval(id)
   }, [])
 
-  const roleLabel =
-    isSuper ? 'Super Usuário' : user?.role === 'logistica' ? 'Empresa · Logística' : 'Transportador'
+  const noHierarquia =
+    user?.role === 'minerva' && user.empresa_org_id
+      ? findOrgNo(loadOrgTree(), user.empresa_org_id)
+      : null
+  const roleLabel = isSuper
+    ? 'Super Usuário'
+    : user?.role === 'logistica'
+      ? 'Empresa · Logística'
+      : noHierarquia
+        ? ORG_TIPO_LABEL[noHierarquia.tipo]
+        : 'Transportador'
 
   return (
     <div className="app-shell">
@@ -522,7 +559,7 @@ export function AppLayout() {
             <DisponibilidadeMapaFlag transportadorId={topbarTransportadorId} variant="topbar" />
           ) : null}
 
-          {isSuper && !actingTransportadorId ? (
+          {(isSuper || user?.role === 'minerva') && !actingTransportadorId ? (
             <button
               type="button"
               className="app-topbar-nova-carga inline-flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-[#2f9e6a] bg-[#2f9e6a] px-3 text-[0.78rem] font-extrabold text-white hover:border-[#268556] hover:bg-[#268556]"
