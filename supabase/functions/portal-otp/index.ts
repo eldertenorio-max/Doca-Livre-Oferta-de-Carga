@@ -528,7 +528,7 @@ Deno.serve(async (req) => {
       const nomeInformado = String(body.nome || '').trim()
       const link =
         String(body.link_login || '').trim() ||
-        'https://ofertadecargas.docalivre.com.br/#/login'
+        'https://ofertadecarga.com.br/#/login'
       if (!transportadorId) {
         return json({ ok: false, erro: 'Transportador não informado.' }, 400)
       }

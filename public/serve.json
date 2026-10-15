@@ -10,7 +10,7 @@
         { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
         {
           "key": "Content-Security-Policy",
-          "value": "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self' https://ofertadecarga.com.br https://mapadafrota.com.br https://ofertadecargas.docalivre.com.br https://mapadalogistica.com.br"
+          "value": "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self' https://ofertadecarga.com.br https://custodarota.com.br https://mapadafrota.com.br https://ofertadecargas.docalivre.com.br https://mapadalogistica.com.br"
         },
         { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains" }
       ]

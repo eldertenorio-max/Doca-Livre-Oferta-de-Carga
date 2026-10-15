@@ -156,7 +156,7 @@ async function asaasFetch(path: string, init?: RequestInit) {
   const method = String(init?.method || 'GET').toUpperCase()
   const headers: Record<string, string> = {
     Accept: 'application/json',
-    'User-Agent': 'DocaLivreOfertaDeCarga/1.0 (https://ofertadecarga.com.br)',
+    'User-Agent': 'DocaLivreOfertaDeCarga/1.0 (https://custodarota.com.br)',
     access_token: key,
     Authorization: `Bearer ${key}`,
   }
@@ -383,11 +383,11 @@ async function clienteAsaas(opts: { nome: string; email: string; cpfCnpj: string
 }
 
 function urlCadastro(planoId: string) {
-  return `https://ofertadecargas.docalivre.com.br/#/cadastro-transportador?plano=${encodeURIComponent(planoId)}&pago=1`
+  return `https://ofertadecarga.com.br/#/cadastro-transportador?plano=${encodeURIComponent(planoId)}&pago=1`
 }
 
 function urlRota() {
-  return 'https://ofertadecarga.com.br/#/rota'
+  return 'https://custodarota.com.br/'
 }
 
 function brl(n: number) {

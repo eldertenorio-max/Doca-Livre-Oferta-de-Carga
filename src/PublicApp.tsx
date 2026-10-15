@@ -2,7 +2,7 @@ import { lazy, Suspense, type ReactNode, useEffect, useMemo } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { motivoBloqueioPublico } from './lib/publicoProtecao'
 import { PublicoBloqueio } from './components/publico/PublicoBloqueio'
-import { urlSistemaComHash } from './lib/siteOfertaDeCarga'
+import { HOST_SISTEMA, urlSistemaComHash } from './lib/siteOfertaDeCarga'
 
 const CalcularRotaPublicoPage = lazy(() =>
   import('./pages/publico/CalcularRotaPublico').then((m) => ({
@@ -43,7 +43,7 @@ function RedirectToSistema({ to }: { to?: string }) {
   }, [url])
   return (
     <p style={{ padding: 24, fontWeight: 700 }}>
-      Abrindo o sistema em ofertadecargas.docalivre.com.br…
+      Abrindo o sistema em {HOST_SISTEMA}…
     </p>
   )
 }

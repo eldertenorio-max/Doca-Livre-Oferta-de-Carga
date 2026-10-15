@@ -16,6 +16,8 @@ const corsHeaders: Record<string, string> = {
 }
 
 const ORIGENS_OK = new Set([
+  'https://custodarota.com.br',
+  'https://www.custodarota.com.br',
   'https://ofertadecarga.com.br',
   'https://www.ofertadecarga.com.br',
   'https://mapadafrota.com.br',
@@ -50,7 +52,7 @@ function corsDe(req: Request): Record<string, string> {
   if (origin && ORIGENS_OK.has(origin)) {
     return { ...corsHeaders, 'Access-Control-Allow-Origin': origin, Vary: 'Origin' }
   }
-  return { ...corsHeaders, 'Access-Control-Allow-Origin': 'https://ofertadecarga.com.br', Vary: 'Origin' }
+  return { ...corsHeaders, 'Access-Control-Allow-Origin': 'https://custodarota.com.br', Vary: 'Origin' }
 }
 
 function origemOk(req: Request): boolean {

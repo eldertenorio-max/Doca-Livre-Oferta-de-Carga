@@ -77,7 +77,7 @@ function escapeHtml(raw: string) {
 }
 
 function urlRota() {
-  return 'https://ofertadecarga.com.br/#/rota'
+  return 'https://custodarota.com.br/'
 }
 
 function ehDiegoOuElder(email: string, usuario: string) {

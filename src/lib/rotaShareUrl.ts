@@ -91,7 +91,7 @@ export function queryRotaCompartilhada(p: RotaShareDados): string {
   return q.toString()
 }
 
-/** Link público da rota (ofertadecarga.com.br), com origem e destino. */
+/** Link público da rota (custodarota.com.br), com origem e destino. */
 export function montarUrlRotaPublica(p: RotaShareDados): string {
   const q = queryRotaCompartilhada(p)
   if (typeof window !== 'undefined' && (isSiteOfertaDeCarga() || isLocalDev())) {

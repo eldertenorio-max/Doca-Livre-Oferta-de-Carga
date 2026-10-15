@@ -181,7 +181,7 @@ export function urlPublicacaoFeed(postId: string) {
   const origem =
     typeof window !== 'undefined'
       ? `${window.location.origin}${window.location.pathname.replace(/\/$/, '')}`
-      : 'https://ofertadecargas.docalivre.com.br'
+      : 'https://ofertadecarga.com.br'
   return `${origem}/#/embarcador/mapa-logistica/feed?post=${encodeURIComponent(postId)}`
 }
 

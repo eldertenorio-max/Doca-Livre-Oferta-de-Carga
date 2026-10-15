@@ -12,7 +12,7 @@ import { ehSuperDiegoOuElder } from '../../lib/superUsers'
 import '../../styles/cadastro.css'
 
 const SITES = [
-  { id: 'calculadora', label: 'Calculadora', host: 'ofertadecarga.com.br' },
+  { id: 'calculadora', label: 'Calculadora', host: 'custodarota.com.br' },
   { id: 'frota', label: 'Mapa da Frota', host: 'mapadafrota.com.br' },
   { id: 'logistica', label: 'Mapa da Logística', host: 'mapadalogistica.com.br' },
   { id: 'todos', label: 'Mostrar todos', host: 'todas as contas' },

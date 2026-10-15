@@ -21,7 +21,7 @@ type Mode = 'login' | 'cadastro' | 'senha'
 type Step = 'form' | 'codigo' | 'dados'
 
 const SITES_ATALHO = [
-  { href: URL_ROTA_PUBLICA, label: 'Calculadora de rota', host: 'ofertadecarga.com.br' },
+  { href: URL_ROTA_PUBLICA, label: 'Calculadora de rota', host: 'custodarota.com.br' },
   { href: URL_MAPA_FROTA, label: 'Mapa da Frota', host: 'mapadafrota.com.br' },
   { href: URL_MAPA_LOGISTICA, label: 'Mapa da Logística', host: 'mapadalogistica.com.br' },
 ] as const

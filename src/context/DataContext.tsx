@@ -4881,7 +4881,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const linkLogin =
       typeof window !== 'undefined'
         ? `${window.location.origin}${window.location.pathname || '/'}#/login`
-        : 'https://ofertadecargas.docalivre.com.br/#/login'
+        : 'https://ofertadecarga.com.br/#/login'
 
     const mail = await portalEmailAprovaCadastro({
       email: emailDestino,

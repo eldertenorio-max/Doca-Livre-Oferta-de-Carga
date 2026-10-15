@@ -32,13 +32,13 @@
       content="Cadastre-se como transportador, negocie fretes e acompanhe a frota no mapa."
     />
     <!-- Quadrado primeiro: WhatsApp usa como miniatura à esquerda -->
-    <meta property="og:image" content="https://ofertadecargas.docalivre.com.br/og-square.png?v=oferta5" />
-    <meta property="og:image:secure_url" content="https://ofertadecargas.docalivre.com.br/og-square.png?v=oferta5" />
+    <meta property="og:image" content="https://ofertadecarga.com.br/og-square.png?v=oferta5" />
+    <meta property="og:image:secure_url" content="https://ofertadecarga.com.br/og-square.png?v=oferta5" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="1200" />
     <meta property="og:image:alt" content="Logo Doca Livre Oferta de Carga" />
-    <meta property="og:image" content="https://ofertadecargas.docalivre.com.br/og-image.png?v=oferta5" />
+    <meta property="og:image" content="https://ofertadecarga.com.br/og-image.png?v=oferta5" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
 
@@ -48,7 +48,7 @@
       name="twitter:description"
       content="Cadastre-se como transportador, negocie fretes e acompanhe a frota no mapa."
     />
-    <meta name="twitter:image" content="https://ofertadecargas.docalivre.com.br/og-square.png?v=oferta5" />
+    <meta name="twitter:image" content="https://ofertadecarga.com.br/og-square.png?v=oferta5" />
 
     <title>Doca Livre — Oferta de Carga</title>
     <script>
@@ -72,10 +72,10 @@
         }
         var h = (location.hostname || '').toLowerCase().replace(/^www\./, '')
         var canon = document.querySelector('link[rel="canonical"]')
-        if (h === 'ofertadecarga.com.br') {
+        if (h === 'custodarota.com.br') {
           document.title = 'Calcular rota — Oferta de Carga'
           if (canon) {
-            canon.setAttribute('href', 'https://ofertadecarga.com.br/' + (location.search || ''))
+            canon.setAttribute('href', 'https://custodarota.com.br/' + (location.search || ''))
           }
           if (location.hash) {
             var hash = location.hash.replace(/^#/, '')
@@ -113,9 +113,13 @@
               history.replaceState(null, '', '/' + (hqL || location.search || ''))
             }
           }
-        } else if (h === 'sistema.ofertadecarga.com.br' || h === 'ofertadecargas.docalivre.com.br') {
+        } else if (
+          h === 'ofertadecarga.com.br' ||
+          h === 'sistema.ofertadecarga.com.br' ||
+          h === 'ofertadecargas.docalivre.com.br'
+        ) {
           document.title = 'Sistema — Oferta de Carga'
-          if (canon) canon.setAttribute('href', 'https://ofertadecargas.docalivre.com.br/')
+          if (canon) canon.setAttribute('href', 'https://ofertadecarga.com.br/')
         }
       })()
     </script>
@@ -134,13 +138,13 @@
       })
       // Marca o build. Não recarrega a página — isso deixava a 1ª visita em branco.
       ;(function () {
-        var BUILD = 'rota-publico-cache-v340'
+        var BUILD = 'rota-publico-cache-v341'
         try {
           localStorage.setItem('doca-html-bust', BUILD)
         } catch (e) {}
         var h = (location.hostname || '').toLowerCase().replace(/^www\./, '')
         var publico =
-          h === 'ofertadecarga.com.br' ||
+          h === 'custodarota.com.br' ||
           h === 'mapadafrota.com.br' ||
           h === 'mapadalogistica.com.br'
         if (publico && 'serviceWorker' in navigator) {

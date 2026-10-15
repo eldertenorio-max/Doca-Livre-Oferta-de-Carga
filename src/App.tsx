@@ -45,6 +45,7 @@ import {
   isOnrenderHome,
   isSiteMapaFrota,
   isSiteMapaLogistica,
+  HOST_SISTEMA,
   isSiteOfertaDeCarga,
   urlSistemaComHash,
 } from './lib/siteOfertaDeCarga'
@@ -70,7 +71,7 @@ function RedirectToSistema({ to }: { to?: string }) {
   }, [url])
   return (
     <p style={{ padding: 24, fontWeight: 700 }}>
-      Abrindo o sistema em ofertadecargas.docalivre.com.br…
+      Abrindo o sistema em {HOST_SISTEMA}…
     </p>
   )
 }

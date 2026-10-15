@@ -1,9 +1,11 @@
 /** Calculadora pública. */
-export const HOST_OFERTA_DE_CARGA = 'ofertadecarga.com.br'
+export const HOST_OFERTA_DE_CARGA = 'custodarota.com.br'
 /** Mapa da Frota público. */
 export const HOST_MAPA_FROTA = 'mapadafrota.com.br'
-/** Sistema (login, kanban, cadastro) — já no ar no Render. */
-export const HOST_SISTEMA = 'ofertadecargas.docalivre.com.br'
+/** Sistema (login, kanban, cadastro). */
+export const HOST_SISTEMA = 'ofertadecarga.com.br'
+/** Endereço antigo do sistema. Continua abrindo o mesmo app. */
+export const HOST_SISTEMA_ANTIGO = 'ofertadecargas.docalivre.com.br'
 /** Mapa da Logística (outro produto). */
 export const HOST_MAPA_LOGISTICA = 'mapadalogistica.com.br'
 
@@ -40,7 +42,7 @@ export function isLocalDev(hostname = hostAtual()): boolean {
   return h === 'localhost' || h === '127.0.0.1'
 }
 
-/** Home do calcular rota: ofertadecarga.com.br (e www). */
+/** Home do calcular rota: custodarota.com.br (e www). */
 export function isSiteOfertaDeCarga(hostname = hostAtual()): boolean {
   return hostCanonico(hostname) === HOST_OFERTA_DE_CARGA
 }
@@ -63,11 +65,12 @@ export function isSitePublicoLimpo(hostname = hostAtual()): boolean {
   )
 }
 
-/** Sistema: ofertadecargas.docalivre.com.br. */
+/** Sistema: ofertadecarga.com.br. O endereço antigo também entra. */
 export function isSiteSistema(hostname = hostAtual()): boolean {
   const h = hostCanonico(hostname)
   return (
     h === HOST_SISTEMA ||
+    h === HOST_SISTEMA_ANTIGO ||
     h === 'sistema.ofertadecarga.com.br' ||
     h.endsWith('.onrender.com')
   )
@@ -118,7 +121,7 @@ export function urlSistemaComHash(path: string): string {
   return `${URL_SISTEMA}/#${normPath(path)}`
 }
 
-/** Calculadora pública: sempre ofertadecarga.com.br (sem #/rota). */
+/** Calculadora pública: sempre custodarota.com.br (sem #/rota). */
 export function hrefRota(): string {
   if (isSiteOfertaDeCarga()) return '/'
   if (isLocalDev()) return '/rota'
