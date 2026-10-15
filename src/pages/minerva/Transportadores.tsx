@@ -27,6 +27,8 @@ import {
   whatsappCredenciaisHref,
 } from '../../lib/credenciaisTransportadorMsg'
 import type { ClassificacaoTransportador, SituacaoTransportador, TipoDocumentoTransportador, Transportador } from '../../types'
+import { FotoFacialCadastro } from '../../components/verificacao/FotoFacialCadastro'
+import { facialParaTransportadora } from '../../lib/verificacaoFacial'
 import '../../styles/cadastro.css'
 import '../../components/verificacao/verificacaoFacial.css'
 import '../../styles/grid-cargas.css'
@@ -486,6 +488,10 @@ export function TransportadoresPage() {
       contato_nome: form.contato_nome,
       contato_telefone: form.contato_telefone,
       logo_url: logoRemovida ? undefined : (logoPreview ?? form.logo_url),
+      facial_descriptor: form.facial_descriptor,
+      facial_foto_url: form.facial_foto_url,
+      facial_verificado_em: form.facial_verificado_em,
+      facial_proxima_em: form.facial_proxima_em,
       perfil_publico: normalizePerfilPublico(form.perfil_publico),
       created_at: form.created_at ?? new Date().toISOString(),
     }
@@ -619,6 +625,20 @@ export function TransportadoresPage() {
             Ver perfil público
           </button>
         </div>
+
+        {facialParaTransportadora(ficha.ramificacao) || ficha.facial_foto_url ? (
+          <section className="form-card form-card--green" style={{ marginBottom: 16 }}>
+            <header className="form-card__head">
+              <h2 className="form-card__title">Verificação facial</h2>
+            </header>
+            <div className="form-card__body">
+              <FotoFacialCadastro
+                fotoUrl={ficha.facial_foto_url}
+                verificadoEm={ficha.facial_verificado_em}
+              />
+            </div>
+          </section>
+        ) : null}
 
         {previewPerfil ? (
           <TransportadorPerfilSite
@@ -924,6 +944,20 @@ export function TransportadoresPage() {
           Revisar cadastro — {revisao.nome_fantasia}
         </h1>
 
+        {facialParaTransportadora(revisao.ramificacao) || revisao.facial_foto_url ? (
+          <section className="form-card form-card--green" style={{ marginBottom: 16 }}>
+            <header className="form-card__head">
+              <h2 className="form-card__title">Verificação facial</h2>
+            </header>
+            <div className="form-card__body">
+              <FotoFacialCadastro
+                fotoUrl={revisao.facial_foto_url}
+                verificadoEm={revisao.facial_verificado_em}
+              />
+            </div>
+          </section>
+        ) : null}
+
         <div className="cadastro-grid" style={{ gap: 16 }}>
           <section className="form-card form-card--blue">
             <header className="form-card__head">
@@ -1029,23 +1063,6 @@ export function TransportadoresPage() {
                   if (file) await handleArquivoDocumento(file)
                 }}
               />
-              {revisao.facial_foto_url ? (
-                <div className="facial-ok" style={{ marginBottom: 16 }}>
-                  <img src={revisao.facial_foto_url} alt="Verificação facial do responsável" />
-                  <div>
-                    <strong>Verificação facial</strong>
-                    <p className="form-field-hint">
-                      Rosto gravado no cadastro
-                      {revisao.facial_verificado_em
-                        ? ` em ${formatDateTime(revisao.facial_verificado_em)}`
-                        : ''}
-                      .
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <p className="cadastro-empty">Verificação facial ainda não feita.</p>
-              )}
               {docsRevisao.length === 0 ? (
                 <p className="cadastro-empty">Nenhum documento anexado.</p>
               ) : (
@@ -1325,6 +1342,7 @@ export function TransportadoresPage() {
                 <thead>
                   <tr>
                     <th>Nome</th>
+                    <th>Facial</th>
                     <th>CNPJ</th>
                     <th>Cidade</th>
                     <th>Classificação</th>
@@ -1359,6 +1377,17 @@ export function TransportadoresPage() {
                               <div>{t.razao_social}</div>
                             </div>
                           </div>
+                        </td>
+                        <td>
+                          {t.facial_foto_url ? (
+                            <img
+                              className="facial-lista"
+                              src={t.facial_foto_url}
+                              alt={`Foto facial de ${t.nome_fantasia}`}
+                            />
+                          ) : (
+                            <span style={{ color: '#94a3b8' }}>—</span>
+                          )}
                         </td>
                         <td>{t.cnpj}</td>
                         <td>
@@ -1549,6 +1578,20 @@ export function TransportadoresPage() {
           </div>
         </div>
       </section>
+
+      {editingId && (facialParaTransportadora(form.ramificacao) || form.facial_foto_url) ? (
+        <section className="form-card form-card--green" style={{ marginBottom: 16 }}>
+          <header className="form-card__head">
+            <h2 className="form-card__title">Verificação facial</h2>
+          </header>
+          <div className="form-card__body">
+            <FotoFacialCadastro
+              fotoUrl={form.facial_foto_url}
+              verificadoEm={form.facial_verificado_em}
+            />
+          </div>
+        </section>
+      ) : null}
 
       <div className="cadastro-grid" style={{ gap: 16 }}>
         <section className="form-card form-card--blue">

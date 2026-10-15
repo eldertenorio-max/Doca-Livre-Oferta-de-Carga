@@ -327,6 +327,13 @@ export function TransportadorasKanbanView({
                       <span>{iniciais(t.nome_fantasia || t.razao_social)}</span>
                     )}
                   </div>
+                  {t.facial_foto_url ? (
+                    <img
+                      className="facial-lista"
+                      src={t.facial_foto_url}
+                      alt="Foto da verificação facial"
+                    />
+                  ) : null}
                   <div className="transp-card__info">
                     <h3 className="transp-card__nome">{t.nome_fantasia || t.razao_social}</h3>
                     {tel ? (

@@ -70,6 +70,12 @@ export function descritorValido(valor: unknown): number[] | null {
   return nums
 }
 
+/** Por enquanto a facial é só da transportadora. Motorista, embarcador e unidade ficam de fora. */
+export function facialParaTransportadora(ramificacao: string | null | undefined): boolean {
+  const r = (ramificacao || '').trim().toLowerCase()
+  return !r || r === 'transportadora'
+}
+
 /** Sem rosto gravado, cobra na hora. Com rosto, só quando a data marcada chega. */
 export function deveCobrarVerificacaoFacial(t: FacialReferencia | null | undefined): boolean {
   if (!t) return false

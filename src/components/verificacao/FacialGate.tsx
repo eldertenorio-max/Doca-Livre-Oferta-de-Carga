@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import { useData } from '../../context/DataContext'
-import { deveCobrarVerificacaoFacial, descritorValido, type FacialCaptura } from '../../lib/verificacaoFacial'
+import {
+  deveCobrarVerificacaoFacial,
+  descritorValido,
+  facialParaTransportadora,
+  type FacialCaptura,
+} from '../../lib/verificacaoFacial'
 import { VerificacaoFacial } from './VerificacaoFacial'
 import './verificacaoFacial.css'
 
@@ -15,7 +20,8 @@ export function FacialGate() {
   }
 
   const cadastro = transportadores.find((t) => t.id === user.transportador_id)
-  if (!cadastro || !deveCobrarVerificacaoFacial(cadastro)) return null
+  if (!cadastro || !facialParaTransportadora(cadastro.ramificacao)) return null
+  if (!deveCobrarVerificacaoFacial(cadastro)) return null
 
   const referencia = descritorValido(cadastro.facial_descriptor)
   const modo = referencia ? 'confirmar' : 'cadastrar'

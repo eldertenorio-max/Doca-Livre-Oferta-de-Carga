@@ -19,6 +19,7 @@ import { isAcceptedImageFile } from '../lib/veiculoFotos'
 import { ImageCropModal } from '../components/ui/ImageCropModal'
 import type { TipoDocumentoTransportador } from '../types'
 import { VerificacaoFacial } from '../components/verificacao/VerificacaoFacial'
+import { facialParaTransportadora } from '../lib/verificacaoFacial'
 import type { FacialCaptura } from '../lib/verificacaoFacial'
 import { CnpjInput } from '../components/ui/CnpjInput'
 import { PontoMapPreview } from '../components/ui/PontoMapPreview'
@@ -89,6 +90,7 @@ export function CadastroTransportadorPage() {
   )
   const [step, setStep] = useState<Step>(1)
   const [facial, setFacial] = useState<FacialCaptura | null>(null)
+  const exigeFacial = facialParaTransportadora(ramificacao)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
@@ -641,7 +643,7 @@ export function CadastroTransportadorPage() {
       setError('Anexe todos os documentos obrigatórios.')
       return
     }
-    if (!facial) {
+    if (exigeFacial && !facial) {
       setError('Faça a verificação facial do responsável antes de continuar.')
       return
     }
@@ -724,7 +726,7 @@ export function CadastroTransportadorPage() {
         nome: acesso.nome.trim() || empresa.contato_nome.trim(),
         verifyToken: verifyToken || undefined,
       },
-      facial,
+      facial: exigeFacial ? facial : null,
       documentos: DOCUMENTOS_TRANSPORTADOR.flatMap((d) => {
         const item = docs[d.tipo]
         if (!item) return []
@@ -1381,7 +1383,12 @@ export function CadastroTransportadorPage() {
                   })}
                 </div>
                 <div style={{ marginTop: 18 }}>
-                  {facial ? (
+                  {exigeFacial ? null : (
+                    <p className="cadastro-publico__hint">
+                      A verificação facial, por enquanto, é só no cadastro da transportadora.
+                    </p>
+                  )}
+                  {exigeFacial && facial ? (
                     <div className="facial-ok">
                       <img src={facial.imagemDataUrl} alt="Rosto confirmado na verificação" />
                       <div>
@@ -1398,7 +1405,7 @@ export function CadastroTransportadorPage() {
                         </button>
                       </div>
                     </div>
-                  ) : (
+                  ) : exigeFacial ? (
                     <>
                       <p className="cadastro-publico__hint">
                         Verificação ao vivo, no estilo do banco: enquadre o rosto, pisque e vire a cabeça.
@@ -1406,7 +1413,7 @@ export function CadastroTransportadorPage() {
                       </p>
                       <VerificacaoFacial modo="cadastrar" onConcluido={setFacial} />
                     </>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </section>
@@ -1415,7 +1422,7 @@ export function CadastroTransportadorPage() {
               <button type="button" className="cadastro-btn cadastro-btn--ghost" onClick={() => setStep(2)}>
                 Voltar
               </button>
-              <button type="submit" className="portal-login__submit" disabled={!facial}>
+              <button type="submit" className="portal-login__submit" disabled={exigeFacial && !facial}>
                 Continuar
               </button>
             </div>

@@ -12,7 +12,12 @@ import {
 } from './portalAuth'
 import { canonicalTransportadorId } from './transportadorIds'
 import { DOCUMENTOS_TRANSPORTADOR, TIPOS_DOC_OBRIGATORIOS } from './transportadorDocs'
-import { agendarProximaFacial, descritorValido, type FacialCaptura } from './verificacaoFacial'
+import {
+  agendarProximaFacial,
+  descritorValido,
+  facialParaTransportadora,
+  type FacialCaptura,
+} from './verificacaoFacial'
 import type {
   Transportador,
   TransportadorDocumento,
@@ -127,7 +132,10 @@ export function validarCadastroTransportador(
     }
   }
 
-  if (!input.facial?.imagemDataUrl?.startsWith('data:image/') || !descritorValido(input.facial.descriptor)) {
+  if (
+    facialParaTransportadora(input.ramificacao) &&
+    (!input.facial?.imagemDataUrl?.startsWith('data:image/') || !descritorValido(input.facial.descriptor))
+  ) {
     return 'Faça a verificação facial do responsável antes de continuar.'
   }
 
