@@ -2,9 +2,10 @@ import { appStoreGet, appStoreGetCached, appStoreSet, migrateLocalKeyToAppStore 
 import { canonicalTransportadorId, sameTransportadorId } from './transportadorIds'
 import type { GrupoTransportador } from '../types'
 
-/** Hierarquia organizacional do Oferta de Carga.
+/** Hierarquia organizacional do Oferta de Carga, igual à do Doca Livre.
  * Super Usuários ficam acima de tudo.
- * Abaixo: Operador logístico ou Embarcador → Unidade → Transportadoras.
+ * Abaixo: Operador Logístico → Filial do Operador → Embarcador → Unidade → Transportadora.
+ * O embarcador também pode ficar direto no operador. Unidade e transportadora também podem ficar na filial.
  * Quem está num ponto vê a si mesmo e quem está abaixo. Quem está acima vê esse ponto.
  */
 
@@ -44,14 +45,26 @@ export const SUPER_HIERARQUIA = [
   { nome: 'Wenderson', usuario: 'wenderson' },
 ] as const
 
-/** Super → operador ou embarcador → unidade → transportadora. */
+/** Pais permitidos de cada tipo, como no Doca Livre. */
+const PAIS_VALIDOS: Record<OrgTipo, OrgTipo[]> = {
+  operador_logistico: [],
+  filial_operador: ['operador_logistico'],
+  embarcador: ['filial_operador', 'operador_logistico'],
+  unidade: ['embarcador', 'filial_operador'],
+  transportadora: ['unidade', 'filial_operador'],
+}
+
+/** Quem pode nascer em cada ponto. No topo: operador logístico ou embarcador. */
 export function allowedOrgChildTypes(tipoPai: string | null | undefined): OrgTipo[] {
+  const tipos: OrgTipo[] = [
+    'operador_logistico',
+    'filial_operador',
+    'embarcador',
+    'unidade',
+    'transportadora',
+  ]
   if (!tipoPai) return ['operador_logistico', 'embarcador']
-  if (tipoPai === 'operador_logistico') return ['filial_operador', 'embarcador']
-  if (tipoPai === 'filial_operador') return ['embarcador', 'unidade']
-  if (tipoPai === 'embarcador') return ['unidade']
-  if (tipoPai === 'unidade') return ['transportadora']
-  return []
+  return tipos.filter((t) => PAIS_VALIDOS[t].includes(tipoPai as OrgTipo))
 }
 
 /** Tipos que o Super pode criar em cada ponto. O cadastro público não usa esta lista. */
@@ -277,12 +290,7 @@ export function cargaPertenceAoEscopo(
 function parentAceitaTransportadora(tree: OrgNo[], parentId: string | null | undefined) {
   const pai = findOrgNo(tree, parentId)
   if (!pai) return false
-  return (
-    pai.tipo === 'unidade' ||
-    pai.tipo === 'embarcador' ||
-    pai.tipo === 'filial_operador' ||
-    pai.tipo === 'operador_logistico'
-  )
+  return PAIS_VALIDOS.transportadora.includes(pai.tipo)
 }
 
 /** IDs de transportadoras abaixo deste nó (unidade ou embarcador). */

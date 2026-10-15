@@ -174,15 +174,12 @@ export function CadastroTransportadorPage() {
     void hydrateOrgTree().then((tree) => {
       if (!ativo) return
       const flat = flattenOrg(tree)
-      const unidades = flat.filter((n) => n.tipo === 'unidade' || n.tipo === 'filial_operador')
-      const base =
-        unidades.length > 0
-          ? unidades
-          : flat.filter((n) => n.tipo === 'embarcador' || n.tipo === 'operador_logistico')
-      const opcoes = base.map((n) => ({
-        id: n.id,
-        rotulo: trilhaHierarquia(tree, n),
-      }))
+      const opcoes = flat
+        .filter((n) => n.tipo === 'unidade' || n.tipo === 'filial_operador')
+        .map((n) => ({
+          id: n.id,
+          rotulo: trilhaHierarquia(tree, n),
+        }))
       setPaisHierarquia(opcoes)
       setOrgParentId((atual) => atual || (opcoes.length === 1 ? opcoes[0].id : ''))
     })
@@ -620,15 +617,14 @@ export function CadastroTransportadorPage() {
     e.preventDefault()
     setError('')
     if (!orgParentId) {
-      setError('Escolha a unidade ou o embarcador da hierarquia ao qual você pertence.')
+      setError('Escolha a unidade ou a filial da hierarquia à qual a transportadora pertence.')
       return
     }
     if (!empresa.cnpj.trim() || !empresa.nome_fantasia.trim() || !empresa.razao_social.trim()) {
       setError('Preencha CNPJ, Nome Fantasia e Razão Social.')
       return
     }
-    const precisaRntrc = ramificacao === 'transportadora' || ramificacao === 'motorista'
-    if (precisaRntrc && !empresa.rntrc.trim()) {
+    if (!empresa.rntrc.trim()) {
       setError('Preencha o RNTRC (registro ANTT).')
       return
     }
@@ -739,7 +735,7 @@ export function CadastroTransportadorPage() {
     }
     setLoading(true)
     const result = await registrarCadastroTransportador({
-      ramificacao: ramificacao === 'motorista' ? 'motorista' : 'transportadora',
+      ramificacao: RAMIFICACAO_PUBLICA,
       orgParentId,
       plano: planoEscolhido?.id,
       empresa,
@@ -798,7 +794,7 @@ export function CadastroTransportadorPage() {
         <h1 className="portal-login__title">Cadastro Oferta de Carga</h1>
         <p className="portal-login__subtitle">
           {veioPago && planoEscolhido
-            ? `Plano ${planoEscolhido.nome} com PIX confirmado. Complete a ficha do Oferta de Carga e informe a ramificação da empresa.`
+            ? `Plano ${planoEscolhido.nome} com PIX confirmado. Complete a ficha da transportadora.`
             : 'Preencha os dados da empresa, anexe os documentos e crie seu acesso. Após o envio, aguarde a aprovação.'}
         </p>
 
@@ -842,18 +838,19 @@ export function CadastroTransportadorPage() {
               </header>
               <div className="form-card__body">
                 <p className="cadastro-publico__hint">
-                  Você entra como transportadora ou motorista, abaixo da unidade ou do embarcador
-                  escolhido. Embarcador e operador são cadastrados pelo Super Usuário. O endereço
-                  residencial fica no bloco seguinte. A origem pode usar esse mesmo endereço.
+                  Este cadastro é só de transportadora. Ela entra abaixo de uma unidade ou de uma
+                  filial do operador. Operador, filial, embarcador e unidade são cadastrados pelo
+                  Super Usuário, na aba Hierarquia. O endereço residencial fica no bloco seguinte.
+                  A origem pode usar esse mesmo endereço.
                 </p>
 
                 <p className="cadastro-label" style={{ marginBottom: 8 }}>
-                  Onde você entra na hierarquia <span>*</span>
+                  Unidade ou filial <span>*</span>
                 </p>
                 {paisHierarquia.length === 0 ? (
                   <p className="cadastro-publico__hint">
-                    Ainda não há unidade ou embarcador na hierarquia. Peça ao Super Usuário para
-                    cadastrar esse ponto antes de continuar.
+                    Ainda não há unidade ou filial na hierarquia. Peça ao Super Usuário para
+                    cadastrar esse ponto na aba Hierarquia antes de continuar.
                   </p>
                 ) : (
                   <select
@@ -862,7 +859,7 @@ export function CadastroTransportadorPage() {
                     required
                     onChange={(e) => setOrgParentId(e.target.value)}
                   >
-                    <option value="">Selecione a unidade ou o embarcador</option>
+                    <option value="">Selecione a unidade ou a filial</option>
                     {paisHierarquia.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.rotulo}
@@ -870,25 +867,6 @@ export function CadastroTransportadorPage() {
                     ))}
                   </select>
                 )}
-
-                <p className="cadastro-label" style={{ margin: '14px 0 8px' }}>
-                  Tipo <span>*</span>
-                </p>
-                <div className="cadastro-ramificacoes" role="radiogroup" aria-label="Tipo de cadastro">
-                  {RAMIFICACOES_PUBLICAS.map((r) => (
-                    <button
-                      key={r.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={ramificacao === r.id}
-                      className={`cadastro-ramificacao${ramificacao === r.id ? ' is-on' : ''}`}
-                      onClick={() => setRamificacao(r.id)}
-                    >
-                      <strong>{r.label}</strong>
-                      <span>{r.resumo}</span>
-                    </button>
-                  ))}
-                </div>
 
                 <div className="cadastro-empresa-topo">
                 <div className="cadastro-logo">
@@ -1016,13 +994,13 @@ export function CadastroTransportadorPage() {
                 </div>
 
                 <div className="form-fields">
-                  <Field label="RNTRC (ANTT)" required={ramificacao === 'transportadora' || ramificacao === 'motorista'}>
+                  <Field label="RNTRC (ANTT)" required>
                     <input
                       value={empresa.rntrc}
                       onChange={(e) => setEmp('rntrc', onlyDigits(e.target.value, 14))}
                       placeholder="Registro ANTT (somente números)"
                       inputMode="numeric"
-                      required={ramificacao === 'transportadora' || ramificacao === 'motorista'}
+                      required
                     />
                   </Field>
                   <Field label="Inscrição Estadual">
