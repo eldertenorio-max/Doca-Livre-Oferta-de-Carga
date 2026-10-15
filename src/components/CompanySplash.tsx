@@ -61,7 +61,7 @@ export function CompanySplash({ onComplete }: Props) {
           <div className="intro-progress-track">
             <div className="intro-progress-bar" style={{ width: `${progress}%` }} />
           </div>
-          <span className="intro-progress-label">Carregando… {Math.round(progress)}%</span>
+          <span className="intro-progress-label">Carregando o sistema… {Math.round(progress)}%</span>
         </div>
       </div>
     </div>

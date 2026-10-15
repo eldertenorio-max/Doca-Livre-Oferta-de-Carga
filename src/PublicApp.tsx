@@ -58,7 +58,7 @@ function PublicoGuard({ children }: { children: ReactNode }) {
   return children
 }
 
-function Carregando() {
+function Carregando({ texto }: { texto: string }) {
   return (
     <p
       style={{
@@ -72,7 +72,7 @@ function Carregando() {
         fontFamily: 'system-ui, sans-serif',
       }}
     >
-      Carregando…
+      {texto}
     </p>
   )
 }
@@ -83,7 +83,7 @@ export default function PublicApp() {
   if (host === 'mapadafrota.com.br') {
     return (
       <PublicoGuard>
-        <Suspense fallback={<Carregando />}>
+        <Suspense fallback={<Carregando texto="Carregando o mapa da frota…" />}>
           <Routes>
             <Route path="/" element={<MapaFrotaPublicoPage />} />
             <Route path="/mapa" element={<Navigate to="/" replace />} />
@@ -97,7 +97,7 @@ export default function PublicApp() {
   if (host === 'mapadalogistica.com.br') {
     return (
       <PublicoGuard>
-        <Suspense fallback={<Carregando />}>
+        <Suspense fallback={<Carregando texto="Carregando o mapa da logística…" />}>
           <LogisticaAuthProvider>
             <Routes>
               <Route path="/" element={<LogisticaMapaPage publico />} />
@@ -117,7 +117,7 @@ export default function PublicApp() {
 
   return (
     <PublicoGuard>
-      <Suspense fallback={<Carregando />}>
+      <Suspense fallback={<Carregando texto="Carregando a calculadora de rota…" />}>
         <Routes>
           <Route path="/" element={<CalcularRotaPublicoPage />} />
           <Route path="/diego-lab" element={<CalcularRotaPublicoPage />} />

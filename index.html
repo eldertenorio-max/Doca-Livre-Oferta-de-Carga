@@ -138,7 +138,7 @@
       })
       // Marca o build. Não recarrega a página — isso deixava a 1ª visita em branco.
       ;(function () {
-        var BUILD = 'rota-publico-cache-v348'
+        var BUILD = 'rota-publico-cache-v349'
         try {
           localStorage.setItem('doca-html-bust', BUILD)
         } catch (e) {}
@@ -160,7 +160,9 @@
           var boot = document.getElementById('doca-boot')
           if (!boot) return
           boot.innerHTML =
-            '<p style="margin:0 0 10px;font-weight:800">A calculadora não carregou.</p>' +
+            '<p style="margin:0 0 10px;font-weight:800">' +
+            (window.__DOCA_BOOT_FAIL || 'A página não carregou.') +
+            '</p>' +
             '<button type="button" id="doca-boot-retry" style="border:0;border-radius:10px;padding:10px 14px;background:#0f172a;color:#fff;font-weight:800;cursor:pointer">Tentar de novo</button>'
           var btn = document.getElementById('doca-boot-retry')
           if (btn)
@@ -175,8 +177,34 @@
         id="doca-boot"
         style="min-height:100dvh;display:grid;place-items:center;background:#efe8dc;color:#0f172a;font-family:system-ui,sans-serif;text-align:center;padding:24px"
       >
-        <p style="margin:0;font-weight:800">Carregando a calculadora de rota…</p>
+        <p id="doca-boot-msg" style="margin:0;font-weight:800">Carregando…</p>
       </div>
+    <script>
+      ;(function () {
+        var h = (location.hostname || '').toLowerCase().replace(/^www\./, '')
+        var path = (location.hash || '').replace(/^#/, '').split('?')[0]
+        var msg = 'Carregando o sistema…'
+        var fail = 'O sistema não carregou.'
+        if (h === 'custodarota.com.br') {
+          var rota = (location.pathname || '/').replace(/\/$/, '') || '/'
+          msg = rota === '/frete-minimo' ? 'Carregando o frete mínimo…' : 'Carregando a calculadora de rota…'
+          fail = rota === '/frete-minimo' ? 'O frete mínimo não carregou.' : 'A calculadora não carregou.'
+        } else if (h === 'mapadafrota.com.br') {
+          msg = 'Carregando o mapa da frota…'
+          fail = 'O mapa da frota não carregou.'
+        } else if (h === 'mapadalogistica.com.br') {
+          msg = 'Carregando o mapa da logística…'
+          fail = 'O mapa da logística não carregou.'
+        } else if (path === '/login' || path === '/login/') {
+          msg = 'Carregando o login…'
+        } else if (path.indexOf('/cadastro-transportador') === 0) {
+          msg = 'Carregando o cadastro de transportador…'
+        }
+        window.__DOCA_BOOT_FAIL = fail
+        var el = document.getElementById('doca-boot-msg')
+        if (el) el.textContent = msg
+      })()
+    </script>
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
