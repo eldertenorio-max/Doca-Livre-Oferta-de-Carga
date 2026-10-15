@@ -270,7 +270,7 @@ function clearLegacyAccountKeys() {
 }
 
 function normalizePortalList(parsed: PortalAccount[]): PortalAccount[] {
-  // Só Super + transportadores (demos / cadastro público). Sem equipe Minerva/embarcador.
+  // Super, transportadores e contas presas a um ponto da hierarquia.
   let list = parsed.filter(
     (u) => u && !isContaEquipeMinerva(u) && !foiExcluida(u) && !isContaDemoGerada(u),
   )
@@ -294,8 +294,9 @@ export function loadPortalAccounts(): PortalAccount[] {
   return seedAccounts()
 }
 
-/** Contas de equipe embarcador (legado) — removidas do portal. */
+/** Contas de equipe sem ponto na hierarquia (legado) — removidas do portal. */
 function isContaEquipeMinerva(u: PortalAccount) {
+  if (contaEhEquipeHierarquia(u)) return false
   if (u.role === 'minerva') return true
   if (u.role === 'transportador' || u.role === 'super') return false
   if (isLocalSuperUser(u.usuario) || isLocalSuperUser(u.email)) return false
@@ -1360,7 +1361,10 @@ export async function syncPortalAccounts(): Promise<PortalAccount[]> {
     if (error) return local
 
     const remoteRowsAll = ((data ?? []) as RemotePortalAccount[]).filter(
-      (row) => row.role === 'super' || row.role === 'transportador',
+      (row) =>
+        row.role === 'super' ||
+        row.role === 'transportador' ||
+        contaEhEquipeHierarquia(row),
     )
 
     // Contas de demonstração geradas automaticamente por versões antigas do app

@@ -483,12 +483,13 @@ export function dedupeTransportadorasNaArvore(
 function precisaMigrar(tree: OrgNo[]): boolean {
   if (!tree.length) return true
   const flat = flattenOrg(tree)
-  if (flat.some((n) => n.tipo === 'operador_logistico' || n.tipo === 'filial_operador')) {
-    return true
-  }
-  if (!flat.some((n) => n.id === ORG_EMBARCADOR_ULTRAFRIO_ID)) return true
-  if (!flat.some((n) => n.id === ORG_UNIDADE_CD_GUARULHOS_ID)) return true
-  return false
+  return !flat.some(
+    (n) =>
+      n.tipo === 'embarcador' ||
+      n.tipo === 'operador_logistico' ||
+      n.tipo === 'filial_operador' ||
+      n.tipo === 'unidade',
+  )
 }
 
 function coletarTransportadoras(
@@ -593,12 +594,16 @@ function aplicarTransportadoraNaArvore(
   const existing = acharNoTransportadora(tree, t)
   const parentEscolhido =
     t.parentId && parentAceitaTransportadora(tree, t.parentId) ? t.parentId : null
-  const parentId = parentEscolhido ?? existing?.parent_id ?? findDefaultTransportadoraParentId(tree)
+  let parentId = parentEscolhido ?? existing?.parent_id ?? findDefaultTransportadoraParentId(tree)
+  let base = tree
   if (!parentId) {
-    return montarArvoreUltrafrio(tree, [t])
+    const jaTemPadrao = flattenOrg(base).some((n) => n.id === ORG_EMBARCADOR_ULTRAFRIO_ID)
+    if (!jaTemPadrao) base = [...base, ...structuredClone(SEED_ORG_TREE)]
+    parentId = parentEscolhido ?? existing?.parent_id ?? findDefaultTransportadoraParentId(base)
   }
+  if (!parentId) return base
 
-  const flat = flattenOrg(tree)
+  const flat = flattenOrg(base)
   const siblings = flat.filter((n) => n.parent_id === parentId)
   const no: OrgNo = {
     id: existing?.id ?? `org-${t.id}`,
@@ -610,7 +615,7 @@ function aplicarTransportadoraNaArvore(
     ordem: existing?.ordem ?? siblings.length + 1,
     children: existing?.children ?? [],
   }
-  return upsertOrgNo(tree, no)
+  return upsertOrgNo(base, no)
 }
 
 /**
