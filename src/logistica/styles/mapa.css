@@ -84,11 +84,12 @@
 
 .mapa-log__head-acoes {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
   gap: 8px;
   flex: 1 1 280px;
   min-width: 0;
+  overflow-x: auto;
 }
 
 .mapa-log__btn {

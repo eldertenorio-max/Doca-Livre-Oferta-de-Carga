@@ -1037,6 +1037,7 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
       {showPaywall === 'buscas' && visitante ? (
         <RotaPaywallModal
           uso="busca"
+          abaInicial="creditos"
           restamGratis={restamGratis}
           creditos={creditosBusca}
           conta={googleAuth.conta}
@@ -1081,6 +1082,9 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
               ))}
             </div>
             <div className="mapa-pub-modal__acoes">
+              <button type="button" className="mapa-pub__btn mapa-pub__btn--solid" onClick={() => setShowPaywall('buscas')}>
+                Comprar créditos
+              </button>
               <a className="mapa-pub__btn mapa-pub__btn--ghost" href={hrefSistema('/login')}>
                 Já tenho conta
               </a>

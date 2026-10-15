@@ -45,6 +45,7 @@ type Props = {
   onCreditosLiberados: () => void
   /** busca = mapa da frota ou da logística. calculo = calculadora. */
   uso?: 'calculo' | 'busca'
+  abaInicial?: 'creditos' | 'plano'
 }
 
 export function RotaPaywallModal({
@@ -54,13 +55,14 @@ export function RotaPaywallModal({
   onClose,
   onCreditosLiberados,
   uso = 'calculo',
+  abaInicial,
 }: Props) {
   const ehBusca = uso === 'busca'
   const unidade = ehBusca ? 'busca' : 'cálculo'
   const unidades = ehBusca ? 'buscas' : 'cálculos'
   const esgotado = restamGratis <= 0
   const semSaldo = restamGratis <= 0 && creditos <= 0
-  const [aba, setAba] = useState<Aba>(semSaldo ? 'creditos' : 'plano')
+  const [aba, setAba] = useState<Aba>(abaInicial ?? (semSaldo ? 'creditos' : 'plano'))
   const [pacote, setPacote] = useState<PacoteCreditoRota | null>(PACOTES_CREDITO_ROTA[0])
   const [txid, setTxid] = useState(() => novoTxidPix())
   const [copiado, setCopiado] = useState(false)
