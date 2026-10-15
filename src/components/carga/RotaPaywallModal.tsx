@@ -390,7 +390,7 @@ export function RotaPaywallModal({
             ) : (
               <>
                 <p className="mapa-pub-creditos__hint">
-                  Cada crédito vale 1 cálculo na conta de {conta.nome.split(' ')[0]}. O PIX nasce na Doca Livre:
+                  Cada crédito vale 1 cálculo na conta de {conta.nome.split(' ')[0]}. O PIX nasce no Asaas:
                   os créditos entram sozinhos e o comprovante vai por e-mail.
                 </p>
                 <div className="mapa-pub-creditos__packs">
@@ -527,7 +527,7 @@ export function RotaPaywallModal({
           <div className="mapa-pub-creditos">
             <p className="mapa-pub-creditos__hint">
               A conta da calculadora (Google ou e-mail e senha) não é a conta do sistema. O plano é
-              o sistema Oferta de Carga: pague o PIX da Doca Livre e, quando o pagamento confirmar, o cadastro
+              o sistema Oferta de Carga: pague o PIX do Asaas e, quando o pagamento confirmar, o cadastro
               libera e o e-mail de confirmação chega.
             </p>
             <div className="mapa-pub-planos">

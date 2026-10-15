@@ -1,16 +1,17 @@
 /**
  * PIX da calculadora pública: gera QR, confirma pagamento, libera crédito e envia e-mail.
- * A cobrança nasce na Doca Livre (instituição). O Asaas só permanece se a Doca ainda não estiver ligada.
+ * Enquanto o Stark Bank da instituição não estiver pronto, a cobrança nova nasce no Asaas.
+ * USAR_DOCA volta a true quando a conta da Doca Livre estiver ligada.
  *
  * Deploy:
  *   supabase functions deploy asaas-pix --project-ref imnlbbfgaztfhwndfxwb
  *
- * Secrets da Doca Livre (preferidos):
- *   DOCA_API_URL, DOCA_CLIENT_ID, DOCA_CLIENT_SECRET, DOCA_ACCOUNT_ID
- *   DOCA_WEBHOOK_SECRET (opcional; confirma o aviso de pagamento)
- * Secrets antigos, só se a Doca não estiver configurada:
+ * Secrets do Asaas (cobrança atual):
  *   ASAAS_API_KEY, ASAAS_WEBHOOK_TOKEN
  *   RESEND_API_KEY / RESEND_FROM
+ * Secrets da Doca Livre, só quando USAR_DOCA voltar a true:
+ *   DOCA_API_URL, DOCA_CLIENT_ID, DOCA_CLIENT_SECRET, DOCA_ACCOUNT_ID
+ *   DOCA_WEBHOOK_SECRET (opcional; confirma o aviso de pagamento)
  */
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
@@ -36,6 +37,9 @@ const PLANOS: Record<string, { valor: number; titulo: string }> = {
 }
 
 const PAGO = new Set(['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'])
+
+/** Cobrança nova no Asaas até a conta Stark Bank da instituição ficar pronta. */
+const USAR_DOCA = false
 
 type Cobranca = {
   id: string
@@ -636,7 +640,7 @@ async function criarNaDocaLivre(input: {
 }
 
 async function criarCobranca(req: Request, body: Record<string, unknown>) {
-  if (!docaConfig().ok && !asaasKey()) return fail('doca_nao_configurado')
+  if (!(USAR_DOCA && docaConfig().ok) && !asaasKey()) return fail('asaas_nao_configurado')
 
   const tipo = body.tipo === 'plano' ? 'plano' : 'credito'
   const pacote = String(body.pacote || '').trim()
@@ -680,7 +684,7 @@ async function criarCobranca(req: Request, body: Record<string, unknown>) {
     }
   }
 
-  if (docaConfig().ok) {
+  if (USAR_DOCA && docaConfig().ok) {
     return await criarNaDocaLivre({
       tipo, pacote, creditos, valor, titulo, email, nome, cpfCnpj, userId: conta?.id || null,
     })
@@ -884,7 +888,7 @@ Deno.serve(async (req) => {
     if (action === 'criar') return await criarCobranca(req, body)
     if (action === 'status') return await statusCobranca(req, body)
     if (action === 'config') {
-      const doca = docaConfig().ok
+      const doca = USAR_DOCA && docaConfig().ok
       const situacao = !doca && asaasKey() ? await situacaoContaAsaas() : null
       return json({
         ok: true,
