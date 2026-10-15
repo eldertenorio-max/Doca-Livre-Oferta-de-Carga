@@ -110,18 +110,6 @@ function IconTruck() {
   )
 }
 
-function IconHierarquia() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M12 4v4M12 12v8M6 16h12" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-      <circle cx="12" cy="4" r="1.6" fill="currentColor" />
-      <circle cx="6" cy="16" r="1.6" fill="currentColor" />
-      <circle cx="12" cy="20" r="1.6" fill="currentColor" />
-      <circle cx="18" cy="16" r="1.6" fill="currentColor" />
-    </svg>
-  )
-}
-
 function IconShield() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -216,7 +204,6 @@ const minervaLinks: NavItem[] = [
   { to: '/embarcador/veiculos', label: 'Veículos', icon: <IconTruck /> },
   { to: '/embarcador/motoristas', label: 'Motoristas', icon: <IconUsers /> },
   { to: '/embarcador/grupos', label: 'Grupos', icon: <IconGroups /> },
-  { to: '/embarcador/hierarquia', label: 'Hierarquia', icon: <IconHierarquia /> },
   { to: '/embarcador/indicadores', label: 'Indicadores', icon: <IconChart /> },
   { to: '/embarcador/pontuacao', label: 'Pontuação', icon: <IconStar /> },
   { to: '/embarcador/financeiro', label: 'Financeiro', icon: <IconWallet /> },
@@ -491,7 +478,6 @@ export function AppLayout() {
     }
     if (user?.role === 'minerva') {
       const ocultos = new Set([
-        '/embarcador/hierarquia',
         '/embarcador/config',
         '/embarcador/financeiro',
         '/embarcador/configuracoes',
