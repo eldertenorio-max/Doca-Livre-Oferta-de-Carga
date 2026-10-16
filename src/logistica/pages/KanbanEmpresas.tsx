@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { aplicarCamadaRuasPortugues } from '../../lib/mapaTilesPt'
 import { Briefcase, MapPin } from 'lucide-react'
 import { useAuth } from '../lib/AuthContext'
 import { CATEGORIAS, categoriaPorId } from '../lib/categorias'
@@ -104,10 +105,7 @@ export function KanbanEmpresasPage() {
       zoom: 5,
       zoomControl: true,
     })
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap',
-      maxZoom: 18,
-    }).addTo(map)
+    aplicarCamadaRuasPortugues(map)
     mapRef.current = map
     const t = window.setTimeout(() => map.invalidateSize(), 80)
     return () => {

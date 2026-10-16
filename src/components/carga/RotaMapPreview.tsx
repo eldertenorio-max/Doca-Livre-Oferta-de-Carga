@@ -20,6 +20,7 @@ import {
   type MapaPlano,
   type MapaVista,
 } from '../../lib/mapaBases'
+import { aplicarCamadaRuasPortugues } from '../../lib/mapaTilesPt'
 import '../../styles/earth-globe.css'
 
 type RotaCoords = { lat: number; lng: number }
@@ -416,9 +417,10 @@ type VisaoCamada = 'tudo' | 'sem-pedagio' | 'sem-rota'
 
 function aplicarTilePlano(
   map: L.Map,
-  atual: L.TileLayer | null,
+  atual: L.Layer | null,
   plano: MapaPlano,
-): L.TileLayer {
+): L.Layer {
+  if (plano === 'ruas') return aplicarCamadaRuasPortugues(map, atual)
   const cfg = MAPA_VISTAS.find((x) => x.id === plano)
   if (atual) map.removeLayer(atual)
   const opts: L.TileLayerOptions = {
@@ -426,7 +428,7 @@ function aplicarTilePlano(
     attribution: cfg?.options?.attribution || '© OpenStreetMap',
   }
   if (cfg?.options?.subdomains) opts.subdomains = cfg.options.subdomains
-  const layer = L.tileLayer(cfg?.url || MAPA_VISTAS[1].url!, opts)
+  const layer = L.tileLayer(cfg?.url || MAPA_VISTAS[2].url!, opts)
   layer.addTo(map)
   layer.bringToBack()
   return layer
@@ -460,7 +462,7 @@ export function RotaMapPreview({
   const mapEl = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const layerRef = useRef<L.LayerGroup | null>(null)
-  const baseLayerRef = useRef<L.TileLayer | null>(null)
+  const baseLayerRef = useRef<L.Layer | null>(null)
   const [vista, setVista] = useState<MapaVista>(() => loadMapaVista())
   const [plano, setPlano] = useState<MapaPlano>(() => loadMapaPlano())
   const vistaRef = useRef(vista)

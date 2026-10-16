@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { aplicarCamadaRuasPortugues } from '../../lib/mapaTilesPt'
 import { Briefcase, MapPin, Plus, ShoppingCart } from 'lucide-react'
 import type { Transportador } from '../../types'
 import { formatPhoneBr } from '../../lib/phoneBr'
@@ -119,10 +120,7 @@ export function TransportadorasKanbanView({
       zoom: 6,
       zoomControl: true,
     })
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap',
-      maxZoom: 18,
-    }).addTo(map)
+    aplicarCamadaRuasPortugues(map)
     mapRef.current = map
     const t = window.setTimeout(() => map.invalidateSize(), 80)
     return () => {

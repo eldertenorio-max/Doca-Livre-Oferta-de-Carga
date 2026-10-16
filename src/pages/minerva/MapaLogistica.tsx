@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { aplicarCamadaRuasPortugues } from '../../lib/mapaTilesPt'
 import { useData } from '../../context/DataContext'
 import { formatCurrency } from '../../lib/businessRules'
 import {
@@ -53,10 +54,7 @@ export function MapaLogisticaPage() {
       minZoom: 4,
       maxZoom: 12,
     })
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap',
-      maxZoom: 18,
-    }).addTo(map)
+    aplicarCamadaRuasPortugues(map)
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
     const refresh = () => map.invalidateSize({ animate: false })

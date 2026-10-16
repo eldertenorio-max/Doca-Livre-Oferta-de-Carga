@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { aplicarCamadaRuasPortugues } from '../../../lib/mapaTilesPt'
 
 type Props = {
   lat: number
@@ -21,7 +22,7 @@ export function PontoMapPreview({ lat, lng, height = 320, className }: Props) {
       zoomControl: false,
       attributionControl: false,
     })
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map)
+    aplicarCamadaRuasPortugues(map)
     L.circleMarker([lat, lng], {
       radius: 9,
       color: '#0f172a',

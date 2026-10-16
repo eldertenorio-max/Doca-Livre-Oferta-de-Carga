@@ -5,6 +5,7 @@ import { PublicoCreditoAcoes } from '../../components/publico/PublicoCreditoAcoe
 import { isSiteMapaFrota } from '../../lib/siteOfertaDeCarga'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { aplicarCamadaRuasPortugues } from '../../lib/mapaTilesPt'
 import { useData } from '../../context/DataContext'
 import { MapaFrotaAjuda } from '../../components/mapa/MapaFrotaAjuda'
 import { CarroceriaFilterSelect } from '../../components/ui/CarroceriaFilterSelect'
@@ -639,10 +640,7 @@ export function MapaFrotaPublicoPage() {
       zoom: 4,
       zoomControl: true,
     })
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap',
-      maxZoom: 18,
-    }).addTo(map)
+    aplicarCamadaRuasPortugues(map)
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
     map.on('click', (e) => {

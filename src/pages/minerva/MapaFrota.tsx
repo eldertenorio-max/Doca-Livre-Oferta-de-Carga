@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { aplicarCamadaRuasPortugues } from '../../lib/mapaTilesPt'
 import { useData } from '../../context/DataContext'
 import { formatCurrency } from '../../lib/businessRules'
 import { geocodificarConsulta } from '../../lib/geocodeEndereco'
@@ -762,10 +763,7 @@ export function MapaFrotaPage() {
       zoom: 6,
       zoomControl: true,
     })
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap',
-      maxZoom: 18,
-    }).addTo(map)
+    aplicarCamadaRuasPortugues(map)
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
 

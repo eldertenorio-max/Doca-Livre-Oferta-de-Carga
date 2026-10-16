@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { aplicarCamadaRuasPortugues } from '../../lib/mapaTilesPt'
 
 type Props = {
   lat: number | null
@@ -53,9 +54,7 @@ export function PontoMapPreview({
       zoomControl: true,
       attributionControl: false,
     })
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-    }).addTo(map)
+    aplicarCamadaRuasPortugues(map)
     mapRef.current = map
 
     map.on('click', (e: L.LeafletMouseEvent) => {

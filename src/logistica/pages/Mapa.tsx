@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { Info, Lock } from 'lucide-react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { aplicarCamadaRuasPortugues } from '../../lib/mapaTilesPt'
 import { useAuth } from '../lib/AuthContext'
 import { CATEGORIAS, NIVEIS_INTEGRACAO, categoriaPorId } from '../lib/categorias'
 import { LOGO_DOCA_LIVRE_SRC } from '../lib/brandAssets'
@@ -301,10 +302,7 @@ export function MapaPage({ publico = false }: { publico?: boolean }) {
       minZoom: 4,
       maxZoom: 16,
     })
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap',
-      maxZoom: 19,
-    }).addTo(map)
+    aplicarCamadaRuasPortugues(map)
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
     window.setTimeout(() => map.invalidateSize(), 120)

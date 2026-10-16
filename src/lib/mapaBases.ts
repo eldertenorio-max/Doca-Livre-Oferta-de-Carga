@@ -30,14 +30,16 @@ export const MAPA_VISTAS: MapaBaseCfg[] = [
   {
     id: 'ruas',
     label: 'Mapa',
-    title: 'Mapa de ruas',
-    preview: 'https://tile.openstreetmap.org/3/2/3.png',
+    title: 'Mapa de ruas (português)',
+    // Miniatura estática; a camada real usa OpenFreeMap com rótulos em PT
+    preview: 'https://tiles.openfreemap.org/natural_earth/ne2sr/3/2/3.png',
     fallback: '#dbe4ea',
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    // url vazia: RotaMapPreview usa camadaRuasPortugues() (vetor PT)
+    url: undefined,
     options: {
       maxZoom: 19,
-      attribution: '© OpenStreetMap',
-      subdomains: 'abc',
+      attribution:
+        '© OpenStreetMap · OpenFreeMap',
     },
   },
   {

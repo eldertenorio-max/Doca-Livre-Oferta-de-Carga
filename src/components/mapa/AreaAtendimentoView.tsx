@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
+import { aplicarCamadaRuasPortugues } from '../../lib/mapaTilesPt'
 import { Info, List, MapPin, Search, Users, X } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import {
@@ -492,10 +493,7 @@ export function AreaAtendimentoView() {
       zoomControl: true,
       preferCanvas: true,
     })
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap',
-      maxZoom: 18,
-    }).addTo(map)
+    aplicarCamadaRuasPortugues(map)
     labelsRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
     const refresh = () => map.invalidateSize({ animate: false })
