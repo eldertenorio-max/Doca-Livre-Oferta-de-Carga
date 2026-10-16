@@ -1,4 +1,5 @@
 import { appStoreGet, appStoreGetCached, appStoreSet, migrateLocalKeyToAppStore } from './appStore'
+import { hydrateOrgGrupos, idsAbaixoNosGrupos } from './orgGrupos'
 import { canonicalTransportadorId, sameTransportadorId } from './transportadorIds'
 import type { GrupoTransportador } from '../types'
 
@@ -123,10 +124,10 @@ export async function hydrateOrgTree(): Promise<OrgNo[]> {
     }
   })
   const remote = await appStoreGet<OrgNo[] | null>(STORE_KEY, null)
-  if (remote?.length) return structuredClone(remote)
-  const seed = structuredClone(SEED_ORG_TREE)
-  void appStoreSet(STORE_KEY, seed)
-  return seed
+  const tree = remote?.length ? structuredClone(remote) : structuredClone(SEED_ORG_TREE)
+  if (!remote?.length) void appStoreSet(STORE_KEY, tree)
+  await hydrateOrgGrupos(flattenOrg(tree))
+  return tree
 }
 
 export function flattenOrg(nodes: OrgNo[], acc: OrgNo[] = []): OrgNo[] {
@@ -237,11 +238,17 @@ export function descendentesOrg(tree: OrgNo[], id: string): OrgNo[] {
   return out
 }
 
-/** Este ponto enxerga a si mesmo e quem está abaixo dele. */
+/** Este ponto enxerga a si mesmo e quem está abaixo dele, na árvore e nos grupos. */
 export function nosVisiveis(tree: OrgNo[], orgId: string | null | undefined): OrgNo[] {
   const no = findOrgNo(tree, orgId)
-  if (!no) return []
-  return [no, ...descendentesOrg(tree, no.id)]
+  const daArvore = no ? [no, ...descendentesOrg(tree, no.id)] : []
+  const porId = new Map(daArvore.map((n) => [n.id, n]))
+  for (const id of idsAbaixoNosGrupos(orgId)) {
+    if (porId.has(id)) continue
+    const extra = findOrgNo(tree, id)
+    if (extra) porId.set(id, extra)
+  }
+  return [...porId.values()]
 }
 
 /** Quem enxerga este ponto: ele mesmo e quem está acima. */
@@ -303,6 +310,10 @@ export function tidsSobNo(tree: OrgNo[], orgId: string | null | undefined): stri
     for (const c of n.children ?? []) walk(c)
   }
   walk(no)
+  for (const id of idsAbaixoNosGrupos(orgId)) {
+    const extra = findOrgNo(tree, id)
+    if (extra?.tipo === 'transportadora' && extra.transportador_id) ids.add(extra.transportador_id)
+  }
   return [...ids]
 }
 

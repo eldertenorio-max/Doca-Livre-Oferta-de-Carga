@@ -34,6 +34,7 @@ import {
   type OrgNo,
 } from '../../lib/orgHierarchy'
 import { OrgHierarchyTree } from '../../components/portal/OrgHierarchyTree'
+import { OrgGruposPainel } from '../../components/portal/OrgGruposPainel'
 import { isLocalSuperUser, isSuperSession } from '../../lib/superUsers'
 import { CadastroStatsCards } from '../../components/cadastro/CadastroStatsCards'
 import '../../styles/cadastro.css'
@@ -473,14 +474,16 @@ export function PortalConfigPage() {
       )}
 
       {tab === 'hierarquia' && (
+        <>
+        <OrgGruposPainel tree={tree} />
         <section className="form-card form-card--blue">
           <header className="form-card__head">
-            <h2 className="form-card__title">Árvore organizacional</h2>
+            <h2 className="form-card__title">Empresas</h2>
           </header>
           <div className="form-card__body">
             <p className="portal-login__hint" style={{ marginBottom: 12 }}>
-              Embarcador → unidade → transportadoras. A publicação da carga da unidade ou do
-              embarcador só chega a quem está nessa ramificação.
+              Cadastro das empresas. Operador → filial → embarcador → unidade → transportadora.
+              O agrupamento de quem vê quem fica nos grupos acima.
             </p>
             <OrgHierarchyTree
               nodes={tree}
@@ -492,6 +495,7 @@ export function PortalConfigPage() {
             />
           </div>
         </section>
+        </>
       )}
 
       {tab === 'permissoes' && (
