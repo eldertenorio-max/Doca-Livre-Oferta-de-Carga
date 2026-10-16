@@ -105,7 +105,7 @@ export function NovaContaPortalPage() {
   }, [tipo, flat])
 
   if (!user) return <Navigate to="/login" replace />
-  if (!isSuperSession(user)) return <Navigate to="/embarcador" replace />
+  if (!isSuperSession(user)) return <Navigate to="/home" replace />
 
   function escolherTipo(id: OrgTipo) {
     setTipo(id)

@@ -139,7 +139,7 @@ export function DarCreditosPage() {
   }, [site, buscaAplicada, adminEmail, adminUsuario])
 
   if (!ehSuperDiegoOuElder(user)) {
-    return <Navigate to="/embarcador" replace />
+    return <Navigate to="/home" replace />
   }
 
   async function dar() {

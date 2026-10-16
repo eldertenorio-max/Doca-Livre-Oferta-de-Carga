@@ -57,6 +57,7 @@ import { PushEnableBanner } from './components/PushEnableBanner'
 import { motivoBloqueioPublico } from './lib/publicoProtecao'
 import { PublicoBloqueio } from './components/publico/PublicoBloqueio'
 import { isSuperSession } from './lib/superUsers'
+import { canOpenModulo, moduloFromPath } from './lib/portalModules'
 import type { UserRole } from './types'
 
 function MinervaToEmbarcadorRedirect() {
@@ -120,16 +121,18 @@ const EQUIPE: UserRole[] = ['super', 'minerva']
 
 function Protected({ role, children }: { role?: UserRole | UserRole[]; children: React.ReactNode }) {
   const { user } = useData()
+  const location = useLocation()
   if (!user) return <Navigate to="/login" replace />
   // Perfil da Configuração do Portal manda: transportador nunca passa como Super
   const isSuper = isSuperSession(user)
   if (isSuper) return children
+  const modulo = moduloFromPath(location.pathname)
+  if (modulo && !canOpenModulo(user.permissoes_modulos, modulo)) {
+    return <Navigate to="/home" replace />
+  }
   if (role) {
     const roles = Array.isArray(role) ? role : [role]
-    if (!roles.includes(user.role)) {
-      if (user.role === 'logistica') return <Navigate to="/embarcador/mapa-logistica" replace />
-      return <Navigate to={user.role === 'transportador' ? '/transportador' : '/embarcador'} replace />
-    }
+    if (!roles.includes(user.role)) return <Navigate to="/home" replace />
   }
   return children
 }
@@ -218,7 +221,7 @@ export default function App() {
               <CalcularRotaPublicoPage />
             </PublicoGuard>
           ) : (
-            <Navigate to="/login" replace />
+            <Navigate to="/home" replace />
           )
         }
       />
@@ -506,7 +509,7 @@ export default function App() {
       </Route>
       <Route
         path="*"
-        element={<Navigate to="/login" replace />}
+        element={<Navigate to="/home" replace />}
       />
     </Routes>
     </>

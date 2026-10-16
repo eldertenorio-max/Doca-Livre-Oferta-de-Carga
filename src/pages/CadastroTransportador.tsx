@@ -456,7 +456,7 @@ export function CadastroTransportadorPage() {
   if (user) {
     return (
       <Navigate
-        to={user.role === 'transportador' ? '/transportador' : '/embarcador'}
+        to="/home"
         replace
       />
     )

@@ -118,7 +118,7 @@ export function HierarquiaCadastroPage() {
   })
 
   if (!isSuperSession(user)) {
-    return <Navigate to="/embarcador" replace />
+    return <Navigate to="/home" replace />
   }
 
   function persistTree(next: OrgNo[]) {

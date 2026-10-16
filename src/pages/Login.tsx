@@ -77,13 +77,7 @@ export function LoginPage() {
   }, [mode, step, verifyToken])
 
   if (user) {
-    const dest =
-      user.role === 'logistica'
-        ? '/embarcador/mapa-logistica'
-        : user.role === 'transportador'
-          ? '/transportador'
-          : '/embarcador'
-    return <Navigate to={dest} replace />
+    return <Navigate to="/home" replace />
   }
 
   function goMode(next: Mode) {
