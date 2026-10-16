@@ -1,4 +1,5 @@
 import { appStoreGet, appStoreGetCached, appStoreSet } from './appStore'
+import { canonicalTransportadorId, sameTransportadorId } from './transportadorIds'
 
 /** Grupo de hierarquia, no mesmo modelo do Doca Livre.
  * A empresa existe uma vez. Em cada grupo ela tem o próprio pai.
@@ -192,6 +193,23 @@ export function removerMembroGrupo(grupos: GrupoHierarquia[], grupoId: string, e
 export type NoGrupo = {
   id: string
   filhos: NoGrupo[]
+}
+
+/** Conta entra na hierarquia quando a empresa dela é membro do grupo. */
+export function contaPertenceAoGrupo(
+  conta: { role?: string; empresa_org_id?: string | null; transportador_id?: string | null },
+  grupo: GrupoHierarquia,
+  nos: Array<{ id: string; transportador_id?: string | null }>,
+): boolean {
+  if (conta.role === 'super') return false
+  const ids = new Set(grupo.membros.map((m) => m.empresa_id))
+  const org = (conta.empresa_org_id || '').trim()
+  if (org && ids.has(org)) return true
+  const tid = canonicalTransportadorId(
+    org.startsWith('transportador:') ? org.slice('transportador:'.length) : conta.transportador_id,
+  )
+  if (!tid) return false
+  return nos.some((n) => ids.has(n.id) && n.transportador_id && sameTransportadorId(n.transportador_id, tid))
 }
 
 export function arvoreDoGrupo(grupo: GrupoHierarquia): NoGrupo[] {

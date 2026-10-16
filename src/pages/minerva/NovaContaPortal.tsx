@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
 import { createPortalAccount } from '../../lib/portalAuth'
 import {
@@ -14,7 +14,16 @@ import {
   type OrgNo,
   type OrgTipo,
 } from '../../lib/orgHierarchy'
+import {
+  adicionarMembroGrupo,
+  criarGrupoHierarquia,
+  hydrateOrgGrupos,
+  loadOrgGrupos,
+  saveOrgGrupos,
+  type GrupoHierarquia,
+} from '../../lib/orgGrupos'
 import { isSuperSession } from '../../lib/superUsers'
+import { sameTransportadorId } from '../../lib/transportadorIds'
 import '../../styles/cadastro.css'
 import '../../styles/login.css'
 
@@ -52,7 +61,16 @@ function podeNoTopo(tipo: OrgTipo) {
 
 export function NovaContaPortalPage() {
   const { user, transportadores, salvarGrupo } = useData()
+  const [params] = useSearchParams()
+  const grupoQuery = params.get('grupo') || ''
   const [tree, setTree] = useState<OrgNo[]>(() => loadOrgTree())
+  const [grupos, setGrupos] = useState<GrupoHierarquia[]>(() => loadOrgGrupos())
+  const [passoGrupo, setPassoGrupo] = useState<'perguntar' | 'pronto'>(grupoQuery ? 'pronto' : 'perguntar')
+  const [destino, setDestino] = useState<'existente' | 'novo' | null>(grupoQuery ? 'existente' : null)
+  const [grupoId, setGrupoId] = useState(grupoQuery)
+  const [nomeGrupo, setNomeGrupo] = useState('')
+  const [descGrupo, setDescGrupo] = useState('')
+  const [donaId, setDonaId] = useState('')
   const [tipo, setTipo] = useState<OrgTipo | null>(null)
   const [modo, setModo] = useState<'nova' | 'existente'>('nova')
   const [parentId, setParentId] = useState('')
@@ -69,7 +87,10 @@ export function NovaContaPortalPage() {
   const [salvando, setSalvando] = useState(false)
 
   useEffect(() => {
-    void hydrateOrgTree().then(setTree)
+    void hydrateOrgTree().then((proxima) => {
+      setTree(proxima)
+      void hydrateOrgGrupos(flattenOrg(proxima)).then(setGrupos)
+    })
   }, [])
 
   const flat = useMemo(() => flattenOrg(tree), [tree])
@@ -94,15 +115,25 @@ export function NovaContaPortalPage() {
       .map((n) => ({ id: n.id, rotulo: n.nome }))
   }, [tipo, flat, transportadores])
 
+  const grupoAlvo = grupos.find((g) => g.id === grupoId) ?? null
+  const donas = useMemo(
+    () => flat.filter((n) => n.tipo === 'operador_logistico' || n.tipo === 'embarcador'),
+    [flat],
+  )
+
   const pais = useMemo(() => {
     if (!tipo) return []
-    return flat
-      .filter((n) => allowedOrgChildTypes(n.tipo).includes(tipo))
-      .map((n) => ({
-        id: n.id,
-        rotulo: `${ORG_TIPO_LABEL[n.tipo]}: ${n.nome}`,
-      }))
-  }, [tipo, flat])
+    let base = flat.filter((n) => allowedOrgChildTypes(n.tipo).includes(tipo))
+    if (destino === 'existente' && grupoAlvo) {
+      const ids = new Set(grupoAlvo.membros.map((m) => m.empresa_id))
+      base = base.filter((n) => ids.has(n.id))
+    }
+    if (destino === 'novo' && donaId) base = base.filter((n) => n.id === donaId)
+    return base.map((n) => ({
+      id: n.id,
+      rotulo: `${ORG_TIPO_LABEL[n.tipo]}: ${n.nome}`,
+    }))
+  }, [tipo, flat, destino, grupoAlvo, donaId])
 
   if (!user) return <Navigate to="/login" replace />
   if (!isSuperSession(user)) return <Navigate to="/home" replace />
@@ -116,6 +147,68 @@ export function NovaContaPortalPage() {
     setCnpj('')
     setErro('')
     setMsg('')
+  }
+
+  function confirmarGrupo() {
+    setErro('')
+    setMsg('')
+    if (destino === 'existente') {
+      if (!grupoId) {
+        setErro('Escolha a hierarquia.')
+        return
+      }
+      setPassoGrupo('pronto')
+      return
+    }
+    if (destino === 'novo') {
+      if (!nomeGrupo.trim()) {
+        setErro('Informe o nome do novo grupo.')
+        return
+      }
+      setPassoGrupo('pronto')
+      return
+    }
+    setErro('Escolha se a conta entra numa hierarquia já feita ou num grupo novo.')
+  }
+
+  function ligarEmpresaNoGrupo(empresaId: string): string {
+    if (!tipo || !destino) return 'Escolha a hierarquia desta conta.'
+    let atuais = loadOrgGrupos()
+    if (destino === 'novo') {
+      const dona = donaId || empresaId
+      if (!dona) return 'Escolha a empresa dona do grupo.'
+      const criado = criarGrupoHierarquia(atuais, {
+        nome: nomeGrupo,
+        descricao: descGrupo,
+        empresaId: dona,
+      })
+      if (criado.erro) return criado.erro
+      atuais = criado.grupos
+      const novo = atuais[atuais.length - 1]
+      if (empresaId && empresaId !== dona && novo) {
+        const pai = parentId || dona
+        const paiNo = flat.find((n) => n.id === pai)
+        const aceito = allowedOrgChildTypes(paiNo?.tipo ?? null).includes(tipo)
+        const add = adicionarMembroGrupo(atuais, novo.id, empresaId, pai, aceito)
+        if (add.erro) return add.erro
+        atuais = add.grupos
+      }
+      saveOrgGrupos(atuais)
+      setGrupos(atuais)
+      return ''
+    }
+    if (!empresaId) return 'Não foi possível ligar a empresa à hierarquia.'
+    const grupo = atuais.find((g) => g.id === grupoId)
+    if (!grupo) return 'Hierarquia não encontrada.'
+    if (grupo.membros.some((m) => m.empresa_id === empresaId)) return ''
+    const pai = parentId || null
+    const paiNo = pai ? flat.find((n) => n.id === pai) : null
+    const aceito = allowedOrgChildTypes(paiNo?.tipo ?? null).includes(tipo)
+    const add = adicionarMembroGrupo(atuais, grupo.id, empresaId, pai, aceito)
+    if (add.erro) return add.erro
+    saveOrgGrupos(add.grupos)
+    setGrupos(add.grupos)
+    return ''
   }
 
   function persistTree(next: OrgNo[]) {
@@ -139,6 +232,18 @@ export function NovaContaPortalPage() {
     }
     if (senha.trim().length < 4) {
       setErro('A senha precisa ter ao menos 4 caracteres.')
+      return
+    }
+    if (passoGrupo !== 'pronto' || !destino) {
+      setErro('Escolha se a conta entra numa hierarquia já feita ou num grupo novo.')
+      return
+    }
+    if (destino === 'novo' && !nomeGrupo.trim()) {
+      setErro('Informe o nome do novo grupo.')
+      return
+    }
+    if (destino === 'novo' && !donaId && tipo !== 'operador_logistico' && tipo !== 'embarcador') {
+      setErro('Escolha a empresa dona do grupo, ou cadastre um operador logístico ou embarcador como dono.')
       return
     }
 
@@ -185,7 +290,7 @@ export function NovaContaPortalPage() {
       }
       const no: OrgNo = {
         id: `org-${Math.random().toString(36).slice(2, 10)}`,
-        parent_id: parentId || null,
+        parent_id: destino === 'novo' && !donaId ? null : parentId || null,
         tipo,
         nome: nomeDaEmpresa,
         cnpj: cnpj.trim() || null,
@@ -194,6 +299,37 @@ export function NovaContaPortalPage() {
       }
       persistTree(upsertOrgNo(tree, no))
       orgId = no.id
+    }
+
+    if (!orgId && transportadorId) {
+      const ja = flat.find(
+        (n) => n.tipo === 'transportadora' && sameTransportadorId(n.transportador_id, transportadorId),
+      )
+      if (ja) orgId = ja.id
+      else {
+        const pai = parentId || donaId || null
+        if (!pai) {
+          setErro('Escolha em qual empresa da hierarquia esta transportadora fica abaixo.')
+          return
+        }
+        const no: OrgNo = {
+          id: `org-${Math.random().toString(36).slice(2, 10)}`,
+          parent_id: pai,
+          tipo: 'transportadora',
+          nome: nomeDaEmpresa || login.trim(),
+          transportador_id: transportadorId,
+          ordem: 1,
+          children: [],
+        }
+        persistTree(upsertOrgNo(tree, no))
+        orgId = no.id
+      }
+    }
+
+    const falhaGrupo = ligarEmpresaNoGrupo(orgId)
+    if (falhaGrupo) {
+      setErro(falhaGrupo)
+      return
     }
 
     const acessoTransportadora = tipo === 'transportadora' && Boolean(transportadorId)
@@ -214,11 +350,15 @@ export function NovaContaPortalPage() {
       setErro(created.erro)
       return
     }
-    setMsg(
-      modo === 'nova'
-        ? `${nomeDaEmpresa} entrou na hierarquia e a conta ${created.account.usuario} foi aberta.`
-        : `Conta ${created.account.usuario} aberta em ${nomeDaEmpresa}. Nenhuma empresa nova foi criada.`,
-    )
+    const nomeHierarquia = destino === 'novo' ? nomeGrupo.trim() : grupoAlvo?.nome || 'hierarquia'
+    if (destino === 'novo') {
+      const ultimo = loadOrgGrupos().at(-1)
+      if (ultimo) {
+        setDestino('existente')
+        setGrupoId(ultimo.id)
+      }
+    }
+    setMsg(`Conta ${created.account.usuario} aberta em ${nomeDaEmpresa || 'empresa'} e ligada a ${nomeHierarquia}.`)
     setLogin('')
     setEmail('')
     setSenha('')
@@ -230,6 +370,10 @@ export function NovaContaPortalPage() {
     }
   }
 
+  const tiposVisiveis =
+    destino === 'novo' && !donaId
+      ? TIPOS_CONTA.filter((t) => t.id === 'operador_logistico' || t.id === 'embarcador')
+      : TIPOS_CONTA
   const tipoEscolhido = TIPOS_CONTA.find((t) => t.id === tipo) ?? null
   const exigePai = tipo ? !podeNoTopo(tipo) : false
 
@@ -237,17 +381,93 @@ export function NovaContaPortalPage() {
     <div className="cadastro-page animate-fade-up">
       <h1 className="cadastro-page-title">Nova conta</h1>
       <p style={{ color: '#1a1d21', marginTop: -8, marginBottom: 16, fontSize: '0.92rem', maxWidth: 720 }}>
-        Escolha o que você quer cadastrar. Em seguida a página abre a conta de acesso dessa empresa.
+        Primeiro escolha a hierarquia. Depois a página abre a conta de acesso da empresa.
       </p>
 
-      {!tipo ? (
+      {passoGrupo !== 'pronto' ? (
+        <section className="form-card form-card--blue">
+          <header className="form-card__head">
+            <h2 className="form-card__title">Onde esta conta entra?</h2>
+          </header>
+          <div className="form-card__body" style={{ display: 'grid', gap: 12 }}>
+            <div className="cadastro-ramificacoes" role="list">
+              <button
+                type="button"
+                className={`cadastro-ramificacao${destino === 'existente' ? ' is-on' : ''}`}
+                onClick={() => setDestino('existente')}
+              >
+                <strong>Hierarquia já feita</strong>
+                <span>A conta entra num grupo que já existe.</span>
+              </button>
+              <button
+                type="button"
+                className={`cadastro-ramificacao${destino === 'novo' ? ' is-on' : ''}`}
+                onClick={() => setDestino('novo')}
+              >
+                <strong>Novo grupo</strong>
+                <span>Cria outra hierarquia e coloca a conta nela.</span>
+              </button>
+            </div>
+            {destino === 'existente' ? (
+              <label>
+                <span className="cadastro-label">Hierarquia</span>
+                <select className="cadastro-input" value={grupoId} onChange={(e) => setGrupoId(e.target.value)}>
+                  <option value="">Selecione</option>
+                  {grupos.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.nome}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {destino === 'novo' ? (
+              <div className="hierarquia-form">
+                <label>
+                  Nome do grupo
+                  <input className="cadastro-input" value={nomeGrupo} onChange={(e) => setNomeGrupo(e.target.value)} />
+                </label>
+                <label>
+                  Descrição
+                  <input className="cadastro-input" value={descGrupo} onChange={(e) => setDescGrupo(e.target.value)} placeholder="Opcional" />
+                </label>
+                <label>
+                  Empresa dona
+                  <select className="cadastro-input" value={donaId} onChange={(e) => setDonaId(e.target.value)}>
+                    <option value="">A empresa desta conta</option>
+                    {donas.map((n) => (
+                      <option key={n.id} value={n.id}>
+                        {n.nome} — {ORG_TIPO_LABEL[n.tipo]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            ) : null}
+            {destino === 'novo' && !donaId ? (
+              <p className="portal-login__hint" style={{ margin: 0 }}>
+                Sem empresa dona, a conta precisa ser de um operador logístico ou embarcador. Esse cadastro vira o topo do grupo.
+              </p>
+            ) : null}
+            {erro ? <p className="portal-login__erro">{erro}</p> : null}
+            <div className="hierarquia-form__acoes">
+              <button type="button" className="cadastro-btn cadastro-btn--primary" onClick={confirmarGrupo}>
+                Continuar
+              </button>
+              <Link to="/embarcador/config?aba=usuarios" className="cadastro-btn cadastro-btn--ghost">
+                Voltar às contas
+              </Link>
+            </div>
+          </div>
+        </section>
+      ) : !tipo ? (
         <section className="form-card form-card--blue">
           <header className="form-card__head">
             <h2 className="form-card__title">O que você quer cadastrar?</h2>
           </header>
           <div className="form-card__body">
             <div className="cadastro-ramificacoes" role="list">
-              {TIPOS_CONTA.map((t) => (
+              {tiposVisiveis.map((t) => (
                 <button
                   key={t.id}
                   type="button"
@@ -259,10 +479,14 @@ export function NovaContaPortalPage() {
                 </button>
               ))}
             </div>
+            <p className="portal-login__hint">
+              Hierarquia:{' '}
+              <strong>{destino === 'novo' ? nomeGrupo.trim() || 'Novo grupo' : grupoAlvo?.nome || 'Grupo'}</strong>
+            </p>
             <p style={{ marginTop: 16 }}>
-              <Link to="/embarcador/config?aba=usuarios" className="portal-login__link">
-                Voltar às contas
-              </Link>
+              <button type="button" className="portal-login__link" onClick={() => setPassoGrupo('perguntar')}>
+                Trocar hierarquia
+              </button>
             </p>
           </div>
         </section>
@@ -315,6 +539,7 @@ export function NovaContaPortalPage() {
                     Ainda não há empresa deste tipo. Use Cadastrar nova.
                   </p>
                 ) : (
+                  <>
                   <label>
                     <span className="cadastro-label">Empresa</span>
                     <select
@@ -330,6 +555,18 @@ export function NovaContaPortalPage() {
                       ))}
                     </select>
                   </label>
+                  <label>
+                    <span className="cadastro-label">Fica abaixo de</span>
+                    <select className="cadastro-input" value={parentId} onChange={(e) => setParentId(e.target.value)}>
+                      {podeNoTopo(tipo) ? <option value="">Topo da hierarquia</option> : <option value="">Selecione</option>}
+                      {pais.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.rotulo}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  </>
                 )
               ) : (
                 <>

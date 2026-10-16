@@ -1081,6 +1081,70 @@
   gap: 8px;
 }
 
+.hierarquia-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+  gap: 12px 14px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
+.hierarquia-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #334155;
+}
+
+.hierarquia-form input,
+.hierarquia-form select {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.hierarquia-form__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.hierarquia-seletor {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.hierarquia-lista {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.hierarquia-lista th,
+.hierarquia-lista td {
+  text-align: left;
+  padding: 10px 8px;
+  border-top: 1px solid #e2e8f0;
+  vertical-align: middle;
+}
+
+.hierarquia-lista th {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+@media (max-width: 800px) {
+  .hierarquia-form {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 640px) {
   .cadastro-ramificacoes {
     grid-template-columns: 1fr;

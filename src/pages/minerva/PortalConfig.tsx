@@ -26,6 +26,8 @@ import {
   allowedOrgChildTypes,
   deleteOrgNo,
   ensureHierarquiaPadrao,
+  findOrgNo,
+  flattenOrg,
   gruposDaHierarquia,
   hydrateOrgTree,
   loadOrgTree,
@@ -33,6 +35,7 @@ import {
   upsertOrgNo,
   type OrgNo,
 } from '../../lib/orgHierarchy'
+import { contaPertenceAoGrupo, hydrateOrgGrupos, loadOrgGrupos, type GrupoHierarquia } from '../../lib/orgGrupos'
 import { OrgHierarchyTree } from '../../components/portal/OrgHierarchyTree'
 import { OrgGruposPainel } from '../../components/portal/OrgGruposPainel'
 import { isLocalSuperUser, isSuperSession } from '../../lib/superUsers'
@@ -61,6 +64,8 @@ export function PortalConfigPage() {
   const [salvando, setSalvando] = useState(false)
   const [grupoAberto, setGrupoAberto] = useState(false)
   const [gestaoEmpresas, setGestaoEmpresas] = useState(false)
+  const [grupos, setGrupos] = useState<GrupoHierarquia[]>(() => loadOrgGrupos())
+  const [grupoId, setGrupoId] = useState('')
 
   const transportadoresRef = useRef(transportadores)
   transportadoresRef.current = transportadores
@@ -95,6 +100,10 @@ export function PortalConfigPage() {
   }, [tab, salvarGrupo])
 
   useEffect(() => {
+    void hydrateOrgGrupos(flattenOrg(tree)).then(setGrupos)
+  }, [tree])
+
+  useEffect(() => {
     function onFocus() {
       if (editingIdRef.current) return
       void syncPortalAccounts().then(setAccounts)
@@ -106,21 +115,19 @@ export function PortalConfigPage() {
 
   const isSuper = isSuperSession(user)
 
-  const editableUsers = useMemo(
-    () => accounts.filter((a) => a.role === 'transportador'),
-    [accounts],
-  )
-
-  const accountsSorted = useMemo(() => {
-    return [...accounts].sort((a, b) => a.usuario.localeCompare(b.usuario))
-  }, [accounts])
+  const empresasFlat = useMemo(() => flattenOrg(tree), [tree])
+  const grupoEscolhido = grupos.find((g) => g.id === grupoId) ?? null
+  const contasDaHierarquia = useMemo(() => {
+    if (!grupoEscolhido) return []
+    return accounts.filter((a) => contaPertenceAoGrupo(a, grupoEscolhido, empresasFlat))
+  }, [accounts, grupoEscolhido, empresasFlat])
+  const editableUsers = contasDaHierarquia
 
   const contagemPortal = useMemo(() => {
-    // Mesma fonte da tabela: contas do portal (não o cadastro de empresas).
-    const transportadoras = accounts.filter((a) => a.role === 'transportador').length
-    const embarcadores = accounts.filter((a) => a.role === 'super').length
+    const transportadoras = contasDaHierarquia.filter((a) => a.role === 'transportador').length
+    const embarcadores = contasDaHierarquia.filter((a) => a.role !== 'transportador').length
     return { transportadoras, embarcadores }
-  }, [accounts])
+  }, [contasDaHierarquia])
 
   if (!user) return <Navigate to="/login" replace />
   if (!isSuper) {
@@ -515,13 +522,23 @@ export function PortalConfigPage() {
 
       {tab === 'permissoes' && (
         <div className="cadastro-grid cadastro-grid--equal">
+          <section className="form-card form-card--purple" style={{ gridColumn: '1 / -1' }}>
+            <header className="form-card__head">
+              <h2 className="form-card__title">Qual hierarquia?</h2>
+            </header>
+            <div className="form-card__body">
+              <SeletorHierarquia grupos={grupos} tree={tree} valor={grupoId} onEscolher={setGrupoId} />
+            </div>
+          </section>
+          {grupoEscolhido ? (
+          <>
           <section className="form-card form-card--purple">
             <header className="form-card__head">
-              <h2 className="form-card__title">Usuários</h2>
+              <h2 className="form-card__title">Usuários de {grupoEscolhido.nome}</h2>
             </header>
             <div className="form-card__body">
               {editableUsers.length === 0 ? (
-                <p className="cadastro-empty">Nenhum usuário editável. Cadastre contas pelo login.</p>
+                <p className="cadastro-empty">Nenhuma conta nesta hierarquia.</p>
               ) : (
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                   {editableUsers.map((a) => (
@@ -557,7 +574,7 @@ export function PortalConfigPage() {
               ) : (
                 <>
                   <p className="portal-login__hint" style={{ marginBottom: 10 }}>
-                    Ajuste o acesso por módulo deste transportador. Super Usuários têm acesso total.
+                    Ajuste o acesso por módulo das contas de {grupoEscolhido.nome}. Super Usuários têm acesso total.
                   </p>
                   <table className="cadastro-table">
                     <thead>
@@ -603,17 +620,29 @@ export function PortalConfigPage() {
               )}
             </div>
           </section>
+          </>
+          ) : null}
         </div>
       )}
 
       {tab === 'usuarios' && (
+        <>
+        <section className="form-card form-card--blue" style={{ marginBottom: 16 }}>
+          <header className="form-card__head">
+            <h2 className="form-card__title">Qual hierarquia?</h2>
+          </header>
+          <div className="form-card__body">
+            <SeletorHierarquia grupos={grupos} tree={tree} valor={grupoId} onEscolher={setGrupoId} />
+          </div>
+        </section>
+        {grupoEscolhido ? (
         <section className="form-card form-card--green">
           <header className="form-card__head portal-contas__head" style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <h2 className="form-card__title">Contas do portal</h2>
+            <h2 className="form-card__title">Contas de {grupoEscolhido.nome}</h2>
             <button
               type="button"
               className="cadastro-btn cadastro-btn--save"
-              onClick={() => navigate('/embarcador/config/nova-conta')}
+              onClick={() => navigate(`/embarcador/config/nova-conta?grupo=${encodeURIComponent(grupoEscolhido.id)}`)}
             >
               + Nova conta
             </button>
@@ -656,7 +685,7 @@ export function PortalConfigPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {accountsSorted.map((a) => {
+                  {[...contasDaHierarquia].sort((a, b) => a.usuario.localeCompare(b.usuario)).map((a) => {
                     const editing = editingId === a.id && draft
                     const row = editing ? draft : a
                     const isSuperRole = row.role === 'super'
@@ -847,7 +876,45 @@ export function PortalConfigPage() {
             </p>
           </div>
         </section>
+        ) : null}
+        </>
       )}
+    </div>
+  )
+}
+
+function SeletorHierarquia({
+  grupos,
+  tree,
+  valor,
+  onEscolher,
+}: {
+  grupos: GrupoHierarquia[]
+  tree: OrgNo[]
+  valor: string
+  onEscolher: (id: string) => void
+}) {
+  if (grupos.length === 0) {
+    return <p className="cadastro-empty">Nenhum grupo ainda. Crie um na aba Hierarquia.</p>
+  }
+  return (
+    <div className="hierarquia-seletor">
+      {grupos.map((g) => {
+        const dona = findOrgNo(tree, g.empresa_id)
+        return (
+          <button
+            key={g.id}
+            type="button"
+            className={`cadastro-ramificacao${valor === g.id ? ' is-on' : ''}`}
+            onClick={() => onEscolher(g.id)}
+          >
+            <strong>{g.nome}</strong>
+            <span>
+              {dona?.nome || 'Empresa'} · {g.membros.length} empresa{g.membros.length === 1 ? '' : 's'}
+            </span>
+          </button>
+        )
+      })}
     </div>
   )
 }

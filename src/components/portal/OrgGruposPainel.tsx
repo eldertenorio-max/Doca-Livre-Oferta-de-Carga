@@ -167,14 +167,14 @@ export function OrgGruposPainel({
           />
         ) : (
           <>
-            <div className="nova-conta__modos" style={{ marginBottom: 12, alignItems: 'end' }}>
+            <div className="hierarquia-form">
               <label>
                 Nome do grupo
-                <input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Estrutura Ultrafrio" />
+                <input className="cadastro-input" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Estrutura Ultrafrio" />
               </label>
               <label>
                 Empresa dona
-                <select value={donaId} onChange={(e) => setDonaId(e.target.value)}>
+                <select className="cadastro-input" value={donaId} onChange={(e) => setDonaId(e.target.value)}>
                   <option value="">Selecione</option>
                   {donas.map((n) => (
                     <option key={n.id} value={n.id}>
@@ -185,8 +185,10 @@ export function OrgGruposPainel({
               </label>
               <label>
                 Descrição
-                <input value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Opcional" />
+                <input className="cadastro-input" value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Opcional" />
               </label>
+            </div>
+            <div className="hierarquia-form__acoes">
               <button type="button" className="cadastro-btn cadastro-btn--primary" onClick={criar}>
                 Novo grupo
               </button>
@@ -199,54 +201,53 @@ export function OrgGruposPainel({
             {grupos.length === 0 ? (
               <p className="cadastro-empty">Nenhum grupo ainda.</p>
             ) : (
-              <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                {grupos.map((g) => {
-                  const dona = findOrgNo(tree, g.empresa_id)
-                  return (
-                    <li
-                      key={g.id}
-                      style={{
-                        display: 'flex',
-                        gap: 8,
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '8px 0',
-                        borderTop: '1px solid #e2e8f0',
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setAberto(g.id)}
-                        style={{
-                          border: 0,
-                          background: 'transparent',
-                          padding: 0,
-                          textAlign: 'left',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <strong>{g.nome}</strong>
-                        <span style={{ display: 'block', color: '#64748b', fontSize: 13 }}>
-                          {dona?.nome || 'Empresa'} · {g.membros.length} empresa{g.membros.length === 1 ? '' : 's'}
-                          {g.descricao ? ` · ${g.descricao}` : ''}
-                        </span>
-                      </button>
-                      <span style={{ display: 'flex', gap: 8 }}>
-                        <button type="button" className="cadastro-btn cadastro-btn--ghost" onClick={() => setAberto(g.id)}>
-                          Hierarquia
-                        </button>
-                        <button
-                          type="button"
-                          className="cadastro-btn cadastro-btn--ghost"
-                          onClick={() => gravar(excluirGrupoHierarquia(grupos, g.id))}
-                        >
-                          Excluir
-                        </button>
-                      </span>
-                    </li>
-                  )
-                })}
-              </ul>
+              <table className="hierarquia-lista">
+                <thead>
+                  <tr>
+                    <th>Grupo</th>
+                    <th>Empresa dona</th>
+                    <th>Empresas</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {grupos.map((g) => {
+                    const dona = findOrgNo(tree, g.empresa_id)
+                    return (
+                      <tr key={g.id}>
+                        <td>
+                          <button
+                            type="button"
+                            onClick={() => setAberto(g.id)}
+                            style={{ border: 0, background: 'transparent', padding: 0, textAlign: 'left', cursor: 'pointer' }}
+                          >
+                            <strong>{g.nome}</strong>
+                            {g.descricao ? (
+                              <span style={{ display: 'block', color: '#64748b', fontSize: 13 }}>{g.descricao}</span>
+                            ) : null}
+                          </button>
+                        </td>
+                        <td>{dona?.nome || 'Empresa'}</td>
+                        <td>{g.membros.length}</td>
+                        <td>
+                          <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            <button type="button" className="cadastro-btn cadastro-btn--ghost" onClick={() => setAberto(g.id)}>
+                              Hierarquia
+                            </button>
+                            <button
+                              type="button"
+                              className="cadastro-btn cadastro-btn--ghost"
+                              onClick={() => gravar(excluirGrupoHierarquia(grupos, g.id))}
+                            >
+                              Excluir
+                            </button>
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             )}
           </>
         )}
@@ -297,10 +298,10 @@ function GrupoAberto({
           Voltar aos grupos
         </button>
       </div>
-      <div className="nova-conta__modos" style={{ marginBottom: 12, alignItems: 'end' }}>
+      <div className="hierarquia-form">
         <label>
           Empresa
-          <select value={empresaId} onChange={(e) => onEmpresa(e.target.value)}>
+          <select className="cadastro-input" value={empresaId} onChange={(e) => onEmpresa(e.target.value)}>
             <option value="">Selecione</option>
             {fora.map((n) => (
               <option key={n.id} value={n.id}>
@@ -311,7 +312,7 @@ function GrupoAberto({
         </label>
         <label>
           Fica abaixo de
-          <select value={paiId} onChange={(e) => onPai(e.target.value)}>
+          <select className="cadastro-input" value={paiId} onChange={(e) => onPai(e.target.value)}>
             <option value="">Topo do grupo</option>
             {grupo.membros.map((m) => {
               const n = findOrgNo(tree, m.empresa_id)
@@ -324,9 +325,11 @@ function GrupoAberto({
             })}
           </select>
         </label>
-        <button type="button" className="cadastro-btn cadastro-btn--primary" onClick={onAdd} disabled={!empresaId}>
-          Adicionar ao grupo
-        </button>
+        <div className="hierarquia-form__acoes">
+          <button type="button" className="cadastro-btn cadastro-btn--primary" onClick={onAdd} disabled={!empresaId}>
+            Adicionar ao grupo
+          </button>
+        </div>
       </div>
       <OrgHierarchyTree
         nodes={desenho}
