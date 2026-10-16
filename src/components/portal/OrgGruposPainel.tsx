@@ -64,7 +64,7 @@ export function OrgGruposPainel({
   const [aberto, setAberto] = useState<string | null>(null)
   const [nome, setNome] = useState('')
   const [descricao, setDescricao] = useState('')
-  const [donaId, setDonaId] = useState('')
+  const [donaTexto, setDonaTexto] = useState('')
   const [empresaId, setEmpresaId] = useState('')
   const [paiId, setPaiId] = useState('')
   const [erro, setErro] = useState('')
@@ -74,6 +74,18 @@ export function OrgGruposPainel({
     () => empresas.filter((n) => n.tipo === 'operador_logistico' || n.tipo === 'embarcador'),
     [empresas],
   )
+
+  function resolverDonaId(texto: string): string | null {
+    const bruto = texto.trim()
+    if (!bruto) return null
+    const byId = donas.find((n) => n.id === bruto)
+    if (byId) return byId.id
+    const t = bruto.toLowerCase()
+    const exact = donas.find((n) => n.nome.trim().toLowerCase() === t)
+    if (exact) return exact.id
+    const parcial = donas.filter((n) => n.nome.toLowerCase().includes(t))
+    return parcial.length === 1 ? parcial[0].id : null
+  }
   const grupo = grupos.find((g) => g.id === aberto) ?? null
   const desenho = useMemo(() => (grupo ? nosDoGrupo(grupo, tree) : []), [grupo, tree])
 
@@ -93,6 +105,17 @@ export function OrgGruposPainel({
 
   function criar() {
     setErro('')
+    const donaId = resolverDonaId(donaTexto)
+    if (!donaTexto.trim()) {
+      setErro('Informe a empresa dona do grupo.')
+      return
+    }
+    if (!donaId) {
+      setErro(
+        'Não achei essa empresa dona. Digite o nome de um operador ou embarcador já cadastrado (ou cadastre em Gestão de empresas).',
+      )
+      return
+    }
     const r = criarGrupoHierarquia(grupos, { nome, descricao, empresaId: donaId })
     if (r.erro) {
       setErro(r.erro)
@@ -101,7 +124,7 @@ export function OrgGruposPainel({
     gravar(r.grupos)
     setNome('')
     setDescricao('')
-    setDonaId('')
+    setDonaTexto('')
     const novo = r.grupos[r.grupos.length - 1]
     if (novo) setAberto(novo.id)
   }
@@ -174,14 +197,21 @@ export function OrgGruposPainel({
               </label>
               <label>
                 Empresa dona
-                <select className="cadastro-input" value={donaId} onChange={(e) => setDonaId(e.target.value)}>
-                  <option value="">Selecione</option>
+                <input
+                  className="cadastro-input"
+                  list="hierarquia-donas-lista"
+                  value={donaTexto}
+                  onChange={(e) => setDonaTexto(e.target.value)}
+                  placeholder="Digite o nome da empresa"
+                  autoComplete="off"
+                />
+                <datalist id="hierarquia-donas-lista">
                   {donas.map((n) => (
-                    <option key={n.id} value={n.id}>
-                      {n.nome} — {ORG_TIPO_LABEL[n.tipo]}
+                    <option key={n.id} value={n.nome}>
+                      {ORG_TIPO_LABEL[n.tipo]}
                     </option>
                   ))}
-                </select>
+                </datalist>
               </label>
               <label>
                 Descrição
