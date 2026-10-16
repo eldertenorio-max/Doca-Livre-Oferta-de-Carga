@@ -59,6 +59,8 @@ export function PortalConfigPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draft, setDraft] = useState<PortalAccount | null>(null)
   const [salvando, setSalvando] = useState(false)
+  const [grupoAberto, setGrupoAberto] = useState(false)
+  const [gestaoEmpresas, setGestaoEmpresas] = useState(false)
 
   const transportadoresRef = useRef(transportadores)
   transportadoresRef.current = transportadores
@@ -475,7 +477,19 @@ export function PortalConfigPage() {
 
       {tab === 'hierarquia' && (
         <>
-        <OrgGruposPainel tree={tree} />
+        <OrgGruposPainel
+          tree={tree}
+          accounts={accounts}
+          transportadores={transportadores}
+          onEdit={editNode}
+          gestaoEmpresas={gestaoEmpresas}
+          onAbertoChange={(aberto) => {
+            setGrupoAberto(aberto)
+            if (aberto) setGestaoEmpresas(false)
+          }}
+          onGestaoEmpresas={() => setGestaoEmpresas((atual) => !atual)}
+        />
+        {!grupoAberto && gestaoEmpresas ? (
         <section className="form-card form-card--blue">
           <header className="form-card__head">
             <h2 className="form-card__title">Empresas</h2>
@@ -483,7 +497,7 @@ export function PortalConfigPage() {
           <div className="form-card__body">
             <p className="portal-login__hint" style={{ marginBottom: 12 }}>
               Cadastro das empresas. Operador → filial → embarcador → unidade → transportadora.
-              O agrupamento de quem vê quem fica nos grupos acima.
+              O desenho de cada grupo abre ao clicar no grupo.
             </p>
             <OrgHierarchyTree
               nodes={tree}
@@ -495,6 +509,7 @@ export function PortalConfigPage() {
             />
           </div>
         </section>
+        ) : null}
         </>
       )}
 

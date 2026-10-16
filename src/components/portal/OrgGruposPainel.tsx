@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { OrgHierarchyTree } from './OrgHierarchyTree'
 import {
   ORG_TIPO_LABEL,
   allowedOrgChildTypes,
@@ -6,6 +7,8 @@ import {
   flattenOrg,
   type OrgNo,
 } from '../../lib/orgHierarchy'
+import type { PortalAccount } from '../../lib/portalAuth'
+import type { Transportador } from '../../types'
 import {
   adicionarMembroGrupo,
   arvoreDoGrupo,
@@ -21,10 +24,42 @@ import {
 
 type Props = {
   tree: OrgNo[]
+  accounts: PortalAccount[]
+  transportadores: Transportador[]
+  onEdit?: (node: OrgNo) => void
+  onAbertoChange?: (aberto: boolean) => void
+  onGestaoEmpresas?: () => void
+  gestaoEmpresas?: boolean
   onChange?: () => void
 }
 
-export function OrgGruposPainel({ tree, onChange }: Props) {
+function nosDoGrupo(grupo: GrupoHierarquia, tree: OrgNo[]): OrgNo[] {
+  function mapear(no: NoGrupo, pai: string | null): OrgNo | null {
+    const base = findOrgNo(tree, no.id)
+    if (!base) return null
+    return {
+      ...base,
+      parent_id: pai,
+      children: no.filhos
+        .map((filho) => mapear(filho, no.id))
+        .filter((item): item is OrgNo => Boolean(item)),
+    }
+  }
+  return arvoreDoGrupo(grupo)
+    .map((no) => mapear(no, null))
+    .filter((item): item is OrgNo => Boolean(item))
+}
+
+export function OrgGruposPainel({
+  tree,
+  accounts,
+  transportadores,
+  onEdit,
+  onAbertoChange,
+  onGestaoEmpresas,
+  gestaoEmpresas,
+  onChange,
+}: Props) {
   const [grupos, setGrupos] = useState<GrupoHierarquia[]>(() => loadOrgGrupos())
   const [aberto, setAberto] = useState<string | null>(null)
   const [nome, setNome] = useState('')
@@ -40,6 +75,11 @@ export function OrgGruposPainel({ tree, onChange }: Props) {
     [empresas],
   )
   const grupo = grupos.find((g) => g.id === aberto) ?? null
+  const desenho = useMemo(() => (grupo ? nosDoGrupo(grupo, tree) : []), [grupo, tree])
+
+  useEffect(() => {
+    onAbertoChange?.(Boolean(aberto))
+  }, [aberto, onAbertoChange])
 
   useEffect(() => {
     void hydrateOrgGrupos(empresas).then(setGrupos)
@@ -93,9 +133,8 @@ export function OrgGruposPainel({ tree, onChange }: Props) {
       </header>
       <div className="form-card__body">
         <p className="portal-login__hint" style={{ marginBottom: 12 }}>
-          Igual ao Doca Livre: cada grupo tem a própria árvore. A mesma empresa pode estar em mais de um
-          grupo, e em cada um fica abaixo de um pai diferente. Quem está num ponto vê a si mesmo e quem está
-          abaixo, em todos os grupos.
+          Clique em um grupo para abrir o desenho da hierarquia. Cada grupo tem a própria árvore.
+          A mesma empresa pode estar em mais de um grupo.
         </p>
         {erro ? <p className="portal-login__info" style={{ marginBottom: 12 }}>{erro}</p> : null}
 
@@ -103,13 +142,24 @@ export function OrgGruposPainel({ tree, onChange }: Props) {
           <GrupoAberto
             grupo={grupo}
             tree={tree}
+            desenho={desenho}
+            accounts={accounts}
+            transportadores={transportadores}
             fora={fora}
             empresaId={empresaId}
             paiId={paiId}
             onEmpresa={setEmpresaId}
             onPai={setPaiId}
             onAdd={adicionar}
-            onRemove={(id) => gravar(removerMembroGrupo(grupos, grupo.id, id))}
+            onEdit={onEdit}
+            onRemove={(id) => {
+              if (id === grupo.empresa_id) {
+                setErro('A empresa dona do grupo permanece na hierarquia.')
+                return
+              }
+              setErro('')
+              gravar(removerMembroGrupo(grupos, grupo.id, id))
+            }}
             onBack={() => {
               setAberto(null)
               setErro('')
@@ -140,6 +190,11 @@ export function OrgGruposPainel({ tree, onChange }: Props) {
               <button type="button" className="cadastro-btn cadastro-btn--primary" onClick={criar}>
                 Novo grupo
               </button>
+              {onGestaoEmpresas ? (
+                <button type="button" className="cadastro-btn cadastro-btn--ghost" onClick={onGestaoEmpresas}>
+                  {gestaoEmpresas ? 'Fechar empresas' : 'Gestão de empresas'}
+                </button>
+              ) : null}
             </div>
             {grupos.length === 0 ? (
               <p className="cadastro-empty">Nenhum grupo ainda.</p>
@@ -159,16 +214,26 @@ export function OrgGruposPainel({ tree, onChange }: Props) {
                         borderTop: '1px solid #e2e8f0',
                       }}
                     >
-                      <span>
+                      <button
+                        type="button"
+                        onClick={() => setAberto(g.id)}
+                        style={{
+                          border: 0,
+                          background: 'transparent',
+                          padding: 0,
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                        }}
+                      >
                         <strong>{g.nome}</strong>
                         <span style={{ display: 'block', color: '#64748b', fontSize: 13 }}>
                           {dona?.nome || 'Empresa'} · {g.membros.length} empresa{g.membros.length === 1 ? '' : 's'}
                           {g.descricao ? ` · ${g.descricao}` : ''}
                         </span>
-                      </span>
+                      </button>
                       <span style={{ display: 'flex', gap: 8 }}>
                         <button type="button" className="cadastro-btn cadastro-btn--ghost" onClick={() => setAberto(g.id)}>
-                          Abrir
+                          Hierarquia
                         </button>
                         <button
                           type="button"
@@ -193,27 +258,34 @@ export function OrgGruposPainel({ tree, onChange }: Props) {
 function GrupoAberto({
   grupo,
   tree,
+  desenho,
+  accounts,
+  transportadores,
   fora,
   empresaId,
   paiId,
   onEmpresa,
   onPai,
   onAdd,
+  onEdit,
   onRemove,
   onBack,
 }: {
   grupo: GrupoHierarquia
   tree: OrgNo[]
+  desenho: OrgNo[]
+  accounts: PortalAccount[]
+  transportadores: Transportador[]
   fora: OrgNo[]
   empresaId: string
   paiId: string
   onEmpresa: (id: string) => void
   onPai: (id: string) => void
   onAdd: () => void
+  onEdit?: (node: OrgNo) => void
   onRemove: (id: string) => void
   onBack: () => void
 }) {
-  const raizes = arvoreDoGrupo(grupo)
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
@@ -256,66 +328,15 @@ function GrupoAberto({
           Adicionar ao grupo
         </button>
       </div>
-      {raizes.length === 0 ? (
-        <p className="cadastro-empty">Nenhuma empresa neste grupo.</p>
-      ) : (
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-          {raizes.map((no) => (
-            <LinhaGrupo key={no.id} no={no} tree={tree} grupo={grupo} nivel={0} onRemove={onRemove} />
-          ))}
-        </ul>
-      )}
+      <OrgHierarchyTree
+        nodes={desenho}
+        accounts={accounts}
+        transportadores={transportadores}
+        rotuloRaiz="+ No topo"
+        onAdd={(parent) => onPai(parent?.id ?? '')}
+        onEdit={(node) => onEdit?.(node)}
+        onRemove={onRemove}
+      />
     </div>
-  )
-}
-
-function LinhaGrupo({
-  no,
-  tree,
-  grupo,
-  nivel,
-  onRemove,
-}: {
-  no: NoGrupo
-  tree: OrgNo[]
-  grupo: GrupoHierarquia
-  nivel: number
-  onRemove: (id: string) => void
-}) {
-  const empresa = findOrgNo(tree, no.id)
-  if (!empresa) return null
-  return (
-    <li>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          gap: 8,
-          alignItems: 'center',
-          marginLeft: nivel * 18,
-          padding: '6px 0',
-          borderTop: '1px solid #e2e8f0',
-        }}
-      >
-        <span>
-          <strong>{empresa.nome}</strong>
-          <span style={{ marginLeft: 8, color: '#64748b', fontSize: 12 }}>{ORG_TIPO_LABEL[empresa.tipo]}</span>
-        </span>
-        {grupo.empresa_id === empresa.id ? (
-          <span style={{ fontSize: 12, color: '#64748b' }}>Dona do grupo</span>
-        ) : (
-          <button type="button" className="cadastro-btn cadastro-btn--ghost" onClick={() => onRemove(empresa.id)}>
-            Tirar
-          </button>
-        )}
-      </div>
-      {no.filhos.length > 0 ? (
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-          {no.filhos.map((filho) => (
-            <LinhaGrupo key={filho.id} no={filho} tree={tree} grupo={grupo} nivel={nivel + 1} onRemove={onRemove} />
-          ))}
-        </ul>
-      ) : null}
-    </li>
   )
 }
