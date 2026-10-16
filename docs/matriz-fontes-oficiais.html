@@ -1,0 +1,208 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>Matriz das fontes oficiais</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 36px 40px 48px;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+  }
+  .wrap {
+    width: 1680px;
+    margin: 0 auto;
+    background: linear-gradient(180deg, #111827 0%, #0b1220 100%);
+    border: 1px solid #334155;
+    border-radius: 16px;
+    padding: 28px 28px 32px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.45);
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+    margin-bottom: 22px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid #334155;
+  }
+  h1 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #f8fafc;
+  }
+  .sub {
+    margin: 6px 0 0;
+    font-size: 14px;
+    color: #94a3b8;
+    font-weight: 400;
+  }
+  .badge {
+    flex-shrink: 0;
+    background: #1e293b;
+    border: 1px solid #475569;
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-radius: 999px;
+  }
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 12.5px;
+    line-height: 1.45;
+  }
+  th {
+    background: #1e3a5f;
+    color: #f1f5f9;
+    font-weight: 600;
+    text-align: left;
+    padding: 12px 11px;
+    border-bottom: 2px solid #38bdf8;
+    vertical-align: bottom;
+    white-space: nowrap;
+  }
+  th:first-child { border-radius: 10px 0 0 0; }
+  th:last-child { border-radius: 0 10px 0 0; }
+  td {
+    padding: 12px 11px;
+    vertical-align: top;
+    border-bottom: 1px solid #1e293b;
+    color: #cbd5e1;
+    background: #0f172a;
+  }
+  tr:nth-child(even) td { background: #111c2e; }
+  tr:last-child td { border-bottom: none; }
+  tr:last-child td:first-child { border-radius: 0 0 0 10px; }
+  tr:last-child td:last-child { border-radius: 0 0 10px 0; }
+  .doc {
+    font-weight: 700;
+    color: #fbbf24;
+    font-size: 13px;
+  }
+  .src {
+    color: #7dd3fc;
+    font-weight: 500;
+  }
+  .warn {
+    color: #fca5a5;
+  }
+  .ok {
+    color: #86efac;
+  }
+  .muted {
+    color: #94a3b8;
+  }
+  .col-doc { width: 12%; }
+  .col-fonte { width: 14%; }
+  .col-ver { width: 18%; }
+  .col-acesso { width: 12%; }
+  .col-contr { width: 12%; }
+  .col-custo { width: 10%; }
+  .col-upd { width: 10%; }
+  .col-lim { width: 12%; }
+  footer {
+    margin-top: 18px;
+    font-size: 11px;
+    color: #64748b;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap" id="capture">
+    <header>
+      <div>
+        <h1>Matriz das fontes oficiais</h1>
+        <p class="sub">Sistema Oferta de Carga — validação documental (RNTRC, CNH, CRLV)</p>
+      </div>
+      <div class="badge">Auditoria · sem automação indevida</div>
+    </header>
+    <table>
+      <thead>
+        <tr>
+          <th class="col-doc">Documento</th>
+          <th class="col-fonte">Fonte</th>
+          <th class="col-ver">O que dá para verificar</th>
+          <th class="col-acesso">Acesso</th>
+          <th class="col-contr">Contratação</th>
+          <th class="col-custo">Custo</th>
+          <th class="col-upd">Atualização</th>
+          <th class="col-lim">Limite</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="doc">RNTRC da transportadora</td>
+          <td class="src">Consulta pública ANTT<br/><span class="muted">consultapublica.antt.gov.br · v1.1.6.0</span></td>
+          <td>Situação por CPF/CNPJ ou RNTRC; aba por veículo. Campos completos do retorno: <span class="warn">PENDENTE</span> (formulário oficial, sem dicionário da resposta).</td>
+          <td>Página pública. reCAPTCHA: <span class="warn">INFERIDO</span> por descrições do formulário; markdown obtido não exibiu o captcha.</td>
+          <td class="warn">Não é API autorizada para o Oferta</td>
+          <td>Sem preço de API — não há API pública confirmada</td>
+          <td>Consulta pontual, não um arquivo</td>
+          <td class="warn">Não automatizar. Contorna controle de acesso</td>
+        </tr>
+        <tr>
+          <td class="doc">RNTRC</td>
+          <td class="src">Dados abertos<br/><span class="muted">dados.antt.gov.br/dataset/rntrc</span></td>
+          <td>Transportadores inscritos, arquivo mensal CSV/JSON. Colunas exatas: <span class="warn">PENDENTE</span>; API CKAN respondeu 403 neste ambiente.</td>
+          <td>Download do portal. A página cita uma API de dados.</td>
+          <td class="ok">Uso de dado aberto, sem contrato visto</td>
+          <td>Sem tarifa publicada no conjunto</td>
+          <td>Mensal. Última atualização vista em <strong>10/10/2026</strong></td>
+          <td>Defasagem de até um ciclo mensal. Não é a situação do minuto.</td>
+        </tr>
+        <tr>
+          <td class="doc">Placa no RNTRC</td>
+          <td class="src">Dados abertos veículos<br/><span class="muted">dataset/rntrc-veiculos + dicionário oficial</span></td>
+          <td>Só totais: categoria (ETC, TAC, CTC), tração/implemento, UF, carroceria, ano e quantidade. Transportador ativo.</td>
+          <td>Mesmo portal</td>
+          <td class="ok">Dado aberto</td>
+          <td>Sem tarifa vista</td>
+          <td>Mensal. Atualização vista em <strong>06/10/2026</strong></td>
+          <td class="warn">Não associa placa a RNTRC. Não serve à verificação do veículo.</td>
+        </tr>
+        <tr>
+          <td class="doc">Placa + RNTRC</td>
+          <td class="src">Portal do desenvolvedor ANTT<br/><span class="muted">API de reenvio SEFAZ</span></td>
+          <td>Com CPF/CNPJ e/ou placa, o texto descreve retorno de transportador e frota para a SEFAZ.</td>
+          <td>Certificado ICP-Brasil, mTLS. Homologação e produção em hosts <span class="muted">*.antt.gov.br</span></td>
+          <td>Credenciamento de parceiro. Não está demonstrado que o Oferta possa usar esta API para consulta cadastral.</td>
+          <td class="warn">PENDENTE</td>
+          <td class="warn">PENDENTE</td>
+          <td class="warn">Não tratar como consulta pública. Integração pendente até autorização da ANTT.</td>
+        </tr>
+        <tr>
+          <td class="doc">CNH</td>
+          <td class="src">SERPRO Consulta Senatran<br/><span class="muted">RENACH · página de condutor</span></td>
+          <td><strong>Básica:</strong> nome, CPF, categoria, validade, situação, nº registro.<br/><strong>Detalhada:</strong> bloqueios e cursos. Observações e restrição médica = dado sensível.</td>
+          <td>Credencia, e-CNPJ, TAAD, contrato Serpro e GCC. Manual técnico só após aprovação.</td>
+          <td>Portaria Senatran 139/2025. Prazo de 60 dias para contratar após o deferimento.</td>
+          <td>Por faixa e tipo (básica, indicadores, detalhada). Valor unitário <span class="warn">PENDENTE</span>. Homologação descrita como gratuita antes da produção.</td>
+          <td class="ok">Tempo real (material Serpro)</td>
+          <td>Não prova que o arquivo enviado é a CNH original. Exige consentimento/ciência quando a norma pedir.</td>
+        </tr>
+        <tr>
+          <td class="doc">CRLV / veículo</td>
+          <td class="src">SERPRO RENAVAM<br/><span class="muted">página de veículo</span></td>
+          <td><strong>Básica:</strong> placa, RENAVAM, marca/modelo, anos, carroceria, situação, proprietário, ano e data do CRLV, código de segurança do CRV.</td>
+          <td>O mesmo credenciamento</td>
+          <td>O mesmo</td>
+          <td>O mesmo modelo de faixa. Valor <span class="warn">PENDENTE</span></td>
+          <td class="ok">Tempo real no material Serpro</td>
+          <td>Confronta placa e RENAVAM com a base. Não declara o PDF autêntico só porque os campos batem.</td>
+        </tr>
+      </tbody>
+    </table>
+    <footer>Doca Livre · Oferta de Carga — uso interno da auditoria. Não automatizar consulta pública ANTT. Conectores externos só após contratação e aprovação.</footer>
+  </div>
+</body>
+</html>
