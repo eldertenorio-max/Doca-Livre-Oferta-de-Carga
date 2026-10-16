@@ -2,10 +2,12 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, HashRouter } from 'react-router-dom'
 import { AppErrorBoundary } from './components/AppErrorBoundary'
+import { instalarRealtimeBfcache } from './lib/realtimeBroadcast'
 import { isSiteOfertaDeCarga, isSitePublicoLimpo, redirecionarPainelOficial } from './lib/siteOfertaDeCarga'
+import { supabase } from './lib/supabase'
 import './index.css'
 
-const BUILD_ID = 'rota-publico-cache-v365'
+const BUILD_ID = 'rota-publico-cache-v366'
 
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (e) => {
@@ -14,6 +16,7 @@ if (typeof window !== 'undefined') {
       e.preventDefault()
     }
   })
+  instalarRealtimeBfcache(supabase)
 }
 
 function marcarBoot() {

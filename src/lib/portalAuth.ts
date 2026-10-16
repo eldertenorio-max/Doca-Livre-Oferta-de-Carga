@@ -12,6 +12,7 @@ import {
   type OfertaPermissao,
 } from './portalModules'
 import type { PerfilOperacional, UserRole } from '../types'
+import { broadcastNoCanal } from './realtimeBroadcast'
 import { isSupabaseConfigured, supabase } from './supabase'
 import {
   appStoreGet,
@@ -1741,47 +1742,17 @@ export async function broadcastPortalAccountsChanged(
   reason: 'delete' | 'upsert' | 'sync' = 'sync',
 ) {
   if (!isSupabaseConfigured || !supabase) return
-  const client = supabase
   const payload = {
     client_id: portalAccountsClientId,
     reason,
     at: Date.now(),
   }
 
-  // Canal já inscrito (algum Super na tela Usuários)
-  if (portalAccountsChannel) {
-    try {
-      await portalAccountsChannel.send({
-        type: 'broadcast',
-        event: PORTAL_ACCOUNTS_BROADCAST,
-        payload,
-      })
-      return
-    } catch {
-      /* tenta canal efêmero abaixo */
-    }
-  }
-
-  const ch = client.channel(`${PORTAL_ACCOUNTS_CHANNEL}-tx-${Date.now()}`)
-  await new Promise<void>((resolve) => {
-    const t = window.setTimeout(() => resolve(), 1500)
-    ch.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        window.clearTimeout(t)
-        resolve()
-      }
-    })
+  // Só o canal já inscrito; evita canal efêmero + send()→REST (422 no bfcache).
+  // Poll de 4s e postgres_changes cobrem quem não está com WS ativo.
+  await broadcastNoCanal(portalAccountsChannel, PORTAL_ACCOUNTS_BROADCAST, payload, {
+    maxBytes: 2_000,
   })
-  try {
-    await ch.send({
-      type: 'broadcast',
-      event: PORTAL_ACCOUNTS_BROADCAST,
-      payload,
-    })
-  } catch {
-    /* broadcast opcional */
-  }
-  void client.removeChannel(ch)
 }
 
 /**

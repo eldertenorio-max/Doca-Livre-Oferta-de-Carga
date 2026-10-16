@@ -486,17 +486,8 @@ export async function pushKanbanSync(slice: KanbanSyncSlice): Promise<boolean> {
     return false
   }
 
-  if (liveChannel) {
-    try {
-      await liveChannel.send({
-        type: 'broadcast',
-        event: BROADCAST_EVENT,
-        payload: body,
-      })
-    } catch {
-      /* broadcast opcional */
-    }
-  }
+  // Sem broadcast do slice: payload grande + send() em REST gera 422 no bfcache.
+  // Sync imediato via postgres_changes; poll de 2,5s cobre falha do Realtime.
   return true
 }
 
