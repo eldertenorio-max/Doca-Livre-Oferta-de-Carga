@@ -101,18 +101,21 @@ export function idsAbaixoNosGrupos(empresaId: string | null | undefined): string
 
 export function criarGrupoHierarquia(
   grupos: GrupoHierarquia[],
-  input: { nome: string; descricao: string; empresaId: string },
+  input: { nome: string; descricao: string; empresaId?: string },
 ): { grupos: GrupoHierarquia[]; erro?: string } {
   const nome = input.nome.trim()
   if (!nome) return { grupos, erro: 'Informe o nome do grupo.' }
-  if (!input.empresaId) return { grupos, erro: 'Escolha a empresa dona do grupo.' }
+  const empresaId = (input.empresaId || '').trim()
+  // Sem empresa: grupo vazio — empresas entram depois. Com empresa: já nasce com a dona.
   const grupo: GrupoHierarquia = {
     id: `grupo-${Date.now().toString(36)}`,
     nome,
     descricao: input.descricao.trim(),
-    empresa_id: input.empresaId,
+    empresa_id: empresaId,
     created_at: new Date().toISOString(),
-    membros: [{ empresa_id: input.empresaId, parent_empresa_id: null, posicao: 0 }],
+    membros: empresaId
+      ? [{ empresa_id: empresaId, parent_empresa_id: null, posicao: 0 }]
+      : [],
   }
   return { grupos: [...grupos, grupo] }
 }
@@ -159,17 +162,16 @@ export function adicionarMembroGrupo(
     return { grupos, erro: 'Esse pai fecharia um ciclo no grupo.' }
   }
   return {
-    grupos: grupos.map((g) =>
-      g.id !== grupoId
-        ? g
-        : {
-            ...g,
-            membros: [
-              ...g.membros,
-              { empresa_id: empresaId, parent_empresa_id: parentId, posicao: g.membros.length },
-            ],
-          },
-    ),
+    grupos: grupos.map((g) => {
+      if (g.id !== grupoId) return g
+      const membros = [
+        ...g.membros,
+        { empresa_id: empresaId, parent_empresa_id: parentId, posicao: g.membros.length },
+      ]
+      // Primeira empresa no topo de um grupo vazio vira a dona.
+      const empresaDona = g.empresa_id || (!parentId ? empresaId : g.empresa_id)
+      return { ...g, empresa_id: empresaDona, membros }
+    }),
   }
 }
 

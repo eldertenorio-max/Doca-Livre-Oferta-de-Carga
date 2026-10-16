@@ -381,7 +381,8 @@ export function NovaContaPortalPage() {
     <div className="cadastro-page animate-fade-up">
       <h1 className="cadastro-page-title">Nova conta</h1>
       <p style={{ color: '#1a1d21', marginTop: -8, marginBottom: 16, fontSize: '0.92rem', maxWidth: 720 }}>
-        Primeiro escolha a hierarquia. Depois a página abre a conta de acesso da empresa.
+        Você pode colocar a conta numa hierarquia já feita, ou criar um grupo novo neste cadastro.
+        Também dá para criar só o grupo vazio em Hierarquia e incluir empresas depois.
       </p>
 
       {passoGrupo !== 'pronto' ? (

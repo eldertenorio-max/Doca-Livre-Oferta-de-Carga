@@ -65,6 +65,8 @@ export function OrgGruposPainel({
   const [nome, setNome] = useState('')
   const [descricao, setDescricao] = useState('')
   const [donaTexto, setDonaTexto] = useState('')
+  /** vazio = só o grupo; com_dona = já nasce com empresa */
+  const [modoCriacao, setModoCriacao] = useState<'vazio' | 'com_dona'>('vazio')
   const [empresaId, setEmpresaId] = useState('')
   const [paiId, setPaiId] = useState('')
   const [erro, setErro] = useState('')
@@ -105,18 +107,22 @@ export function OrgGruposPainel({
 
   function criar() {
     setErro('')
-    const donaId = resolverDonaId(donaTexto)
-    if (!donaTexto.trim()) {
-      setErro('Informe a empresa dona do grupo.')
-      return
+    let donaId = ''
+    if (modoCriacao === 'com_dona') {
+      if (!donaTexto.trim()) {
+        setErro('Informe a empresa dona do grupo, ou escolha “Grupo primeiro”.')
+        return
+      }
+      const resolvida = resolverDonaId(donaTexto)
+      if (!resolvida) {
+        setErro(
+          'Não achei essa empresa dona. Digite o nome de um operador ou embarcador já cadastrado (ou cadastre em Gestão de empresas).',
+        )
+        return
+      }
+      donaId = resolvida
     }
-    if (!donaId) {
-      setErro(
-        'Não achei essa empresa dona. Digite o nome de um operador ou embarcador já cadastrado (ou cadastre em Gestão de empresas).',
-      )
-      return
-    }
-    const r = criarGrupoHierarquia(grupos, { nome, descricao, empresaId: donaId })
+    const r = criarGrupoHierarquia(grupos, { nome, descricao, empresaId: donaId || undefined })
     if (r.erro) {
       setErro(r.erro)
       return
@@ -156,8 +162,8 @@ export function OrgGruposPainel({
       </header>
       <div className="form-card__body">
         <p className="portal-login__hint" style={{ marginBottom: 12 }}>
-          Clique em um grupo para abrir o desenho da hierarquia. Cada grupo tem a própria árvore.
-          A mesma empresa pode estar em mais de um grupo.
+          Duas formas: crie só o grupo e depois coloque as empresas, ou já escolha a empresa dona.
+          No cadastro de conta (Usuários → Nova conta) também dá para criar um grupo novo.
         </p>
         {erro ? <p className="portal-login__info" style={{ marginBottom: 12 }}>{erro}</p> : null}
 
@@ -176,7 +182,7 @@ export function OrgGruposPainel({
             onAdd={adicionar}
             onEdit={onEdit}
             onRemove={(id) => {
-              if (id === grupo.empresa_id) {
+              if (grupo.empresa_id && id === grupo.empresa_id) {
                 setErro('A empresa dona do grupo permanece na hierarquia.')
                 return
               }
@@ -190,29 +196,57 @@ export function OrgGruposPainel({
           />
         ) : (
           <>
+            <div className="cadastro-ramificacoes" role="list" style={{ marginBottom: 12 }}>
+              <button
+                type="button"
+                className={`cadastro-ramificacao${modoCriacao === 'vazio' ? ' is-on' : ''}`}
+                onClick={() => {
+                  setModoCriacao('vazio')
+                  setDonaTexto('')
+                }}
+              >
+                <strong>Grupo primeiro</strong>
+                <span>Cria só o nome. Depois você coloca as empresas dentro.</span>
+              </button>
+              <button
+                type="button"
+                className={`cadastro-ramificacao${modoCriacao === 'com_dona' ? ' is-on' : ''}`}
+                onClick={() => setModoCriacao('com_dona')}
+              >
+                <strong>Já com empresa dona</strong>
+                <span>Escolhe a dona agora e já abre a hierarquia com ela.</span>
+              </button>
+            </div>
             <div className="hierarquia-form">
               <label>
                 Nome do grupo
                 <input className="cadastro-input" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Estrutura Ultrafrio" />
               </label>
-              <label>
-                Empresa dona
-                <input
-                  className="cadastro-input"
-                  list="hierarquia-donas-lista"
-                  value={donaTexto}
-                  onChange={(e) => setDonaTexto(e.target.value)}
-                  placeholder="Digite o nome da empresa"
-                  autoComplete="off"
-                />
-                <datalist id="hierarquia-donas-lista">
-                  {donas.map((n) => (
-                    <option key={n.id} value={n.nome}>
-                      {ORG_TIPO_LABEL[n.tipo]}
-                    </option>
-                  ))}
-                </datalist>
-              </label>
+              {modoCriacao === 'com_dona' ? (
+                <label>
+                  Empresa dona
+                  <input
+                    className="cadastro-input"
+                    list="hierarquia-donas-lista"
+                    value={donaTexto}
+                    onChange={(e) => setDonaTexto(e.target.value)}
+                    placeholder="Digite o nome da empresa"
+                    autoComplete="off"
+                  />
+                  <datalist id="hierarquia-donas-lista">
+                    {donas.map((n) => (
+                      <option key={n.id} value={n.nome}>
+                        {ORG_TIPO_LABEL[n.tipo]}
+                      </option>
+                    ))}
+                  </datalist>
+                </label>
+              ) : (
+                <label>
+                  Empresa dona
+                  <input className="cadastro-input" value="" disabled placeholder="Depois, ao adicionar a 1ª empresa" />
+                </label>
+              )}
               <label>
                 Descrição
                 <input className="cadastro-input" value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Opcional" />
@@ -257,7 +291,7 @@ export function OrgGruposPainel({
                             ) : null}
                           </button>
                         </td>
-                        <td>{dona?.nome || 'Empresa'}</td>
+                        <td>{dona?.nome || (g.empresa_id ? 'Empresa' : '—')}</td>
                         <td>{g.membros.length}</td>
                         <td>
                           <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -328,6 +362,11 @@ function GrupoAberto({
           Voltar aos grupos
         </button>
       </div>
+      {grupo.membros.length === 0 ? (
+        <p className="portal-login__hint" style={{ marginBottom: 12 }}>
+          Grupo vazio. Adicione a primeira empresa (operador ou embarcador) no topo; ela vira a dona.
+        </p>
+      ) : null}
       <div className="hierarquia-form">
         <label>
           Empresa
@@ -342,8 +381,13 @@ function GrupoAberto({
         </label>
         <label>
           Fica abaixo de
-          <select className="cadastro-input" value={paiId} onChange={(e) => onPai(e.target.value)}>
-            <option value="">Topo do grupo</option>
+          <select
+            className="cadastro-input"
+            value={paiId}
+            onChange={(e) => onPai(e.target.value)}
+            disabled={grupo.membros.length === 0}
+          >
+            <option value="">{grupo.membros.length === 0 ? 'Topo (1ª empresa / dona)' : 'Topo do grupo'}</option>
             {grupo.membros.map((m) => {
               const n = findOrgNo(tree, m.empresa_id)
               if (!n) return null

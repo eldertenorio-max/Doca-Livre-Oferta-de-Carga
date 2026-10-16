@@ -7,7 +7,7 @@ import { isSiteOfertaDeCarga, isSitePublicoLimpo, redirecionarPainelOficial } fr
 import { supabase } from './lib/supabase'
 import './index.css'
 
-const BUILD_ID = 'rota-publico-cache-v367'
+const BUILD_ID = 'rota-publico-cache-v368'
 
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (e) => {
