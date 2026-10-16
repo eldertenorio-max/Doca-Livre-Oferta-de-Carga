@@ -34,6 +34,7 @@ export function LogoEmpresa({ empresa, catalogo = [], className = '' }: Props) {
       src={src}
       alt=""
       decoding="async"
+      loading="lazy"
       referrerPolicy="no-referrer"
       onError={() => setIdx((n) => n + 1)}
     />

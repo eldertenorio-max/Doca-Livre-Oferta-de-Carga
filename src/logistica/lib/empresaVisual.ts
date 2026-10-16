@@ -68,10 +68,6 @@ export function urlsLogoEmpresa(e: Empresa, catalogo: Empresa[] = []): string[] 
   if (e.logo_url?.trim()) urls.push(e.logo_url.trim())
   const host = hostDeUrl(siteParaLogo(e, catalogo))
   if (host) {
-    const alvo = encodeURIComponent(`https://${host}`)
-    urls.push(
-      `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${alvo}&size=128`,
-    )
     urls.push(`https://icons.duckduckgo.com/ip3/${host}.ico`)
   }
   return [...new Set(urls)]
