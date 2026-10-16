@@ -851,7 +851,7 @@ a.sidebar-section:first-of-type {
   pointer-events: none;
   background:
     var(--brand-logo-url, url('/logo-doca-livre.png')) center 38% / min(380px, 62%) no-repeat;
-  opacity: 0.09;
+  opacity: 0.28;
   z-index: 0;
 }
 
@@ -866,8 +866,8 @@ a.sidebar-section:first-of-type {
   font-size: clamp(1.35rem, 2.4vw, 1.85rem);
   font-weight: 700;
   letter-spacing: -0.03em;
-  color: #94a3b8;
-  opacity: 0.45;
+  color: #475569;
+  opacity: 0.82;
 }
 
 .main-panel > * {
