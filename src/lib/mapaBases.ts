@@ -31,15 +31,13 @@ export const MAPA_VISTAS: MapaBaseCfg[] = [
     id: 'ruas',
     label: 'Mapa',
     title: 'Mapa de ruas (português)',
-    // Miniatura estática; a camada real usa OpenFreeMap com rótulos em PT
     preview: 'https://tiles.openfreemap.org/natural_earth/ne2sr/3/2/3.png',
     fallback: '#dbe4ea',
-    // url vazia: RotaMapPreview usa camadaRuasPortugues() (vetor PT)
+    // url vazia: RotaMapPreview usa aplicarCamadaRuasPortugues() (osMap PT)
     url: undefined,
     options: {
       maxZoom: 19,
-      attribution:
-        '© OpenStreetMap · OpenFreeMap',
+      attribution: '© OpenStreetMap · osMap PT',
     },
   },
   {
