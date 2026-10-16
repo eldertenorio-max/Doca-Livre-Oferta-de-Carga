@@ -497,26 +497,12 @@ function slimLatLng(
   return line.filter((_, i) => i % step === 0 || i === line.length - 1)
 }
 
-const VALHALLA_URL = 'https://valhalla1.openstreetmap.de/route'
-
 /**
- * Rodoanel Norte trecho 2 (Fernão Dias → Av. Raimundo Pereira de Magalhães).
- * O OSM/Valhalla trata o alinhamento como motorway aberta, mas em ago/2026
- * só o trecho 1 (Dutra ↔ Fernão Dias) opera; o trecho 2 segue em obras.
- * Anel Valhalla: [lon, lat]. Remover quando o trecho 2 for liberado.
+ * O servidor público recusa exclude_polygons cuja circunferência passa de 10 km
+ * (HTTP 400, error_code 167). O anel do Rodoanel Norte trecho 2 estoura esse limite
+ * e a rota já seguia sem ele. Não reenviar o polígono.
  */
-const EXCLUDE_RODOANEL_NORTE_TRECHO2: number[][] = [
-  [-46.79, -23.4],
-  [-46.72, -23.39],
-  [-46.64, -23.395],
-  [-46.585, -23.405],
-  [-46.568, -23.43],
-  [-46.575, -23.455],
-  [-46.64, -23.465],
-  [-46.72, -23.46],
-  [-46.785, -23.478],
-  [-46.798, -23.45],
-]
+const VALHALLA_URL = 'https://valhalla1.openstreetmap.de/route'
 
 type CostingValhalla = 'auto' | 'truck'
 
@@ -561,22 +547,15 @@ async function fetchValhallaRoute(
       costing_options: {
         [costing]: { use_tolls: opts.useTolls, use_highways: 1 },
       },
-      exclude_polygons: [EXCLUDE_RODOANEL_NORTE_TRECHO2],
       shape_format: 'polyline6' as const,
       units: 'kilometers',
     }
-    const pedir = (payload: typeof body) =>
-      fetch(VALHALLA_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: ctrl?.signal,
-        body: JSON.stringify(payload),
-      })
-    let res = await pedir(body)
-    if (!res.ok && res.status === 400) {
-      const { exclude_polygons: _drop, ...semExclude } = body
-      res = await pedir(semExclude as typeof body)
-    }
+    const res = await fetch(VALHALLA_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: ctrl?.signal,
+      body: JSON.stringify(body),
+    })
     if (!res.ok) return null
     const data = (await res.json()) as {
       trip?: {

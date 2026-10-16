@@ -5,7 +5,7 @@ import { AppErrorBoundary } from './components/AppErrorBoundary'
 import { isSiteOfertaDeCarga, isSitePublicoLimpo, redirecionarPainelOficial } from './lib/siteOfertaDeCarga'
 import './index.css'
 
-const BUILD_ID = 'rota-publico-cache-v362'
+const BUILD_ID = 'rota-publico-cache-v363'
 
 if (typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (e) => {

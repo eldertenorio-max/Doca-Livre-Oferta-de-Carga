@@ -6,18 +6,6 @@
 const UA = 'DocaLivre-validacao-rota/1.0 (diego@docalivre.com)'
 const EIXOS = 6
 const VALHALLA = 'https://valhalla1.openstreetmap.de/route'
-const EXCLUDE_RODOANEL = [
-  [-46.79, -23.4],
-  [-46.72, -23.39],
-  [-46.64, -23.395],
-  [-46.585, -23.405],
-  [-46.568, -23.43],
-  [-46.575, -23.455],
-  [-46.64, -23.465],
-  [-46.72, -23.46],
-  [-46.785, -23.478],
-  [-46.798, -23.45],
-]
 
 function roundMoney(n) {
   return Math.round((n + Number.EPSILON) * 100) / 100
@@ -94,23 +82,14 @@ async function valhalla(pontos, useTolls, costing = 'truck') {
     locations: pontos.map((p) => ({ lat: p.lat, lon: p.lng })),
     costing,
     costing_options: { [costing]: { use_tolls: useTolls, use_highways: 1 } },
-    exclude_polygons: [EXCLUDE_RODOANEL],
     shape_format: 'polyline6',
     units: 'kilometers',
   }
-  let res = await fetch(VALHALLA, {
+  const res = await fetch(VALHALLA, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'User-Agent': UA },
     body: JSON.stringify(body),
   })
-  if (!res.ok && res.status === 400) {
-    const { exclude_polygons, ...rest } = body
-    res = await fetch(VALHALLA, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'User-Agent': UA },
-      body: JSON.stringify(rest),
-    })
-  }
   if (!res.ok) throw new Error(`valhalla ${res.status} ${await res.text()}`)
   const data = await res.json()
   const legs = data.trip?.legs ?? []
