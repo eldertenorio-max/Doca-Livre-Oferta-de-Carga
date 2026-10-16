@@ -157,6 +157,11 @@
   overflow: visible;
 }
 
+.app-topbar-brand > a {
+  display: flex;
+  line-height: 0;
+}
+
 .app-topbar-logo {
   display: block;
   height: 40px;

@@ -4,6 +4,7 @@ import { useData } from './context/DataContext'
 import { AppLayout } from './components/layout/AppLayout'
 import { CompanySplash } from './components/CompanySplash'
 import { LoginPage } from './pages/Login'
+import { HomeCadeiaPage } from './pages/HomeCadeia'
 import { CadastroTransportadorPage } from './pages/CadastroTransportador'
 import { KanbanMinerva } from './pages/minerva/KanbanMinerva'
 import { ViagensEmbarcadorPage } from './pages/minerva/Viagens'
@@ -228,6 +229,7 @@ export default function App() {
           </Protected>
         }
       >
+        <Route path="/home" element={<HomeCadeiaPage />} />
         <Route
           path="/perfil"
           element={

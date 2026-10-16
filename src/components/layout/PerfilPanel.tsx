@@ -263,6 +263,16 @@ export function PerfilPanel({ onClose, autoOpenFoto }: Props) {
           </div>
 
           <div className="perfil-links">
+            <button
+              type="button"
+              className="perfil-link"
+              onClick={() => {
+                onClose?.()
+                navigate('/home')
+              }}
+            >
+              Ir para a Home
+            </button>
             <button type="button" className="perfil-link" onClick={() => setAba('conta')}>
               Ver dados pessoais
             </button>
