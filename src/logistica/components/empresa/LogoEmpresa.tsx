@@ -20,7 +20,7 @@ export function LogoEmpresa({ empresa, catalogo = [], className = '' }: Props) {
     setIdx(0)
   }, [empresa.id, urlsKey])
 
-  if (!src) {
+  if (!src || idx >= urls.length) {
     return (
       <div className={`${cls} is-logo-empty`.trim()} aria-hidden>
         {iniciaisEmpresa(nomeMarca(empresa))}

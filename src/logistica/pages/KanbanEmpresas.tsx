@@ -40,7 +40,7 @@ function popupHtml(e: Empresa, catalogo: Empresa[]) {
   const faz = oQueFaz(e)
   const logo = logoSrcEmpresa(e, catalogo)
   const img = logo
-    ? `<img class="emp-kanban-popup__logo" src="${escapeHtml(logo)}" alt="" referrerpolicy="no-referrer" />`
+    ? `<img class="emp-kanban-popup__logo" src="${escapeHtml(logo)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()" />`
     : ''
   return `<div class="emp-kanban-popup">${img}<div>
     <strong>${escapeHtml(e.nome_fantasia)}</strong>

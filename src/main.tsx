@@ -2,14 +2,16 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, HashRouter } from 'react-router-dom'
 import { AppErrorBoundary } from './components/AppErrorBoundary'
+import { instalarDevConsoleGuard } from './lib/devConsoleGuard'
 import { instalarRealtimeBfcache } from './lib/realtimeBroadcast'
 import { isSiteOfertaDeCarga, isSitePublicoLimpo, redirecionarPainelOficial } from './lib/siteOfertaDeCarga'
 import { supabase } from './lib/supabase'
 import './index.css'
 
-const BUILD_ID = 'rota-publico-cache-v368'
+const BUILD_ID = 'rota-publico-cache-v369'
 
 if (typeof window !== 'undefined') {
+  instalarDevConsoleGuard()
   window.addEventListener('unhandledrejection', (e) => {
     const m = e.reason instanceof Error ? e.reason.message : String(e.reason || '')
     if (m.includes('message channel closed') || m.includes('non-precached-url')) {

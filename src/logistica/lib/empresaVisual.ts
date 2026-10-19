@@ -63,13 +63,16 @@ function siteParaLogo(e: Empresa, catalogo: Empresa[] = []): string | undefined 
   return fonte?.url
 }
 
+/** Favicon sem 404 no console: Google devolve ícone genérico quando não há logo. */
+function urlFaviconHost(host: string): string {
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=128`
+}
+
 export function urlsLogoEmpresa(e: Empresa, catalogo: Empresa[] = []): string[] {
   const urls: string[] = []
   if (e.logo_url?.trim()) urls.push(e.logo_url.trim())
   const host = hostDeUrl(siteParaLogo(e, catalogo))
-  if (host) {
-    urls.push(`https://icons.duckduckgo.com/ip3/${host}.ico`)
-  }
+  if (host) urls.push(urlFaviconHost(host))
   return [...new Set(urls)]
 }
 

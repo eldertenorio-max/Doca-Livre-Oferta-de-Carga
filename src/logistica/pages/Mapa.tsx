@@ -77,7 +77,7 @@ function popupInternoHtml(e: Empresa, catalogo: Empresa[]) {
   const cat = categoriaPorId(e.categoria)
   const logo = logoSrcEmpresa(e, catalogo)
   const img = logo
-    ? `<img class="mapa-popup__logo" src="${escapeHtml(logo)}" alt="" referrerpolicy="no-referrer" />`
+    ? `<img class="mapa-popup__logo" src="${escapeHtml(logo)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()" />`
     : ''
   return `<div class="mapa-popup">${img}<div><h3>${escapeHtml(e.nome_fantasia)}</h3><p>${escapeHtml(cat.label)} · ${escapeHtml(e.cidade)}/${escapeHtml(e.uf)}</p></div></div>`
 }
@@ -86,7 +86,7 @@ function popupPublicoHtml(e: Empresa, catalogo: Empresa[]) {
   const cat = categoriaPorId(e.categoria)
   const logo = logoSrcEmpresa(e, catalogo)
   const img = logo
-    ? `<img class="mapa-pub-popup__logo" src="${escapeHtml(logo)}" alt="" referrerpolicy="no-referrer" />`
+    ? `<img class="mapa-pub-popup__logo" src="${escapeHtml(logo)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()" />`
     : ''
   return `
     <div class="mapa-pub-popup">
