@@ -1,0 +1,74 @@
+================================================================================
+  DOCA LIVRE — OFERTA DE CARGA
+  Inventário de logins e senhas (seed / demo no código)
+  Gerado a partir das seeds do repositório
+  ATENÇÃO: contas criadas depois no painel NÃO estão nesta lista
+================================================================================
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  1) PAINEL OFERTA DE CARGA  (ofertadecarga.com.br)                           │
+│     Fonte: src/lib/portalAuth.ts  +  README.md                               │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────┬────────────┬──────────────────────────────────┬────────────────────┬────────────────────────────────────────────┐
+│ Tipo         │ Usuário    │ E-mail                           │ Senha (canônica)   │ Também aceita                              │
+├──────────────┼────────────┼──────────────────────────────────┼────────────────────┼────────────────────────────────────────────┤
+│ Super        │ diego      │ diego@docalivre.com              │ Diegodi2026        │ diegodi2026, diego123                      │
+│ Super        │ elder      │ elder.tenorio@docalivre.com.br   │ DocaLivre@2026     │ Docalivre@2026, docalivre@2026, elder123 │
+│ Super        │ wenderson  │ wenderson@docalivre.com          │ Malvadeza@2024     │ —                                          │
+│ Embarcador   │ minerva    │ minerva@docalivre.com            │ minerva123         │ (README / modo local)                      │
+│ Transportador│ santos     │ santos@transportes.com           │ santos123          │ —                                          │
+│ Transportador│ novaera    │ novaera@log.com                  │ novaera123         │ —                                          │
+└──────────────┴────────────┴──────────────────────────────────┴────────────────────┴────────────────────────────────────────────┘
+
+  Aliases de login/e-mail aceitos no painel (super):
+  · diego     → diego, diego@docalivre.com, diego.isidoro, diegoisidoro, diego isidoro
+  · elder     → elder, elder@docalivre.com, elder.tenorio@docalivre.com.br, elder.tenorio, eldertenorio
+  · wenderson → wenderson, wenderson@docalivre.com, wenderson.vinicius, wendersonvinicius, wenderson vinicius
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  2) MAPA DA LOGÍSTICA  (login próprio do módulo)                             │
+│     Fonte: src/logistica/lib/auth.ts                                         │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────┬────────────┬────────────────────────────┬────────────────────┬────────────┐
+│ Tipo         │ Usuário    │ E-mail                     │ Senha              │ Papel      │
+├──────────────┼────────────┼────────────────────────────┼────────────────────┼────────────┤
+│ Super        │ Diego      │ diego@docalivre.com        │ diego123           │ super      │
+│ Super        │ Elder      │ elder@docalivre.com        │ Elder123           │ super      │
+│ Super        │ Wenderson  │ wenderson@docalivre.com    │ Malvadeza@2024     │ super      │
+│ Empresa demo │ Braspress  │ braspress@docalivre.com    │ braspress123       │ empresa    │
+└──────────────┴────────────┴────────────────────────────┴────────────────────┴────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  3) TIPOS DE ACESSO NO SISTEMA (papéis)                                      │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────┬────────────────────────────────────────────────────────────┐
+│ Papel / role     │ Uso típico                                                 │
+├──────────────────┼────────────────────────────────────────────────────────────┤
+│ super            │ Acesso total (Diego, Elder, Wenderson)                     │
+│ minerva          │ Embarcador / equipe do painel                              │
+│ transportador    │ Empresa de transporte (Kanban, ofertas, frota)             │
+│ empresa          │ Operação no mapa da logística (ex.: Braspress)             │
+│ gestor/operador  │ Níveis de hierarquia (contas criadas no painel)            │
+└──────────────────┴────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  4) OBSERVAÇÕES                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+  · Painel e Logística usam senhas DIFERENTES para Diego/Elder no código.
+  · Contas novas (Nova conta, cadastro de transportador) usam a senha digitada
+    na criação — não entram nesta lista.
+  · Calculadora pública / frota / logística pública usam outro fluxo
+    (OTP / créditos), não esta tabela de usuário/senha.
+  · Arquivo apenas para referência interna de seeds/demo.
+
+================================================================================
+  Fim do inventário
+================================================================================
