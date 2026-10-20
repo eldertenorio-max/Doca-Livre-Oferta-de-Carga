@@ -112,6 +112,7 @@ import {
 } from '../lib/cadastroTransportador'
 import type { FacialCaptura } from '../lib/verificacaoFacial'
 import { normalizePerfilPublico } from '../lib/perfilPublicoTransportador'
+import { galeriaTemBase64, migrarGaleriaParaStorage } from '../lib/perfilGaleriaStorage'
 import { atualizarAvatarUsuarioRemoto, buscarAvatarUsuarioRemoto } from '../lib/userAvatar'
 import { canonicalTransportadorId, sameTransportadorId } from '../lib/transportadorIds'
 import { portalEmailAprovaCadastro, portalEmailRecusaCadastro } from '../lib/portalApi'
@@ -755,6 +756,8 @@ function cancelarLancesDaCarga(lances: Lance[], cargaId: string, nowIso: string)
 /** Garante frota demo (origem + motorista + veículo) para o Mapa da Frota. */
 /** Placas Ultrafrio redistribuídas no último ensureDemoFrotaMapa (para upsert remoto). */
 const ultrafrioAlteradosPendentesRef: { current: Veiculo[] } = { current: [] }
+/** Uma tentativa por sessão — falha de upload não vira loop a cada refresh. */
+const galeriaMigracaoTentada = new Set<string>()
 
 function ensureDemoFrotaMapa(state: DataState): DataState {
   // Excluídas manualmente não voltam pelo seed
@@ -1722,6 +1725,34 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return next
       })
     }
+
+    // Galeria do perfil em base64 → Storage (deixava sync e esta consulta com MBs)
+    const comBase64 = stateRef.current.transportadores.filter(
+      (t) => isUuid(t.id) && galeriaTemBase64(t) && !galeriaMigracaoTentada.has(t.id),
+    )
+    for (const t of comBase64) {
+      galeriaMigracaoTentada.add(t.id)
+      const original = (t.perfil_publico?.galeria ?? []).join('|')
+      const perfil = await migrarGaleriaParaStorage(t)
+      if (!perfil) continue
+      const mesmaGaleria = () =>
+        (stateRef.current.transportadores.find((x) => x.id === t.id)?.perfil_publico?.galeria ?? []).join('|') ===
+        original
+      if (!mesmaGaleria()) continue
+      const res = await salvarPerfilPublicoRemoto(t.id, perfil)
+      if (!res.ok || !mesmaGaleria()) continue
+      setState((prev) => {
+        const next = {
+          ...prev,
+          transportadores: prev.transportadores.map((x) =>
+            x.id === t.id ? { ...x, perfil_publico: perfil } : x,
+          ),
+        }
+        stateRef.current = next
+        flushKanbanPush(next)
+        return next
+      })
+    }
   }, [flushKanbanPush])
 
   // Hidrata cadastros pendentes/aprovados direto da tabela (não depende só do kanban_sync)
@@ -2486,9 +2517,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
       stateRef.current = next
       setState(next)
-      flushKanbanPush(next)
-      // Push no celular dos transportadores dos grupos (PWA + alertas ativados)
-      // Retorno sync; o envio roda em seguida e o painel pode consultar o log
+      // Push no celular dos transportadores dos grupos (PWA + alertas ativados).
+      // Sai antes do upload do Kanban para não disputar a rede com ele.
       void dispararPushNovaCarga(
         tidsPush,
         {
@@ -2506,6 +2536,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           console.info('[publicarCarga] push enviados:', push.enviados, 'tids:', tidsPush.length)
         }
       })
+      flushKanbanPush(next)
       return {
         ok: true,
         pushAviso:
@@ -2563,8 +2594,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     stateRef.current = next
     setState(next)
-    flushKanbanPush(next)
-    dispararPushNovaCarga(tids, {
+    void dispararPushNovaCarga(tids, {
       id: cargaId,
       numero: carga?.numero,
       origem: carga?.origem,
@@ -2572,6 +2602,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       frete_oferta: carga?.frete_oferta,
       frete_tabela: carga?.frete_tabela,
     })
+    flushKanbanPush(next)
   }, [flushKanbanPush])
 
   const enviarLance = useCallback(
@@ -3600,8 +3631,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
       stateRef.current = next
       setState(next)
-      flushKanbanPush(next)
-      dispararPushNovaCarga(
+      void dispararPushNovaCarga(
         tidsAtivosDosGrupos(prev.grupos, grupoIds, prev.transportadores),
         {
           id: cargaId,
@@ -3613,6 +3643,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         },
         'Negociação reaberta',
       )
+      flushKanbanPush(next)
       return { ok: true }
     },
     [config.prazo_oferta_padrao_minutos, flushKanbanPush],

@@ -16,7 +16,7 @@ import { alinharStatusComLances } from './kanbanColumns'
 import { flagSim, normalizeCarga } from './cargaDefaults'
 import { dedupeRotas, limparPontosPassagemRota } from './rotasSync'
 import { isSupabaseConfigured, supabase } from './supabase'
-import { veiculoParaSync } from './veiculosSync'
+import { isDataUrl, veiculoParaSync } from './veiculosSync'
 
 const SYNC_ROW_ID = 'main'
 const CLIENT_KEY = 'doca-livre-sync-client-id'
@@ -63,6 +63,11 @@ export type PullResult =
 let liveChannel: RealtimeChannel | null = null
 /** Único por aba/JS — evita duas abas com o mesmo id ignorarem o sync uma da outra. */
 let memoryClientId: string | null = null
+/**
+ * updated_at da última versão aplicada/enviada por esta aba. O poll só baixa o
+ * payload (MBs) quando muda — compara igualdade, não ordem (relógios diferem).
+ */
+let ultimoUpdatedAtVisto = 0
 
 export function getClientId(): string {
   if (memoryClientId) return memoryClientId
@@ -75,12 +80,45 @@ export function getClientId(): string {
   return memoryClientId
 }
 
+/**
+ * Lugar de uma imagem base64 da galeria no sync. O arquivo continua em
+ * transportadores.perfil_publico; o merge devolve a cópia local.
+ */
+const IMG_OMITIDA_SYNC = 'sync:img-omitida'
+
+function transportadorParaSync(t: Transportador): Transportador {
+  const galeria = t.perfil_publico?.galeria
+  if (!t.perfil_publico || !galeria?.some((g) => isDataUrl(g))) return t
+  return {
+    ...t,
+    perfil_publico: {
+      ...t.perfil_publico,
+      galeria: galeria.map((g) => (isDataUrl(g) ? IMG_OMITIDA_SYNC : g)),
+    },
+  }
+}
+
+function restaurarGaleriaOmitida(remoto: Transportador, locais: Transportador[]): Transportador {
+  const galeria = remoto.perfil_publico?.galeria
+  if (!remoto.perfil_publico || !galeria?.includes(IMG_OMITIDA_SYNC)) return remoto
+  const local = locais.find((x) => x.id === remoto.id)?.perfil_publico?.galeria ?? []
+  return {
+    ...remoto,
+    perfil_publico: {
+      ...remoto.perfil_publico,
+      galeria: galeria
+        .map((g, i) => (g === IMG_OMITIDA_SYNC ? (local[i] ?? '') : g))
+        .filter((g) => g && g !== IMG_OMITIDA_SYNC),
+    },
+  }
+}
+
 export function pickSyncSlice(state: KanbanSyncSlice): KanbanSyncSlice {
   return {
     cargas: state.cargas,
     lances: state.lances,
     grupos: state.grupos,
-    transportadores: state.transportadores,
+    transportadores: state.transportadores.map(transportadorParaSync),
     veiculos: (state.veiculos ?? []).map(veiculoParaSync),
     motoristas: state.motoristas ?? [],
     rotas: dedupeRotas(state.rotas ?? []),
@@ -379,7 +417,9 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
     transportadores: (slice.transportadores?.length
       ? mergeById(prev.transportadores, slice.transportadores)
       : prev.transportadores
-    ).filter((t) => !tExcluidos.has(t.id)),
+    )
+      .filter((t) => !tExcluidos.has(t.id))
+      .map((t) => restaurarGaleriaOmitida(t, prev.transportadores)),
     rotas: (() => {
       const remote = Array.isArray(slice.rotas) ? slice.rotas : []
       const local = prev.rotas ?? []
@@ -460,9 +500,24 @@ export async function pullKanbanSync(): Promise<PullResult> {
     return { ok: false, error: error.message }
   }
   if (!data) return { ok: true, empty: true }
+  ultimoUpdatedAtVisto = ts(data.updated_at)
   const payload = parsePayload(data.payload, data.client_id ?? undefined, data.updated_at)
   if (!payload) return { ok: true, empty: true }
   return { ok: true, payload }
+}
+
+/** Só updated_at/client_id — poucos bytes, para o poll não baixar o Kanban inteiro. */
+async function headKanbanSync(): Promise<
+  { ok: true; updated_at: string | null; client_id: string | null } | { ok: false }
+> {
+  if (!isSupabaseConfigured || !supabase) return { ok: false }
+  const { data, error } = await supabase
+    .from('kanban_sync')
+    .select('updated_at, client_id')
+    .eq('id', SYNC_ROW_ID)
+    .maybeSingle()
+  if (error) return { ok: false }
+  return { ok: true, updated_at: data?.updated_at ?? null, client_id: data?.client_id ?? null }
 }
 
 export async function pushKanbanSync(slice: KanbanSyncSlice): Promise<boolean> {
@@ -485,9 +540,10 @@ export async function pushKanbanSync(slice: KanbanSyncSlice): Promise<boolean> {
     console.warn('[kanbanSync] push falhou:', error.message)
     return false
   }
+  ultimoUpdatedAtVisto = ts(body.updated_at)
 
   // Sem broadcast do slice: payload grande + send() em REST gera 422 no bfcache.
-  // Sync imediato via postgres_changes; poll de 2,5s cobre falha do Realtime.
+  // Sync imediato via postgres_changes; poll leve de 2,5s cobre falha do Realtime.
   return true
 }
 
@@ -500,10 +556,44 @@ export function subscribeKanbanSync(
   const myId = getClientId()
   const client = supabase
 
+  let puxando = false
+  let puxarDeNovo = false
+  const puxarCompleto = async () => {
+    if (puxando) {
+      puxarDeNovo = true
+      return
+    }
+    puxando = true
+    try {
+      const res = await pullKanbanSync()
+      if (!res.ok) return
+      if ('empty' in res && res.empty) {
+        onRemoteEmpty?.()
+        return
+      }
+      if ('payload' in res && res.payload) onRemote(res.payload)
+    } finally {
+      puxando = false
+      if (puxarDeNovo) {
+        puxarDeNovo = false
+        void puxarCompleto()
+      }
+    }
+  }
+
+  const checarMudanca = async () => {
+    if (puxando) return
+    const head = await headKanbanSync()
+    if (!head.ok) return
+    if (head.updated_at && ts(head.updated_at) === ultimoUpdatedAtVisto) return
+    await puxarCompleto()
+  }
+
   /** Realtime/broadcast: ignora eco do próprio push. */
   const deliverLive = (payload: KanbanSyncPayload | null) => {
     if (!payload) return
     if (payload.client_id && payload.client_id === myId) return
+    ultimoUpdatedAtVisto = ts(payload.updated_at)
     onRemote(payload)
   }
 
@@ -520,7 +610,11 @@ export function subscribeKanbanSync(
           client_id?: string
           updated_at?: string
         } | null
-        deliverLive(parsePayload(rec?.payload, rec?.client_id, rec?.updated_at))
+        if (rec?.client_id && rec.client_id === myId) return
+        const payload = parsePayload(rec?.payload, rec?.client_id, rec?.updated_at)
+        // Linha grande chega sem o payload (limite do Realtime): baixa na hora
+        if (payload) deliverLive(payload)
+        else void puxarCompleto()
       },
     )
     .on('broadcast', { event: BROADCAST_EVENT }, ({ payload }) => {
@@ -528,21 +622,23 @@ export function subscribeKanbanSync(
     })
     .subscribe()
 
-  // Poll: sempre aplica (fingerprint no DataContext evita loop). Assim outra aba
-  // com o mesmo client_id antigo ainda sincroniza o embarcador.
   const pollId = window.setInterval(() => {
-    void pullKanbanSync().then((res) => {
-      if (!res.ok) return
-      if ('empty' in res && res.empty) {
-        onRemoteEmpty?.()
-        return
-      }
-      if ('payload' in res && res.payload) onRemote(res.payload)
-    })
+    void checarMudanca()
   }, 2500)
+
+  // Celular volta do bloqueio / troca de app: confere na hora, sem esperar o poll
+  const aoVoltar = () => {
+    if (document.visibilityState === 'visible') void checarMudanca()
+  }
+  document.addEventListener('visibilitychange', aoVoltar)
+  window.addEventListener('online', aoVoltar)
+  window.addEventListener('pageshow', aoVoltar)
 
   return () => {
     window.clearInterval(pollId)
+    document.removeEventListener('visibilitychange', aoVoltar)
+    window.removeEventListener('online', aoVoltar)
+    window.removeEventListener('pageshow', aoVoltar)
     if (liveChannel) {
       void client.removeChannel(liveChannel)
       liveChannel = null

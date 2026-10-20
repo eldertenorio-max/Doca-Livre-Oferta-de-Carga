@@ -315,11 +315,11 @@ export async function deleteVeiculoRemote(id: string): Promise<void> {
 
 const BUCKET_FOTOS = 'veiculos-fotos'
 
-function isDataUrl(value?: string | null): boolean {
+export function isDataUrl(value?: string | null): boolean {
   return typeof value === 'string' && value.startsWith('data:')
 }
 
-function dataUrlToBlob(dataUrl: string): { blob: Blob; ext: string } | null {
+export function dataUrlToBlob(dataUrl: string): { blob: Blob; ext: string } | null {
   const match = /^data:([^;,]+)(;base64)?,(.*)$/s.exec(dataUrl)
   if (!match) return null
   const mime = match[1] || 'image/jpeg'

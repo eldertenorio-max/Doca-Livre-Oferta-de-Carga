@@ -10,6 +10,7 @@ import {
   normalizePerfilPublico,
   type PerfilPublicoTransportador,
 } from '../../lib/perfilPublicoTransportador'
+import { subirImagemGaleriaPerfil } from '../../lib/perfilGaleriaStorage'
 import { fileToDataUrl, isAcceptedImageFile } from '../../lib/veiculoFotos'
 import { ImageCropModal } from '../ui/ImageCropModal'
 import { Field, inputClass } from '../ui/Modal'
@@ -131,7 +132,8 @@ export function TransportadorPerfilEditor({ value, onChange, empresa }: Props) {
       return
     }
     setFotoBusy(true)
-    void fileToDataUrl(file)
+    void subirImagemGaleriaPerfil(empresa?.id, file)
+      .then((url) => url ?? fileToDataUrl(file))
       .then((url) => {
         applySlotUrl(idx, url)
         fecharCrop()
