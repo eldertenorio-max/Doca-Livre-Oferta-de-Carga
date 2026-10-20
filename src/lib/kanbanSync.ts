@@ -15,6 +15,7 @@ import type {
 import { alinharStatusComLances } from './kanbanColumns'
 import { flagSim, normalizeCarga } from './cargaDefaults'
 import { dedupeRotas, limparPontosPassagemRota } from './rotasSync'
+import { broadcastNoCanal } from './realtimeBroadcast'
 import { isSupabaseConfigured, supabase } from './supabase'
 import { isDataUrl, veiculoParaSync } from './veiculosSync'
 
@@ -22,6 +23,16 @@ const SYNC_ROW_ID = 'main'
 const CLIENT_KEY = 'doca-livre-sync-client-id'
 const CHANNEL_NAME = 'kanban-sync-live'
 const BROADCAST_EVENT = 'kanban-update'
+const AVISO_CARGA_EVENT = 'carga-aviso'
+
+/** Aviso curto: o celular mostra a carga sem baixar o Kanban inteiro. */
+export type AvisoCargaPublicada = {
+  client_id: string
+  carga: Carga
+  tids: string[]
+  titulo: string
+  mensagem: string
+}
 
 export type KanbanSyncSlice = {
   cargas: Carga[]
@@ -550,6 +561,7 @@ export async function pushKanbanSync(slice: KanbanSyncSlice): Promise<boolean> {
 export function subscribeKanbanSync(
   onRemote: (payload: KanbanSyncPayload) => void,
   onRemoteEmpty?: () => void,
+  onAvisoCarga?: (aviso: AvisoCargaPublicada) => void,
 ): () => void {
   if (!isSupabaseConfigured || !supabase) return () => {}
 
@@ -620,6 +632,19 @@ export function subscribeKanbanSync(
     .on('broadcast', { event: BROADCAST_EVENT }, ({ payload }) => {
       deliverLive(parsePayload(payload))
     })
+    .on('broadcast', { event: AVISO_CARGA_EVENT }, ({ payload }) => {
+      const aviso = payload as Partial<AvisoCargaPublicada> | null
+      if (!aviso?.carga?.id) return
+      if (aviso.client_id && aviso.client_id === myId) return
+      onAvisoCarga?.({
+        client_id: aviso.client_id || '',
+        carga: aviso.carga,
+        tids: Array.isArray(aviso.tids) ? aviso.tids.filter((x) => typeof x === 'string') : [],
+        titulo: aviso.titulo || 'Nova oferta de carga',
+        mensagem: aviso.mensagem || '',
+      })
+      void puxarCompleto()
+    })
     .subscribe()
 
   const pollId = window.setInterval(() => {
@@ -644,6 +669,76 @@ export function subscribeKanbanSync(
       liveChannel = null
     }
   }
+}
+
+function novaNotif(
+  parcial: Omit<NotificacaoInApp, 'id' | 'lida' | 'created_at'>,
+): NotificacaoInApp {
+  const agora = new Date().toISOString()
+  return {
+    id: `ntf-${Math.random().toString(36).slice(2, 10)}`,
+    lida: false,
+    created_at: agora,
+    updated_at: agora,
+    ...parcial,
+  }
+}
+
+/** Encaixa a carga e o sininho na hora, antes do pull completo. */
+export function aplicarAvisoCarga<T extends KanbanSyncSlice>(
+  prev: T,
+  aviso: AvisoCargaPublicada,
+): T {
+  const carga = aviso.carga
+  if (!carga?.id) return prev
+  const cargas = prev.cargas.some((c) => c.id === carga.id)
+    ? prev.cargas.map((c) => (c.id === carga.id ? { ...c, ...carga } : c))
+    : [carga, ...prev.cargas]
+  const chaves = new Set((prev.notificacoes ?? []).map((n) => n.chave).filter(Boolean))
+  const novas: NotificacaoInApp[] = []
+  const todosChave = `carga-aviso:${carga.id}`
+  if (!chaves.has(todosChave)) {
+    novas.push(
+      novaNotif({
+        role: 'todos',
+        titulo: aviso.titulo || 'Nova carga publicada',
+        mensagem: aviso.mensagem,
+        carga_id: carga.id,
+        chave: todosChave,
+      }),
+    )
+  }
+  for (const tid of aviso.tids) {
+    const chave = `carga-aviso:${carga.id}:${tid}`
+    if (chaves.has(chave)) continue
+    chaves.add(chave)
+    novas.push(
+      novaNotif({
+        transportador_id: tid,
+        titulo: aviso.titulo || 'Nova oferta de carga',
+        mensagem: aviso.mensagem,
+        carga_id: carga.id,
+        chave,
+      }),
+    )
+  }
+  return {
+    ...prev,
+    cargas,
+    notificacoes: [...novas, ...(prev.notificacoes ?? [])].slice(0, 300),
+  }
+}
+
+/** Avisa os outros aparelhos na hora. Payload pequeno, cabe no broadcast. */
+export function avisarCargaPublicada(
+  aviso: Omit<AvisoCargaPublicada, 'client_id'>,
+): void {
+  void broadcastNoCanal(
+    liveChannel,
+    AVISO_CARGA_EVENT,
+    { ...aviso, client_id: getClientId() },
+    { maxBytes: 48_000 },
+  )
 }
 
 export function isKanbanSyncReady(): boolean {

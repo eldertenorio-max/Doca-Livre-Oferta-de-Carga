@@ -152,7 +152,9 @@ import {
   deleteRotaRemote,
 } from '../lib/rotasSync'
 import {
+  aplicarAvisoCarga,
   applySyncSlice,
+  avisarCargaPublicada,
   loadKanbanBackup,
   pickSyncSlice,
   pullKanbanSync,
@@ -1528,6 +1530,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
         // Linha ausente / payload inválido no Supabase
         healRemoteFromLocal()
       },
+      (aviso) => {
+        // Sininho e carga na hora — sem esperar o Kanban de vários MB
+        applyingRemoteRef.current = true
+        setState((prev) => {
+          const next = aplicarAvisoCarga(prev, aviso)
+          stateRef.current = next
+          lastSyncFpRef.current = sliceFingerprint(pickSyncSlice(next))
+          saveKanbanBackup(pickSyncSlice(next))
+          return next
+        })
+        window.setTimeout(finishRemoteApply, 0)
+      },
     )
 
     return () => {
@@ -2499,6 +2513,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         titulo: 'Nova carga publicada',
         mensagem: msgPush,
         carga_id: payload.cargaId,
+        chave: `carga-aviso:${payload.cargaId}`,
       })
       for (const tid of tidsPush) {
         notificacoes = pushNotif(notificacoes, {
@@ -2506,6 +2521,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           titulo: 'Nova oferta de carga',
           mensagem: msgPush,
           carga_id: payload.cargaId,
+          chave: `carga-aviso:${payload.cargaId}:${tid}`,
         })
       }
       const next = {
@@ -2536,6 +2552,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
           console.info('[publicarCarga] push enviados:', push.enviados, 'tids:', tidsPush.length)
         }
       })
+      if (carga) {
+        avisarCargaPublicada({
+          carga,
+          tids: tidsPush,
+          titulo: 'Nova oferta de carga',
+          mensagem: msgPush,
+        })
+      }
       flushKanbanPush(next)
       return {
         ok: true,
@@ -2582,6 +2606,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         titulo: 'Nova oferta de carga',
         mensagem: msg,
         carga_id: cargaId,
+        chave: `carga-aviso:${cargaId}:${tid}`,
       })
     }
     const next = {
@@ -2602,6 +2627,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
       frete_oferta: carga?.frete_oferta,
       frete_tabela: carga?.frete_tabela,
     })
+    if (carga) {
+      avisarCargaPublicada({
+        carga: { ...carga, grupos_notificados: [...carga.grupo_ids] },
+        tids,
+        titulo: 'Nova oferta de carga',
+        mensagem: msg,
+      })
+    }
     flushKanbanPush(next)
   }, [flushKanbanPush])
 
@@ -3616,6 +3649,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             titulo: 'Negociação reaberta',
             mensagem: `Carga ${carga.numero} reaberta para novas ofertas (Nova Carga).`,
             carga_id: cargaId,
+            chave: `carga-aviso:${cargaId}`,
           })
           const tids = tidsAtivosDosGrupos(prev.grupos, grupoIds, prev.transportadores)
           for (const tid of tids) {
@@ -3624,6 +3658,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
               titulo: 'Negociação reaberta',
               mensagem: msg,
               carga_id: cargaId,
+              chave: `carga-aviso:${cargaId}:${tid}`,
             })
           }
           return list
@@ -3643,6 +3678,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
         },
         'Negociação reaberta',
       )
+      const cargaAvisada = next.cargas.find((c) => c.id === cargaId)
+      if (cargaAvisada) {
+        avisarCargaPublicada({
+          carga: cargaAvisada,
+          tids: tidsAtivosDosGrupos(prev.grupos, grupoIds, prev.transportadores),
+          titulo: 'Negociação reaberta',
+          mensagem: textoPushNovaCarga(cargaAvisada),
+        })
+      }
       flushKanbanPush(next)
       return { ok: true }
     },
