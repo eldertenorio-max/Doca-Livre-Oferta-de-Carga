@@ -79,6 +79,20 @@ let memoryClientId: string | null = null
  * payload (MBs) quando muda — compara igualdade, não ordem (relógios diferem).
  */
 let ultimoUpdatedAtVisto = 0
+/** Valor exato vindo do Supabase, para o push não gravar por cima de outra edição. */
+let ultimoUpdatedAtIso: string | null = null
+
+function marcarVersaoVista(iso?: string | null) {
+  if (!iso) return
+  ultimoUpdatedAtIso = iso
+  ultimoUpdatedAtVisto = ts(iso)
+}
+
+/** Carga local mais nova que a do servidor — precisa ser reenviada. */
+export function cargasLocaisMaisNovas(locais: Carga[], remotas: Carga[]): boolean {
+  const remoto = new Map(remotas.map((c) => [c.id, ts(c.updated_at) || ts(c.publicado_em)]))
+  return locais.some((c) => (ts(c.updated_at) || ts(c.publicado_em)) > (remoto.get(c.id) ?? 0))
+}
 
 export function getClientId(): string {
   if (memoryClientId) return memoryClientId
@@ -511,7 +525,7 @@ export async function pullKanbanSync(): Promise<PullResult> {
     return { ok: false, error: error.message }
   }
   if (!data) return { ok: true, empty: true }
-  ultimoUpdatedAtVisto = ts(data.updated_at)
+  marcarVersaoVista(data.updated_at)
   const payload = parsePayload(data.payload, data.client_id ?? undefined, data.updated_at)
   if (!payload) return { ok: true, empty: true }
   return { ok: true, payload }
@@ -531,27 +545,31 @@ async function headKanbanSync(): Promise<
   return { ok: true, updated_at: data?.updated_at ?? null, client_id: data?.client_id ?? null }
 }
 
-export async function pushKanbanSync(slice: KanbanSyncSlice): Promise<boolean> {
+export async function pushKanbanSync(slice: KanbanSyncSlice): Promise<boolean | 'conflito'> {
   if (!isSupabaseConfigured || !supabase) return false
   const body: KanbanSyncPayload = {
     client_id: getClientId(),
     updated_at: new Date().toISOString(),
     slice,
   }
-  const { error } = await supabase.from('kanban_sync').upsert(
-    {
-      id: SYNC_ROW_ID,
-      payload: body,
-      client_id: body.client_id,
-      updated_at: body.updated_at,
-    },
-    { onConflict: 'id' },
-  )
+  const linha = {
+    payload: body,
+    client_id: body.client_id,
+    updated_at: body.updated_at,
+  }
+  // Só grava se ninguém publicou no meio do caminho. Senão o celular atrasado apaga a carga.
+  const esperado = ultimoUpdatedAtIso
+  const gravar = esperado
+    ? supabase.from('kanban_sync').update(linha).eq('id', SYNC_ROW_ID).eq('updated_at', esperado)
+    : supabase.from('kanban_sync').upsert({ id: SYNC_ROW_ID, ...linha }, { onConflict: 'id' })
+  const { data, error } = await gravar.select('updated_at')
   if (error) {
     console.warn('[kanbanSync] push falhou:', error.message)
     return false
   }
-  ultimoUpdatedAtVisto = ts(body.updated_at)
+  const gravada = Array.isArray(data) ? data[0] : data
+  if (!gravada) return 'conflito'
+  marcarVersaoVista(gravada.updated_at || body.updated_at)
 
   // Sem broadcast do slice: payload grande + send() em REST gera 422 no bfcache.
   // Sync imediato via postgres_changes; poll leve de 2,5s cobre falha do Realtime.
@@ -605,7 +623,7 @@ export function subscribeKanbanSync(
   const deliverLive = (payload: KanbanSyncPayload | null) => {
     if (!payload) return
     if (payload.client_id && payload.client_id === myId) return
-    ultimoUpdatedAtVisto = ts(payload.updated_at)
+    marcarVersaoVista(payload.updated_at)
     onRemote(payload)
   }
 

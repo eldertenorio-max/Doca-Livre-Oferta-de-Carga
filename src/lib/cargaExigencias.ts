@@ -324,6 +324,23 @@ export function transportadorAtendeCarga(
   return meus.some((v) => veiculoAtendeCarga(carga, v))
 }
 
+/** Texto para o lance, quando a oferta aparece mas a frota ainda não atende. */
+export function motivoFrotaNaoAtende(
+  carga: Carga,
+  veiculos: Veiculo[],
+  transportadorId: string,
+): string | null {
+  if (transportadorAtendeCarga(carga, veiculos, transportadorId)) return null
+  const faltas: string[] = []
+  if (carga.temp_min != null || carga.temp_max != null) faltas.push('a faixa de temperatura')
+  if (carga.exige_ajudante) faltas.push('ajudante')
+  if (carga.gerenciamento_risco === 'rastreador') faltas.push('rastreador')
+  if (carga.gerenciamento_risco === 'localizador') faltas.push('localizador')
+  if (carga.gerenciamento_risco === 'ambos') faltas.push('rastreador e localizador')
+  const oQue = faltas.length ? faltas.join(', ') : 'as exigências'
+  return `Nenhum veículo ativo atende ${oQue} desta carga. Atualize a frota para enviar o lance.`
+}
+
 export function filtrarTidsPorExigencias(
   carga: Carga,
   veiculos: Veiculo[],

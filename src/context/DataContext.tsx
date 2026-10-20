@@ -63,7 +63,7 @@ import {
   normalizeCarga,
   resetNegociacaoFields,
 } from '../lib/cargaDefaults'
-import { filtrarTidsPorExigencias, transportadorAtendeCarga } from '../lib/cargaExigencias'
+import { filtrarTidsPorExigencias, motivoFrotaNaoAtende } from '../lib/cargaExigencias'
 import { normalizeMotorista, normalizeVeiculo } from '../lib/motoristaDefaults'
 import { haEmpateDeValor, ordenarLancesParaVitoria } from '../lib/desempate'
 import { enviarControleFretes } from '../lib/integracaoFretes'
@@ -155,6 +155,7 @@ import {
   aplicarAvisoCarga,
   applySyncSlice,
   avisarCargaPublicada,
+  cargasLocaisMaisNovas,
   loadKanbanBackup,
   pickSyncSlice,
   pullKanbanSync,
@@ -1333,6 +1334,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const kanbanHydratedRef = useRef(false)
   const lastSyncFpRef = useRef('')
   const pushTimerRef = useRef<number | null>(null)
+  const conflitosKanbanRef = useRef(0)
   const pendingPushRef = useRef(false)
   const applyRemoteRef = useRef<
     | ((payload: {
@@ -1368,10 +1370,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
       // Só marca fingerprint após push OK — senão o heal não tenta de novo
       void pushKanbanSync(slice).then((ok) => {
-        if (ok) {
+        if (ok === true) {
+          conflitosKanbanRef.current = 0
           lastSyncFpRef.current = fp
           saveKanbanBackup(slice)
+          return
         }
+        if (ok !== 'conflito' || conflitosKanbanRef.current >= 2) return
+        conflitosKanbanRef.current += 1
+        // Outro aparelho gravou primeiro: mescla e reenvia a carga mais nova
+        void pullKanbanSync().then((remote) => {
+          if (!remote.ok || !('payload' in remote) || !remote.payload) return
+          applyingRemoteRef.current = true
+          setState((prev) => {
+            const next = ensureDemoOfertasVisiveis(applySyncSlice(prev, remote.payload.slice))
+            stateRef.current = next
+            lastSyncFpRef.current = ''
+            return next
+          })
+          window.setTimeout(() => {
+            applyingRemoteRef.current = false
+            flushKanbanPush(stateRef.current)
+          }, 0)
+        })
       })
     }
 
@@ -1474,14 +1495,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const fp = sliceFingerprint(payload.slice)
       if (fp === lastSyncFpRef.current) return
       applyingRemoteRef.current = true
+      let republicar = false
       setState((prev) => {
         const next = ensureDemoOfertasVisiveis(applySyncSlice(prev, payload.slice))
         stateRef.current = next
-        lastSyncFpRef.current = sliceFingerprint(pickSyncSlice(next))
+        republicar = cargasLocaisMaisNovas(next.cargas, payload.slice.cargas)
+        lastSyncFpRef.current = republicar ? '' : sliceFingerprint(pickSyncSlice(next))
         saveKanbanBackup(pickSyncSlice(next))
         return next
       })
-      window.setTimeout(finishRemoteApply, 0)
+      window.setTimeout(() => {
+        finishRemoteApply()
+        if (republicar) flushKanbanPush(stateRef.current)
+      }, 0)
     }
     applyRemoteRef.current = applyRemote
 
@@ -2498,9 +2524,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
             return t && t.situacao !== 'inativo'
           })
         : tidsAtivosDosGrupos(prev.grupos, gruposNotif, prev.transportadores)
-      const tidsPush = carga
-        ? filtrarTidsPorExigencias(carga, prev.veiculos, tidsPushRaw)
-        : tidsPushRaw
+      const tidsSemFrota = carga
+        ? tidsPushRaw.filter(
+            (tid) => !filtrarTidsPorExigencias(carga, prev.veiculos, [tid]).length,
+          )
+        : []
+      const tidsPush = tidsPushRaw
       const msgPush = textoPushNovaCarga({
         numero: carga?.numero,
         origem: carga?.origem,
@@ -2566,11 +2595,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         pushAviso:
           tidsPush.length === 0
             ? isDireta
-              ? 'Nenhuma transportadora ativa selecionada atende as exigências — push não enviado.'
-              : tidsPushRaw.length > 0
-                ? 'Nenhuma transportadora dos grupos atende temperatura, ajudante e rastreador/localizador — a oferta não aparece para elas.'
-                : 'Nenhum transportador ativo nos grupos — push não enviado.'
-            : undefined,
+              ? 'Nenhuma transportadora ativa selecionada — a oferta não foi enviada.'
+              : 'Nenhum transportador ativo nos grupos — a oferta não foi enviada.'
+            : tidsSemFrota.length > 0
+              ? `${tidsSemFrota.length} transportadora(s) ainda não têm veículo com a temperatura, ajudante ou rastreador desta carga. A oferta aparece para elas; o lance só entra quando a frota atender.`
+              : undefined,
       }
     },
     [config, flushKanbanPush],
@@ -2656,6 +2685,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (carga.pausado_em) {
         return { ok: false, error: 'Negociação suspensa pelo embarcador' }
       }
+      const frota = motivoFrotaNaoAtende(carga, prev.veiculos, tid)
+      if (frota) return { ok: false, error: frota }
       if (carga.transportador_vencedor_id) {
         return { ok: false, error: 'Frete já fechado nesta carga' }
       }
@@ -5779,7 +5810,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           ) {
             return false
           }
-          return transportadorAtendeCarga(c, state.veiculos, transportadorId)
+          return true
         }
 
         // Escalonar: só quem já foi notificado; sem escalonar, grupos_notificados = todos
@@ -5788,10 +5819,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
             ? c.grupos_notificados!
             : (c.grupo_ids ?? [])
 
-        // Sem grupo definido: todos os transportadores ativos veem (se atenderem exigências)
-        if (candidatos.length === 0) {
-          return transportadorAtendeCarga(c, state.veiculos, transportadorId)
-        }
+        // Sem grupo definido: todos os transportadores ativos veem
+        if (candidatos.length === 0) return true
 
         const emGrupo = state.grupos.some((g) => {
           if (g.situacao === 'inativo') return false
@@ -5800,16 +5829,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
             sameTransportadorId(id, transportadorId),
           )
         })
-        if (emGrupo) {
-          return transportadorAtendeCarga(c, state.veiculos, transportadorId)
-        }
+        if (emGrupo) return true
 
         // Fallback: IDs de grupo órfãos (migração) — libera para ativos
         const grupoIdsConhecidos = new Set(state.grupos.map((g) => g.id))
         const gruposOrfaos =
           candidatos.length > 0 && candidatos.every((id) => !grupoIdsConhecidos.has(id))
-        if (!gruposOrfaos) return false
-        return transportadorAtendeCarga(c, state.veiculos, transportadorId)
+        return gruposOrfaos
       })
     },
     [state.cargas, state.grupos, state.transportadores, state.lances, state.veiculos],
