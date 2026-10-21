@@ -9,11 +9,46 @@ export type FacialCaptura = {
   descriptor: number[]
 }
 
+export type FacialHistoricoItem = {
+  foto_url: string
+  verificado_em: string
+  /** null = cadastro do rosto. Número = distância em relação ao rosto já gravado. */
+  distancia: number | null
+}
+
 export type FacialReferencia = {
   facial_descriptor?: number[] | null
   facial_proxima_em?: string | null
   facial_foto_url?: string | null
   facial_verificado_em?: string | null
+  facial_historico?: FacialHistoricoItem[] | null
+}
+
+export function normalizarHistoricoFacial(valor: unknown): FacialHistoricoItem[] {
+  const lista = Array.isArray(valor) ? valor : []
+  const vistos = new Set<string>()
+  const out: FacialHistoricoItem[] = []
+  for (const item of lista) {
+    if (!item || typeof item !== 'object') continue
+    const bruto = item as { foto_url?: unknown; verificado_em?: unknown; distancia?: unknown }
+    const foto = String(bruto.foto_url || '').trim()
+    const quando = String(bruto.verificado_em || '').trim()
+    if (!foto || !quando) continue
+    const chave = `${quando}|${foto.split('?')[0]}`
+    if (vistos.has(chave)) continue
+    vistos.add(chave)
+    const dist = bruto.distancia == null || bruto.distancia === '' ? null : Number(bruto.distancia)
+    out.push({
+      foto_url: foto,
+      verificado_em: quando,
+      distancia: dist != null && Number.isFinite(dist) ? dist : null,
+    })
+  }
+  return out.sort((a, b) => new Date(b.verificado_em).getTime() - new Date(a.verificado_em).getTime())
+}
+
+export function unirHistoricoFacial(...listas: unknown[]): FacialHistoricoItem[] {
+  return normalizarHistoricoFacial(listas.flatMap((lista) => (Array.isArray(lista) ? lista : [])))
 }
 
 export function descritorDoRosto(landmarks: Array<{ x: number; y: number }>): number[] | null {
@@ -124,6 +159,7 @@ export function preservarVerificacaoFacial<T extends FacialReferencia>(
   local?: FacialReferencia | null,
 ): T {
   // Super excluiu ou pediu para refazer: o nulo do cadastro manda.
+  const historico = unirHistoricoFacial(remoto.facial_historico, local?.facial_historico)
   if (remoto.facial_descriptor === null && remoto.facial_foto_url == null) {
     return {
       ...remoto,
@@ -131,6 +167,7 @@ export function preservarVerificacaoFacial<T extends FacialReferencia>(
       facial_foto_url: null,
       facial_verificado_em: null,
       facial_proxima_em: null,
+      facial_historico: historico,
     }
   }
   if (remoto.facial_proxima_em === null && descritorValido(remoto.facial_descriptor)) {
@@ -138,9 +175,10 @@ export function preservarVerificacaoFacial<T extends FacialReferencia>(
       ...remoto,
       facial_proxima_em: null,
       facial_verificado_em: remoto.facial_verificado_em ?? null,
+      facial_historico: historico,
     }
   }
-  if (!local) return remoto
+  if (!local) return { ...remoto, facial_historico: historico }
   const localDesc = descritorValido(local.facial_descriptor)
   const remotoDesc = descritorValido(remoto.facial_descriptor)
   const ficarLocal =
@@ -152,6 +190,7 @@ export function preservarVerificacaoFacial<T extends FacialReferencia>(
       facial_foto_url: remoto.facial_foto_url || local.facial_foto_url,
       facial_verificado_em: remoto.facial_verificado_em || local.facial_verificado_em,
       facial_proxima_em: remoto.facial_proxima_em || local.facial_proxima_em,
+      facial_historico: historico,
     }
   }
   return {
@@ -160,6 +199,7 @@ export function preservarVerificacaoFacial<T extends FacialReferencia>(
     facial_foto_url: local.facial_foto_url || remoto.facial_foto_url,
     facial_verificado_em: local.facial_verificado_em,
     facial_proxima_em: local.facial_proxima_em || remoto.facial_proxima_em,
+    facial_historico: historico,
   }
 }
 

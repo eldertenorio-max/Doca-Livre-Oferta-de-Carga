@@ -111,7 +111,7 @@ import {
   submeterCadastroTransportador,
   type CadastroTransportadorInput,
 } from '../lib/cadastroTransportador'
-import { guardarFacialLocal, preservarVerificacaoFacial, type FacialCaptura } from '../lib/verificacaoFacial'
+import { guardarFacialLocal, preservarVerificacaoFacial, unirHistoricoFacial, type FacialCaptura } from '../lib/verificacaoFacial'
 import { normalizePerfilPublico } from '../lib/perfilPublicoTransportador'
 import { galeriaTemBase64, migrarGaleriaParaStorage } from '../lib/perfilGaleriaStorage'
 import { atualizarAvatarUsuarioRemoto, buscarAvatarUsuarioRemoto } from '../lib/userAvatar'
@@ -4929,7 +4929,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const next = {
           ...prev,
           transportadores: prev.transportadores.map((t) =>
-            sameTransportadorId(t.id, id) ? { ...t, ...res.campos } : t,
+            sameTransportadorId(t.id, id)
+              ? {
+                  ...t,
+                  ...res.campos,
+                  facial_historico: unirHistoricoFacial(t.facial_historico, res.campos.facial_historico),
+                }
+              : t,
           ),
         }
         stateRef.current = next

@@ -22,6 +22,7 @@ import { isAcceptedImageFile, fileToDataUrl } from '../../lib/veiculoFotos'
 import { ImageCropModal } from '../../components/ui/ImageCropModal'
 import { contaPortalPorTransportador } from '../../lib/portalAuth'
 import { isSuperSession } from '../../lib/superUsers'
+import { unirHistoricoFacial } from '../../lib/verificacaoFacial'
 import {
   emailCredenciaisHref,
   mensagemCredenciaisTransportador,
@@ -1516,24 +1517,52 @@ export function TransportadoresPage() {
             <h2 className="form-card__title">Verificação facial</h2>
           </header>
           <div className="form-card__body">
-            {form.facial_foto_url ? (
-              <div className="facial-ok" style={{ marginBottom: 16 }}>
-                <img src={form.facial_foto_url} alt="Foto da verificação facial" />
-                <div>
-                  <strong>Rosto gravado</strong>
-                  <p className="form-field-hint">
-                    {form.facial_verificado_em
-                      ? `Verificado em ${formatDateTime(form.facial_verificado_em)}.`
-                      : 'Foto salva, aguardando nova confirmação.'}
-                    {form.facial_proxima_em
-                      ? ` Próxima cobrança em ${formatDateTime(form.facial_proxima_em)}.`
-                      : ' Será pedida de novo no próximo login.'}
+            {(() => {
+              const historico = unirHistoricoFacial(
+                form.facial_historico,
+                form.facial_foto_url
+                  ? [
+                      {
+                        foto_url: form.facial_foto_url,
+                        verificado_em: form.facial_verificado_em || '',
+                        distancia: null,
+                      },
+                    ]
+                  : [],
+              ).filter((item) => item.verificado_em)
+              if (historico.length === 0) {
+                return <p className="cadastro-empty">Verificação facial ainda não feita.</p>
+              }
+              return (
+                <>
+                  <p className="form-field-hint" style={{ marginTop: 0 }}>
+                    {form.facial_descriptor
+                      ? form.facial_proxima_em
+                        ? `Próxima cobrança em ${formatDateTime(form.facial_proxima_em)}. Cada nova verificação precisa ser parecida com o rosto já gravado.`
+                        : 'Será pedida de novo no próximo login e precisa ser parecida com o rosto já gravado.'
+                      : 'A verificação ativa foi excluída. O histórico abaixo permanece.'}
                   </p>
-                </div>
-              </div>
-            ) : (
-              <p className="cadastro-empty">Verificação facial ainda não feita.</p>
-            )}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 12 }}>
+                    {historico.map((item) => (
+                      <div className="facial-ok" key={`${item.verificado_em}-${item.foto_url}`}>
+                        <img src={item.foto_url} alt="Foto da verificação facial" />
+                        <div>
+                          <strong>
+                            {item.distancia == null ? 'Cadastro do rosto' : 'Similar à anterior'}
+                          </strong>
+                          <p className="form-field-hint">
+                            {formatDateTime(item.verificado_em)}
+                            {form.facial_foto_url?.split('?')[0] === item.foto_url.split('?')[0]
+                              ? ' · verificação atual'
+                              : ''}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )
+            })()}
             {superUsuario ? (
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
                 <button

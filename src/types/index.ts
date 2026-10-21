@@ -171,6 +171,12 @@ export interface Transportador {
   facial_verificado_em?: string | null
   /** Próxima cobrança da verificação facial. */
   facial_proxima_em?: string | null
+  /** Fotos de cada verificação, da mais recente para a mais antiga. */
+  facial_historico?: Array<{
+    foto_url: string
+    verificado_em: string
+    distancia: number | null
+  }> | null
   created_at?: string
 }
 
