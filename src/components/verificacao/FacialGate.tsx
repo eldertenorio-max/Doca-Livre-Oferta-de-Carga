@@ -4,6 +4,8 @@ import {
   deveCobrarVerificacaoFacial,
   descritorValido,
   facialParaTransportadora,
+  lerFacialLocal,
+  preservarVerificacaoFacial,
   type FacialCaptura,
 } from '../../lib/verificacaoFacial'
 import { VerificacaoFacial } from './VerificacaoFacial'
@@ -21,9 +23,10 @@ export function FacialGate() {
 
   const cadastro = transportadores.find((t) => t.id === user.transportador_id)
   if (!cadastro || !facialParaTransportadora(cadastro.ramificacao)) return null
-  if (!deveCobrarVerificacaoFacial(cadastro)) return null
+  const efetivo = preservarVerificacaoFacial(cadastro, lerFacialLocal(user.transportador_id))
+  if (!deveCobrarVerificacaoFacial(efetivo)) return null
 
-  const referencia = descritorValido(cadastro.facial_descriptor)
+  const referencia = descritorValido(efetivo.facial_descriptor)
   const modo = referencia ? 'confirmar' : 'cadastrar'
 
   async function concluir(captura: FacialCaptura) {

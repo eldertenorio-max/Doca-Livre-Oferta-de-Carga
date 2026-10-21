@@ -110,7 +110,7 @@ import {
   submeterCadastroTransportador,
   type CadastroTransportadorInput,
 } from '../lib/cadastroTransportador'
-import type { FacialCaptura } from '../lib/verificacaoFacial'
+import { guardarFacialLocal, preservarVerificacaoFacial, type FacialCaptura } from '../lib/verificacaoFacial'
 import { normalizePerfilPublico } from '../lib/perfilPublicoTransportador'
 import { galeriaTemBase64, migrarGaleriaParaStorage } from '../lib/perfilGaleriaStorage'
 import { atualizarAvatarUsuarioRemoto, buscarAvatarUsuarioRemoto } from '../lib/userAvatar'
@@ -1625,7 +1625,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           byId.set(
             t.id,
             local
-              ? {
+              ? preservarVerificacaoFacial({
                   ...local,
                   ...t,
                   pontuacao: t.pontuacao ?? local.pontuacao,
@@ -1653,7 +1653,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
                     t.disponivel_mapa === false || t.disponivel_mapa === true
                       ? t.disponivel_mapa
                       : local.disponivel_mapa,
-                }
+                }, local)
               : t,
           )
           if (t.situacao === 'pendente') {
@@ -4918,19 +4918,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (!id) return { ok: false, error: 'Conta sem transportadora vinculada.' }
       const res = await gravarVerificacaoFacial(id, captura)
       if (!res.ok) return { ok: false, error: res.erro }
+      guardarFacialLocal(id, res.campos)
       setState((prev) => {
         const next = {
           ...prev,
           transportadores: prev.transportadores.map((t) =>
-            t.id === id ? { ...t, ...res.campos } : t,
+            sameTransportadorId(t.id, id) ? { ...t, ...res.campos } : t,
           ),
         }
         stateRef.current = next
+        flushKanbanPush(next)
         return next
       })
       return { ok: true }
     },
-    [user?.transportador_id],
+    [user?.transportador_id, flushKanbanPush],
   )
 
   const gravarSituacaoTransportador = useCallback(

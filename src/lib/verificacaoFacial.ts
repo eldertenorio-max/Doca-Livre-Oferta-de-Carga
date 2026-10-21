@@ -76,6 +76,76 @@ export function facialParaTransportadora(ramificacao: string | null | undefined)
   return !r || r === 'transportadora'
 }
 
+const FACIAL_LOCAL_KEY = 'doca-facial-verificacao-v1'
+
+/** Cópia neste aparelho: o sync do Kanban não pode apagar o rosto já confirmado. */
+export function guardarFacialLocal(transportadorId: string, campos: FacialReferencia) {
+  const id = transportadorId.trim()
+  if (!id || !descritorValido(campos.facial_descriptor)) return
+  try {
+    const bruto = localStorage.getItem(FACIAL_LOCAL_KEY)
+    const all = bruto ? (JSON.parse(bruto) as Record<string, FacialReferencia>) : {}
+    all[id] = {
+      facial_descriptor: descritorValido(campos.facial_descriptor),
+      facial_foto_url: campos.facial_foto_url || null,
+      facial_verificado_em: campos.facial_verificado_em || null,
+      facial_proxima_em: campos.facial_proxima_em || null,
+    }
+    localStorage.setItem(FACIAL_LOCAL_KEY, JSON.stringify(all))
+  } catch {
+    /* quota */
+  }
+}
+
+export function lerFacialLocal(transportadorId: string | null | undefined): FacialReferencia | null {
+  const id = (transportadorId || '').trim()
+  if (!id) return null
+  try {
+    const bruto = localStorage.getItem(FACIAL_LOCAL_KEY)
+    if (!bruto) return null
+    const all = JSON.parse(bruto) as Record<string, FacialReferencia>
+    const item = all[id]
+    if (!item || !descritorValido(item.facial_descriptor)) return null
+    return item
+  } catch {
+    return null
+  }
+}
+
+function quandoFacial(iso?: string | null): number {
+  if (!iso) return 0
+  const n = new Date(iso).getTime()
+  return Number.isFinite(n) ? n : 0
+}
+
+/** Fica com a verificação mais recente. Sync sem rosto não apaga a que já foi salva. */
+export function preservarVerificacaoFacial<T extends FacialReferencia>(
+  remoto: T,
+  local?: FacialReferencia | null,
+): T {
+  if (!local) return remoto
+  const localDesc = descritorValido(local.facial_descriptor)
+  const remotoDesc = descritorValido(remoto.facial_descriptor)
+  const ficarLocal =
+    Boolean(localDesc) && (!remotoDesc || quandoFacial(local.facial_verificado_em) >= quandoFacial(remoto.facial_verificado_em))
+  if (!ficarLocal) {
+    return {
+      ...remoto,
+      facial_descriptor: remotoDesc ?? localDesc ?? remoto.facial_descriptor,
+      facial_foto_url: remoto.facial_foto_url || local.facial_foto_url,
+      facial_verificado_em: remoto.facial_verificado_em || local.facial_verificado_em,
+      facial_proxima_em: remoto.facial_proxima_em || local.facial_proxima_em,
+    }
+  }
+  return {
+    ...remoto,
+    facial_descriptor: localDesc,
+    facial_foto_url: local.facial_foto_url || remoto.facial_foto_url,
+    facial_verificado_em: local.facial_verificado_em,
+    facial_proxima_em: local.facial_proxima_em || remoto.facial_proxima_em,
+  }
+}
+
 /** Sem rosto gravado, cobra na hora. Com rosto, só quando a data marcada chega. */
 export function deveCobrarVerificacaoFacial(t: FacialReferencia | null | undefined): boolean {
   if (!t) return false

@@ -17,6 +17,7 @@ import { flagSim, normalizeCarga } from './cargaDefaults'
 import { dedupeRotas, limparPontosPassagemRota } from './rotasSync'
 import { broadcastNoCanal } from './realtimeBroadcast'
 import { isSupabaseConfigured, supabase } from './supabase'
+import { preservarVerificacaoFacial } from './verificacaoFacial'
 import { isDataUrl, veiculoParaSync } from './veiculosSync'
 
 const SYNC_ROW_ID = 'main'
@@ -444,7 +445,8 @@ export function applySyncSlice<T extends KanbanSyncSlice>(prev: T, slice: Kanban
       : prev.transportadores
     )
       .filter((t) => !tExcluidos.has(t.id))
-      .map((t) => restaurarGaleriaOmitida(t, prev.transportadores)),
+      .map((t) => restaurarGaleriaOmitida(t, prev.transportadores))
+      .map((t) => preservarVerificacaoFacial(t, prev.transportadores.find((x) => x.id === t.id))),
     rotas: (() => {
       const remote = Array.isArray(slice.rotas) ? slice.rotas : []
       const local = prev.rotas ?? []
