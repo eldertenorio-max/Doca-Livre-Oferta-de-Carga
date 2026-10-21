@@ -891,15 +891,56 @@ a.sidebar-section:first-of-type {
 }
 
 /* —— Mobile / tablet —— */
-@media (max-width: 900px) {
+@media (max-width: 1200px) {
   :root {
-    --sidebar-w-collapsed: 56px;
-    --app-topbar-h: 50px;
+    --sidebar-w-collapsed: 0px;
+    --app-topbar-h: 108px;
   }
 
   .app-topbar {
+    height: auto;
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 8px;
+    column-gap: 8px;
+    padding: 8px 10px 10px;
+  }
+
+  .app-topbar-left {
+    flex: 1 1 auto;
+    order: 1;
+  }
+
+  .app-topbar-right {
+    flex: 1 1 100%;
+    order: 2;
+    margin-left: 0;
+    justify-content: flex-start;
     gap: 8px;
-    padding: 0 8px 0 6px;
+  }
+
+  .app-topbar-wms,
+  .app-topbar-brand .product-mark {
+    display: none !important;
+  }
+
+  .app-topbar-disp {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .app-topbar-disp-toggle {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .app-topbar-disp-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    text-align: center;
+    padding: 9px 6px;
+    font-size: 0.72rem;
   }
 
   .app-topbar-left,
@@ -919,8 +960,8 @@ a.sidebar-section:first-of-type {
   }
 
   .app-topbar-logo {
-    height: 36px;
-    max-width: min(200px, 52vw);
+    height: 34px;
+    max-width: 150px;
   }
 
   .app-topbar-wms,
@@ -988,8 +1029,8 @@ a.sidebar-section:first-of-type {
   }
 
   .app-topbar-disp-btn {
-    padding: 6px 8px;
-    font-size: 0.65rem;
+    padding: 9px 6px;
+    font-size: 0.72rem;
   }
 
   /* Painel de placas: fixo na viewport para não cortar no mobile */
@@ -1036,8 +1077,16 @@ a.sidebar-section:first-of-type {
   }
 
   .app-topbar-logout {
-    padding: 7px 10px;
-    font-size: 0.72rem;
+    padding: 8px 12px;
+    font-size: 0.78rem;
+    flex-shrink: 0;
+  }
+
+  .app-topbar-refresh,
+  .app-topbar-user,
+  .app-topbar-disp-help,
+  .app-topbar-menu {
+    flex-shrink: 0;
   }
 
   .main-panel {
@@ -1045,6 +1094,17 @@ a.sidebar-section:first-of-type {
     overflow-x: hidden;
     width: 100%;
     max-width: 100%;
+  }
+
+  .main-panel::before {
+    background-position: center 34%;
+    background-size: min(200px, 58vw);
+    opacity: 0.22;
+  }
+
+  .main-panel::after {
+    top: calc(34% + 70px);
+    font-size: 1.15rem;
   }
 
   /* Sidebar mobile: fechada some do fluxo; aberta vira gaveta com backdrop */
@@ -1120,8 +1180,9 @@ a.sidebar-section:first-of-type {
   }
 }
 
-/* Touch: sem hover expandindo o menu */
-@media (hover: none), (pointer: coarse) {
+/* Touch em tela larga: faixa de ícones. No celular o menu abre pelo botão. */
+@media (min-width: 1201px) and (hover: none),
+  (min-width: 1201px) and (pointer: coarse) {
   .sidebar:not(.sidebar--pinned):not(.sidebar--wide) {
     width: var(--sidebar-w-collapsed);
   }

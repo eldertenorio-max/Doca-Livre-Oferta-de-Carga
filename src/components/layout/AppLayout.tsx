@@ -253,7 +253,7 @@ export function AppLayout() {
   const [sidebarPinned, setSidebarPinned] = useState(false)
   const [sidebarHover, setSidebarHover] = useState(false)
   const [isNarrow, setIsNarrow] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(max-width: 900px)').matches : false,
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 1200px)').matches : false,
   )
   const hoverTimerRef = useRef<number | null>(null)
   const hoverLockedUntilRef = useRef(0)
@@ -275,7 +275,7 @@ export function AppLayout() {
   }
 
   function isNarrowViewport() {
-    return typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches
+    return typeof window !== 'undefined' && window.matchMedia('(max-width: 1200px)').matches
   }
 
   function openSidebarHover() {
@@ -317,7 +317,7 @@ export function AppLayout() {
   }
 
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 900px)')
+    const mq = window.matchMedia('(max-width: 1200px)')
     function sync() {
       const narrow = mq.matches
       setIsNarrow(narrow)
