@@ -4958,6 +4958,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
               facial_foto_url: null,
               facial_verificado_em: null,
               facial_proxima_em: null,
+              facial_reset_em: res.facial_reset_em,
             }
           : {
               facial_verificado_em: null,

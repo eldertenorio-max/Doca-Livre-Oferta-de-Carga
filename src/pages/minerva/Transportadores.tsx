@@ -471,6 +471,7 @@ export function TransportadoresPage() {
             facial_foto_url: null,
             facial_verificado_em: null,
             facial_proxima_em: null,
+            facial_reset_em: new Date().toISOString(),
           }
         : { ...prev, facial_verificado_em: null, facial_proxima_em: null },
     )
@@ -1540,7 +1541,7 @@ export function TransportadoresPage() {
                       ? form.facial_proxima_em
                         ? `Próxima cobrança em ${formatDateTime(form.facial_proxima_em)}. Cada nova verificação precisa ser parecida com o rosto já gravado.`
                         : 'Será pedida de novo no próximo login e precisa ser parecida com o rosto já gravado.'
-                      : 'A verificação ativa foi excluída. O histórico abaixo permanece.'}
+                      : 'A última verificação foi excluída. No próximo login a pessoa terá de fazer a facial de novo.'}
                   </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 12 }}>
                     {historico.map((item) => (

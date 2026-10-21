@@ -3,8 +3,10 @@ import { useData } from '../../context/DataContext'
 import {
   deveCobrarVerificacaoFacial,
   descritorValido,
+  facialExigeNovoCadastro,
   facialParaTransportadora,
   lerFacialLocal,
+  limparFacialLocal,
   preservarVerificacaoFacial,
   type FacialCaptura,
 } from '../../lib/verificacaoFacial'
@@ -23,13 +25,15 @@ export function FacialGate() {
 
   const cadastro = transportadores.find((t) => t.id === user.transportador_id)
   if (!cadastro || !facialParaTransportadora(cadastro.ramificacao)) return null
+  const novoCadastro = facialExigeNovoCadastro(cadastro)
+  if (novoCadastro) limparFacialLocal(user.transportador_id)
   const servidorCobra = deveCobrarVerificacaoFacial(cadastro)
   const efetivo = servidorCobra
     ? cadastro
     : preservarVerificacaoFacial(cadastro, lerFacialLocal(user.transportador_id))
   if (!deveCobrarVerificacaoFacial(efetivo)) return null
 
-  const referencia = descritorValido(efetivo.facial_descriptor)
+  const referencia = novoCadastro || facialExigeNovoCadastro(efetivo) ? null : descritorValido(efetivo.facial_descriptor)
   const modo = referencia ? 'confirmar' : 'cadastrar'
 
   async function concluir(captura: FacialCaptura) {
@@ -51,7 +55,9 @@ export function FacialGate() {
         </h2>
         <p className="facial-box__texto" style={{ marginBottom: 12 }}>
           {modo === 'cadastrar'
-            ? 'Ainda não há um rosto gravado nesta conta. Faça a verificação para liberar o acesso.'
+            ? novoCadastro
+              ? 'A verificação anterior foi excluída. Faça de novo para liberar o acesso.'
+              : 'Ainda não há um rosto gravado nesta conta. Faça a verificação para liberar o acesso.'
             : 'De tempos em tempos pedimos a verificação facial para confirmar que é a mesma pessoa do cadastro.'}
         </p>
         {busy ? (

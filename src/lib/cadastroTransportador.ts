@@ -314,6 +314,7 @@ const COLUNAS_OPCIONAIS_TRANSPORTADOR = [
   'facial_verificado_em',
   'facial_proxima_em',
   'facial_historico',
+  'facial_reset_em',
 ] as const
 
 function colunaFaltandoNoSchema(msg: string): string | null {
@@ -499,29 +500,41 @@ export async function gravarVerificacaoFacial(
 export async function definirVerificacaoFacial(
   transportadorId: string,
   modo: 'excluir' | 'refazer',
-): Promise<{ ok: true } | { ok: false; erro: string }> {
-  if (!isSupabaseConfigured || !supabase) return { ok: true }
-  const body =
+): Promise<{ ok: true; facial_reset_em: string | null } | { ok: false; erro: string }> {
+  const facial_reset_em = modo === 'excluir' ? new Date().toISOString() : null
+  if (!isSupabaseConfigured || !supabase) return { ok: true, facial_reset_em }
+  let body: Record<string, unknown> =
     modo === 'excluir'
       ? {
           facial_descriptor: null,
           facial_foto_url: null,
           facial_verificado_em: null,
           facial_proxima_em: null,
+          facial_reset_em,
         }
       : {
           facial_verificado_em: null,
           facial_proxima_em: null,
         }
-  const { data, error } = await supabase
-    .from('transportadores')
-    .update(body)
-    .eq('id', transportadorId)
-    .select('id')
-    .maybeSingle()
-  if (error) return { ok: false, erro: error.message }
-  if (!data) return { ok: false, erro: 'A alteração não gravou no banco.' }
-  return { ok: true }
+  for (;;) {
+    const { data, error } = await supabase
+      .from('transportadores')
+      .update(body)
+      .eq('id', transportadorId)
+      .select('id')
+      .maybeSingle()
+    if (!error && data) return { ok: true, facial_reset_em }
+    if (!error && !data) return { ok: false, erro: 'A alteração não gravou no banco.' }
+    const msg = error?.message ?? 'Falha ao atualizar a verificação facial.'
+    const missing = colunaFaltandoNoSchema(msg)
+    if (missing && missing in body) {
+      const next = { ...body }
+      delete next[missing]
+      body = next
+      continue
+    }
+    return { ok: false, erro: msg }
+  }
 }
 
 async function sleep(ms: number) {
@@ -1220,10 +1233,14 @@ function mapTransportadorRow(row: Record<string, unknown>): Transportador {
         ? (row.perfil_publico as Transportador['perfil_publico'])
         : undefined,
     motivo_recusa: (row.motivo_recusa as string | null) ?? undefined,
-    facial_descriptor: descritorValido(row.facial_descriptor) ?? undefined,
-    facial_foto_url: (row.facial_foto_url as string | null) ?? undefined,
-    facial_verificado_em: (row.facial_verificado_em as string | null) ?? undefined,
-    facial_proxima_em: (row.facial_proxima_em as string | null) ?? undefined,
+    facial_descriptor:
+      'facial_descriptor' in row ? (descritorValido(row.facial_descriptor) ?? null) : undefined,
+    facial_foto_url: 'facial_foto_url' in row ? ((row.facial_foto_url as string | null) ?? null) : undefined,
+    facial_verificado_em:
+      'facial_verificado_em' in row ? ((row.facial_verificado_em as string | null) ?? null) : undefined,
+    facial_proxima_em:
+      'facial_proxima_em' in row ? ((row.facial_proxima_em as string | null) ?? null) : undefined,
+    facial_reset_em: 'facial_reset_em' in row ? ((row.facial_reset_em as string | null) ?? null) : undefined,
     facial_historico: normalizarHistoricoFacial(row.facial_historico),
     created_at: (row.created_at as string | null) ?? undefined,
   }

@@ -171,6 +171,8 @@ export interface Transportador {
   facial_verificado_em?: string | null
   /** Próxima cobrança da verificação facial. */
   facial_proxima_em?: string | null
+  /** Exclusão feita pelo super. Rosto anterior a esta data não libera o acesso. */
+  facial_reset_em?: string | null
   /** Fotos de cada verificação, da mais recente para a mais antiga. */
   facial_historico?: Array<{
     foto_url: string

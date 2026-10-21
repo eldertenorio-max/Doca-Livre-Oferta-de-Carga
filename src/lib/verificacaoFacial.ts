@@ -22,6 +22,8 @@ export type FacialReferencia = {
   facial_foto_url?: string | null
   facial_verificado_em?: string | null
   facial_historico?: FacialHistoricoItem[] | null
+  /** Quando o super apagou a verificação. Um rosto anterior a isso não volta. */
+  facial_reset_em?: string | null
 }
 
 export function normalizarHistoricoFacial(valor: unknown): FacialHistoricoItem[] {
@@ -132,6 +134,21 @@ export function guardarFacialLocal(transportadorId: string, campos: FacialRefere
   }
 }
 
+export function limparFacialLocal(transportadorId: string | null | undefined) {
+  const id = (transportadorId || '').trim()
+  if (!id) return
+  try {
+    const bruto = localStorage.getItem(FACIAL_LOCAL_KEY)
+    if (!bruto) return
+    const all = JSON.parse(bruto) as Record<string, FacialReferencia>
+    if (!all[id]) return
+    delete all[id]
+    localStorage.setItem(FACIAL_LOCAL_KEY, JSON.stringify(all))
+  } catch {
+    /* ignore */
+  }
+}
+
 export function lerFacialLocal(transportadorId: string | null | undefined): FacialReferencia | null {
   const id = (transportadorId || '').trim()
   if (!id) return null
@@ -153,59 +170,93 @@ function quandoFacial(iso?: string | null): number {
   return Number.isFinite(n) ? n : 0
 }
 
+function isoMaisRecente(a?: string | null, b?: string | null): string | null {
+  const ta = quandoFacial(a)
+  const tb = quandoFacial(b)
+  if (!ta && !tb) return null
+  return ta >= tb ? a || null : b || null
+}
+
+/** Super excluiu e ainda não houve um cadastro de rosto depois disso. */
+export function facialExigeNovoCadastro(t: FacialReferencia | null | undefined): boolean {
+  if (!t) return false
+  const reset = quandoFacial(t.facial_reset_em)
+  if (reset && quandoFacial(t.facial_verificado_em) <= reset) return true
+  return t.facial_descriptor === null && t.facial_foto_url == null
+}
+
 /** Fica com a verificação mais recente. Sync sem rosto não apaga a que já foi salva. */
 export function preservarVerificacaoFacial<T extends FacialReferencia>(
   remoto: T,
   local?: FacialReferencia | null,
 ): T {
-  // Super excluiu ou pediu para refazer: o nulo do cadastro manda.
   const historico = unirHistoricoFacial(remoto.facial_historico, local?.facial_historico)
+  const resetEm = isoMaisRecente(remoto.facial_reset_em, local?.facial_reset_em)
+
+  const aplicar = (base: T): T => {
+    const comHistorico = { ...base, facial_historico: historico, facial_reset_em: resetEm ?? base.facial_reset_em ?? null }
+    if (resetEm && quandoFacial(base.facial_verificado_em) <= quandoFacial(resetEm)) {
+      return {
+        ...comHistorico,
+        facial_descriptor: null,
+        facial_foto_url: null,
+        facial_verificado_em: null,
+        facial_proxima_em: null,
+        facial_reset_em: resetEm,
+      }
+    }
+    return comHistorico
+  }
+
+  // Super excluiu: o nulo manda, salvo um cadastro feito depois da exclusão.
   if (remoto.facial_descriptor === null && remoto.facial_foto_url == null) {
-    return {
-      ...remoto,
-      facial_descriptor: null,
-      facial_foto_url: null,
-      facial_verificado_em: null,
-      facial_proxima_em: null,
-      facial_historico: historico,
+    const localMaisNovo = Boolean(
+      resetEm && local && quandoFacial(local.facial_verificado_em) > quandoFacial(resetEm),
+    )
+    if (!localMaisNovo) {
+      return aplicar({
+        ...remoto,
+        facial_descriptor: null,
+        facial_foto_url: null,
+        facial_verificado_em: null,
+        facial_proxima_em: null,
+      })
     }
   }
   if (remoto.facial_proxima_em === null && descritorValido(remoto.facial_descriptor)) {
-    return {
+    return aplicar({
       ...remoto,
       facial_proxima_em: null,
       facial_verificado_em: remoto.facial_verificado_em ?? null,
-      facial_historico: historico,
-    }
+    })
   }
-  if (!local) return { ...remoto, facial_historico: historico }
+  if (!local) return aplicar(remoto)
   const localDesc = descritorValido(local.facial_descriptor)
   const remotoDesc = descritorValido(remoto.facial_descriptor)
   const ficarLocal =
     Boolean(localDesc) && (!remotoDesc || quandoFacial(local.facial_verificado_em) >= quandoFacial(remoto.facial_verificado_em))
   if (!ficarLocal) {
-    return {
+    return aplicar({
       ...remoto,
       facial_descriptor: remotoDesc ?? localDesc ?? remoto.facial_descriptor,
       facial_foto_url: remoto.facial_foto_url || local.facial_foto_url,
       facial_verificado_em: remoto.facial_verificado_em || local.facial_verificado_em,
       facial_proxima_em: remoto.facial_proxima_em || local.facial_proxima_em,
-      facial_historico: historico,
-    }
+    })
   }
-  return {
+  return aplicar({
     ...remoto,
     facial_descriptor: localDesc,
     facial_foto_url: local.facial_foto_url || remoto.facial_foto_url,
     facial_verificado_em: local.facial_verificado_em,
     facial_proxima_em: local.facial_proxima_em || remoto.facial_proxima_em,
-    facial_historico: historico,
-  }
+  })
 }
 
 /** Sem rosto gravado, cobra na hora. Com rosto, só quando a data marcada chega. */
 export function deveCobrarVerificacaoFacial(t: FacialReferencia | null | undefined): boolean {
   if (!t) return false
+  if (facialExigeNovoCadastro(t)) return true
   if (!descritorValido(t.facial_descriptor)) return true
   if (!t.facial_proxima_em) return true
   const quando = new Date(t.facial_proxima_em).getTime()
