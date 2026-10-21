@@ -123,6 +123,23 @@ export function preservarVerificacaoFacial<T extends FacialReferencia>(
   remoto: T,
   local?: FacialReferencia | null,
 ): T {
+  // Super excluiu ou pediu para refazer: o nulo do cadastro manda.
+  if (remoto.facial_descriptor === null && remoto.facial_foto_url == null) {
+    return {
+      ...remoto,
+      facial_descriptor: null,
+      facial_foto_url: null,
+      facial_verificado_em: null,
+      facial_proxima_em: null,
+    }
+  }
+  if (remoto.facial_proxima_em === null && descritorValido(remoto.facial_descriptor)) {
+    return {
+      ...remoto,
+      facial_proxima_em: null,
+      facial_verificado_em: remoto.facial_verificado_em ?? null,
+    }
+  }
   if (!local) return remoto
   const localDesc = descritorValido(local.facial_descriptor)
   const remotoDesc = descritorValido(remoto.facial_descriptor)

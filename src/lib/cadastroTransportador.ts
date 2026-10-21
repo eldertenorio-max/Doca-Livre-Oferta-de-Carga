@@ -433,6 +433,35 @@ export async function gravarVerificacaoFacial(
   }
 }
 
+/** Super: apaga a verificação ou pede para o transportador fazer de novo no próximo login. */
+export async function definirVerificacaoFacial(
+  transportadorId: string,
+  modo: 'excluir' | 'refazer',
+): Promise<{ ok: true } | { ok: false; erro: string }> {
+  if (!isSupabaseConfigured || !supabase) return { ok: true }
+  const body =
+    modo === 'excluir'
+      ? {
+          facial_descriptor: null,
+          facial_foto_url: null,
+          facial_verificado_em: null,
+          facial_proxima_em: null,
+        }
+      : {
+          facial_verificado_em: null,
+          facial_proxima_em: null,
+        }
+  const { data, error } = await supabase
+    .from('transportadores')
+    .update(body)
+    .eq('id', transportadorId)
+    .select('id')
+    .maybeSingle()
+  if (error) return { ok: false, erro: error.message }
+  if (!data) return { ok: false, erro: 'A alteração não gravou no banco.' }
+  return { ok: true }
+}
+
 async function sleep(ms: number) {
   await new Promise((r) => setTimeout(r, ms))
 }

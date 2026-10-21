@@ -23,7 +23,10 @@ export function FacialGate() {
 
   const cadastro = transportadores.find((t) => t.id === user.transportador_id)
   if (!cadastro || !facialParaTransportadora(cadastro.ramificacao)) return null
-  const efetivo = preservarVerificacaoFacial(cadastro, lerFacialLocal(user.transportador_id))
+  const servidorCobra = deveCobrarVerificacaoFacial(cadastro)
+  const efetivo = servidorCobra
+    ? cadastro
+    : preservarVerificacaoFacial(cadastro, lerFacialLocal(user.transportador_id))
   if (!deveCobrarVerificacaoFacial(efetivo)) return null
 
   const referencia = descritorValido(efetivo.facial_descriptor)

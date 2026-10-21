@@ -21,6 +21,7 @@ import { urlDocumentoTransportador, origemCadastroDe, labelOrigemCadastro } from
 import { isAcceptedImageFile, fileToDataUrl } from '../../lib/veiculoFotos'
 import { ImageCropModal } from '../../components/ui/ImageCropModal'
 import { contaPortalPorTransportador } from '../../lib/portalAuth'
+import { isSuperSession } from '../../lib/superUsers'
 import {
   emailCredenciaisHref,
   mensagemCredenciaisTransportador,
@@ -158,7 +159,10 @@ export function TransportadoresPage() {
     grupos,
     rankingTransportadores,
     refreshTransportadores,
+    user,
+    definirVerificacaoFacialAdmin,
   } = useData()
+  const superUsuario = isSuperSession(user)
   const [mode, setMode] = useState<'lista' | 'form' | 'revisao' | 'ficha'>('lista')
   const [origemVoltar, setOrigemVoltar] = useState<'lista' | 'ficha' | 'revisao'>('lista')
   const [vista, setVista] = useState<'quadro' | 'grid'>(() => {
@@ -174,6 +178,7 @@ export function TransportadoresPage() {
   const [revisaoId, setRevisaoId] = useState<string | null>(null)
   const [fichaId, setFichaId] = useState<string | null>(null)
   const [fichaTab, setFichaTab] = useState<FichaTab>('painel')
+  const [editAba, setEditAba] = useState<'cadastro' | 'facial'>('cadastro')
   const [form, setForm] = useState<Partial<Transportador>>(emptyForm)
   const [search, setSearch] = useState('')
   const [filtro, setFiltro] = useState<FilterSit>('todos')
@@ -318,6 +323,7 @@ export function TransportadoresPage() {
   }
 
   function openEdit(t: Transportador) {
+    setEditAba('cadastro')
     setOrigemVoltar(mode === 'ficha' ? 'ficha' : mode === 'revisao' ? 'revisao' : 'lista')
     setEditingId(t.id)
     setForm({
@@ -439,6 +445,34 @@ export function TransportadoresPage() {
           : 'Não foi possível abrir o documento. Verifique o bucket no Supabase.',
       )
     }
+  }
+
+  async function alterarFacial(modo: 'excluir' | 'refazer') {
+    if (!editingId || !superUsuario) return
+    const pergunta =
+      modo === 'excluir'
+        ? 'Excluir a verificação facial desta transportadora? A foto sai do cadastro e o rosto terá de ser cadastrado de novo.'
+        : 'Pedir a verificação facial de novo? No próximo login o transportador terá de confirmar o rosto.'
+    if (!window.confirm(pergunta)) return
+    setBusy(true)
+    setError('')
+    const res = await definirVerificacaoFacialAdmin(editingId, modo)
+    setBusy(false)
+    if (!res.ok) {
+      setError(res.error || 'Não foi possível atualizar a verificação facial.')
+      return
+    }
+    setForm((prev) =>
+      modo === 'excluir'
+        ? {
+            ...prev,
+            facial_descriptor: null,
+            facial_foto_url: null,
+            facial_verificado_em: null,
+            facial_proxima_em: null,
+          }
+        : { ...prev, facial_verificado_em: null, facial_proxima_em: null },
+    )
   }
 
   function set<K extends keyof Transportador>(key: K, value: Transportador[K]) {
@@ -1029,20 +1063,14 @@ export function TransportadoresPage() {
                   if (file) await handleArquivoDocumento(file)
                 }}
               />
-              {revisao.facial_foto_url ? (
-                <div className="facial-ok" style={{ marginBottom: 16 }}>
-                  <img src={revisao.facial_foto_url} alt="Verificação facial do responsável" />
-                  <div>
-                    <strong>Verificação facial</strong>
-                    <p className="form-field-hint">
-                      Rosto gravado no cadastro
-                      {revisao.facial_verificado_em
-                        ? ` em ${formatDateTime(revisao.facial_verificado_em)}`
-                        : ''}
-                      .
-                    </p>
-                  </div>
-                </div>
+              {revisao.facial_foto_url || revisao.facial_verificado_em ? (
+                <p className="form-field-hint" style={{ marginBottom: 16 }}>
+                  Verificação facial registrada
+                  {revisao.facial_verificado_em
+                    ? ` em ${formatDateTime(revisao.facial_verificado_em)}`
+                    : ''}
+                  . A foto fica em Editar → Verificação facial.
+                </p>
               ) : (
                 <p className="cadastro-empty">Verificação facial ainda não feita.</p>
               )}
@@ -1463,6 +1491,79 @@ export function TransportadoresPage() {
         {editingId ? 'Editar Transportadora' : 'Cadastro de Transportadora'}
       </h1>
 
+      {editingId ? (
+        <div className="cadastro-filtros" style={{ marginBottom: 16 }}>
+          <button
+            type="button"
+            className={`cadastro-btn ${editAba === 'cadastro' ? 'cadastro-btn--primary' : 'cadastro-btn--ghost'}`}
+            onClick={() => setEditAba('cadastro')}
+          >
+            Cadastro
+          </button>
+          <button
+            type="button"
+            className={`cadastro-btn ${editAba === 'facial' ? 'cadastro-btn--primary' : 'cadastro-btn--ghost'}`}
+            onClick={() => setEditAba('facial')}
+          >
+            Verificação facial
+          </button>
+        </div>
+      ) : null}
+
+      {editingId && editAba === 'facial' ? (
+        <section className="form-card form-card--blue">
+          <header className="form-card__head">
+            <h2 className="form-card__title">Verificação facial</h2>
+          </header>
+          <div className="form-card__body">
+            {form.facial_foto_url ? (
+              <div className="facial-ok" style={{ marginBottom: 16 }}>
+                <img src={form.facial_foto_url} alt="Foto da verificação facial" />
+                <div>
+                  <strong>Rosto gravado</strong>
+                  <p className="form-field-hint">
+                    {form.facial_verificado_em
+                      ? `Verificado em ${formatDateTime(form.facial_verificado_em)}.`
+                      : 'Foto salva, aguardando nova confirmação.'}
+                    {form.facial_proxima_em
+                      ? ` Próxima cobrança em ${formatDateTime(form.facial_proxima_em)}.`
+                      : ' Será pedida de novo no próximo login.'}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="cadastro-empty">Verificação facial ainda não feita.</p>
+            )}
+            {superUsuario ? (
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
+                <button
+                  type="button"
+                  className="cadastro-btn cadastro-btn--primary"
+                  disabled={busy || !form.facial_descriptor}
+                  onClick={() => void alterarFacial('refazer')}
+                >
+                  Refazer verificação
+                </button>
+                <button
+                  type="button"
+                  className="cadastro-btn cadastro-btn--ghost"
+                  style={{ color: '#b91c1c' }}
+                  disabled={busy || (!form.facial_foto_url && !form.facial_descriptor)}
+                  onClick={() => void alterarFacial('excluir')}
+                >
+                  Excluir verificação
+                </button>
+              </div>
+            ) : (
+              <p className="form-field-hint">Só o super usuário pode refazer ou excluir esta verificação.</p>
+            )}
+            {error ? <p style={{ color: '#dc2626', marginTop: 12 }}>{error}</p> : null}
+          </div>
+        </section>
+      ) : null}
+
+      {editAba === 'cadastro' ? (
+      <>
       <section className="form-card form-card--blue" style={{ marginBottom: 16 }}>
         <header className="form-card__head">
           <h2 className="form-card__title">Logo / foto de perfil</h2>
@@ -1822,6 +1923,8 @@ export function TransportadoresPage() {
           {busy ? 'Salvando…' : 'Salvar Transportadora'}
         </button>
       </div>
+      </>
+      ) : null}
 
       {previewPerfil ? (
         <TransportadorPerfilSite

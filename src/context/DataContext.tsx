@@ -105,6 +105,7 @@ import { autenticar as autenticarLogistica, saveSessao as saveSessaoLogistica } 
 import {
   atualizarLogoTransportadorRemoto,
   carregarTransportadoresDoSupabase,
+  definirVerificacaoFacial,
   gravarVerificacaoFacial,
   salvarPerfilPublicoRemoto,
   submeterCadastroTransportador,
@@ -376,6 +377,11 @@ interface DataContextValue extends DataState, AuthState {
   /** Grava o rosto e agenda a próxima cobrança da verificação facial. */
   concluirVerificacaoFacial: (
     captura: FacialCaptura,
+  ) => Promise<{ ok: boolean; error?: string }>
+  /** Super: apaga a facial ou cobra de novo no próximo login. */
+  definirVerificacaoFacialAdmin: (
+    transportadorId: string,
+    modo: 'excluir' | 'refazer',
   ) => Promise<{ ok: boolean; error?: string }>
   /** Recarrega transportadoras/docs do Supabase (fila de aprovação). */
   refreshTransportadores: () => Promise<void>
@@ -4935,6 +4941,38 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [user?.transportador_id, flushKanbanPush],
   )
 
+  const definirVerificacaoFacialAdmin = useCallback(
+    async (transportadorId: string, modo: 'excluir' | 'refazer') => {
+      const res = await definirVerificacaoFacial(transportadorId, modo)
+      if (!res.ok) return { ok: false, error: res.erro }
+      const patch =
+        modo === 'excluir'
+          ? {
+              facial_descriptor: null,
+              facial_foto_url: null,
+              facial_verificado_em: null,
+              facial_proxima_em: null,
+            }
+          : {
+              facial_verificado_em: null,
+              facial_proxima_em: null,
+            }
+      setState((prev) => {
+        const next = {
+          ...prev,
+          transportadores: prev.transportadores.map((t) =>
+            sameTransportadorId(t.id, transportadorId) ? { ...t, ...patch } : t,
+          ),
+        }
+        stateRef.current = next
+        flushKanbanPush(next)
+        return next
+      })
+      return { ok: true }
+    },
+    [flushKanbanPush],
+  )
+
   const gravarSituacaoTransportador = useCallback(
     async (
       id: string,
@@ -5936,6 +5974,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       enviarDocumentoTransportador,
       registrarCadastroTransportador,
       concluirVerificacaoFacial,
+      definirVerificacaoFacialAdmin,
       refreshTransportadores,
       forcarSincronizarKanban,
       aprovarTransportador,
@@ -6017,6 +6056,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       enviarDocumentoTransportador,
       registrarCadastroTransportador,
       concluirVerificacaoFacial,
+      definirVerificacaoFacialAdmin,
       refreshTransportadores,
       aprovarTransportador,
       recusarTransportador,
