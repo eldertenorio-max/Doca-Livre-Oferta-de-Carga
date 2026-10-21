@@ -83,11 +83,20 @@ Deno.serve(async (req) => {
     const sb = admin()
     const { data: rows, error } = await sb
       .from('push_subscriptions')
-      .select('id, endpoint, p256dh, auth, transportador_id')
+      .select('id, endpoint, p256dh, auth, transportador_id, user_agent')
       .in('transportador_id', tids)
 
     if (error) return json({ ok: false, erro: error.message }, 500)
-    const list = rows ?? []
+    const brutos = rows ?? []
+    const vistos = new Set<string>()
+    const list = brutos.filter((row) => {
+      const ua = String(row.user_agent || '')
+      const dev = /^dev:(\S+)/.exec(ua)?.[1]
+      const chave = dev || row.endpoint
+      if (vistos.has(chave)) return false
+      vistos.add(chave)
+      return true
+    })
     if (list.length === 0) {
       return json({ ok: true, enviados: 0, mensagem: 'Nenhuma assinatura push para esses transportadores.' })
     }
@@ -98,7 +107,7 @@ Deno.serve(async (req) => {
       icon: 'https://ofertadecarga.com.br/icon-192.png?v=oferta6',
       badge: 'https://ofertadecarga.com.br/badge-96.png?v=oferta6',
       tag,
-      renotify: true,
+      renotify: false,
       requireInteraction: true,
       vibrate: [300, 120, 300, 120, 500],
       data: { url, carga_id: body.carga_id ?? null },

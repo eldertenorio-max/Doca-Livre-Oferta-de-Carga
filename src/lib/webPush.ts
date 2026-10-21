@@ -65,13 +65,15 @@ export async function registrarPushSubscription(input: {
     return { ok: false, erro: 'Assinatura push incompleta.' }
   }
 
+  const aparelho = idAparelhoPush()
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 180) : ''
   const row = {
     endpoint,
     p256dh,
     auth,
     transportador_id: input.transportadorId || null,
     user_id: input.userId || null,
-    user_agent: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 240) : null,
+    user_agent: `dev:${aparelho} ${ua}`.slice(0, 240),
     updated_at: new Date().toISOString(),
   }
 
@@ -79,7 +81,38 @@ export async function registrarPushSubscription(input: {
     onConflict: 'endpoint',
   })
   if (error) return { ok: false, erro: error.message }
+
+  // Chrome e o app instalado geram duas assinaturas no mesmo celular. Fica só esta.
+  const uaPuro = typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 240) : ''
+  let consulta = supabase.from('push_subscriptions').select('id, endpoint, user_agent')
+  consulta = input.transportadorId
+    ? consulta.eq('transportador_id', input.transportadorId)
+    : consulta.like('user_agent', `dev:${aparelho}%`)
+  const { data: irmas } = await consulta
+  const extras = (irmas ?? [])
+    .filter((r) => {
+      if (r.endpoint === endpoint) return false
+      const marca = String(r.user_agent || '')
+      return marca.startsWith(`dev:${aparelho}`) || (uaPuro.length > 20 && marca === uaPuro)
+    })
+    .map((r) => r.id)
+  if (extras.length > 0) {
+    await supabase.from('push_subscriptions').delete().in('id', extras)
+  }
   return { ok: true }
+}
+
+function idAparelhoPush(): string {
+  const key = 'doca-push-device-id'
+  try {
+    const atual = localStorage.getItem(key)
+    if (atual) return atual
+    const id = `d${Math.random().toString(36).slice(2, 8)}${Date.now().toString(36)}`
+    localStorage.setItem(key, id)
+    return id
+  } catch {
+    return 'sem-id'
+  }
 }
 
 /**
@@ -185,7 +218,7 @@ export async function notificarLocalNativa(input: {
       icon: '/icon-192.png?v=oferta6',
       badge: '/badge-96.png?v=oferta6',
       tag: input.tag || 'doca-livre-local',
-      renotify: true,
+      renotify: false,
       requireInteraction: true,
       silent: false,
       vibrate: [300, 120, 300, 120, 500],

@@ -455,6 +455,26 @@ export function AppLayout() {
         return false
       })
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .filter((n, _i, arr) => {
+        if (!n.carga_id || !n.mensagem) return true
+        const aviso =
+          n.chave?.startsWith('carga-aviso:') ||
+          n.titulo === 'Nova carga publicada' ||
+          n.titulo === 'Nova oferta de carga' ||
+          n.titulo === 'Negociação reaberta'
+        if (!aviso) return true
+        return (
+          arr.find(
+            (o) =>
+              o.carga_id === n.carga_id &&
+              o.mensagem === n.mensagem &&
+              (o.chave?.startsWith('carga-aviso:') ||
+                o.titulo === 'Nova carga publicada' ||
+                o.titulo === 'Nova oferta de carga' ||
+                o.titulo === 'Negociação reaberta'),
+          ) === n
+        )
+      })
       .slice(0, 40)
   }, [notificacoes, user, actingTransportadorId, isSuper])
 
