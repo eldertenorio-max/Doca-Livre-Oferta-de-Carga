@@ -8,7 +8,7 @@ import { isSiteOfertaDeCarga, isSitePublicoLimpo, redirecionarPainelOficial } fr
 import { supabase } from './lib/supabase'
 import './index.css'
 
-const BUILD_ID = 'rota-publico-cache-v373'
+const BUILD_ID = 'rota-publico-cache-v374'
 
 if (typeof window !== 'undefined') {
   instalarDevConsoleGuard()

@@ -98,6 +98,82 @@
   font-weight: 600;
 }
 
+.pwa-push-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 14000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(15 23 42 / 0.72);
+}
+
+.pwa-push-modal__card {
+  width: min(420px, 100%);
+  padding: 28px 22px 20px;
+  border-radius: 22px;
+  background: #fff;
+  color: #0f172a;
+  text-align: center;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 0.35);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+}
+
+.pwa-push-modal__selo {
+  display: inline-block;
+  margin: 0 0 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pwa-push-modal__card h2 {
+  margin: 0 0 8px;
+  font-size: 1.45rem;
+  line-height: 1.2;
+}
+
+.pwa-push-modal__card p {
+  margin: 0 0 18px;
+  color: #334155;
+  font-size: 0.98rem;
+  line-height: 1.45;
+}
+
+.pwa-push-modal__btn {
+  width: 100%;
+  border: 0;
+  border-radius: 14px;
+  padding: 16px 18px;
+  background: #0f172a;
+  color: #fff;
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pwa-push-modal__btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.pwa-push-modal__later {
+  margin-top: 10px;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 @media (min-width: 900px) {
   .pwa-install {
     left: auto;

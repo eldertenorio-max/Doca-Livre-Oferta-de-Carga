@@ -44,6 +44,31 @@ function snooze(hours = 12) {
   }
 }
 
+function appInstalado(): boolean {
+  if (typeof window === 'undefined') return false
+  const mq = window.matchMedia('(display-mode: standalone)').matches
+  const ios =
+    'standalone' in navigator &&
+    Boolean((navigator as Navigator & { standalone?: boolean }).standalone)
+  return mq || ios
+}
+
+function adiouNestaSessao(): boolean {
+  try {
+    return sessionStorage.getItem('doca-push-centro-adiado') === '1'
+  } catch {
+    return false
+  }
+}
+
+function adiarNestaSessao() {
+  try {
+    sessionStorage.setItem('doca-push-centro-adiado', '1')
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
  * Pede permissão e registra o aparelho para push nativo
  * (barra de notificações + som do sistema) quando uma carga for publicada.
@@ -51,12 +76,29 @@ function snooze(hours = 12) {
 export function PushEnableBanner() {
   const { user, actingTransportadorId } = useData()
   const [visible, setVisible] = useState(false)
+  const [destaque, setDestaque] = useState(false)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
 
   const transportadorId = actingTransportadorId || user?.transportador_id || null
   const isTransportador = user?.role === 'transportador' || Boolean(transportadorId)
-  const precisa = isTransportador
+
+  useEffect(() => {
+    const aoInstalar = () => setDestaque(true)
+    const aoModo = () => {
+      if (appInstalado()) setDestaque(true)
+    }
+    if (appInstalado()) setDestaque(true)
+    window.addEventListener('appinstalled', aoInstalar)
+    const mq = window.matchMedia('(display-mode: standalone)')
+    mq.addEventListener('change', aoModo)
+    return () => {
+      window.removeEventListener('appinstalled', aoInstalar)
+      mq.removeEventListener('change', aoModo)
+    }
+  }, [])
+
+  const precisa = destaque || isTransportador
 
   useEffect(() => {
     if (!precisa || !pushSuportado()) {
@@ -81,7 +123,12 @@ export function PushEnableBanner() {
       return
     }
 
-    if (snoozed()) {
+    if (destaque) {
+      if (adiouNestaSessao()) {
+        setVisible(false)
+        return
+      }
+    } else if (snoozed()) {
       setVisible(false)
       return
     }
@@ -96,9 +143,9 @@ export function PushEnableBanner() {
       }
     }
 
-    const t = window.setTimeout(() => setVisible(true), 900)
+    const t = window.setTimeout(() => setVisible(true), destaque ? 400 : 900)
     return () => window.clearTimeout(t)
-  }, [precisa, transportadorId, user?.id])
+  }, [precisa, destaque, transportadorId, user?.id])
 
   if (!visible) return null
 
@@ -122,6 +169,44 @@ export function PushEnableBanner() {
     }
     marcarRegistrado()
     setVisible(false)
+  }
+
+  if (destaque) {
+    return (
+      <div className="pwa-push-modal" role="presentation">
+        <div
+          className="pwa-push-modal__card"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pwa-push-titulo"
+        >
+          <p className="pwa-push-modal__selo">App instalado</p>
+          <h2 id="pwa-push-titulo">Ativar notificações?</h2>
+          <p>
+            Assim o celular avisa na hora quando sair uma carga, mesmo com o aplicativo fechado.
+          </p>
+          {msg ? <p className="pwa-install__err">{msg}</p> : null}
+          <button
+            type="button"
+            className="pwa-push-modal__btn"
+            disabled={busy}
+            onClick={() => void ativar()}
+          >
+            {busy ? 'Ativando…' : 'Sim, ativar notificações'}
+          </button>
+          <button
+            type="button"
+            className="pwa-push-modal__later"
+            onClick={() => {
+              adiarNestaSessao()
+              setVisible(false)
+            }}
+          >
+            Agora não
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
