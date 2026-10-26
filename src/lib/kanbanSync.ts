@@ -16,6 +16,7 @@ import { alinharStatusComLances } from './kanbanColumns'
 import { flagSim, normalizeCarga } from './cargaDefaults'
 import { dedupeRotas, limparPontosPassagemRota } from './rotasSync'
 import { broadcastNoCanal } from './realtimeBroadcast'
+import { ignorarEcoProprio, versaoKanbanMudou } from './tempoRealSombra'
 import { isSupabaseConfigured, supabase } from './supabase'
 import { preservarVerificacaoFacial } from './verificacaoFacial'
 import { isDataUrl, veiculoParaSync } from './veiculosSync'
@@ -617,14 +618,14 @@ export function subscribeKanbanSync(
     if (puxando) return
     const head = await headKanbanSync()
     if (!head.ok) return
-    if (head.updated_at && ts(head.updated_at) === ultimoUpdatedAtVisto) return
+    if (!versaoKanbanMudou(ultimoUpdatedAtVisto, head.updated_at)) return
     await puxarCompleto()
   }
 
   /** Realtime/broadcast: ignora eco do próprio push. */
   const deliverLive = (payload: KanbanSyncPayload | null) => {
     if (!payload) return
-    if (payload.client_id && payload.client_id === myId) return
+    if (ignorarEcoProprio(payload.client_id, myId)) return
     marcarVersaoVista(payload.updated_at)
     onRemote(payload)
   }
@@ -642,7 +643,7 @@ export function subscribeKanbanSync(
           client_id?: string
           updated_at?: string
         } | null
-        if (rec?.client_id && rec.client_id === myId) return
+        if (ignorarEcoProprio(rec?.client_id, myId)) return
         const payload = parsePayload(rec?.payload, rec?.client_id, rec?.updated_at)
         // Linha grande chega sem o payload (limite do Realtime): baixa na hora
         if (payload) deliverLive(payload)
@@ -655,7 +656,7 @@ export function subscribeKanbanSync(
     .on('broadcast', { event: AVISO_CARGA_EVENT }, ({ payload }) => {
       const aviso = payload as Partial<AvisoCargaPublicada> | null
       if (!aviso?.carga?.id) return
-      if (aviso.client_id && aviso.client_id === myId) return
+      if (ignorarEcoProprio(aviso.client_id, myId)) return
       onAvisoCarga?.({
         client_id: aviso.client_id || '',
         carga: aviso.carga,

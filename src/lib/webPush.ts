@@ -3,6 +3,7 @@
  */
 
 import { isSupabaseConfigured, supabase } from './supabase'
+import { tagPushCarga } from './tempoRealSombra'
 
 /** Chave pública VAPID (pode sobrescrever com VITE_VAPID_PUBLIC_KEY). */
 export const VAPID_PUBLIC_KEY =
@@ -141,7 +142,7 @@ export async function enviarPushCarga(input: {
         mensagem: input.mensagem,
         carga_id: input.cargaId,
         url: input.url || '/#/transportador',
-        tag: input.cargaId ? `carga-${input.cargaId}` : 'nova-carga',
+        tag: tagPushCarga(input.cargaId),
       },
     })
     if (error) {
