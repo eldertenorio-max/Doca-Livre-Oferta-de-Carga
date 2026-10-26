@@ -142,6 +142,7 @@ import {
   subirFotosVeiculo,
   upsertVeiculoRemote,
 } from '../lib/veiculosSync'
+import { caminhoDocumento } from '../lib/arquivosSombra'
 import {
   carregarRotasDoSupabase,
   dedupeRotas,
@@ -4750,8 +4751,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       let storage_path = doc.storage_path
 
       if (isSupabaseConfigured && supabase) {
-        const safeName = file.name.replace(/[^\w.\-]+/g, '_')
-        const path = `${doc.transportador_id}/${doc.tipo}-${Date.now()}-${safeName}`
+        const path = caminhoDocumento(doc.transportador_id, doc.tipo, Date.now(), file.name)
         const { error: upErr } = await supabase.storage
           .from('documentos-transportadores')
           .upload(path, file, { upsert: true })
@@ -4820,8 +4820,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       let id = uid('doc')
 
       if (isSupabaseConfigured && supabase) {
-        const safeName = file.name.replace(/[^\w.\-]+/g, '_')
-        const path = `${transportadorId}/${tipo}-${Date.now()}-${safeName}`
+        const path = caminhoDocumento(transportadorId, tipo, Date.now(), file.name)
         const { error: upErr } = await supabase.storage
           .from('documentos-transportadores')
           .upload(path, file, { upsert: true })

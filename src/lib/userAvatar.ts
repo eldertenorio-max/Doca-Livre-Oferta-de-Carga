@@ -1,3 +1,4 @@
+import { caminhoAvatar } from './arquivosSombra'
 import { isSupabaseConfigured, supabase } from './supabase'
 
 function dataUrlFromFile(file: File): Promise<string> {
@@ -297,7 +298,7 @@ export async function atualizarAvatarUsuarioRemoto(
 
   const dbId = (await resolveUsuarioDbId(uid, hints)) || uid
   const folder = validUuid(dbId) ? dbId : dbId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64)
-  const path = `avatars/${folder}/avatar.${ext}`
+  const path = caminhoAvatar(folder, ext)
 
   const { error: upErr } = await supabase.storage
     .from('veiculos-fotos')

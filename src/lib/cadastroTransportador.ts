@@ -2,6 +2,7 @@
  * Cadastro público de transportador — local + Supabase quando configurado.
  */
 
+import { caminhoDocumento, caminhoFacial, caminhosLogo } from './arquivosSombra'
 import { isSupabaseConfigured, supabase } from './supabase'
 import { portalCriarUsuarioAuth } from './portalApi'
 import {
@@ -449,7 +450,7 @@ export async function gravarVerificacaoFacial(
   }
 
   const blob = await (await fetch(facial.imagemDataUrl)).blob()
-  const path = `${transportadorId}/facial/${Date.now()}.jpg`
+  const path = caminhoFacial(transportadorId, Date.now())
   const { error: upErr } = await supabase.storage
     .from('documentos-transportadores')
     .upload(path, blob, { upsert: false, contentType: 'image/jpeg' })
@@ -825,10 +826,7 @@ export async function cadastrarTransportadorRemoto(
       input.logo.file?.type?.split('/')[1]?.replace('jpeg', 'jpg') ||
       (input.logo.nome_arquivo.match(/\.(jpe?g|png|webp)$/i)?.[1] ?? 'jpg')
     const blob = input.logo.file ?? (await (await fetch(input.logo.data_url)).blob())
-    const tentativas: Array<{ bucket: string; path: string }> = [
-      { bucket: 'documentos-transportadores', path: `${tRow.id}/logo.${ext}` },
-      { bucket: 'veiculos-fotos', path: `logos/${tRow.id}/logo.${ext}` },
-    ]
+    const tentativas = caminhosLogo(tRow.id, ext)
     let logoUrl: string | null = null
     for (const t of tentativas) {
       const { error: logoErr } = await supabase.storage
@@ -959,7 +957,7 @@ export async function cadastrarTransportadorRemoto(
   const documentos: TransportadorDocumento[] = []
 
   for (const d of input.documentos) {
-    const path = `${tRow.id}/${d.tipo}-${Date.now()}-${d.nome_arquivo.replace(/[^\w.\-]+/g, '_')}`
+    const path = caminhoDocumento(tRow.id, d.tipo, Date.now(), d.nome_arquivo)
     const blob = d.file ?? (await (await fetch(d.data_url)).blob())
     const { error: upErr } = await supabase.storage
       .from('documentos-transportadores')
@@ -1105,10 +1103,7 @@ export async function atualizarLogoTransportadorRemoto(
   }
 
   // 1) Tenta bucket de documentos; 2) se RLS bloquear (portal = anon), usa veiculos-fotos
-  const tentativas: Array<{ bucket: string; path: string }> = [
-    { bucket: 'documentos-transportadores', path: `${tid}/logo.${ext}` },
-    { bucket: 'veiculos-fotos', path: `logos/${tid}/logo.${ext}` },
-  ]
+  const tentativas = caminhosLogo(tid, ext)
 
   let logoUrl: string | null = null
   let ultimoErro = ''

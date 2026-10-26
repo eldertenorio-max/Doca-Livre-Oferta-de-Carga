@@ -1,4 +1,5 @@
 import type { Veiculo, FotosVeiculo } from '../types'
+import { caminhoFotoVeiculo } from './arquivosSombra'
 import { isSupabaseConfigured, supabase } from './supabase'
 
 const UUID_RE =
@@ -343,7 +344,7 @@ export async function subirFotosVeiculo(v: Veiculo): Promise<Veiculo> {
   for (const slot of slots) {
     const parsed = dataUrlToBlob(fotos[slot] as string)
     if (!parsed) continue
-    const path = `${v.id}/${slot}.${parsed.ext}`
+    const path = caminhoFotoVeiculo(v.id, slot, parsed.ext)
     const { error } = await supabase.storage
       .from(BUCKET_FOTOS)
       .upload(path, parsed.blob, { upsert: true, contentType: parsed.blob.type })

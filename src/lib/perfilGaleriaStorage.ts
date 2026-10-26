@@ -5,6 +5,7 @@
 
 import type { Transportador } from '../types'
 import { isSupabaseConfigured, supabase } from './supabase'
+import { caminhoGaleria } from './arquivosSombra'
 import { dataUrlToBlob, isDataUrl } from './veiculosSync'
 
 const BUCKET = 'veiculos-fotos'
@@ -20,7 +21,7 @@ function hashConteudo(s: string): string {
 
 async function subirBlob(tid: string, blob: Blob, ext: string, chave: string): Promise<string | null> {
   if (!isSupabaseConfigured || !supabase) return null
-  const path = `perfis/${tid || 'avulso'}/galeria-${chave}.${ext}`
+  const path = caminhoGaleria(tid, chave, ext)
   const { error } = await supabase.storage
     .from(BUCKET)
     .upload(path, blob, { upsert: true, contentType: blob.type || 'image/jpeg' })
