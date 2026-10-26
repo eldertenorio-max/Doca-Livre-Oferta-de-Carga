@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { CadastroTransportadorInput } from './cadastroTransportador'
-import { parecerCadastro, parecerLance } from './modulosSombra'
+import { codigoEmailAceito, deduplicarAvisosCarga, parecerCadastro, parecerLance, parecerPix, placasNoMapaPadrao } from './modulosSombra'
 import { TIPOS_DOC_OBRIGATORIOS } from './transportadorDocs'
-import type { Carga, Veiculo } from '../types'
+import type { Carga, Motorista, NotificacaoInApp, Transportador, Veiculo } from '../types'
 
 const rosto = [0, 0, 0.1, 0, 0, 0.2, 0.1, 0.2]
 
@@ -91,5 +91,63 @@ describe('fase 2 — cadastro e lance', () => {
     expect(parecer.mostraOferta).toBe(true)
     expect(parecer.podeEnviar).toBe(true)
     expect(parecer.motivo).toBeNull()
+  })
+
+  it('tira do mapa padrão a placa marcada indisponível', () => {
+    const t = {
+      id: 't-santos',
+      nome_fantasia: 'Santos',
+      situacao: 'ativo',
+      origem_lat: -25.4,
+      origem_lng: -49.2,
+    } as Transportador
+    const placas = placasNoMapaPadrao(
+      [] as Motorista[],
+      [
+        veiculo({ id: 'v1', placa: 'AAA1A11', disponivel_mapa: true, origem_lat: -25.4, origem_lng: -49.2 }),
+        veiculo({ id: 'v2', placa: 'BBB2B22', disponivel_mapa: false, origem_lat: -25.4, origem_lng: -49.2 }),
+      ],
+      [t],
+    )
+    expect(placas).toContain('AAA1A11')
+    expect(placas).not.toContain('BBB2B22')
+  })
+
+  it('deixa um aviso só quando a publicação gera duas notificações iguais', () => {
+    const base = {
+      carga_id: 'c1',
+      mensagem: 'Curitiba → São Paulo',
+      lida: false,
+      created_at: '2026-10-26T20:00:00.000Z',
+    }
+    const lista = deduplicarAvisosCarga([
+      { ...base, id: 'n1', titulo: 'Nova carga publicada', chave: 'carga-aviso:c1' },
+      { ...base, id: 'n2', titulo: 'Nova oferta de carga', chave: 'carga-aviso:c1:t-santos' },
+      { ...base, id: 'n3', titulo: 'Nova mensagem', mensagem: 'outro texto', chave: 'chat:1' },
+    ] as NotificacaoInApp[])
+    expect(lista.map((n) => n.id)).toEqual(['n1', 'n3'])
+  })
+
+  it('gera o PIX estável e só aceita código de seis dígitos', () => {
+    const pix = parecerPix({
+      chave: 'teste@docalivre.com',
+      nome: 'DOCA LIVRE',
+      cidade: 'POUSO ALEGRE',
+      valor: 10.5,
+      txid: 'CARGA1',
+    })
+    expect(pix.startsWith('000201')).toBe(true)
+    expect(pix).toContain('10.50')
+    expect(pix).toBe(
+      parecerPix({
+        chave: 'teste@docalivre.com',
+        nome: 'DOCA LIVRE',
+        cidade: 'POUSO ALEGRE',
+        valor: 10.5,
+        txid: 'CARGA1',
+      }),
+    )
+    expect(codigoEmailAceito('123-456')).toBe(true)
+    expect(codigoEmailAceito('12345')).toBe(false)
   })
 })

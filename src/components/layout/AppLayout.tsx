@@ -12,6 +12,7 @@ import { canOpenModulo, moduloFromPath } from '../../lib/portalModules'
 import { findOrgNo, loadOrgTree, ORG_TIPO_LABEL } from '../../lib/orgHierarchy'
 import { ehSuperDiegoOuElder, isSuperSession } from '../../lib/superUsers'
 import { canonicalTransportadorId } from '../../lib/transportadorIds'
+import { deduplicarAvisosCarga } from '../../lib/modulosSombra'
 import '../../styles/shell.css'
 
 type NavItem = {
@@ -430,7 +431,7 @@ export function AppLayout() {
   const minhasNotifs = useMemo(() => {
     if (!user) return []
     const tid = actingTransportadorId || user.transportador_id
-    return (notificacoes ?? [])
+    const visiveis = (notificacoes ?? [])
       .filter((n) => {
         // Super vê tudo (inclui chat do embarcador e do transportador)
         if (isSuper && !actingTransportadorId) return true
@@ -455,27 +456,7 @@ export function AppLayout() {
         return false
       })
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .filter((n, _i, arr) => {
-        if (!n.carga_id || !n.mensagem) return true
-        const aviso =
-          n.chave?.startsWith('carga-aviso:') ||
-          n.titulo === 'Nova carga publicada' ||
-          n.titulo === 'Nova oferta de carga' ||
-          n.titulo === 'Negociação reaberta'
-        if (!aviso) return true
-        return (
-          arr.find(
-            (o) =>
-              o.carga_id === n.carga_id &&
-              o.mensagem === n.mensagem &&
-              (o.chave?.startsWith('carga-aviso:') ||
-                o.titulo === 'Nova carga publicada' ||
-                o.titulo === 'Nova oferta de carga' ||
-                o.titulo === 'Negociação reaberta'),
-          ) === n
-        )
-      })
-      .slice(0, 40)
+    return deduplicarAvisosCarga(visiveis).slice(0, 40)
   }, [notificacoes, user, actingTransportadorId, isSuper])
 
   const unread = minhasNotifs.filter((n) => !n.lida).length
