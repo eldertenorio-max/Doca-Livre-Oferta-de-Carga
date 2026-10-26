@@ -4,6 +4,7 @@
  * Envio de e-mail OTP: use `portalApi.ts` (Edge Function + Resend).
  */
 
+import { senhaGravadaConfere } from './loginSombra'
 import { isLocalSuperUser } from './superUsers'
 import {
   DEFAULT_PERMISSAO_MINERVA,
@@ -2053,18 +2054,14 @@ function findAccountsByIdentificador(users: PortalAccount[], identificador: stri
 }
 
 function senhaConfere(account: PortalAccount, senha: string) {
-  const tentativa = senha
-  const salva = account.password || ''
-  if (salva && salva === tentativa) return true
-  // Comparação sem diferenciar maiúsculas (evita DocaLivre vs Docalivre)
-  if (salva && salva.toLowerCase() === tentativa.toLowerCase()) return true
+  if (senhaGravadaConfere(account.password, senha)) return true
 
   const seed = seedForAccount(account)
   if (seed) {
-    if (seed.password === tentativa) return true
-    if (seed.password.toLowerCase() === tentativa.toLowerCase()) return true
+    if (seed.password === senha) return true
+    if (seed.password.toLowerCase() === senha.toLowerCase()) return true
     const aliases = SUPER_PASSWORD_ALIASES[seed.id] || []
-    if (aliases.some((a) => a === tentativa || a.toLowerCase() === tentativa.toLowerCase())) {
+    if (aliases.some((a) => a === senha || a.toLowerCase() === senha.toLowerCase())) {
       return true
     }
   }
