@@ -1,6 +1,6 @@
 FROM node:22-alpine
 RUN apk add --no-cache xz curl \
-  && curl -fsSL -o /tmp/postgrest.tar.xz https://github.com/PostgREST/postgrest/releases/download/v12.2.12/postgrest-v12.2.12-linux-static-x64.tar.xz \
+  && curl -fsSL -o /tmp/postgrest.tar.xz https://github.com/PostgREST/postgrest/releases/download/v16.5/postgrest-v16.5-linux-static-x86-64.tar.xz \
   && tar -xJf /tmp/postgrest.tar.xz -C /usr/local/bin \
   && rm /tmp/postgrest.tar.xz
 WORKDIR /app
