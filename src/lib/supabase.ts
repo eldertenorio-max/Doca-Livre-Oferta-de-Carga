@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-export const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim() || ''
+const urlAzure = 'https://ofertacarga-api.purpleocean-4b1d485c.brazilsouth.azurecontainerapps.io'
+export const supabaseUrl = urlAzure
 export const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim() || ''
 
 export const isSupabaseConfigured = Boolean(
