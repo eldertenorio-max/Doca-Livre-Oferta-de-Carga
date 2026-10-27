@@ -81,8 +81,15 @@ function valorPg(tipo, anulavel, valor) {
     if (tipo === 'boolean') return false
     if (!texto) return anulavel === 'NO' && (tipo === 'integer' || tipo === 'bigint' || tipo === 'smallint' || tipo === 'numeric') ? 0 : null
   }
-  if (valor !== null && (tipo === 'jsonb' || tipo === 'json' || tipo === 'ARRAY') && typeof valor !== 'string') {
-    if (tipo === 'ARRAY') return valor
+  if (valor !== null && (tipo === 'jsonb' || tipo === 'json')) {
+    if (typeof valor === 'string') {
+      try {
+        JSON.parse(valor)
+        return valor
+      } catch {
+        return JSON.stringify(valor)
+      }
+    }
     return JSON.stringify(valor)
   }
   return valor
