@@ -1,9 +1,13 @@
 FROM node:22-alpine
+RUN apk add --no-cache xz curl \
+  && curl -fsSL -o /tmp/postgrest.tar.xz https://github.com/PostgREST/postgrest/releases/download/v12.2.12/postgrest-v12.2.12-linux-static-x64.tar.xz \
+  && tar -xJf /tmp/postgrest.tar.xz -C /usr/local/bin \
+  && rm /tmp/postgrest.tar.xz
 WORKDIR /app
 COPY package.json ./
 RUN npm install --omit=dev
-COPY server.js ./
+COPY server.js migrar.mjs arquivos.mjs start.mjs ./
 COPY sql ./sql
 ENV PORT=8080
 EXPOSE 8080
-CMD ["node", "server.js"]
+CMD ["node", "start.mjs"]
