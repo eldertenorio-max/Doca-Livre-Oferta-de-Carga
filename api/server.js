@@ -68,17 +68,31 @@ function cors(origemPedido) {
 
 async function colunasDaTabela(tabela) {
   const res = await pool.query(
-    `select column_name, data_type from information_schema.columns
+    `select column_name, data_type, is_nullable from information_schema.columns
      where table_schema = 'public' and table_name = $1`,
     [tabela],
   )
   return res.rows
 }
 
+function valorPg(tipo, anulavel, valor) {
+  const texto = tipo === 'text' || tipo === 'character varying' || tipo === 'character'
+  if (valor === '') {
+    if (tipo === 'boolean') return false
+    if (!texto) return anulavel === 'NO' && (tipo === 'integer' || tipo === 'bigint' || tipo === 'smallint' || tipo === 'numeric') ? 0 : null
+  }
+  if (valor !== null && (tipo === 'jsonb' || tipo === 'json' || tipo === 'ARRAY') && typeof valor !== 'string') {
+    if (tipo === 'ARRAY') return valor
+    return JSON.stringify(valor)
+  }
+  return valor
+}
+
 async function gravarTabela(tabela, linhas, conflito) {
   const colunas = await colunasDaTabela(tabela)
   const nomes = new Set(colunas.map((c) => c.column_name))
   const tipos = new Map(colunas.map((c) => [c.column_name, c.data_type]))
+  const nulos = new Map(colunas.map((c) => [c.column_name, c.is_nullable]))
   const chaves = (Array.isArray(conflito) ? conflito : ['id']).filter((nome) => nomes.has(nome))
   if (!chaves.length) throw new Error('sem_chave')
   let gravadas = 0
@@ -86,13 +100,7 @@ async function gravarTabela(tabela, linhas, conflito) {
     if (!chaves.every((nome) => linha[nome] !== undefined && linha[nome] !== null)) continue
     const pares = Object.entries(linha).filter(([nome, valor]) => nomes.has(nome) && valor !== undefined)
     const campos = pares.map(([nome]) => `"${nome}"`)
-    const valores = pares.map(([, valor], i) => {
-      const tipo = tipos.get(pares[i][0])
-      if (valor !== null && (tipo === 'jsonb' || tipo === 'json') && typeof valor !== 'string') {
-        return JSON.stringify(valor)
-      }
-      return valor
-    })
+    const valores = pares.map(([, valor], i) => valorPg(tipos.get(pares[i][0]), nulos.get(pares[i][0]), valor))
     const marcas = pares.map((_, i) => `$${i + 1}`)
     const atualizaveis = pares.filter(([nome]) => !chaves.includes(nome))
     const acao = atualizaveis.length
@@ -229,8 +237,10 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'content-type': 'application/json' })
       res.end(JSON.stringify({ ok: true, tabela, gravadas }))
     } catch (erro) {
+      const bruto = erro instanceof Error ? erro.message : ''
+      const limpo = bruto.replace(/"[^"]*"/g, '""').replace(/'[^']*'/g, "''").slice(0, 160)
       const partes = erro && typeof erro === 'object'
-        ? [erro.code, erro.table, erro.constraint, erro.column].filter(Boolean)
+        ? [erro.code, erro.table, erro.column, limpo].filter(Boolean)
         : []
       res.writeHead(500, { 'content-type': 'application/json' })
       res.end(JSON.stringify({ ok: false, erro: partes.length ? partes.join(' ') : 'Falha ao gravar' }))
