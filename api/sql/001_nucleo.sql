@@ -195,3 +195,23 @@ create table if not exists kanban_sync (
 insert into kanban_sync (id, payload)
 values ('main', '{}'::jsonb)
 on conflict (id) do nothing;
+
+alter table transportadores add column if not exists logo_url text;
+alter table transportadores add column if not exists perfil_publico jsonb;
+alter table transportadores add column if not exists plano text;
+alter table transportadores add column if not exists ramificacao text;
+
+alter table cargas add column if not exists avaliacao_comentario text;
+alter table cargas add column if not exists avaliacao_motorista text;
+alter table cargas add column if not exists avaliacao_veiculo text;
+alter table cargas add column if not exists avaliado_em timestamptz;
+alter table cargas add column if not exists destinatario_email text;
+alter table cargas add column if not exists destinatario_whatsapp text;
+alter table cargas add column if not exists motivo_cancelamento_viagem text;
+alter table cargas add column if not exists status_viagem text;
+alter table cargas add column if not exists viagem_cancelada_em timestamptz;
+alter table cargas add column if not exists viagem_finalizada_em timestamptz;
+alter table cargas add column if not exists viagem_iniciada_em timestamptz;
+
+alter table usuarios add column if not exists auth_user_id uuid;
+alter table usuarios add column if not exists avatar_url text;
