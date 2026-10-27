@@ -23,13 +23,23 @@ async function contagens() {
   return out
 }
 
-await migrar()
+let migracaoErro = null
+try {
+  await migrar()
+} catch (erro) {
+  migracaoErro = erro instanceof Error ? erro.message : 'Falha ao preparar o banco'
+}
 
 const server = http.createServer(async (req, res) => {
   const caminho = (req.url || '/').split('?')[0]
   if (caminho !== '/' && caminho !== '/saude') {
     res.writeHead(404, { 'content-type': 'application/json' })
     res.end(JSON.stringify({ ok: false, erro: 'Não encontrado' }))
+    return
+  }
+  if (migracaoErro) {
+    res.writeHead(500, { 'content-type': 'application/json' })
+    res.end(JSON.stringify({ ok: false, erro: migracaoErro }))
     return
   }
   try {

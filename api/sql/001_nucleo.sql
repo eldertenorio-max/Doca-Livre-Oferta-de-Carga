@@ -1,5 +1,3 @@
-create extension if not exists pgcrypto;
-
 do $$ begin
   create type user_role as enum ('minerva', 'transportador');
 exception when duplicate_object then null; end $$;
