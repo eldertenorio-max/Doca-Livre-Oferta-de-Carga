@@ -107,9 +107,12 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'content-type': 'application/json' })
       res.end(JSON.stringify({ ok: true, tabela, gravadas }))
     } catch (erro) {
-      const mensagem = erro instanceof Error ? erro.message : 'Falha ao gravar'
+      const partes = erro && typeof erro === 'object'
+        ? [erro.code, erro.table, erro.constraint, erro.column].filter(Boolean)
+        : []
+      const codigo = partes.length ? partes.join(' ') : 'Falha ao gravar'
       res.writeHead(500, { 'content-type': 'application/json' })
-      res.end(JSON.stringify({ ok: false, erro: mensagem }))
+      res.end(JSON.stringify({ ok: false, erro: codigo }))
     }
     return
   }
@@ -126,7 +129,12 @@ const server = http.createServer(async (req, res) => {
   try {
     const dados = await contagens()
     res.writeHead(200, { 'content-type': 'application/json' })
-    res.end(JSON.stringify({ ok: true, banco: 'ofertacarga', contagens: dados }))
+    res.end(JSON.stringify({
+      ok: true,
+      banco: 'ofertacarga',
+      copia: Boolean(process.env.IMPORT_TOKEN),
+      contagens: dados,
+    }))
   } catch (erro) {
     const mensagem = erro instanceof Error ? erro.message : 'Falha no banco'
     res.writeHead(500, { 'content-type': 'application/json' })
