@@ -5,7 +5,7 @@ import { cpfValido, soDigitos } from './cpfCnpj'
 import { isLocalDev, isSiteOfertaDeCarga, isSitePublicoLimpo, siteContaAtual } from './siteOfertaDeCarga'
 
 const ERRO_GOOGLE_DESLIGADO =
-  'O login Google ainda não está ligado no Supabase. Painel → Authentication → Providers → Google → Enable (Client ID e Secret do Google Cloud).'
+  'O login Google ainda não está ligado na Azure. Entre com e-mail e senha.'
 
 /** Marca a conta Auth como só do site aberto (calculadora/mapa). Não entra no sistema. */
 export const ORIGEM_ROTA_PUBLICO = 'rota_publico'
@@ -144,7 +144,7 @@ export function mensagemErroAuthRota(raw: string) {
     return 'Aguarde uns segundos e tente de novo.'
   }
   if (low.includes('signup is disabled')) {
-    return 'O cadastro por e-mail ainda não está ligado no Supabase.'
+    return 'O cadastro por e-mail ainda não está ligado.'
   }
   return t || 'Não foi possível entrar. Tente de novo.'
 }

@@ -5,7 +5,7 @@ export const pool = new pg.Pool({
   ssl: process.env.PGHOST ? { rejectUnauthorized: false } : undefined,
 })
 
-const arquivos = ['001_nucleo.sql', '002_resto.sql']
+const arquivos = ['001_nucleo.sql', '002_resto.sql', '003_publico.sql']
 
 export async function preparar() {
   for (const nome of arquivos) {

@@ -2,10 +2,10 @@ import http from 'node:http'
 import https from 'node:https'
 import { timingSafeEqual } from 'node:crypto'
 import { atenderArquivo } from './arquivos.mjs'
+import { atenderSemSupabase } from './sem-supabase.mjs'
 import { pool } from './migrar.mjs'
 
 const port = Number(process.env.PORT || 8080)
-const origem = process.env.SUPABASE_URL || 'https://imnlbbfgaztfhwndfxwb.supabase.co'
 const tabelas = [
   'transportadores',
   'cargas',
@@ -262,9 +262,9 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
-  if (caminho.startsWith('/rest/v1/rpc/') || caminho.startsWith('/auth/v1') || caminho.startsWith('/functions/v1')) {
-    encaminhar(req, res, origem, `${caminho}${url.search}`)
-    return
+  if (caminho.startsWith('/auth/v1') || caminho.startsWith('/functions/v1') || caminho.startsWith('/rest/v1/rpc/')) {
+    const atendeu = await atenderSemSupabase(req, res, caminho, url)
+    if (atendeu) return
   }
   if (caminho.startsWith('/rest/v1')) {
     const resto = caminho.slice('/rest/v1'.length) || '/'
@@ -284,35 +284,8 @@ const server = http.createServer(async (req, res) => {
   res.end(JSON.stringify({ ok: false, erro: 'Não encontrado' }))
 })
 
-server.on('upgrade', (req, socket, head) => {
-  const pedido = new URL(req.url || '/', 'http://local')
-  const apikey = pedido.searchParams.get('apikey') || req.headers.apikey
-  if (!pedido.pathname.startsWith('/realtime/v1') || !segredoConfere(process.env.ANON_KEY, apikey)) {
-    socket.destroy()
-    return
-  }
-  const alvo = new URL(origem)
-  const pre = https.request({
-    hostname: alvo.hostname,
-    path: `${pedido.pathname}${pedido.search}`,
-    method: req.method,
-    headers: { ...req.headers, host: alvo.host },
-  })
-  pre.on('upgrade', (resposta, upstream, upstreamHead) => {
-    const linhas = [`HTTP/1.1 ${resposta.statusCode} ${resposta.statusMessage || ''}`]
-    for (const [nome, valor] of Object.entries(resposta.headers)) {
-      if (valor == null) continue
-      const lista = Array.isArray(valor) ? valor : [valor]
-      for (const item of lista) linhas.push(`${nome}: ${item}`)
-    }
-    socket.write(`${linhas.join('\r\n')}\r\n\r\n`)
-    if (upstreamHead?.length) socket.write(upstreamHead)
-    if (head?.length) upstream.write(head)
-    upstream.pipe(socket)
-    socket.pipe(upstream)
-  })
-  pre.on('error', () => socket.destroy())
-  pre.end()
+server.on('upgrade', (req, socket) => {
+  socket.destroy()
 })
 
 server.listen(port, '0.0.0.0')

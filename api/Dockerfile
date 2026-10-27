@@ -6,7 +6,7 @@ RUN apk add --no-cache xz curl \
 WORKDIR /app
 COPY package.json ./
 RUN npm install --omit=dev
-COPY server.js migrar.mjs arquivos.mjs start.mjs ./
+COPY server.js migrar.mjs arquivos.mjs sem-supabase.mjs start.mjs ./
 COPY sql ./sql
 ENV PORT=8080
 EXPOSE 8080
