@@ -165,10 +165,11 @@ async function ajustarUrls() {
   }
 }
 
-function encaminhar(req, res, base, caminho) {
+function encaminhar(req, res, base, caminho, tirar = []) {
   const alvo = new URL(caminho, base)
   const lib = alvo.protocol === 'https:' ? https : http
   const headers = { ...req.headers, host: alvo.host }
+  for (const nome of tirar) delete headers[nome]
   const pre = lib.request(alvo, { method: req.method, headers }, (up) => {
     const saida = { ...up.headers, ...cors(req.headers.origin) }
     res.writeHead(up.statusCode || 502, saida)
@@ -267,7 +268,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (caminho.startsWith('/rest/v1')) {
     const resto = caminho.slice('/rest/v1'.length) || '/'
-    encaminhar(req, res, 'http://127.0.0.1:3001', `${resto}${url.search}`)
+    encaminhar(req, res, 'http://127.0.0.1:3001', `${resto}${url.search}`, ['authorization'])
     return
   }
   if (caminho.startsWith('/storage/v1')) {
