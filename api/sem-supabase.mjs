@@ -1,4 +1,5 @@
 import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
+import bcrypt from 'bcryptjs'
 import { pool } from './migrar.mjs'
 
 const PACOTES = {
@@ -57,7 +58,15 @@ function hashSenha(senha) {
 }
 
 function senhaConfere(senha, gravada) {
-  const partes = String(gravada || '').split('$')
+  const texto = String(gravada || '')
+  if (texto.startsWith('$2a$') || texto.startsWith('$2b$') || texto.startsWith('$2y$')) {
+    try {
+      return bcrypt.compareSync(senha, texto)
+    } catch {
+      return false
+    }
+  }
+  const partes = texto.split('$')
   if (partes[0] !== 'scrypt' || !partes[1] || !partes[2]) return false
   const calc = scryptSync(senha, partes[1], 32)
   const alvo = Buffer.from(partes[2], 'hex')
