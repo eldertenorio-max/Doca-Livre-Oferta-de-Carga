@@ -72,6 +72,8 @@ create table if not exists rota_publico_cobrancas (
   email_enviado_em timestamptz
 );
 
+alter table rota_publico_cobrancas add column if not exists email_erro text;
+
 create table if not exists mapa_publico_cotas (
   chave text primary key,
   n integer not null default 0,

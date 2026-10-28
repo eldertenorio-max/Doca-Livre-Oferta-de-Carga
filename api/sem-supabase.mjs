@@ -589,72 +589,348 @@ async function otp(req, res, corpo, portal) {
   json(res, 400, { ok: false, erro: 'acao_invalida' })
 }
 
-async function pix(req, res, corpo) {
-  const action = String(corpo.action || '')
-  const chave = (process.env.ASAAS_API_KEY || '').trim()
-  if (action === 'config') {
-    json(res, 200, { ok: true, asaas: Boolean(chave), doca: false, resend: Boolean(process.env.RESEND_API_KEY), sandbox: chave.includes('aact_hmlg') })
+function asaasChave() {
+  return (process.env.ASAAS_API_KEY || '').trim().replace(/^["']|["']$/g, '')
+}
+
+function asaasBase() {
+  const env = (process.env.ASAAS_API_URL || '').trim().replace(/\/$/, '')
+  if (env) return env.endsWith('/v3') ? env : `${env}/v3`
+  return asaasChave().includes('aact_hmlg') ? 'https://api-sandbox.asaas.com/v3' : 'https://api.asaas.com/v3'
+}
+
+async function asaasFetch(path, init = {}) {
+  const chave = asaasChave()
+  if (!chave) return { ok: false, status: 0, body: { erro: 'asaas_nao_configurado' } }
+  const headers = {
+    accept: 'application/json',
+    'user-agent': 'DocaLivreOfertaDeCarga/1.0 (https://custodarota.com.br)',
+    access_token: chave,
+    authorization: `Bearer ${chave}`,
+  }
+  if (init.body) headers['content-type'] = 'application/json'
+  const r = await fetch(`${asaasBase()}${path}`, { method: init.method || 'GET', body: init.body, headers })
+  const texto = await r.text()
+  let body = {}
+  try { body = texto ? JSON.parse(texto) : {} } catch { body = { raw: texto.slice(0, 240) } }
+  return { ok: r.ok, status: r.status, body }
+}
+
+function erroAsaas(body, http = 0) {
+  const chaveRecusada = 'O Asaas recusou a chave de API. Gere outra em Integrações e atualize o secret ASAAS_API_KEY.'
+  if (!body || typeof body !== 'object') return http === 401 ? chaveRecusada : 'Falha no Asaas.'
+  const desc = Array.isArray(body.errors) ? body.errors[0]?.description || body.errors[0]?.code : ''
+  const raw = String(desc || body.message || body.erro || body.raw || '').trim()
+  const t = raw.toLowerCase()
+  if (http === 401 || t.includes('invalid_access_token') || t.includes('chave de api')) return chaveRecusada
+  if (['em análise', 'em analise', 'não aprovad', 'nao aprovad', 'aprovação', 'aprovacao', 'onboarding', 'documentação', 'documentacao'].some((p) => t.includes(p))) {
+    return 'A conta Asaas ainda está em análise. Quando estiver aprovada, o QR Code passa a ser gerado.'
+  }
+  return raw || 'Falha no Asaas.'
+}
+
+function cpfCnpjOk(valor) {
+  const d = String(valor || '').replace(/\D/g, '')
+  if (/^(\d)\1+$/.test(d)) return false
+  const nums = d.split('').map(Number)
+  if (d.length === 11) {
+    const dv = (slice, fator) => {
+      const resto = (slice.reduce((acc, n, i) => acc + n * (fator - i), 0) * 10) % 11
+      return resto === 10 ? 0 : resto
+    }
+    return dv(nums.slice(0, 9), 10) === nums[9] && dv(nums.slice(0, 10), 11) === nums[10]
+  }
+  if (d.length === 14) {
+    const dv = (slice, pesos) => {
+      const resto = slice.reduce((acc, n, i) => acc + n * pesos[i], 0) % 11
+      return resto < 2 ? 0 : 11 - resto
+    }
+    return dv(nums.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]) === nums[12] &&
+      dv(nums.slice(0, 13), [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]) === nums[13]
+  }
+  return false
+}
+
+function urlWebhookAsaas() {
+  const base = (process.env.API_PUBLICA || 'https://ofertacarga-api.purpleocean-4b1d485c.brazilsouth.azurecontainerapps.io').replace(/\/$/, '')
+  return `${base}/functions/v1/asaas-pix?apikey=${encodeURIComponent(process.env.ANON_KEY || '')}`
+}
+
+async function garantirWebhookAsaas() {
+  const token = (process.env.ASAAS_WEBHOOK_TOKEN || '').trim()
+  if (token.length < 32 || !process.env.ANON_KEY) return
+  const url = urlWebhookAsaas()
+  const lista = await asaasFetch('/webhooks')
+  const ganchos = Array.isArray(lista.body?.data) ? lista.body.data : []
+  const nosso = ganchos.find((w) => String(w.url || '').includes('/asaas-pix'))
+  const corpo = {
+    name: 'Doca Livre PIX',
+    url,
+    email: 'diego@docalivre.com',
+    enabled: true,
+    interrupted: false,
+    apiVersion: 3,
+    authToken: token,
+    sendType: 'NON_SEQUENTIALLY',
+    events: ['PAYMENT_RECEIVED', 'PAYMENT_CONFIRMED'],
+  }
+  if (nosso?.url === url) return
+  if (nosso?.id) {
+    await asaasFetch(`/webhooks/${encodeURIComponent(nosso.id)}`, { method: 'PUT', body: JSON.stringify(corpo) })
     return
   }
-  if (!chave) { json(res, 200, { ok: false, erro: 'asaas_nao_configurado' }); return }
-  const base = (process.env.ASAAS_API_URL || 'https://api.asaas.com/v3').replace(/\/$/, '')
-  async function asaas(path, init) {
-    const resposta = await fetch(`${base}${path}`, {
-      ...init,
-      headers: { access_token: chave, 'content-type': 'application/json', ...(init?.headers || {}) },
-    })
-    const body = await resposta.json().catch(() => ({}))
-    return { ok: resposta.ok, body }
+  await asaasFetch('/webhooks', { method: 'POST', body: JSON.stringify(corpo) })
+}
+
+function brl(n) {
+  return Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function escaparHtml(raw) {
+  return String(raw).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+function linhaExtrato(rotulo, valor) {
+  return `<tr><td style="padding:8px 0;color:#64748b;font-size:13px;border-bottom:1px solid #e2e8f0">${rotulo}</td>` +
+    `<td style="padding:8px 0;color:#0f172a;font-size:13px;font-weight:700;text-align:right;border-bottom:1px solid #e2e8f0">${valor}</td></tr>`
+}
+
+function envelopeEmail(titulo, intro, extrato, extra) {
+  return `<div style="font-family:Arial,Helvetica,sans-serif;background:#f8fafc;padding:24px 12px">` +
+    `<div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:28px 24px">` +
+    `<p style="margin:0 0 4px;font-size:12px;font-weight:800;letter-spacing:.08em;color:#16a34a">DOCA LIVRE</p>` +
+    `<h1 style="margin:0 0 12px;font-size:22px;color:#0f172a">${titulo}</h1>` +
+    `<p style="margin:0 0 20px;color:#334155;font-size:15px;line-height:1.5">${intro}</p>` +
+    `<p style="margin:0 0 8px;font-size:12px;font-weight:800;color:#64748b;letter-spacing:.06em">EXTRATO DO PAGAMENTO</p>` +
+    `<table style="width:100%;border-collapse:collapse;margin:0 0 20px">${extrato}</table>` +
+    extra +
+    `<p style="margin:24px 0 0;color:#94a3b8;font-size:12px">Se você não reconhece esta compra, fale conosco pelo WhatsApp do site.</p>` +
+    `</div></div>`
+}
+
+async function emailPagamento(cobranca, saldo) {
+  const email = emailLimpo(cobranca.email)
+  if (!email) return 'sem_email'
+  const valor = brl(cobranca.valor)
+  const quando = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+  const extrato = linhaExtrato('Status', 'Pago com sucesso') +
+    linhaExtrato('Data', escaparHtml(quando)) +
+    linhaExtrato('Forma', 'PIX') +
+    linhaExtrato('Valor', valor) +
+    linhaExtrato('Código', escaparHtml(cobranca.asaas_payment_id)) +
+    linhaExtrato('Conta', escaparHtml(email))
+  let assunto
+  let html
+  if (cobranca.tipo === 'credito') {
+    const item = PACOTES[cobranca.pacote_id]?.titulo || `${cobranca.creditos} créditos`
+    const saldoTxt = Number.isFinite(saldo) ? String(saldo) : '—'
+    assunto = `Pagamento confirmado — ${cobranca.creditos} créditos na sua conta`
+    html = envelopeEmail(
+      'Pagamento confirmado',
+      `Recebemos o seu PIX. Os créditos já estão na conta <strong>${escaparHtml(email)}</strong>.`,
+      extrato + linhaExtrato('Item', escaparHtml(item)),
+      `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px 16px">` +
+        `<p style="margin:0 0 6px;font-size:12px;font-weight:800;color:#166534;letter-spacing:.06em">CRÉDITOS ADICIONADOS</p>` +
+        `<p style="margin:0;font-size:18px;font-weight:800;color:#14532d">+${cobranca.creditos} créditos</p>` +
+        `<p style="margin:6px 0 0;color:#166534;font-size:14px">Saldo atual: <strong>${saldoTxt}</strong> crédito(s). Cada um vale 1 cálculo na calculadora.</p>` +
+        `</div>` +
+        `<p style="margin:18px 0 0"><a href="https://custodarota.com.br/" style="display:inline-block;background:#0f172a;color:#fff;text-decoration:none;font-weight:800;padding:12px 18px;border-radius:10px">Abrir a calculadora</a></p>`,
+    )
+  } else {
+    const plano = PLANOS[cobranca.pacote_id]?.titulo || cobranca.pacote_id
+    const link = `https://ofertadecarga.com.br/#/cadastro-transportador?plano=${encodeURIComponent(cobranca.pacote_id)}&pago=1`
+    assunto = `Pagamento confirmado — plano ${plano}`
+    html = envelopeEmail(
+      'Pagamento confirmado',
+      `Recebemos o PIX do plano <strong>${escaparHtml(plano)}</strong>. O cadastro do sistema já pode ser concluído.`,
+      extrato + linhaExtrato('Plano', escaparHtml(plano)),
+      `<p style="margin:0 0 14px;color:#334155;font-size:15px">Use o botão abaixo para criar a conta do sistema com este plano.</p>` +
+        `<p style="margin:0"><a href="${link}" style="display:inline-block;background:#0f172a;color:#fff;text-decoration:none;font-weight:800;padding:12px 18px;border-radius:10px">Concluir o cadastro</a></p>`,
+    )
+  }
+  return (await enviarEmail(email, assunto, html)) ? '' : 'resend_falhou'
+}
+
+async function processarPago(paymentId) {
+  const achou = await pool.query(`select * from rota_publico_cobrancas where asaas_payment_id = $1`, [paymentId])
+  const cobranca = achou.rows[0]
+  if (!cobranca) return { ok: false, erro: 'cobranca_nao_encontrada' }
+  if (cobranca.tipo === 'credito') {
+    if (!cobranca.user_id) return { ok: false, erro: 'sem_usuario' }
+    await saldoDe(cobranca.user_id)
+    const novo = await pool.query(
+      `insert into rota_publico_pix (user_id, txid, pacote_id, creditos, valor) values ($1, $2, $3, $4, $5) on conflict (txid) do nothing`,
+      [cobranca.user_id, cobranca.asaas_payment_id, cobranca.pacote_id, cobranca.creditos, cobranca.valor],
+    )
+    if (novo.rowCount) {
+      await pool.query(
+        `update rota_publico_creditos set saldo = saldo + $2, updated_at = now() where user_id = $1`,
+        [cobranca.user_id, cobranca.creditos],
+      )
+    }
+  }
+  const saldo = cobranca.user_id ? await saldoDe(cobranca.user_id) : Number(cobranca.creditos)
+  let emailEnviado = Boolean(cobranca.email_enviado_em)
+  let emailErro = null
+  if (!emailEnviado) {
+    const motivo = await emailPagamento(cobranca, saldo)
+    if (motivo) emailErro = motivo
+    else emailEnviado = true
+  }
+  await pool.query(
+    `update rota_publico_cobrancas set status = 'pago', pago_em = coalesce(pago_em, now()),
+       email_enviado_em = case when $2 then coalesce(email_enviado_em, now()) else email_enviado_em end, email_erro = $3
+     where id = $1`,
+    [cobranca.id, emailEnviado, emailErro],
+  )
+  return { ok: true, emailEnviado, saldo }
+}
+
+async function contaDoPedido(req) {
+  const token = tokenDoPedido(req)
+  if (!token?.sub) return null
+  const achou = await pool.query(`select id, email, metadata from contas_publicas where id = $1`, [token.sub])
+  const row = achou.rows[0]
+  if (!row) return null
+  const meta = row.metadata || {}
+  return { id: row.id, email: emailLimpo(row.email), nome: String(meta.full_name || meta.name || meta.nome || row.email || 'Cliente Doca Livre').trim() }
+}
+
+async function webhookAsaas(req, res, corpo) {
+  const esperado = (process.env.ASAAS_WEBHOOK_TOKEN || '').trim()
+  const recebido = String(req.headers['asaas-access-token'] || '').trim()
+  if (!esperado || !segredoIgual(esperado, recebido)) {
+    json(res, 401, { ok: false, erro: 'Webhook não autorizado.' })
+    return
+  }
+  const evento = String(corpo.event || '')
+  const paymentId = String(corpo.payment?.id || '')
+  const status = String(corpo.payment?.status || '')
+  if (!paymentId || (evento !== 'PAYMENT_RECEIVED' && evento !== 'PAYMENT_CONFIRMED' && !PAGO.has(status))) {
+    json(res, 200, { ok: true, ignored: true })
+    return
+  }
+  const proc = await processarPago(paymentId)
+  if (!proc.ok && proc.erro === 'cobranca_nao_encontrada') {
+    json(res, 200, { ok: true, ignored: true, motivo: 'cobranca_nao_encontrada' })
+    return
+  }
+  if (!proc.ok) { json(res, 500, { ok: false, erro: proc.erro }); return }
+  json(res, 200, { ok: true, pago: true, emailEnviado: proc.emailEnviado })
+}
+
+function segredoIgual(a, b) {
+  const x = Buffer.from(String(a))
+  const y = Buffer.from(String(b))
+  return x.length === y.length && timingSafeEqual(x, y)
+}
+
+async function pix(req, res, corpo) {
+  if (req.headers['asaas-access-token']) { await webhookAsaas(req, res, corpo); return }
+  const action = String(corpo.action || '')
+  const chave = asaasChave()
+  if (action === 'config') {
+    let conta
+    let contaErro
+    if (chave) {
+      const ping = await asaasFetch('/myAccount/status')
+      if (ping.ok) conta = { commercialInfo: ping.body.commercialInfo, documentation: ping.body.documentation, bankAccountInfo: ping.body.bankAccountInfo, general: ping.body.general }
+      else contaErro = erroAsaas(ping.body, ping.status)
+    }
+    json(res, 200, { ok: true, asaas: Boolean(chave), doca: false, resend: Boolean(process.env.RESEND_API_KEY), sandbox: chave.includes('aact_hmlg'), conta, contaErro })
+    return
   }
   if (action === 'criar') {
+    if (!chave) { json(res, 200, { ok: false, erro: 'asaas_nao_configurado' }); return }
     const tipo = corpo.tipo === 'plano' ? 'plano' : 'credito'
-    const item = tipo === 'plano' ? PLANOS[String(corpo.pacote || '')] : PACOTES[String(corpo.pacote || '')]
-    if (!item) { json(res, 200, { ok: false, erro: 'Pacote inválido.' }); return }
-    const cliente = await asaas('/customers', {
+    const pacote = String(corpo.pacote || '').trim()
+    const cpfCnpj = String(corpo.cpfCnpj || '').replace(/\D/g, '')
+    if (!cpfCnpjOk(cpfCnpj)) { json(res, 200, { ok: false, erro: 'Informe um CPF ou CNPJ válido.' }); return }
+    const conta = await contaDoPedido(req)
+    if (tipo === 'credito' && !conta) { json(res, 200, { ok: false, erro: 'Entre na calculadora para comprar créditos.' }); return }
+    const item = tipo === 'plano' ? PLANOS[pacote] : PACOTES[pacote]
+    if (!item) { json(res, 200, { ok: false, erro: tipo === 'plano' ? 'Plano inválido.' : 'Pacote inválido.' }); return }
+    const creditos = tipo === 'credito' ? item.creditos : 0
+    const email = emailLimpo(conta?.email || corpo.email)
+    const nome = (conta?.nome || String(corpo.nome || '')).trim() || email.split('@')[0] || 'Cliente Doca Livre'
+    if (tipo === 'plano' && !emailValido(email)) { json(res, 200, { ok: false, erro: 'Informe o e-mail para enviarmos a confirmação.' }); return }
+    if (conta?.id && cpfCnpj.length === 11) {
+      await pool.query(
+        `update contas_publicas set metadata = metadata || jsonb_build_object('cpf', $2::text), updated_at = now()
+         where id = $1 and coalesce(length(metadata->>'cpf'), 0) <> 11`,
+        [conta.id, cpfCnpj],
+      )
+    }
+    const situacao = await asaasFetch('/myAccount/status')
+    const geral = String(situacao.body?.general || '').toUpperCase()
+    if (situacao.ok && geral && geral !== 'APPROVED') {
+      json(res, 200, { ok: false, erro: 'A conta Asaas ainda está em análise (documentos/cadastro). O QR Code só é gerado depois da aprovação.' })
+      return
+    }
+    const busca = await asaasFetch(`/customers?cpfCnpj=${encodeURIComponent(cpfCnpj)}&limit=1`)
+    let customer = busca.ok ? busca.body?.data?.[0]?.id : ''
+    if (!customer) {
+      const criado = await asaasFetch('/customers', {
+        method: 'POST',
+        body: JSON.stringify({ name: nome.slice(0, 80), cpfCnpj, email: email || undefined, externalReference: conta?.id || email || cpfCnpj, notificationDisabled: true }),
+      })
+      customer = criado.body?.id
+      if (!criado.ok || !customer) { json(res, 200, { ok: false, erro: erroAsaas(criado.body, criado.status) }); return }
+    }
+    const descricao = tipo === 'credito' ? `Doca Livre — ${item.titulo} da calculadora` : `Doca Livre — plano ${item.titulo}`
+    const cobranca = await asaasFetch('/payments', {
       method: 'POST',
-      body: JSON.stringify({ name: corpo.nome || 'Cliente', email: corpo.email || undefined, cpfCnpj: String(corpo.cpfCnpj || '').replace(/\D/g, '') }),
-    })
-    const customer = cliente.body?.id
-    if (!cliente.ok || !customer) { json(res, 200, { ok: false, erro: 'Não foi possível abrir o cliente do PIX.' }); return }
-    const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date())
-    const cobranca = await asaas('/payments', {
-      method: 'POST',
-      body: JSON.stringify({ customer, billingType: 'PIX', value: item.valor, dueDate: hoje, description: `Doca Livre — ${item.titulo}` }),
+      body: JSON.stringify({
+        customer,
+        billingType: 'PIX',
+        value: Number(Number(item.valor).toFixed(2)),
+        dueDate: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }),
+        description: descricao.slice(0, 500),
+        externalReference: `${tipo}:${conta?.id || email}:${pacote}`.slice(0, 100),
+      }),
     })
     const paymentId = cobranca.body?.id
-    if (!cobranca.ok || !paymentId) { json(res, 200, { ok: false, erro: 'Não foi possível criar o PIX.' }); return }
-    const qr = await asaas(`/payments/${encodeURIComponent(paymentId)}/pixQrCode`)
-    if (!qr.ok || !qr.body?.payload) { json(res, 200, { ok: false, erro: 'Não foi possível gerar o QR Code PIX.' }); return }
-    const token = tokenDoPedido(req)
-    const imagem = qr.body.encodedImage ? (String(qr.body.encodedImage).startsWith('data:') ? qr.body.encodedImage : `data:image/png;base64,${qr.body.encodedImage}`) : ''
+    if (!cobranca.ok || !paymentId) { json(res, 200, { ok: false, erro: erroAsaas(cobranca.body, cobranca.status) }); return }
+    const qr = await asaasFetch(`/payments/${encodeURIComponent(paymentId)}/pixQrCode`)
+    if (!qr.ok || !qr.body?.payload) { json(res, 200, { ok: false, erro: erroAsaas(qr.body, qr.status) || 'Não foi possível gerar o QR Code PIX.' }); return }
+    const imagem = qr.body.encodedImage
+      ? (String(qr.body.encodedImage).startsWith('data:') ? qr.body.encodedImage : `data:image/png;base64,${qr.body.encodedImage}`)
+      : ''
     await pool.query(
       `insert into rota_publico_cobrancas (user_id, email, asaas_payment_id, asaas_customer_id, tipo, pacote_id, creditos, valor, status, payload, imagem)
        values ($1, $2, $3, $4, $5, $6, $7, $8, 'pendente', $9, $10)`,
-      [token?.sub || null, emailLimpo(corpo.email), paymentId, customer, tipo, String(corpo.pacote), item.creditos || 0, item.valor, qr.body.payload, imagem],
+      [conta?.id || null, email || null, paymentId, customer, tipo, pacote, creditos, item.valor, qr.body.payload, imagem],
     )
-    json(res, 200, { ok: true, asaas: true, paymentId, payload: qr.body.payload, imagem, valor: item.valor, creditos: item.creditos || 0, pacoteId: String(corpo.pacote), tipo, expiracao: qr.body.expirationDate })
+    try { await garantirWebhookAsaas() } catch { /* o QR já foi gerado */ }
+    json(res, 200, { ok: true, asaas: true, paymentId, payload: qr.body.payload, imagem, valor: item.valor, creditos, pacoteId: pacote, tipo, expiracao: qr.body.expirationDate || '' })
     return
   }
   if (action === 'status') {
-    const paymentId = String(corpo.paymentId || '')
-    const consulta = await asaas(`/payments/${encodeURIComponent(paymentId)}`)
-    const status = String(consulta.body?.status || '')
-    const pago = PAGO.has(status)
-    let saldo
-    if (pago) {
-      const cobranca = await pool.query(`select * from rota_publico_cobrancas where asaas_payment_id = $1`, [paymentId])
-      const row = cobranca.rows[0]
-      if (row && row.status !== 'pago' && row.user_id && row.creditos > 0) {
-        await saldoDe(row.user_id)
-        await pool.query(`update rota_publico_creditos set saldo = saldo + $2, updated_at = now() where user_id = $1`, [row.user_id, row.creditos])
-        await pool.query(`update rota_publico_cobrancas set status = 'pago', pago_em = now() where id = $1`, [row.id])
-        saldo = await saldoDe(row.user_id)
-      }
+    const paymentId = String(corpo.paymentId || '').trim()
+    if (!paymentId) { json(res, 200, { ok: false, erro: 'Pagamento inválido.' }); return }
+    const achou = await pool.query(`select * from rota_publico_cobrancas where asaas_payment_id = $1`, [paymentId])
+    const cobranca = achou.rows[0]
+    if (!cobranca) { json(res, 200, { ok: false, erro: 'Cobrança não encontrada.' }); return }
+    const conta = await contaDoPedido(req)
+    if (cobranca.tipo === 'credito' && cobranca.user_id && conta?.id !== cobranca.user_id) {
+      json(res, 200, { ok: false, erro: 'Essa cobrança é de outra conta.' })
+      return
     }
-    json(res, 200, { ok: true, pago, status, saldo })
+    if (cobranca.status === 'pago') {
+      json(res, 200, { ok: true, pago: true, status: 'pago', emailEnviado: Boolean(cobranca.email_enviado_em) })
+      return
+    }
+    if (!chave) { json(res, 200, { ok: false, erro: 'asaas_nao_configurado' }); return }
+    const consulta = await asaasFetch(`/payments/${encodeURIComponent(paymentId)}`)
+    if (!consulta.ok) { json(res, 200, { ok: false, erro: erroAsaas(consulta.body, consulta.status) }); return }
+    const status = String(consulta.body?.status || '')
+    if (!PAGO.has(status)) { json(res, 200, { ok: true, pago: false, status }); return }
+    const proc = await processarPago(paymentId)
+    if (!proc.ok) { json(res, 500, { ok: false, erro: proc.erro }); return }
+    json(res, 200, { ok: true, pago: true, status: 'pago', emailEnviado: proc.emailEnviado, saldo: proc.saldo })
     return
   }
-  json(res, 400, { ok: false, erro: 'acao_invalida' })
+  json(res, 200, { ok: false, erro: 'Ação inválida.' })
 }
 
 async function push(res, corpo) {
@@ -667,19 +943,31 @@ async function push(res, corpo) {
     `select id, endpoint, p256dh, auth, transportador_id, user_agent from push_subscriptions where transportador_id = any($1::text[])`,
     [tids],
   )
+  const vistos = new Set()
+  const lista = rows.rows.filter((row) => {
+    const chave = /^dev:(\S+)/.exec(String(row.user_agent || ''))?.[1] || row.endpoint
+    if (vistos.has(chave)) return false
+    vistos.add(chave)
+    return true
+  })
+  if (!lista.length) { json(res, 200, { ok: true, enviados: 0, mensagem: 'Nenhuma assinatura push para esses transportadores.' }); return }
   const mod = await import('web-push')
   const webpush = mod.default || mod
-  webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:diego@docalivre.com', publica, privada)
+  webpush.setVapidDetails((process.env.VAPID_SUBJECT || '').trim() || 'mailto:diego@docalivre.com', publica, privada)
   const payload = JSON.stringify({
-    title: corpo.titulo || 'Doca Livre',
-    body: corpo.mensagem || 'Nova notificação',
+    title: String(corpo.titulo || 'Doca Livre').trim(),
+    body: String(corpo.mensagem || 'Nova notificação').trim(),
     icon: 'https://ofertadecarga.com.br/icon-192.png?v=oferta6',
-    tag: corpo.tag || corpo.carga_id || 'doca-livre',
-    data: { url: corpo.url || '/#/transportador', carga_id: corpo.carga_id || null },
+    badge: 'https://ofertadecarga.com.br/badge-96.png?v=oferta6',
+    tag: String(corpo.tag || corpo.carga_id || 'doca-livre').trim(),
+    renotify: false,
+    requireInteraction: true,
+    vibrate: [300, 120, 300, 120, 500],
+    data: { url: String(corpo.url || '/#/transportador').trim(), carga_id: corpo.carga_id || null },
   })
   let enviados = 0
   const remover = []
-  for (const row of rows.rows) {
+  for (const row of lista) {
     try {
       await webpush.sendNotification({ endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } }, payload, { TTL: 3600, urgency: 'high' })
       enviados += 1
@@ -689,7 +977,7 @@ async function push(res, corpo) {
     }
   }
   if (remover.length) await pool.query(`delete from push_subscriptions where id = any($1::uuid[])`, [remover])
-  json(res, 200, { ok: true, enviados, total: rows.rows.length, removidos: remover.length })
+  json(res, 200, { ok: true, enviados, total: lista.length, removidos: remover.length })
 }
 
 async function presente(res, corpo) {
