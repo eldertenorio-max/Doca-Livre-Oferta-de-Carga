@@ -256,6 +256,11 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
+  if (caminho.startsWith('/functions/v1/mapa-tile-pt')) {
+    await atenderSemSupabase(req, res, caminho, url)
+    return
+  }
+
   if (!segredoConfere(process.env.ANON_KEY, req.headers.apikey)) {
     res.writeHead(401, { 'content-type': 'application/json', ...cors(req.headers.origin) })
     res.end(JSON.stringify({ message: 'Chave inválida' }))
