@@ -1,4 +1,5 @@
-﻿import { useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useData } from '../../context/DataContext'
 import {
   adiarFacialMotorista,
@@ -56,7 +57,7 @@ export function FacialGate() {
     const referencia = novoCadastro || facialExigeNovoCadastro(efetivo) ? null : descritorValido(efetivo.facial_descriptor)
     const modo = referencia ? 'confirmar' : 'cadastrar'
     return (
-      <div className="facial-gate" role="dialog" aria-modal="true" aria-labelledby="facial-gate-titulo">
+      <FacialOverlay>
         <div className="facial-gate__card">
           <h2 id="facial-gate-titulo" className="facial-box__titulo" style={{ marginBottom: 8 }}>
             {modo === 'cadastrar' ? 'Cadastre seu rosto' : 'Verificação de acesso'}
@@ -76,7 +77,7 @@ export function FacialGate() {
             Sair
           </button>
         </div>
-      </div>
+      </FacialOverlay>
     )
   }
 
@@ -97,7 +98,7 @@ export function FacialGate() {
   const posicao = motoristas.length - semRosto.length + (referencia ? 0 : semRosto.findIndex((m) => m.id === atual.id) + 1)
 
   return (
-    <div className="facial-gate" role="dialog" aria-modal="true" aria-labelledby="facial-gate-titulo">
+    <FacialOverlay>
       <div className="facial-gate__card">
         <h2 id="facial-gate-titulo" className="facial-box__titulo" style={{ marginBottom: 8 }}>
           {modo === 'cadastrar' ? 'Cadastro facial do motorista' : 'Verificação de acesso'}
@@ -141,6 +142,29 @@ export function FacialGate() {
           </button>
         </div>
       </div>
-    </div>
+    </FacialOverlay>
+  )
+}
+
+/** Tela cheia por cima de todo o app (portal no body) e sem rolar o fundo. */
+function FacialOverlay({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    const body = document.body
+    const html = document.documentElement
+    const antes = { body: body.style.overflow, html: html.style.overflow }
+    body.style.overflow = 'hidden'
+    html.style.overflow = 'hidden'
+    body.classList.add('facial-gate-aberto')
+    return () => {
+      body.style.overflow = antes.body
+      html.style.overflow = antes.html
+      body.classList.remove('facial-gate-aberto')
+    }
+  }, [])
+  return createPortal(
+    <div className="facial-gate" role="dialog" aria-modal="true" aria-labelledby="facial-gate-titulo">
+      {children}
+    </div>,
+    document.body,
   )
 }
