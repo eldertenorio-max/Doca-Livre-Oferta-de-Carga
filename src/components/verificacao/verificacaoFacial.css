@@ -236,3 +236,36 @@ body.facial-gate-aberto {
     min-height: 44px;
   }
 }
+
+/* Celular/tablet (toque), mesmo com viewport largo: cartão ocupa a tela inteira. */
+.facial-gate--movel .facial-gate__card {
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  max-height: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  display: flex !important;
+  flex-direction: column;
+  padding: calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom)) !important;
+}
+
+.facial-gate--movel .facial-stage {
+  width: 100% !important;
+  max-height: 58dvh;
+}
+
+.facial-gate--movel .facial-gate__card > div:last-child,
+.facial-gate--movel .facial-gate__card > button:last-child {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto !important;
+  padding-top: 12px;
+  background: #fff;
+}
+
+.facial-gate--movel .facial-gate__card > div:last-child .cadastro-btn,
+.facial-gate--movel .facial-gate__card > button:last-child {
+  flex: 1;
+  min-height: 44px;
+}

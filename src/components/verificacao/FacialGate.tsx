@@ -28,6 +28,7 @@ export function FacialGate() {
   const [erro, setErro] = useState('')
   const [busy, setBusy] = useState(false)
   const [, setAdiados] = useState(0)
+  const [escolhidoId, setEscolhidoId] = useState('')
 
   if (!user || user.role !== 'transportador' || user.is_superuser || !user.transportador_id) {
     return null
@@ -90,7 +91,7 @@ export function FacialGate() {
   const pendentes = motoristas.filter((m) => motoristaDeveFacial(efetivo, m.id))
   const semRosto = pendentes.filter((m) => !referenciaFacialMotorista(efetivo, m.id))
   const fila = pendentes.filter((m) => !adiados.includes(m.id))
-  const atual = fila[0]
+  const atual = pendentes.find((m) => m.id === escolhidoId) ?? fila[0]
   if (!atual) return null
 
   const referencia = referenciaFacialMotorista(efetivo, atual.id)
@@ -103,9 +104,25 @@ export function FacialGate() {
         <h2 id="facial-gate-titulo" className="facial-box__titulo" style={{ marginBottom: 8 }}>
           {modo === 'cadastrar' ? 'Cadastro facial do motorista' : 'Verificação de acesso'}
         </h2>
-        <p className="facial-box__texto" style={{ marginBottom: 4 }}>
-          Motorista: <strong>{atual.nome}</strong>
-        </p>
+        <label className="facial-box__texto" style={{ display: 'block', marginBottom: 8 }}>
+          <strong>Motorista fazendo a facial</strong>
+          <select
+            className="facial-motorista-select"
+            value={atual.id}
+            disabled={busy}
+            onChange={(e) => {
+              setErro('')
+              setEscolhidoId(e.target.value)
+            }}
+          >
+            {pendentes.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.nome}
+                {referenciaFacialMotorista(efetivo, m.id) ? ' (verificação)' : ' (pendente)'}
+              </option>
+            ))}
+          </select>
+        </label>
         <p className="facial-box__texto" style={{ marginBottom: 12 }}>
           {modo === 'cadastrar'
             ? `Todos os motoristas ativos precisam ter a facial cadastrada (${posicao} de ${motoristas.length}). Peça para este motorista ficar de frente para a câmera.`
@@ -130,6 +147,7 @@ export function FacialGate() {
               disabled={busy}
               onClick={() => {
                 adiarFacialMotorista(transportadorId, atual.id)
+                setEscolhidoId('')
                 setErro('')
                 setAdiados((n) => n + 1)
               }}
@@ -147,7 +165,19 @@ export function FacialGate() {
 }
 
 /** Tela cheia por cima de todo o app (portal no body) e sem rolar o fundo. */
+function telaMovel(): boolean {
+  if (typeof window === 'undefined') return false
+  const toque = window.matchMedia?.('(pointer: coarse)').matches || navigator.maxTouchPoints > 0
+  return window.innerWidth <= 900 || (toque && Math.min(window.innerWidth, window.screen?.width || 9999) <= 1024)
+}
+
 function FacialOverlay({ children }: { children: ReactNode }) {
+  const [movel, setMovel] = useState(telaMovel)
+  useEffect(() => {
+    const atualizar = () => setMovel(telaMovel())
+    window.addEventListener('resize', atualizar)
+    return () => window.removeEventListener('resize', atualizar)
+  }, [])
   useEffect(() => {
     const body = document.body
     const html = document.documentElement
@@ -162,7 +192,24 @@ function FacialOverlay({ children }: { children: ReactNode }) {
     }
   }, [])
   return createPortal(
-    <div className="facial-gate" role="dialog" aria-modal="true" aria-labelledby="facial-gate-titulo">
+    <div
+      className={`facial-gate${movel ? ' facial-gate--movel' : ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="facial-gate-titulo"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100dvh',
+        zIndex: 2147483000,
+        margin: 0,
+        ...(movel ? { padding: 0, background: '#fff', alignItems: 'stretch', justifyContent: 'stretch' } : {}),
+      }}
+    >
       {children}
     </div>,
     document.body,
