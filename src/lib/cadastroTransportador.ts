@@ -24,6 +24,8 @@ import {
   type FacialCaptura,
   type FacialHistoricoItem,
   type FacialMotorista,
+  dataUrlParaBytes,
+  mensagemErroFacial,
   referenciaFacialMotorista,
 } from './verificacaoFacial'
 import type {
@@ -409,6 +411,18 @@ export async function gravarVerificacaoFacial(
   transportadorId: string,
   facial: FacialCaptura,
   motorista?: FacialMotorista | null,
+): ReturnType<typeof gravarVerificacaoFacialBruto> {
+  try {
+    return await gravarVerificacaoFacialBruto(transportadorId, facial, motorista)
+  } catch (err) {
+    return { ok: false, erro: mensagemErroFacial(err) }
+  }
+}
+
+async function gravarVerificacaoFacialBruto(
+  transportadorId: string,
+  facial: FacialCaptura,
+  motorista?: FacialMotorista | null,
 ): Promise<
   | {
       ok: true
@@ -468,16 +482,25 @@ export async function gravarVerificacaoFacial(
     }
   }
 
-  const blob = await (await fetch(facial.imagemDataUrl)).blob()
+  // Envia os bytes crus (Blob viraria multipart). Tenta 3 vezes; se o servidor de arquivos
+  // falhar, guarda a própria foto no histórico para não perder a verificação.
+  const { bytes } = dataUrlParaBytes(facial.imagemDataUrl)
   const path = caminhoFacial(transportadorId, Date.now())
-  const { error: upErr } = await supabase.storage
-    .from('documentos-transportadores')
-    .upload(path, blob, { upsert: false, contentType: 'image/jpeg' })
-  if (upErr) {
-    return { ok: false, erro: `Falha ao salvar a foto da verificação: ${upErr.message}` }
+  let fotoUrl = facial.imagemDataUrl
+  for (let tentativa = 0; tentativa < 3; tentativa++) {
+    try {
+      const { error: upErr } = await supabase.storage
+        .from('documentos-transportadores')
+        .upload(path, bytes, { upsert: true, contentType: 'image/jpeg' })
+      if (!upErr) {
+        fotoUrl = supabase.storage.from('documentos-transportadores').getPublicUrl(path).data.publicUrl
+        break
+      }
+    } catch {
+      /* tenta de novo */
+    }
+    await new Promise((r) => setTimeout(r, 600 * (tentativa + 1)))
   }
-  const { data: pub } = supabase.storage.from('documentos-transportadores').getPublicUrl(path)
-  const fotoUrl = pub.publicUrl
   const historico = unirHistoricoFacial(
     atual.historico,
     atual.foto_url && atual.verificado_em

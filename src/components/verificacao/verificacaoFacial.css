@@ -312,3 +312,83 @@ body.facial-gate-aberto {
   font-size: 17px !important;
   min-height: 52px !important;
 }
+
+/* Comando atual da facial, em destaque. */
+.facial-comando {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #0f172a;
+  color: #fff;
+  text-align: center;
+}
+
+.facial-comando.is-ok {
+  background: #14532d;
+}
+
+.facial-comando__etapa {
+  font-size: 12px;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.facial-comando__texto {
+  font-size: 1.2rem;
+  line-height: 1.25;
+}
+
+.facial-comando__dica {
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+.facial-comando__barra {
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  overflow: hidden;
+}
+
+.facial-comando__barra > div {
+  height: 100%;
+  background: #22c55e;
+  transition: width 0.3s ease;
+}
+
+.facial-passos span.is-feito {
+  background: #dcfce7;
+  color: #14532d;
+}
+
+.facial-retry {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.facial-retry img {
+  width: 140px;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 12px;
+  align-self: center;
+  transform: scaleX(-1);
+}
+
+.facial-gate--movel .facial-comando__etapa {
+  font-size: 14px !important;
+}
+
+.facial-gate--movel .facial-comando__texto {
+  font-size: 26px !important;
+}
+
+.facial-gate--movel .facial-comando__dica {
+  font-size: 16px !important;
+}

@@ -19,6 +19,14 @@ const TEXTO: Record<Etapa, string> = {
   voltar: 'Olhe de novo para a frente e fique parado.',
 }
 
+/** Comando curto e grande do que fazer agora. */
+const COMANDO: Record<Etapa, string> = {
+  enquadrar: 'Enquadre o rosto no oval',
+  piscar: 'Pisque os olhos',
+  virar: 'Vire o rosto devagar para o lado',
+  voltar: 'Olhe para a frente e fique parado',
+}
+
 type Props = {
   modo: 'cadastrar' | 'confirmar'
   referencia?: number[] | null
@@ -197,15 +205,35 @@ export function VerificacaoFacial({ modo, referencia, onConcluido }: Props) {
       <p className="facial-box__titulo">
         {modo === 'cadastrar' ? 'Verificação facial' : 'Confirme que é você'}
       </p>
-      <p className="facial-box__texto">
-        {preparando ? 'Preparando a câmera…' : TEXTO[etapa]}
-      </p>
+      {(() => {
+        const indice = PASSOS.findIndex((p) => p.id === etapa)
+        return (
+          <div className={`facial-comando${centralizado ? ' is-ok' : ''}`} role="status" aria-live="polite">
+            <span className="facial-comando__etapa">
+              {preparando ? 'Preparando a câmera…' : `Etapa ${indice + 1} de ${PASSOS.length}`}
+            </span>
+            <strong className="facial-comando__texto">{preparando ? 'Aguarde um instante' : COMANDO[etapa]}</strong>
+            {!preparando ? (
+              <span className="facial-comando__dica">
+                {centralizado ? '✓ Rosto encontrado, continue assim' : TEXTO[etapa]}
+              </span>
+            ) : null}
+            <div className="facial-comando__barra" aria-hidden>
+              <div style={{ width: `${preparando ? 0 : (indice / PASSOS.length) * 100}%` }} />
+            </div>
+          </div>
+        )
+      })()}
       <div className="facial-passos" aria-hidden>
-        {PASSOS.map((p) => (
-          <span key={p.id} className={p.id === etapa ? 'is-on' : undefined}>
-            {p.label}
-          </span>
-        ))}
+        {PASSOS.map((p, i) => {
+          const feito = i < PASSOS.findIndex((x) => x.id === etapa)
+          return (
+            <span key={p.id} className={p.id === etapa ? 'is-on' : feito ? 'is-feito' : undefined}>
+              {feito ? '✓ ' : ''}
+              {p.label}
+            </span>
+          )
+        })}
       </div>
       <div className="facial-stage">
         <video ref={videoRef} playsInline muted autoPlay />

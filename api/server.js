@@ -277,6 +277,18 @@ const server = http.createServer(async (req, res) => {
     return
   }
   if (caminho.startsWith('/storage/v1')) {
+    // Toda resposta de arquivo precisa de CORS; sem isso o navegador mostra "Failed to fetch".
+    const corsArquivo = cors(req.headers.origin)
+    const writeHeadOriginal = res.writeHead.bind(res)
+    res.writeHead = (status, ...resto) => {
+      const ultimo = resto[resto.length - 1]
+      if (ultimo && typeof ultimo === 'object' && !Array.isArray(ultimo)) {
+        resto[resto.length - 1] = { ...corsArquivo, ...ultimo }
+      } else {
+        resto.push(corsArquivo)
+      }
+      return writeHeadOriginal(status, ...resto)
+    }
     try {
       await atenderArquivo(req, res, caminho)
     } catch {

@@ -25,6 +25,25 @@ export type FacialHistoricoItem = {
 
 export type FacialMotorista = { id: string; nome: string }
 
+/** Converte a foto (data URL) em bytes sem usar fetch (fetch de data: falha em alguns celulares). */
+export function dataUrlParaBytes(dataUrl: string): { bytes: Uint8Array; tipo: string } {
+  const [cabecalho, dados = ''] = dataUrl.split(',', 2)
+  const tipo = /data:([^;,]+)/.exec(cabecalho)?.[1] || 'image/jpeg'
+  const binario = cabecalho.includes(';base64') ? atob(dados) : decodeURIComponent(dados)
+  const bytes = new Uint8Array(binario.length)
+  for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i)
+  return { bytes, tipo }
+}
+
+/** Erros de rede ("Failed to fetch", "Load failed", "NetworkError") em pt-BR. */
+export function mensagemErroFacial(err: unknown, padrao = 'Não foi possível salvar a verificação.'): string {
+  const msg = err instanceof Error ? err.message : typeof err === 'string' ? err : ''
+  if (/failed to fetch|load failed|networkerror|network request failed|fetch/i.test(msg)) {
+    return 'Sem conexão com o servidor para salvar a verificação. Confira a internet e toque em "Tentar de novo".'
+  }
+  return msg || padrao
+}
+
 export type FacialReferencia = {
   facial_descriptor?: number[] | null
   facial_proxima_em?: string | null

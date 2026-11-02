@@ -14,6 +14,7 @@ import {
   preservarVerificacaoFacial,
   referenciaFacialMotorista,
   unirHistoricoFacial,
+  mensagemErroFacial,
   type FacialCaptura,
 } from '../../lib/verificacaoFacial'
 import { VerificacaoFacial } from './VerificacaoFacial'
@@ -29,6 +30,7 @@ export function FacialGate() {
   const [busy, setBusy] = useState(false)
   const [, setAdiados] = useState(0)
   const [escolhidoId, setEscolhidoId] = useState('')
+  const [pendente, setPendente] = useState<{ captura: FacialCaptura; motorista: { id: string; nome: string } | null } | null>(null)
 
   if (!user || user.role !== 'transportador' || user.is_superuser || !user.transportador_id) {
     return null
@@ -45,9 +47,48 @@ export function FacialGate() {
   async function concluir(captura: FacialCaptura, motorista: { id: string; nome: string } | null) {
     setBusy(true)
     setErro('')
-    const res = await concluirVerificacaoFacial(captura, motorista)
+    let res: { ok: boolean; error?: string }
+    try {
+      res = await concluirVerificacaoFacial(captura, motorista)
+    } catch (err) {
+      res = { ok: false, error: mensagemErroFacial(err) }
+    }
     setBusy(false)
-    if (!res.ok) setErro(res.error || 'Não foi possível salvar a verificação.')
+    if (!res.ok) {
+      // Guarda a captura para tentar de novo sem refazer a facial.
+      setPendente({ captura, motorista })
+      setErro(mensagemErroFacial(res.error || 'Não foi possível salvar a verificação.'))
+      return
+    }
+    setPendente(null)
+    setErro('')
+  }
+
+  function painelTentarDeNovo() {
+    if (!pendente || busy) return null
+    return (
+      <div className="facial-retry">
+        <img src={pendente.captura.imagemDataUrl} alt="Foto capturada" />
+        <p className="facial-erro">{erro}</p>
+        <button
+          type="button"
+          className="cadastro-btn cadastro-btn--primary"
+          onClick={() => void concluir(pendente.captura, pendente.motorista)}
+        >
+          Tentar de novo
+        </button>
+        <button
+          type="button"
+          className="cadastro-btn cadastro-btn--ghost"
+          onClick={() => {
+            setPendente(null)
+            setErro('')
+          }}
+        >
+          Fazer a facial de novo
+        </button>
+      </div>
+    )
   }
 
   // Sem motoristas ativos: segue a verificação única da transportadora.
@@ -70,10 +111,12 @@ export function FacialGate() {
           </p>
           {busy ? (
             <p className="facial-box__texto">Salvando a verificação…</p>
+          ) : pendente ? (
+            painelTentarDeNovo()
           ) : (
             <VerificacaoFacial modo={modo} referencia={referencia} onConcluido={(c) => void concluir(c, null)} />
           )}
-          {erro ? <p className="facial-erro" style={{ marginTop: 10 }}>{erro}</p> : null}
+          {erro && !pendente ? <p className="facial-erro" style={{ marginTop: 10 }}>{erro}</p> : null}
           <button type="button" className="cadastro-btn cadastro-btn--ghost" style={{ marginTop: 12 }} onClick={logout}>
             Sair
           </button>
@@ -112,6 +155,7 @@ export function FacialGate() {
             disabled={busy}
             onChange={(e) => {
               setErro('')
+              setPendente(null)
               setEscolhidoId(e.target.value)
             }}
           >
@@ -130,6 +174,8 @@ export function FacialGate() {
         </p>
         {busy ? (
           <p className="facial-box__texto">Salvando a verificação…</p>
+        ) : pendente ? (
+          painelTentarDeNovo()
         ) : (
           <VerificacaoFacial
             key={atual.id}
@@ -138,7 +184,7 @@ export function FacialGate() {
             onConcluido={(c) => void concluir(c, { id: atual.id, nome: atual.nome })}
           />
         )}
-        {erro ? <p className="facial-erro" style={{ marginTop: 10 }}>{erro}</p> : null}
+        {erro && !pendente ? <p className="facial-erro" style={{ marginTop: 10 }}>{erro}</p> : null}
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
           {modo === 'cadastrar' ? (
             <button
