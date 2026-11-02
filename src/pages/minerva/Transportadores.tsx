@@ -22,7 +22,7 @@ import { isAcceptedImageFile, fileToDataUrl } from '../../lib/veiculoFotos'
 import { ImageCropModal } from '../../components/ui/ImageCropModal'
 import { contaPortalPorTransportador } from '../../lib/portalAuth'
 import { isSuperSession } from '../../lib/superUsers'
-import { nomeMotoristaFacial, unirHistoricoFacial } from '../../lib/verificacaoFacial'
+import { motoristaTemFacial, nomeMotoristaFacial, unirHistoricoFacial } from '../../lib/verificacaoFacial'
 import {
   emailCredenciaisHref,
   mensagemCredenciaisTransportador,
@@ -1520,6 +1520,34 @@ export function TransportadoresPage() {
             <h2 className="form-card__title">Verificação facial</h2>
           </header>
           <div className="form-card__body">
+            {(() => {
+              const ativos = (motoristas ?? []).filter(
+                (m) => m.transportador_id === editingId && m.situacao !== 'inativo',
+              )
+              const ref = { facial_historico: form.facial_historico, facial_reset_em: form.facial_reset_em }
+              return (
+                <div style={{ marginBottom: 16 }}>
+                  <strong>Motoristas ativos</strong>
+                  {ativos.length === 0 ? (
+                    <p className="form-field-hint">Nenhum motorista ativo nesta transportadora.</p>
+                  ) : (
+                    <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0' }}>
+                      {ativos.map((m) => {
+                        const ok = motoristaTemFacial(ref, m.id)
+                        return (
+                          <li key={m.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '4px 0' }}>
+                            <span>{m.nome}</span>
+                            <span style={{ fontWeight: 700, color: ok ? '#15803d' : '#b45309' }}>
+                              {ok ? 'Facial cadastrada' : 'Pendente'}
+                            </span>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </div>
+              )
+            })()}
             {(() => {
               const historico = unirHistoricoFacial(
                 form.facial_historico,

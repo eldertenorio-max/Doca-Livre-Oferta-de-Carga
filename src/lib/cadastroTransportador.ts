@@ -24,6 +24,7 @@ import {
   type FacialCaptura,
   type FacialHistoricoItem,
   type FacialMotorista,
+  referenciaFacialMotorista,
 } from './verificacaoFacial'
 import type {
   Transportador,
@@ -375,12 +376,13 @@ async function lerFacialAtual(transportadorId: string): Promise<{
   foto_url: string | null
   verificado_em: string | null
   historico: FacialHistoricoItem[]
+  reset_em: string | null
 }> {
-  const vazio = { descriptor: null, foto_url: null, verificado_em: null, historico: [] as FacialHistoricoItem[] }
+  const vazio = { descriptor: null, foto_url: null, verificado_em: null, historico: [] as FacialHistoricoItem[], reset_em: null }
   if (!supabase) return vazio
   const cheio = await supabase
     .from('transportadores')
-    .select('facial_descriptor, facial_foto_url, facial_verificado_em, facial_historico')
+    .select('facial_descriptor, facial_foto_url, facial_verificado_em, facial_historico, facial_reset_em')
     .eq('id', transportadorId)
     .maybeSingle()
   const data = cheio.error
@@ -399,6 +401,7 @@ async function lerFacialAtual(transportadorId: string): Promise<{
     foto_url: typeof row.facial_foto_url === 'string' ? row.facial_foto_url : null,
     verificado_em: typeof row.facial_verificado_em === 'string' ? row.facial_verificado_em : null,
     historico: normalizarHistoricoFacial(row.facial_historico),
+    reset_em: typeof row.facial_reset_em === 'string' ? row.facial_reset_em : null,
   }
 }
 
@@ -435,15 +438,28 @@ export async function gravarVerificacaoFacial(
         facial_foto_url: facial.imagemDataUrl,
         facial_verificado_em: verificadoEm,
         facial_proxima_em: proximaEm,
-        facial_historico: [{ foto_url: facial.imagemDataUrl, verificado_em: verificadoEm, distancia: null, ...quem }],
+        facial_historico: [
+          {
+            foto_url: facial.imagemDataUrl,
+            verificado_em: verificadoEm,
+            distancia: null,
+            ...quem,
+            ...(motorista?.id ? { descriptor, proxima_em: proximaEm } : {}),
+          },
+        ],
       },
     }
   }
 
   const atual = await lerFacialAtual(transportadorId)
   let distancia: number | null = null
-  if (atual.descriptor) {
-    distancia = distanciaFacial(descriptor, atual.descriptor)
+  // Com motorista, compara com o rosto dele; sem, com o rosto da transportadora.
+  const refMotorista = motorista?.id
+    ? referenciaFacialMotorista({ facial_historico: atual.historico, facial_reset_em: atual.reset_em }, motorista.id)
+    : null
+  const referencia = motorista?.id ? refMotorista : atual.descriptor
+  if (referencia) {
+    distancia = distanciaFacial(descriptor, referencia)
     if (distancia > FACIAL_DISTANCIA_MAX) {
       return {
         ok: false,
@@ -467,7 +483,15 @@ export async function gravarVerificacaoFacial(
     atual.foto_url && atual.verificado_em
       ? [{ foto_url: atual.foto_url, verificado_em: atual.verificado_em, distancia: null }]
       : [],
-    [{ foto_url: fotoUrl, verificado_em: verificadoEm, distancia, ...quem }],
+    [
+      {
+        foto_url: fotoUrl,
+        verificado_em: verificadoEm,
+        distancia,
+        ...quem,
+        ...(motorista?.id ? { proxima_em: proximaEm, ...(refMotorista ? {} : { descriptor }) } : {}),
+      },
+    ],
   )
   const descriptorGravado = atual.descriptor ?? descriptor
   const up = await upsertTransportadorComFallback(

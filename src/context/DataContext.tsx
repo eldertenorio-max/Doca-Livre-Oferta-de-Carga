@@ -1233,6 +1233,8 @@ function setAuthPersistEnabled(persist: boolean) {
 function persistAuthProfile(user: Profile | null) {
   try {
     if (!user) {
+      // Motoristas adiados ("Cadastrar depois") voltam a ser pedidos no próximo login.
+      sessionStorage.removeItem('doca-facial-adiados-v1')
       sessionStorage.removeItem(AUTH_KEY)
       localStorage.removeItem(AUTH_KEY)
       return

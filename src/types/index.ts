@@ -180,6 +180,8 @@ export interface Transportador {
     distancia: number | null
     motorista_id?: string | null
     motorista_nome?: string | null
+    descriptor?: number[] | null
+    proxima_em?: string | null
   }> | null
   created_at?: string
 }

@@ -1,108 +1,145 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useData } from '../../context/DataContext'
 import {
+  adiarFacialMotorista,
   deveCobrarVerificacaoFacial,
   descritorValido,
   facialExigeNovoCadastro,
   facialParaTransportadora,
+  lerFacialAdiados,
   lerFacialLocal,
   limparFacialLocal,
+  motoristaDeveFacial,
   preservarVerificacaoFacial,
+  referenciaFacialMotorista,
+  unirHistoricoFacial,
   type FacialCaptura,
-  type FacialMotorista,
 } from '../../lib/verificacaoFacial'
 import { VerificacaoFacial } from './VerificacaoFacial'
 import './verificacaoFacial.css'
 
-/** Cobra a verificação de tempos em tempos só na conta do transportador. */
+/**
+ * Cobra a verificação facial na conta do transportador.
+ * Cada motorista ativo precisa do próprio rosto; as próximas cobranças comparam com o rosto dele.
+ */
 export function FacialGate() {
   const { user, logout, transportadores, motoristasDoTransportador, concluirVerificacaoFacial } = useData()
-  const [motoristaId, setMotoristaId] = useState('')
   const [erro, setErro] = useState('')
   const [busy, setBusy] = useState(false)
+  const [, setAdiados] = useState(0)
 
   if (!user || user.role !== 'transportador' || user.is_superuser || !user.transportador_id) {
     return null
   }
+  const transportadorId = user.transportador_id
 
-  const cadastro = transportadores.find((t) => t.id === user.transportador_id)
+  const cadastro = transportadores.find((t) => t.id === transportadorId)
   if (!cadastro || !facialParaTransportadora(cadastro.ramificacao)) return null
   const novoCadastro = facialExigeNovoCadastro(cadastro)
-  if (novoCadastro) limparFacialLocal(user.transportador_id)
-  const servidorCobra = deveCobrarVerificacaoFacial(cadastro)
-  const efetivo = servidorCobra
-    ? cadastro
-    : preservarVerificacaoFacial(cadastro, lerFacialLocal(user.transportador_id))
-  if (!deveCobrarVerificacaoFacial(efetivo)) return null
+  if (novoCadastro) limparFacialLocal(transportadorId)
 
-  const referencia = novoCadastro || facialExigeNovoCadastro(efetivo) ? null : descritorValido(efetivo.facial_descriptor)
-  const modo = referencia ? 'confirmar' : 'cadastrar'
+  const motoristas = motoristasDoTransportador(transportadorId).filter((m) => m.situacao !== 'inativo')
 
-  const motoristas = motoristasDoTransportador(user.transportador_id).filter((m) => m.situacao !== 'inativo')
-  const escolhido = motoristas.find((m) => m.id === motoristaId)
-  const precisaEscolher = motoristas.length > 0 && !escolhido
-
-  async function concluir(captura: FacialCaptura) {
+  async function concluir(captura: FacialCaptura, motorista: { id: string; nome: string } | null) {
     setBusy(true)
     setErro('')
-    const res = await concluirVerificacaoFacial(
-      captura,
-      escolhido ? ({ id: escolhido.id, nome: escolhido.nome } satisfies FacialMotorista) : null,
-    )
+    const res = await concluirVerificacaoFacial(captura, motorista)
     setBusy(false)
-    if (!res.ok) {
-      setErro(res.error || 'Não foi possível salvar a verificação.')
-      return
-    }
+    if (!res.ok) setErro(res.error || 'Não foi possível salvar a verificação.')
   }
+
+  // Sem motoristas ativos: segue a verificação única da transportadora.
+  if (motoristas.length === 0) {
+    const servidorCobra = deveCobrarVerificacaoFacial(cadastro)
+    const efetivo = servidorCobra ? cadastro : preservarVerificacaoFacial(cadastro, lerFacialLocal(transportadorId))
+    if (!deveCobrarVerificacaoFacial(efetivo)) return null
+    const referencia = novoCadastro || facialExigeNovoCadastro(efetivo) ? null : descritorValido(efetivo.facial_descriptor)
+    const modo = referencia ? 'confirmar' : 'cadastrar'
+    return (
+      <div className="facial-gate" role="dialog" aria-modal="true" aria-labelledby="facial-gate-titulo">
+        <div className="facial-gate__card">
+          <h2 id="facial-gate-titulo" className="facial-box__titulo" style={{ marginBottom: 8 }}>
+            {modo === 'cadastrar' ? 'Cadastre seu rosto' : 'Verificação de acesso'}
+          </h2>
+          <p className="facial-box__texto" style={{ marginBottom: 12 }}>
+            {modo === 'cadastrar'
+              ? 'Ainda não há um rosto gravado nesta conta. Faça a verificação para liberar o acesso.'
+              : 'De tempos em tempos pedimos a verificação facial para confirmar que é a mesma pessoa do cadastro.'}
+          </p>
+          {busy ? (
+            <p className="facial-box__texto">Salvando a verificação…</p>
+          ) : (
+            <VerificacaoFacial modo={modo} referencia={referencia} onConcluido={(c) => void concluir(c, null)} />
+          )}
+          {erro ? <p className="facial-erro" style={{ marginTop: 10 }}>{erro}</p> : null}
+          <button type="button" className="cadastro-btn cadastro-btn--ghost" style={{ marginTop: 12 }} onClick={logout}>
+            Sair
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const local = lerFacialLocal(transportadorId)
+  const efetivo = {
+    facial_historico: unirHistoricoFacial(cadastro.facial_historico, local?.facial_historico),
+    facial_reset_em: cadastro.facial_reset_em,
+  }
+  const adiados = lerFacialAdiados(transportadorId)
+  const pendentes = motoristas.filter((m) => motoristaDeveFacial(efetivo, m.id))
+  const semRosto = pendentes.filter((m) => !referenciaFacialMotorista(efetivo, m.id))
+  const fila = pendentes.filter((m) => !adiados.includes(m.id))
+  const atual = fila[0]
+  if (!atual) return null
+
+  const referencia = referenciaFacialMotorista(efetivo, atual.id)
+  const modo = referencia ? 'confirmar' : 'cadastrar'
+  const posicao = motoristas.length - semRosto.length + (referencia ? 0 : semRosto.findIndex((m) => m.id === atual.id) + 1)
 
   return (
     <div className="facial-gate" role="dialog" aria-modal="true" aria-labelledby="facial-gate-titulo">
       <div className="facial-gate__card">
         <h2 id="facial-gate-titulo" className="facial-box__titulo" style={{ marginBottom: 8 }}>
-          {modo === 'cadastrar' ? 'Cadastre seu rosto' : 'Verificação de acesso'}
+          {modo === 'cadastrar' ? 'Cadastro facial do motorista' : 'Verificação de acesso'}
         </h2>
+        <p className="facial-box__texto" style={{ marginBottom: 4 }}>
+          Motorista: <strong>{atual.nome}</strong>
+        </p>
         <p className="facial-box__texto" style={{ marginBottom: 12 }}>
           {modo === 'cadastrar'
-            ? novoCadastro
-              ? 'A verificação anterior foi excluída. Faça de novo para liberar o acesso.'
-              : 'Ainda não há um rosto gravado nesta conta. Faça a verificação para liberar o acesso.'
-            : 'De tempos em tempos pedimos a verificação facial para confirmar que é a mesma pessoa do cadastro.'}
+            ? `Todos os motoristas ativos precisam ter a facial cadastrada (${posicao} de ${motoristas.length}). Peça para este motorista ficar de frente para a câmera.`
+            : 'De tempos em tempos pedimos a verificação facial para confirmar que é o mesmo motorista do cadastro.'}
         </p>
-        {motoristas.length > 0 ? (
-          <label className="facial-box__texto" style={{ display: 'block', marginBottom: 12 }}>
-            <strong>Qual motorista está fazendo a verificação?</strong>
-            <select
-              className="facial-motorista-select"
-              value={motoristaId}
-              disabled={busy}
-              onChange={(e) => setMotoristaId(e.target.value)}
-            >
-              <option value="">Selecione o motorista</option>
-              {motoristas.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.nome}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
-        {precisaEscolher ? (
-          <p className="facial-box__texto">Selecione o motorista para iniciar a verificação.</p>
-        ) : busy ? (
+        {busy ? (
           <p className="facial-box__texto">Salvando a verificação…</p>
         ) : (
-          <VerificacaoFacial modo={modo} referencia={referencia} onConcluido={(c) => void concluir(c)} />
+          <VerificacaoFacial
+            key={atual.id}
+            modo={modo}
+            referencia={referencia}
+            onConcluido={(c) => void concluir(c, { id: atual.id, nome: atual.nome })}
+          />
         )}
         {erro ? <p className="facial-erro" style={{ marginTop: 10 }}>{erro}</p> : null}
-        <button
-          type="button"
-          className="cadastro-btn cadastro-btn--ghost"
-          style={{ marginTop: 12 }}
-          onClick={logout}
-        >
-          Sair
-        </button>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
+          {modo === 'cadastrar' ? (
+            <button
+              type="button"
+              className="cadastro-btn cadastro-btn--ghost"
+              disabled={busy}
+              onClick={() => {
+                adiarFacialMotorista(transportadorId, atual.id)
+                setErro('')
+                setAdiados((n) => n + 1)
+              }}
+            >
+              Cadastrar depois
+            </button>
+          ) : null}
+          <button type="button" className="cadastro-btn cadastro-btn--ghost" onClick={logout}>
+            Sair
+          </button>
+        </div>
       </div>
     </div>
   )

@@ -17,6 +17,10 @@ export type FacialHistoricoItem = {
   /** Motorista que fez a verificação (ausente no histórico antigo). */
   motorista_id?: string | null
   motorista_nome?: string | null
+  /** Rosto de referência do motorista (gravado no cadastro do rosto dele). */
+  descriptor?: number[] | null
+  /** Próxima cobrança deste motorista. */
+  proxima_em?: string | null
 }
 
 export type FacialMotorista = { id: string; nome: string }
@@ -43,6 +47,8 @@ export function normalizarHistoricoFacial(valor: unknown): FacialHistoricoItem[]
       distancia?: unknown
       motorista_id?: unknown
       motorista_nome?: unknown
+      descriptor?: unknown
+      proxima_em?: unknown
     }
     const foto = String(bruto.foto_url || '').trim()
     const quando = String(bruto.verificado_em || '').trim()
@@ -65,6 +71,8 @@ export function normalizarHistoricoFacial(valor: unknown): FacialHistoricoItem[]
       distancia: dist != null && Number.isFinite(dist) ? dist : null,
       ...(bruto.motorista_id ? { motorista_id: String(bruto.motorista_id) } : {}),
       ...(bruto.motorista_nome ? { motorista_nome: String(bruto.motorista_nome) } : {}),
+      ...(descritorValido(bruto.descriptor) ? { descriptor: descritorValido(bruto.descriptor) } : {}),
+      ...(bruto.proxima_em ? { proxima_em: String(bruto.proxima_em) } : {}),
     })
   }
   return out.sort((a, b) => new Date(b.verificado_em).getTime() - new Date(a.verificado_em).getTime())
@@ -148,6 +156,7 @@ export function guardarFacialLocal(transportadorId: string, campos: FacialRefere
       facial_foto_url: campos.facial_foto_url || null,
       facial_verificado_em: campos.facial_verificado_em || null,
       facial_proxima_em: campos.facial_proxima_em || null,
+      facial_historico: normalizarHistoricoFacial(campos.facial_historico),
     }
     localStorage.setItem(FACIAL_LOCAL_KEY, JSON.stringify(all))
   } catch {
@@ -294,4 +303,66 @@ export function historicoFacialDoMotorista(valor: unknown, motoristaId: string |
   const id = (motoristaId || '').trim()
   if (!id) return []
   return normalizarHistoricoFacial(valor).filter((i) => i.motorista_id === id)
+}
+
+/** Itens do motorista que valem (depois da última exclusão feita pelo super). */
+function itensValidosDoMotorista(
+  t: Pick<FacialReferencia, 'facial_historico' | 'facial_reset_em'> | null | undefined,
+  motoristaId: string,
+): FacialHistoricoItem[] {
+  const reset = quandoFacial(t?.facial_reset_em)
+  return historicoFacialDoMotorista(t?.facial_historico, motoristaId).filter(
+    (i) => !reset || quandoFacial(i.verificado_em) > reset,
+  )
+}
+
+/** Rosto de referência do motorista: o do cadastro dele (o mais antigo válido). */
+export function referenciaFacialMotorista(
+  t: Pick<FacialReferencia, 'facial_historico' | 'facial_reset_em'> | null | undefined,
+  motoristaId: string,
+): number[] | null {
+  const itens = itensValidosDoMotorista(t, motoristaId).filter((i) => i.descriptor)
+  return itens.length ? itens[itens.length - 1].descriptor ?? null : null
+}
+
+/** O motorista já tem rosto próprio cadastrado. */
+export function motoristaTemFacial(
+  t: Pick<FacialReferencia, 'facial_historico' | 'facial_reset_em'> | null | undefined,
+  motoristaId: string,
+): boolean {
+  return Boolean(referenciaFacialMotorista(t, motoristaId))
+}
+
+/** Sem rosto próprio, cobra na hora. Com rosto, só quando a data dele chega. */
+export function motoristaDeveFacial(
+  t: Pick<FacialReferencia, 'facial_historico' | 'facial_reset_em'> | null | undefined,
+  motoristaId: string,
+): boolean {
+  if (!motoristaTemFacial(t, motoristaId)) return true
+  const ultimo = itensValidosDoMotorista(t, motoristaId)[0]
+  if (!ultimo?.proxima_em) return true
+  const quando = new Date(ultimo.proxima_em).getTime()
+  return !Number.isFinite(quando) || quando <= Date.now()
+}
+
+const FACIAL_ADIADOS_KEY = 'doca-facial-adiados-v1'
+
+/** Motoristas que a transportadora deixou para cadastrar depois (só nesta sessão). */
+export function lerFacialAdiados(transportadorId: string): string[] {
+  try {
+    const all = JSON.parse(sessionStorage.getItem(FACIAL_ADIADOS_KEY) || '{}') as Record<string, string[]>
+    return Array.isArray(all[transportadorId]) ? all[transportadorId] : []
+  } catch {
+    return []
+  }
+}
+
+export function adiarFacialMotorista(transportadorId: string, motoristaId: string) {
+  try {
+    const all = JSON.parse(sessionStorage.getItem(FACIAL_ADIADOS_KEY) || '{}') as Record<string, string[]>
+    all[transportadorId] = Array.from(new Set([...(all[transportadorId] || []), motoristaId]))
+    sessionStorage.setItem(FACIAL_ADIADOS_KEY, JSON.stringify(all))
+  } catch {
+    /* ignore */
+  }
 }
