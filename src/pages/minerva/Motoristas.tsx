@@ -14,6 +14,7 @@ import type { Motorista } from '../../types'
 import { formatCpf } from '../../lib/cpf'
 import { historicoFacialDoMotorista } from '../../lib/verificacaoFacial'
 import { formatDateTime } from '../../lib/businessRules'
+import { isSuperSession } from '../../lib/superUsers'
 import '../../styles/cadastro.css'
 import '../../components/verificacao/verificacaoFacial.css'
 
@@ -59,6 +60,8 @@ export function MotoristasPage() {
   const cnhInputRef = useRef<HTMLInputElement>(null)
   const [fotoParaAjustar, setFotoParaAjustar] = useState<File | null>(null)
 
+  /** Verificação facial: só embarcador (role minerva) e super usuário veem. */
+  const podeVerFacial = isSuperSession(user) || user?.role === 'minerva' || user?.role === 'super'
   const lista = motoristas ?? []
   const listaVeiculos = veiculos ?? []
   const listaTransportadores = transportadores ?? []
@@ -491,7 +494,7 @@ export function MotoristasPage() {
             </p>
           </header>
 
-          {editingId
+          {editingId && podeVerFacial
             ? (() => {
                 const transp = listaTransportadores.find((t) => t.id === form.transportador_id)
                 const historico = historicoFacialDoMotorista(transp?.facial_historico, editingId)

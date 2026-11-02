@@ -164,6 +164,8 @@ export function TransportadoresPage() {
     definirVerificacaoFacialAdmin,
   } = useData()
   const superUsuario = isSuperSession(user)
+  /** Verificação facial: só embarcador (role minerva) e super usuário veem. */
+  const podeVerFacial = superUsuario || user?.role === 'minerva' || user?.role === 'super'
   const [mode, setMode] = useState<'lista' | 'form' | 'revisao' | 'ficha'>('lista')
   const [origemVoltar, setOrigemVoltar] = useState<'lista' | 'ficha' | 'revisao'>('lista')
   const [vista, setVista] = useState<'quadro' | 'grid'>(() => {
@@ -1493,7 +1495,7 @@ export function TransportadoresPage() {
         {editingId ? 'Editar Transportadora' : 'Cadastro de Transportadora'}
       </h1>
 
-      {editingId ? (
+      {editingId && podeVerFacial ? (
         <div className="cadastro-filtros" style={{ marginBottom: 16 }}>
           <button
             type="button"
@@ -1512,7 +1514,7 @@ export function TransportadoresPage() {
         </div>
       ) : null}
 
-      {editingId && editAba === 'facial' ? (
+      {editingId && podeVerFacial && editAba === 'facial' ? (
         <section className="form-card form-card--blue">
           <header className="form-card__head">
             <h2 className="form-card__title">Verificação facial</h2>
@@ -1595,7 +1597,7 @@ export function TransportadoresPage() {
         </section>
       ) : null}
 
-      {editAba === 'cadastro' ? (
+      {editAba === 'cadastro' || !podeVerFacial ? (
       <>
       <section className="form-card form-card--blue" style={{ marginBottom: 16 }}>
         <header className="form-card__head">
