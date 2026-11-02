@@ -22,7 +22,7 @@ import { isAcceptedImageFile, fileToDataUrl } from '../../lib/veiculoFotos'
 import { ImageCropModal } from '../../components/ui/ImageCropModal'
 import { contaPortalPorTransportador } from '../../lib/portalAuth'
 import { isSuperSession } from '../../lib/superUsers'
-import { unirHistoricoFacial } from '../../lib/verificacaoFacial'
+import { nomeMotoristaFacial, unirHistoricoFacial } from '../../lib/verificacaoFacial'
 import {
   emailCredenciaisHref,
   mensagemCredenciaisTransportador,
@@ -1551,6 +1551,9 @@ export function TransportadoresPage() {
                           <strong>
                             {item.distancia == null ? 'Cadastro do rosto' : 'Similar à anterior'}
                           </strong>
+                          <p className="form-field-hint" style={{ margin: '2px 0' }}>
+                            Motorista: {nomeMotoristaFacial(item)}
+                          </p>
                           <p className="form-field-hint">
                             {formatDateTime(item.verificado_em)}
                             {form.facial_foto_url?.split('?')[0] === item.foto_url.split('?')[0]

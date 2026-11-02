@@ -111,7 +111,7 @@ import {
   submeterCadastroTransportador,
   type CadastroTransportadorInput,
 } from '../lib/cadastroTransportador'
-import { guardarFacialLocal, preservarVerificacaoFacial, unirHistoricoFacial, type FacialCaptura } from '../lib/verificacaoFacial'
+import { guardarFacialLocal, preservarVerificacaoFacial, unirHistoricoFacial, type FacialCaptura, type FacialMotorista } from '../lib/verificacaoFacial'
 import { normalizePerfilPublico } from '../lib/perfilPublicoTransportador'
 import { galeriaTemBase64, migrarGaleriaParaStorage } from '../lib/perfilGaleriaStorage'
 import { atualizarAvatarUsuarioRemoto, buscarAvatarUsuarioRemoto } from '../lib/userAvatar'
@@ -378,6 +378,7 @@ interface DataContextValue extends DataState, AuthState {
   /** Grava o rosto e agenda a próxima cobrança da verificação facial. */
   concluirVerificacaoFacial: (
     captura: FacialCaptura,
+    motorista?: FacialMotorista | null,
   ) => Promise<{ ok: boolean; error?: string }>
   /** Super: apaga a facial ou cobra de novo no próximo login. */
   definirVerificacaoFacialAdmin: (
@@ -4918,10 +4919,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   )
 
   const concluirVerificacaoFacial = useCallback(
-    async (captura: FacialCaptura) => {
+    async (captura: FacialCaptura, motorista?: FacialMotorista | null) => {
       const id = user?.transportador_id
       if (!id) return { ok: false, error: 'Conta sem transportadora vinculada.' }
-      const res = await gravarVerificacaoFacial(id, captura)
+      const res = await gravarVerificacaoFacial(id, captura, motorista)
       if (!res.ok) return { ok: false, error: res.erro }
       guardarFacialLocal(id, res.campos)
       setState((prev) => {

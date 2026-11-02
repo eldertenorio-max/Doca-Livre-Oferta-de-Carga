@@ -14,7 +14,12 @@ export type FacialHistoricoItem = {
   verificado_em: string
   /** null = cadastro do rosto. Número = distância em relação ao rosto já gravado. */
   distancia: number | null
+  /** Motorista que fez a verificação (ausente no histórico antigo). */
+  motorista_id?: string | null
+  motorista_nome?: string | null
 }
+
+export type FacialMotorista = { id: string; nome: string }
 
 export type FacialReferencia = {
   facial_descriptor?: number[] | null
@@ -32,18 +37,34 @@ export function normalizarHistoricoFacial(valor: unknown): FacialHistoricoItem[]
   const out: FacialHistoricoItem[] = []
   for (const item of lista) {
     if (!item || typeof item !== 'object') continue
-    const bruto = item as { foto_url?: unknown; verificado_em?: unknown; distancia?: unknown }
+    const bruto = item as {
+      foto_url?: unknown
+      verificado_em?: unknown
+      distancia?: unknown
+      motorista_id?: unknown
+      motorista_nome?: unknown
+    }
     const foto = String(bruto.foto_url || '').trim()
     const quando = String(bruto.verificado_em || '').trim()
     if (!foto || !quando) continue
     const chave = `${quando}|${foto.split('?')[0]}`
-    if (vistos.has(chave)) continue
+    if (vistos.has(chave)) {
+      // Mantém o motorista se a cópia repetida o tiver.
+      const ja = out.find((o) => `${o.verificado_em}|${o.foto_url.split('?')[0]}` === chave)
+      if (ja && !ja.motorista_id && bruto.motorista_id) {
+        ja.motorista_id = String(bruto.motorista_id)
+        ja.motorista_nome = bruto.motorista_nome ? String(bruto.motorista_nome) : null
+      }
+      continue
+    }
     vistos.add(chave)
     const dist = bruto.distancia == null || bruto.distancia === '' ? null : Number(bruto.distancia)
     out.push({
       foto_url: foto,
       verificado_em: quando,
       distancia: dist != null && Number.isFinite(dist) ? dist : null,
+      ...(bruto.motorista_id ? { motorista_id: String(bruto.motorista_id) } : {}),
+      ...(bruto.motorista_nome ? { motorista_nome: String(bruto.motorista_nome) } : {}),
     })
   }
   return out.sort((a, b) => new Date(b.verificado_em).getTime() - new Date(a.verificado_em).getTime())
@@ -262,4 +283,15 @@ export function deveCobrarVerificacaoFacial(t: FacialReferencia | null | undefin
   const quando = new Date(t.facial_proxima_em).getTime()
   if (!Number.isFinite(quando)) return true
   return quando <= Date.now()
+}
+
+export function nomeMotoristaFacial(item: Pick<FacialHistoricoItem, 'motorista_nome'>): string {
+  return item.motorista_nome?.trim() || 'Motorista não identificado'
+}
+
+/** Verificações feitas por um motorista (histórico antigo sem motorista fica de fora). */
+export function historicoFacialDoMotorista(valor: unknown, motoristaId: string | null | undefined): FacialHistoricoItem[] {
+  const id = (motoristaId || '').trim()
+  if (!id) return []
+  return normalizarHistoricoFacial(valor).filter((i) => i.motorista_id === id)
 }

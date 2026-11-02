@@ -178,6 +178,8 @@ export interface Transportador {
     foto_url: string
     verificado_em: string
     distancia: number | null
+    motorista_id?: string | null
+    motorista_nome?: string | null
   }> | null
   created_at?: string
 }

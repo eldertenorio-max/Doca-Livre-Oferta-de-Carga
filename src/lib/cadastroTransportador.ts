@@ -23,6 +23,7 @@ import {
   unirHistoricoFacial,
   type FacialCaptura,
   type FacialHistoricoItem,
+  type FacialMotorista,
 } from './verificacaoFacial'
 import type {
   Transportador,
@@ -404,6 +405,7 @@ async function lerFacialAtual(transportadorId: string): Promise<{
 export async function gravarVerificacaoFacial(
   transportadorId: string,
   facial: FacialCaptura,
+  motorista?: FacialMotorista | null,
 ): Promise<
   | {
       ok: true
@@ -417,6 +419,7 @@ export async function gravarVerificacaoFacial(
     }
   | { ok: false; erro: string }
 > {
+  const quem = motorista?.id ? { motorista_id: motorista.id, motorista_nome: motorista.nome } : {}
   const verificadoEm = new Date().toISOString()
   const proximaEm = agendarProximaFacial()
   const descriptor = descritorValido(facial.descriptor)
@@ -432,7 +435,7 @@ export async function gravarVerificacaoFacial(
         facial_foto_url: facial.imagemDataUrl,
         facial_verificado_em: verificadoEm,
         facial_proxima_em: proximaEm,
-        facial_historico: [{ foto_url: facial.imagemDataUrl, verificado_em: verificadoEm, distancia: null }],
+        facial_historico: [{ foto_url: facial.imagemDataUrl, verificado_em: verificadoEm, distancia: null, ...quem }],
       },
     }
   }
@@ -464,7 +467,7 @@ export async function gravarVerificacaoFacial(
     atual.foto_url && atual.verificado_em
       ? [{ foto_url: atual.foto_url, verificado_em: atual.verificado_em, distancia: null }]
       : [],
-    [{ foto_url: fotoUrl, verificado_em: verificadoEm, distancia }],
+    [{ foto_url: fotoUrl, verificado_em: verificadoEm, distancia, ...quem }],
   )
   const descriptorGravado = atual.descriptor ?? descriptor
   const up = await upsertTransportadorComFallback(

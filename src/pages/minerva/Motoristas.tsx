@@ -12,7 +12,10 @@ import { ImageCropModal } from '../../components/ui/ImageCropModal'
 import { iniciaisNome } from '../../lib/mapaFrota'
 import type { Motorista } from '../../types'
 import { formatCpf } from '../../lib/cpf'
+import { historicoFacialDoMotorista } from '../../lib/verificacaoFacial'
+import { formatDateTime } from '../../lib/businessRules'
 import '../../styles/cadastro.css'
+import '../../components/verificacao/verificacaoFacial.css'
 
 /** Categorias oficiais de CNH (ordem de exibição). Sem A (só moto). */
 const CATEGORIAS_CNH = ['B', 'C', 'D', 'E', 'AB', 'AC', 'AD', 'AE'] as const
@@ -487,6 +490,39 @@ export function MotoristasPage() {
               autônomo com placa.
             </p>
           </header>
+
+          {editingId
+            ? (() => {
+                const transp = listaTransportadores.find((t) => t.id === form.transportador_id)
+                const historico = historicoFacialDoMotorista(transp?.facial_historico, editingId)
+                const atual = transp?.facial_foto_url?.split('?')[0]
+                return (
+                  <section className="mb-3 max-w-xl rounded-xl border border-ink/10 bg-white p-4">
+                    <h2 className="facial-box__titulo" style={{ marginBottom: 8 }}>
+                      Verificação facial
+                    </h2>
+                    {historico.length === 0 ? (
+                      <p className="text-sm text-ink-muted">Nenhuma verificação facial feita por este motorista.</p>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        {historico.map((item) => (
+                          <div className="facial-ok" key={`${item.verificado_em}-${item.foto_url}`}>
+                            <img src={item.foto_url} alt="Foto da verificação facial" />
+                            <div>
+                              <strong>{item.distancia == null ? 'Cadastro do rosto' : 'Similar à anterior'}</strong>
+                              <p className="text-sm text-ink-muted">
+                                {formatDateTime(item.verificado_em)}
+                                {atual === item.foto_url.split('?')[0] ? ' · verificação atual' : ''}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                )
+              })()
+            : null}
 
           <div className="max-w-xl space-y-3 rounded-xl border border-ink/10 bg-white p-4">
             <div className="flex flex-wrap items-center gap-4 rounded-lg border border-ink/10 bg-sand-light/40 px-3 py-3">
