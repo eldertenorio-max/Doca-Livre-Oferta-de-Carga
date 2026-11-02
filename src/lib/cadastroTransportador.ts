@@ -26,6 +26,8 @@ import {
   type FacialMotorista,
   dataUrlParaBytes,
   mensagemErroFacial,
+  excluirItemFacial,
+  refazerFacialMotorista,
   referenciaFacialMotorista,
 } from './verificacaoFacial'
 import type {
@@ -544,6 +546,30 @@ async function gravarVerificacaoFacialBruto(
       facial_proxima_em: proximaEm,
       facial_historico: historico,
     },
+  }
+}
+
+/** Super: exclui uma facial ou pede de novo a de um motorista, gravando no histórico. */
+export async function alterarItemFacial(
+  transportadorId: string,
+  acao: { tipo: 'excluir'; chave: string; limparFotoAtual: boolean } | { tipo: 'refazer'; motoristaId: string },
+): Promise<{ ok: true; facial_historico: FacialHistoricoItem[]; limparFotoAtual: boolean } | { ok: false; erro: string }> {
+  try {
+    const atual = isSupabaseConfigured && supabase ? await lerFacialAtual(transportadorId) : null
+    const base = atual?.historico ?? []
+    const facial_historico =
+      acao.tipo === 'excluir' ? excluirItemFacial(base, acao.chave) : refazerFacialMotorista(base, acao.motoristaId)
+    const limparFotoAtual = acao.tipo === 'excluir' && acao.limparFotoAtual
+    if (!isSupabaseConfigured || !supabase) return { ok: true, facial_historico, limparFotoAtual }
+    const up = await upsertTransportadorComFallback(
+      'update',
+      { facial_historico, ...(limparFotoAtual ? { facial_foto_url: null } : {}) },
+      transportadorId,
+    )
+    if (!up.ok) return { ok: false, erro: up.erro }
+    return { ok: true, facial_historico, limparFotoAtual }
+  } catch (err) {
+    return { ok: false, erro: mensagemErroFacial(err, 'Não foi possível alterar a verificação facial.') }
   }
 }
 

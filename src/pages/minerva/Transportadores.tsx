@@ -22,7 +22,7 @@ import { isAcceptedImageFile, fileToDataUrl } from '../../lib/veiculoFotos'
 import { ImageCropModal } from '../../components/ui/ImageCropModal'
 import { contaPortalPorTransportador } from '../../lib/portalAuth'
 import { isSuperSession } from '../../lib/superUsers'
-import { motoristaTemFacial, nomeMotoristaFacial, unirHistoricoFacial } from '../../lib/verificacaoFacial'
+import { chaveFacial, excluirItemFacial, motoristaTemFacial, nomeMotoristaFacial, refazerFacialMotorista, unirHistoricoFacial, type FacialHistoricoItem } from '../../lib/verificacaoFacial'
 import {
   emailCredenciaisHref,
   mensagemCredenciaisTransportador,
@@ -161,7 +161,7 @@ export function TransportadoresPage() {
     rankingTransportadores,
     refreshTransportadores,
     user,
-    definirVerificacaoFacialAdmin,
+    alterarFacialItemAdmin,
   } = useData()
   const superUsuario = isSuperSession(user)
   /** Verificação facial: só embarcador (role minerva) e super usuário veem. */
@@ -450,33 +450,42 @@ export function TransportadoresPage() {
     }
   }
 
-  async function alterarFacial(modo: 'excluir' | 'refazer') {
+  async function alterarItemFacial(item: FacialHistoricoItem, tipo: 'excluir' | 'refazer') {
     if (!editingId || !superUsuario) return
-    const pergunta =
-      modo === 'excluir'
-        ? 'Excluir a verificação facial desta transportadora? A foto sai do cadastro e o rosto terá de ser cadastrado de novo.'
-        : 'Pedir a verificação facial de novo? No próximo login o transportador terá de confirmar o rosto.'
-    if (!window.confirm(pergunta)) return
+    const nome = item.motorista_id ? item.motorista_nome || 'este motorista' : ''
+    if (tipo === 'refazer') {
+      if (!item.motorista_id) return
+      if (!window.confirm(`Pedir a verificação facial de ${nome} de novo no próximo login?`)) return
+    } else if (
+      !window.confirm(
+        item.motorista_id
+          ? `Excluir esta verificação facial de ${nome}? Se for o rosto de referência, ele volta a ficar Pendente.`
+          : 'Excluir esta verificação facial (motorista não identificado)?',
+      )
+    ) {
+      return
+    }
+    const chave = chaveFacial(item)
+    const limparFotoAtual = form.facial_foto_url?.split('?')[0] === item.foto_url.split('?')[0]
     setBusy(true)
     setError('')
-    const res = await definirVerificacaoFacialAdmin(editingId, modo)
+    const res = await alterarFacialItemAdmin(
+      editingId,
+      tipo === 'excluir' ? { tipo, chave, limparFotoAtual } : { tipo, motoristaId: item.motorista_id || '' },
+    )
     setBusy(false)
     if (!res.ok) {
       setError(res.error || 'Não foi possível atualizar a verificação facial.')
       return
     }
-    setForm((prev) =>
-      modo === 'excluir'
-        ? {
-            ...prev,
-            facial_descriptor: null,
-            facial_foto_url: null,
-            facial_verificado_em: null,
-            facial_proxima_em: null,
-            facial_reset_em: new Date().toISOString(),
-          }
-        : { ...prev, facial_verificado_em: null, facial_proxima_em: null },
-    )
+    setForm((prev) => ({
+      ...prev,
+      facial_historico:
+        tipo === 'excluir'
+          ? excluirItemFacial(prev.facial_historico, chave)
+          : refazerFacialMotorista(prev.facial_historico, item.motorista_id || ''),
+      ...(tipo === 'excluir' && limparFotoAtual ? { facial_foto_url: null } : {}),
+    }))
   }
 
   function set<K extends keyof Transportador>(key: K, value: Transportador[K]) {
@@ -1560,7 +1569,7 @@ export function TransportadoresPage() {
                       },
                     ]
                   : [],
-              ).filter((item) => item.verificado_em)
+              ).filter((item) => item.verificado_em && !item.excluido_em)
               if (historico.length === 0) {
                 return <p className="cadastro-empty">Verificação facial ainda não feita.</p>
               }
@@ -1575,7 +1584,7 @@ export function TransportadoresPage() {
                   </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 12 }}>
                     {historico.map((item) => (
-                      <div className="facial-ok" key={`${item.verificado_em}-${item.foto_url}`}>
+                      <div className="facial-ok facial-item" key={`${item.verificado_em}-${item.foto_url}`}>
                         <img src={item.foto_url} alt="Foto da verificação facial" />
                         <div>
                           <strong>
@@ -1591,35 +1600,38 @@ export function TransportadoresPage() {
                               : ''}
                           </p>
                         </div>
+                        {superUsuario ? (
+                          <div className="facial-item__acoes">
+                            {item.motorista_id ? (
+                              <button
+                                type="button"
+                                className="cadastro-btn cadastro-btn--ghost"
+                                disabled={busy}
+                                onClick={() => void alterarItemFacial(item, 'refazer')}
+                              >
+                                Refazer
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              className="cadastro-btn cadastro-btn--ghost"
+                              style={{ color: '#b91c1c' }}
+                              disabled={busy}
+                              onClick={() => void alterarItemFacial(item, 'excluir')}
+                            >
+                              Excluir
+                            </button>
+                          </div>
+                        ) : null}
                       </div>
                     ))}
                   </div>
                 </>
               )
             })()}
-            {superUsuario ? (
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
-                <button
-                  type="button"
-                  className="cadastro-btn cadastro-btn--primary"
-                  disabled={busy || !form.facial_descriptor}
-                  onClick={() => void alterarFacial('refazer')}
-                >
-                  Refazer verificação
-                </button>
-                <button
-                  type="button"
-                  className="cadastro-btn cadastro-btn--ghost"
-                  style={{ color: '#b91c1c' }}
-                  disabled={busy || (!form.facial_foto_url && !form.facial_descriptor)}
-                  onClick={() => void alterarFacial('excluir')}
-                >
-                  Excluir verificação
-                </button>
-              </div>
-            ) : (
-              <p className="form-field-hint">Só o super usuário pode refazer ou excluir esta verificação.</p>
-            )}
+            {!superUsuario ? (
+              <p className="form-field-hint">Só o super usuário pode refazer ou excluir as verificações.</p>
+            ) : null}
             {error ? <p style={{ color: '#dc2626', marginTop: 12 }}>{error}</p> : null}
           </div>
         </section>

@@ -21,6 +21,8 @@ export type FacialHistoricoItem = {
   descriptor?: number[] | null
   /** Próxima cobrança deste motorista. */
   proxima_em?: string | null
+  /** Excluído pelo super (fica guardado para o sync não trazer o item de volta). */
+  excluido_em?: string | null
 }
 
 export type FacialMotorista = { id: string; nome: string }
@@ -54,37 +56,25 @@ export type FacialReferencia = {
   facial_reset_em?: string | null
 }
 
+export function chaveFacial(item: Pick<FacialHistoricoItem, 'foto_url' | 'verificado_em'>): string {
+  return `${item.verificado_em}|${item.foto_url.split('?')[0]}`
+}
+
+/**
+ * Junta cópias do mesmo item (remoto, local, Kanban). Exclusão (excluido_em) sempre vence,
+ * para o sync não ressuscitar o item; a próxima cobrança fica com a data mais cedo (Refazer).
+ */
 export function normalizarHistoricoFacial(valor: unknown): FacialHistoricoItem[] {
   const lista = Array.isArray(valor) ? valor : []
-  const vistos = new Set<string>()
-  const out: FacialHistoricoItem[] = []
+  const porChave = new Map<string, FacialHistoricoItem>()
   for (const item of lista) {
     if (!item || typeof item !== 'object') continue
-    const bruto = item as {
-      foto_url?: unknown
-      verificado_em?: unknown
-      distancia?: unknown
-      motorista_id?: unknown
-      motorista_nome?: unknown
-      descriptor?: unknown
-      proxima_em?: unknown
-    }
+    const bruto = item as Record<string, unknown>
     const foto = String(bruto.foto_url || '').trim()
     const quando = String(bruto.verificado_em || '').trim()
     if (!foto || !quando) continue
-    const chave = `${quando}|${foto.split('?')[0]}`
-    if (vistos.has(chave)) {
-      // Mantém o motorista se a cópia repetida o tiver.
-      const ja = out.find((o) => `${o.verificado_em}|${o.foto_url.split('?')[0]}` === chave)
-      if (ja && !ja.motorista_id && bruto.motorista_id) {
-        ja.motorista_id = String(bruto.motorista_id)
-        ja.motorista_nome = bruto.motorista_nome ? String(bruto.motorista_nome) : null
-      }
-      continue
-    }
-    vistos.add(chave)
     const dist = bruto.distancia == null || bruto.distancia === '' ? null : Number(bruto.distancia)
-    out.push({
+    const novo: FacialHistoricoItem = {
       foto_url: foto,
       verificado_em: quando,
       distancia: dist != null && Number.isFinite(dist) ? dist : null,
@@ -92,9 +82,48 @@ export function normalizarHistoricoFacial(valor: unknown): FacialHistoricoItem[]
       ...(bruto.motorista_nome ? { motorista_nome: String(bruto.motorista_nome) } : {}),
       ...(descritorValido(bruto.descriptor) ? { descriptor: descritorValido(bruto.descriptor) } : {}),
       ...(bruto.proxima_em ? { proxima_em: String(bruto.proxima_em) } : {}),
-    })
+      ...(bruto.excluido_em ? { excluido_em: String(bruto.excluido_em) } : {}),
+    }
+    const chave = chaveFacial(novo)
+    const ja = porChave.get(chave)
+    if (!ja) {
+      porChave.set(chave, novo)
+      continue
+    }
+    if (!ja.motorista_id && novo.motorista_id) {
+      ja.motorista_id = novo.motorista_id
+      ja.motorista_nome = novo.motorista_nome ?? null
+    }
+    if (!ja.descriptor && novo.descriptor) ja.descriptor = novo.descriptor
+    if (novo.proxima_em && (!ja.proxima_em || quandoFacial(novo.proxima_em) < quandoFacial(ja.proxima_em))) {
+      ja.proxima_em = novo.proxima_em
+    }
+    if (novo.excluido_em && !ja.excluido_em) ja.excluido_em = novo.excluido_em
   }
-  return out.sort((a, b) => new Date(b.verificado_em).getTime() - new Date(a.verificado_em).getTime())
+  const out = Array.from(porChave.values()).map((i) =>
+    i.excluido_em ? { foto_url: i.foto_url, verificado_em: i.verificado_em, distancia: null, excluido_em: i.excluido_em } : i,
+  )
+  return out.sort((x, y) => new Date(y.verificado_em).getTime() - new Date(x.verificado_em).getTime())
+}
+
+/** Só os itens que não foram excluídos (a lista guardada mantém as exclusões para o sync). */
+export function historicoFacialVisivel(valor: unknown): FacialHistoricoItem[] {
+  return normalizarHistoricoFacial(valor).filter((i) => !i.excluido_em)
+}
+
+/** Marca um item como excluído. */
+export function excluirItemFacial(valor: unknown, chave: string, quando = new Date().toISOString()): FacialHistoricoItem[] {
+  return normalizarHistoricoFacial(valor).map((i) =>
+    chaveFacial(i) === chave ? { foto_url: i.foto_url, verificado_em: i.verificado_em, distancia: null, excluido_em: quando } : i,
+  )
+}
+
+/** Força nova verificação do motorista no próximo login. */
+export function refazerFacialMotorista(valor: unknown, motoristaId: string, quando = new Date().toISOString()): FacialHistoricoItem[] {
+  const lista = normalizarHistoricoFacial(valor)
+  const ultimo = lista.find((i) => !i.excluido_em && i.motorista_id === motoristaId)
+  if (!ultimo) return lista
+  return lista.map((i) => (i === ultimo ? { ...i, proxima_em: quando } : i))
 }
 
 export function unirHistoricoFacial(...listas: unknown[]): FacialHistoricoItem[] {
@@ -321,7 +350,7 @@ export function nomeMotoristaFacial(item: Pick<FacialHistoricoItem, 'motorista_n
 export function historicoFacialDoMotorista(valor: unknown, motoristaId: string | null | undefined): FacialHistoricoItem[] {
   const id = (motoristaId || '').trim()
   if (!id) return []
-  return normalizarHistoricoFacial(valor).filter((i) => i.motorista_id === id)
+  return historicoFacialVisivel(valor).filter((i) => i.motorista_id === id)
 }
 
 /** Itens do motorista que valem (depois da última exclusão feita pelo super). */

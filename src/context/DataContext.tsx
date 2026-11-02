@@ -106,12 +106,13 @@ import {
   atualizarLogoTransportadorRemoto,
   carregarTransportadoresDoSupabase,
   definirVerificacaoFacial,
+  alterarItemFacial,
   gravarVerificacaoFacial,
   salvarPerfilPublicoRemoto,
   submeterCadastroTransportador,
   type CadastroTransportadorInput,
 } from '../lib/cadastroTransportador'
-import { guardarFacialLocal, preservarVerificacaoFacial, unirHistoricoFacial, type FacialCaptura, type FacialMotorista } from '../lib/verificacaoFacial'
+import { guardarFacialLocal, preservarVerificacaoFacial, unirHistoricoFacial, excluirItemFacial, refazerFacialMotorista, type FacialCaptura, type FacialMotorista } from '../lib/verificacaoFacial'
 import { normalizePerfilPublico } from '../lib/perfilPublicoTransportador'
 import { galeriaTemBase64, migrarGaleriaParaStorage } from '../lib/perfilGaleriaStorage'
 import { atualizarAvatarUsuarioRemoto, buscarAvatarUsuarioRemoto } from '../lib/userAvatar'
@@ -384,6 +385,11 @@ interface DataContextValue extends DataState, AuthState {
   definirVerificacaoFacialAdmin: (
     transportadorId: string,
     modo: 'excluir' | 'refazer',
+  ) => Promise<{ ok: boolean; error?: string }>
+  /** Super: exclui uma facial do histórico ou pede de novo a de um motorista. */
+  alterarFacialItemAdmin: (
+    transportadorId: string,
+    acao: { tipo: 'excluir'; chave: string; limparFotoAtual: boolean } | { tipo: 'refazer'; motoristaId: string },
   ) => Promise<{ ok: boolean; error?: string }>
   /** Recarrega transportadoras/docs do Supabase (fila de aprovação). */
   refreshTransportadores: () => Promise<void>
@@ -4982,6 +4988,33 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [flushKanbanPush],
   )
 
+  const alterarFacialItemAdmin = useCallback(
+    async (
+      transportadorId: string,
+      acao: { tipo: 'excluir'; chave: string; limparFotoAtual: boolean } | { tipo: 'refazer'; motoristaId: string },
+    ) => {
+      const res = await alterarItemFacial(transportadorId, acao)
+      if (!res.ok) return { ok: false, error: res.erro }
+      setState((prev) => {
+        const next = {
+          ...prev,
+          transportadores: prev.transportadores.map((t) => {
+            if (!sameTransportadorId(t.id, transportadorId)) return t
+            const base = unirHistoricoFacial(res.facial_historico, t.facial_historico)
+            const facial_historico =
+              acao.tipo === 'excluir' ? excluirItemFacial(base, acao.chave) : refazerFacialMotorista(base, acao.motoristaId)
+            return { ...t, facial_historico, ...(res.limparFotoAtual ? { facial_foto_url: null } : {}) }
+          }),
+        }
+        stateRef.current = next
+        flushKanbanPush(next)
+        return next
+      })
+      return { ok: true }
+    },
+    [flushKanbanPush],
+  )
+
   const gravarSituacaoTransportador = useCallback(
     async (
       id: string,
@@ -5984,6 +6017,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       registrarCadastroTransportador,
       concluirVerificacaoFacial,
       definirVerificacaoFacialAdmin,
+      alterarFacialItemAdmin,
       refreshTransportadores,
       forcarSincronizarKanban,
       aprovarTransportador,
@@ -6066,6 +6100,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       registrarCadastroTransportador,
       concluirVerificacaoFacial,
       definirVerificacaoFacialAdmin,
+      alterarFacialItemAdmin,
       refreshTransportadores,
       aprovarTransportador,
       recusarTransportador,

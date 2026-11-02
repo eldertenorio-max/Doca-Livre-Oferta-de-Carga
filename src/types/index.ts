@@ -182,6 +182,7 @@ export interface Transportador {
     motorista_nome?: string | null
     descriptor?: number[] | null
     proxima_em?: string | null
+    excluido_em?: string | null
   }> | null
   created_at?: string
 }

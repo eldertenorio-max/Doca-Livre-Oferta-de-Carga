@@ -392,3 +392,31 @@ body.facial-gate-aberto {
 .facial-gate--movel .facial-comando__dica {
   font-size: 16px !important;
 }
+
+/* Ações por item na aba Verificação facial. */
+.facial-item {
+  align-items: center;
+}
+
+.facial-item > div:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+
+.facial-item__acoes {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.facial-item__acoes .cadastro-btn {
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  min-height: 0;
+}
+
+@media (max-width: 640px) {
+  .facial-item__acoes {
+    flex-direction: column;
+  }
+}
