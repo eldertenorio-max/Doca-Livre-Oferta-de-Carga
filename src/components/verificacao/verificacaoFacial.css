@@ -269,3 +269,46 @@ body.facial-gate-aberto {
   flex: 1;
   min-height: 44px;
 }
+
+/* Tipografia maior no celular (tela cheia). Valores em px para não depender do rem do app. */
+.facial-gate--movel {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+.facial-gate--movel .facial-box__titulo {
+  font-size: 22px !important;
+  line-height: 1.25;
+}
+
+.facial-gate--movel .facial-box__texto,
+.facial-gate--movel .facial-erro {
+  font-size: 16px !important;
+  line-height: 1.5;
+}
+
+.facial-gate--movel label.facial-box__texto strong,
+.facial-gate--movel .facial-box__texto strong {
+  font-size: 17px;
+}
+
+.facial-gate--movel .facial-motorista-select {
+  font-size: 18px !important;
+  min-height: 48px;
+  padding: 10px 12px;
+}
+
+.facial-gate--movel .facial-passos {
+  gap: 8px;
+}
+
+.facial-gate--movel .facial-passos span {
+  font-size: 15px !important;
+  padding: 7px 12px;
+}
+
+.facial-gate--movel .cadastro-btn {
+  font-size: 17px !important;
+  min-height: 52px !important;
+}
