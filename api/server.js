@@ -261,7 +261,8 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
-  if (!segredoConfere(process.env.ANON_KEY, req.headers.apikey || url.searchParams.get('apikey'))) {
+  const publicoStorage = caminho.startsWith('/storage/v1/object/public/') && req.method === 'GET'
+  if (!publicoStorage && !segredoConfere(process.env.ANON_KEY, req.headers.apikey || url.searchParams.get('apikey'))) {
     res.writeHead(401, { 'content-type': 'application/json', ...cors(req.headers.origin) })
     res.end(JSON.stringify({ message: 'Chave inválida' }))
     return
