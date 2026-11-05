@@ -51,6 +51,20 @@
     <meta name="twitter:image" content="https://ofertadecarga.com.br/og-square.png?v=oferta5" />
 
     <title>Doca Livre — Oferta de Carga</title>
+    <!-- Doca Livre Control Center Analytics Tracker (auto-detecta oferta-carga, calculadora-frete ou mapa-logistica) -->
+    <script>
+      (function() {
+        var h = (location.hostname || '').toLowerCase();
+        var s = 'oferta-carga';
+        if (h.indexOf('custodarota') !== -1) s = 'calculadora-frete';
+        else if (h.indexOf('mapadalogistica') !== -1 || h.indexOf('mapadafrota') !== -1) s = 'mapa-logistica';
+        var sc = document.createElement('script');
+        sc.src = 'https://doca-livre-control-center.onrender.com/api/t.js';
+        sc.setAttribute('data-system', s);
+        sc.async = true;
+        document.head.appendChild(sc);
+      })();
+    </script>
     <script>
       ;(function () {
         var p = (location.pathname + location.search + location.hash).toLowerCase()
