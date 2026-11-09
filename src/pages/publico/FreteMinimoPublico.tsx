@@ -1,7 +1,8 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { isSiteOfertaDeCarga } from '../../lib/siteOfertaDeCarga'
+import { tituloDaPagina } from '../../lib/siteMeta'
 import { LinkMapaFrota, LinkMapaLogistica, LinkRota } from '../../components/ui/HostLink'
 import { PublicoCreditoAcoes } from '../../components/publico/PublicoCreditoAcoes'
 import { FreteMinimoCalc } from '../../components/carga/FreteMinimoCalc'
@@ -11,6 +12,9 @@ import '../../styles/rota-publico.css'
 import '../../styles/frete-minimo.css'
 
 export function FreteMinimoPublicoPage() {
+  useEffect(() => {
+    document.title = tituloDaPagina('Frete mínimo')
+  }, [])
   const navigate = useNavigate()
   const [sp] = useSearchParams()
   const kmRota = useMemo(() => {

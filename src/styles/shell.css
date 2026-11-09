@@ -850,7 +850,7 @@ a.sidebar-section:first-of-type {
   inset: 0;
   pointer-events: none;
   background:
-    var(--brand-logo-url, url('/logo-doca-livre.png')) center 38% / min(380px, 62%) no-repeat;
+    var(--brand-logo-url, url('/logo-doca-livre.png?v=marca9')) center 38% / min(380px, 62%) no-repeat;
   opacity: 0.28;
   z-index: 0;
 }

@@ -203,6 +203,9 @@ export function textoPushNovaCarga(carga: {
   return `Carga ${num}${rota ? ` · ${rota}` : ''}${freteTxt}`
 }
 
+/** `renotify` e `vibrate` são aceitos pelo Chrome/Android, mas não constam em `NotificationOptions` do lib.dom. */
+type OpcoesNotificacaoNativa = NotificationOptions & { renotify?: boolean; vibrate?: number[] }
+
 /** Notificação local imediata (app aberto / mesmo aparelho) — complementa o push remoto. */
 export async function notificarLocalNativa(input: {
   titulo: string
@@ -214,17 +217,18 @@ export async function notificarLocalNativa(input: {
   if (Notification.permission !== 'granted') return
   try {
     const reg = await navigator.serviceWorker.ready
-    await reg.showNotification(input.titulo, {
+    const opcoes: OpcoesNotificacaoNativa = {
       body: input.mensagem,
-      icon: '/icon-192.png?v=oferta6',
-      badge: '/badge-96.png?v=oferta6',
+      icon: '/icon-192.png?v=marca9',
+      badge: '/badge-96.png?v=marca9',
       tag: input.tag || 'doca-livre-local',
       renotify: false,
       requireInteraction: true,
       silent: false,
       vibrate: [300, 120, 300, 120, 500],
       data: { url: input.url || '/#/transportador' },
-    })
+    }
+    await reg.showNotification(input.titulo, opcoes)
   } catch {
     /* ignore */
   }

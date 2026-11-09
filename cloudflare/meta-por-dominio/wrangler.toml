@@ -1,0 +1,17 @@
+# Worker que ajusta título/descrição do link por domínio (ver worker.ts).
+# Publicar (conta Cloudflare dona dos domínios):
+#   cd cloudflare/meta-por-dominio
+#   npx wrangler login
+#   npx wrangler deploy
+name = "doca-meta-por-dominio"
+main = "worker.ts"
+compatibility_date = "2026-10-01"
+
+routes = [
+  { pattern = "custodarota.com.br/*", zone_name = "custodarota.com.br" },
+  { pattern = "www.custodarota.com.br/*", zone_name = "custodarota.com.br" },
+  { pattern = "mapadafrota.com.br/*", zone_name = "mapadafrota.com.br" },
+  { pattern = "www.mapadafrota.com.br/*", zone_name = "mapadafrota.com.br" },
+  { pattern = "mapadalogistica.com.br/*", zone_name = "mapadalogistica.com.br" },
+  { pattern = "www.mapadalogistica.com.br/*", zone_name = "mapadalogistica.com.br" },
+]

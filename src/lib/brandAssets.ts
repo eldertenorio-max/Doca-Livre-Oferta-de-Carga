@@ -1,7 +1,20 @@
-import logoDocaLivre from '../assets/logo-doca-livre.png'
+import arquivoLogoClaro from '../assets/logo-doca-livre.png'
+import arquivoLogoEscuro from '../assets/logo-doca-livre-escuro.png'
 
-/** Logo embutida no bundle (Vite) — não depende de /public no deploy. */
-export const LOGO_DOCA_LIVRE_SRC = logoDocaLivre
+/**
+ * Logos embutidas no bundle (Vite) — não dependem de /public no deploy.
+ * Claro: moldura e "LIVRE" em azul-marinho, para fundo claro (padrão do sistema).
+ * Escuro: moldura e "LIVRE" em branco, para fundo escuro.
+ */
+export const LOGO_DOCA_LIVRE_SRC = arquivoLogoClaro
+export const LOGO_DOCA_LIVRE_ESCURO_SRC = arquivoLogoEscuro
+
+export type TemaLogo = 'claro' | 'escuro'
+
+/** Versão do logo para o fundo onde ele vai aparecer. */
+export function logoDocaLivre(fundo: TemaLogo): string {
+  return fundo === 'escuro' ? LOGO_DOCA_LIVRE_ESCURO_SRC : LOGO_DOCA_LIVRE_SRC
+}
 export const BRAND_COMPANY_NAME = 'DOCA LIVRE'
 export const BRAND_PRODUCT_NAME = 'Oferta'
 export const BRAND_PRODUCT_VARIANT = 'carga'

@@ -38,7 +38,8 @@ import type { CategoriaId, Empresa, NivelIntegracaoId, OrigemCadastro } from '..
 import '../styles/mapa.css'
 import '../styles/mapa-publico.css'
 
-import { hrefMapaFrota, hrefRota, hrefSistema } from '../../lib/siteOfertaDeCarga'
+import { HOST_MAPA_LOGISTICA, hrefMapaFrota, hrefRota, hrefSistema } from '../../lib/siteOfertaDeCarga'
+import { tituloDoProduto } from '../../lib/siteMeta'
 import { PublicoCreditoAcoes } from '../../components/publico/PublicoCreditoAcoes'
 import { MapaFrotaAjuda } from '../../components/mapa/MapaFrotaAjuda'
 import '../../styles/mapa-frota.css'
@@ -55,7 +56,7 @@ function temCoordenada(e: Empresa) {
   return Number.isFinite(e.lat) && Number.isFinite(e.lng)
 }
 
-function ufsDasRegioes(ids: string[]) {
+function ufsDasRegioes(ids: string[]): Set<string> {
   return new Set(
     ids.flatMap((id) => [...(REGIOES.find((r) => r.id === id)?.ufs ?? [])]),
   )
@@ -127,6 +128,10 @@ function destacarTrecho(texto: string, query: string) {
 
 export function MapaPage({ publico = false }: { publico?: boolean }) {
   const { empresas, sessao } = useAuth()
+  // Antes ficava o título genérico do index.html ("Oferta de Carga").
+  useEffect(() => {
+    document.title = tituloDoProduto(HOST_MAPA_LOGISTICA, 'Mapa da Logística')
+  }, [])
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [searchParams] = useSearchParams()

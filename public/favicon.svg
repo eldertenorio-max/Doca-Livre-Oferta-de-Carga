@@ -1,20 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Doca Livre">
-  <!-- Ícone de aba: só a marca (legível em 16–32px) -->
   <rect width="512" height="512" rx="96" fill="#ffffff"/>
-  <g transform="translate(106 106)">
-    <!-- Moldura com gaps (igual à logo) -->
-    <path d="M0 0h118" stroke="#050505" stroke-width="28" stroke-linecap="round"/>
-    <path d="M0 300h118" stroke="#050505" stroke-width="28" stroke-linecap="round"/>
-    <path d="M0 0v144" stroke="#050505" stroke-width="28" stroke-linecap="round"/>
-    <path d="M0 300v-144" stroke="#050505" stroke-width="28" stroke-linecap="round"/>
-    <path d="M300 0H182" stroke="#050505" stroke-width="28" stroke-linecap="round"/>
-    <path d="M300 300H182" stroke="#050505" stroke-width="28" stroke-linecap="round"/>
-    <path d="M300 0v144" stroke="#050505" stroke-width="28" stroke-linecap="round"/>
-    <path d="M300 300v-144" stroke="#050505" stroke-width="28" stroke-linecap="round"/>
-    <!-- Setas amarelas -->
-    <path d="M62 150h100" stroke="#f9db00" stroke-width="52" stroke-linecap="round"/>
-    <path d="M58 150l72-60v120z" fill="#f9db00"/>
-    <path d="M238 150H138" stroke="#f9db00" stroke-width="52" stroke-linecap="round"/>
-    <path d="M242 150L170 90v120z" fill="#f9db00"/>
+  <g transform="translate(46.08000000000001 122.35318327974278) scale(1.349967845659164) translate(-54 -110)">
+    <g id="metade">
+    <path fill="#043460" d="M200 110H76a22 22 0 0 0-22 22v154a22 22 0 0 0 22 22h124v-19H78a5 5 0 0 1-5-5V135a5 5 0 0 1 5-5h122z"/>
+    <path fill="#f9db00" d="M89.5 209.5 141 173.5v72z" stroke="#f9db00" stroke-width="10" stroke-linejoin="round"/>
+    <rect fill="#f9db00" x="141" y="189" width="59" height="41"/>
+    </g>
+    <use href="#metade" transform="translate(419 0) scale(-1 1)"/>
   </g>
 </svg>

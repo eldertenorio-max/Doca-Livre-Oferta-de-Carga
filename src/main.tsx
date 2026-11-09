@@ -6,6 +6,7 @@ import { instalarDevConsoleGuard } from './lib/devConsoleGuard'
 import { instalarRealtimeBfcache } from './lib/realtimeBroadcast'
 import { isSiteOfertaDeCarga, isSitePublicoLimpo, redirecionarPainelOficial } from './lib/siteOfertaDeCarga'
 import { supabase } from './lib/supabase'
+import { aplicarMetaDoSite } from './lib/siteMeta'
 import './index.css'
 
 const BUILD_ID = 'rota-publico-cache-v381'
@@ -92,6 +93,8 @@ function limparCacheMorto() {
 
 async function boot() {
   if (redirecionarPainelOficial()) return
+  // Nome, título e descrição do domínio aberto (os 4 sites usam o mesmo index.html).
+  aplicarMetaDoSite()
   const publico = isSitePublicoLimpo()
   const Router = publico ? BrowserRouter : HashRouter
 

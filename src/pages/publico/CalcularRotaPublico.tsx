@@ -37,7 +37,8 @@ import { TIPOS_VEICULO } from '../../lib/tiposVeiculo'
 import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
 import { LinkMapaFrota, LinkMapaLogistica, LinkFreteMinimo } from '../../components/ui/HostLink'
 import { PublicoCreditoAcoes } from '../../components/publico/PublicoCreditoAcoes'
-import { isSiteOfertaDeCarga } from '../../lib/siteOfertaDeCarga'
+import { HOST_OFERTA_DE_CARGA, isSiteOfertaDeCarga } from '../../lib/siteOfertaDeCarga'
+import { tituloDoProduto } from '../../lib/siteMeta'
 import { lerPerfilLocal } from '../../lib/perfilLocal'
 import { AddressSuggestInput } from '../../components/ui/AddressSuggestInput'
 import { VeiculoSuggestInput } from '../../components/ui/VeiculoSuggestInput'
@@ -224,7 +225,7 @@ export function CalcularRotaPublicoPage({ modoSistema = false }: { modoSistema?:
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'light')
-    document.title = modoSistema ? 'Calcular rota' : 'Calcular rota — Oferta de Carga'
+    document.title = modoSistema ? 'Calcular rota' : tituloDoProduto(HOST_OFERTA_DE_CARGA, 'Calcular rota')
   }, [modoSistema])
 
   useEffect(() => {

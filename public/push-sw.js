@@ -6,8 +6,8 @@
 self.addEventListener('push', (event) => {
   const origin = self.location.origin
   // icon = preview colorido; badge = silhueta branca (Android status bar)
-  const defaultIcon = `${origin}/icon-192.png?v=oferta6`
-  const defaultBadge = `${origin}/badge-96.png?v=oferta6`
+  const defaultIcon = `${origin}/icon-192.png?v=marca9`
+  const defaultBadge = `${origin}/badge-96.png?v=marca9`
 
   let data = {
     title: 'Doca Livre',

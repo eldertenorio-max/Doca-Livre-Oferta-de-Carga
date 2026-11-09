@@ -1,4 +1,4 @@
-import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
+import { logoDocaLivre } from '../../lib/brandAssets'
 
 export function PublicoBloqueio({ motivo }: { motivo: string }) {
   return (
@@ -14,10 +14,11 @@ export function PublicoBloqueio({ motivo }: { motivo: string }) {
       }}
     >
       <div style={{ maxWidth: 420, textAlign: 'center' }}>
+        {/* Fundo escuro: versão com moldura e "LIVRE" em branco. */}
         <img
-          src={LOGO_DOCA_LIVRE_SRC}
+          src={logoDocaLivre('escuro')}
           alt="Doca Livre"
-          style={{ width: 72, height: 72, objectFit: 'contain', marginBottom: 16 }}
+          style={{ width: 200, maxWidth: '70%', height: 'auto', marginBottom: 20 }}
         />
         <h1 style={{ fontSize: 22, margin: '0 0 8px' }}>Acesso bloqueado</h1>
         <p style={{ margin: 0, opacity: 0.85, lineHeight: 1.5 }}>{motivo}</p>

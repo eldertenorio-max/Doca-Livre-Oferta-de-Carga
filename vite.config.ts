@@ -24,6 +24,9 @@ export default defineConfig({
         'og-image.png',
         'og-square.png',
         'logo-doca-livre.png',
+        'logo-doca-livre-escuro.png',
+        'logo-icone.svg',
+        'logo-icone-escuro.svg',
         'earth-globe.jpg',
       ],
       manifest: {
@@ -41,25 +44,25 @@ export default defineConfig({
         categories: ['business', 'logistics'],
         icons: [
           {
-            src: 'icon-192.png?v=oferta7',
+            src: 'icon-192.png?v=marca9',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any',
           },
           {
-            src: 'icon-512.png?v=oferta7',
+            src: 'icon-512.png?v=marca9',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any',
           },
           {
-            src: 'icon-512.png?v=oferta7',
+            src: 'icon-512.png?v=marca9',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
           },
           {
-            src: 'apple-touch-icon.png?v=oferta7',
+            src: 'apple-touch-icon.png?v=marca9',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any',

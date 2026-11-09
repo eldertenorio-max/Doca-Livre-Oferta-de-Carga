@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { LinkRota, LinkMapaLogistica } from '../../components/ui/HostLink'
 import { PublicoCreditoAcoes } from '../../components/publico/PublicoCreditoAcoes'
-import { isSiteMapaFrota } from '../../lib/siteOfertaDeCarga'
+import { HOST_MAPA_FROTA, isSiteMapaFrota } from '../../lib/siteOfertaDeCarga'
+import { tituloDoProduto } from '../../lib/siteMeta'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { aplicarCamadaRuasPortugues } from '../../lib/mapaTilesPt'
@@ -159,7 +160,7 @@ export function MapaFrotaPublicoPage() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'light')
-    document.title = 'Mapa da Frota — Doca Livre Oferta de Carga'
+    document.title = tituloDoProduto(HOST_MAPA_FROTA, 'Mapa da Frota')
     void refreshTransportadores()
   }, [refreshTransportadores])
 
