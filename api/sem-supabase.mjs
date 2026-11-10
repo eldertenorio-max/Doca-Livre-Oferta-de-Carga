@@ -154,20 +154,67 @@ function json(res, status, corpo) {
   res.end(JSON.stringify(corpo))
 }
 
-async function enviarEmail(para, assunto, html) {
-  const key = (process.env.RESEND_API_KEY || '').trim()
-  if (!key) return false
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      from: process.env.RESEND_FROM || 'Doca Livre Oferta de Carga <onboarding@resend.dev>',
-      to: [para],
-      subject: assunto,
-      html,
-    }),
+// E-mail pelo Azure Communication Services (acs-docalivre-prod, domínio mail.docalivre.com.br).
+// O container se autentica com a própria identidade gerenciada de sistema: nenhuma chave guardada.
+// O nome exibido no "De:" vem do remetente cadastrado no domínio do ACS.
+const ACS_API_VERSION = '2023-03-31'
+let tokenAcs = null
+
+function emailConfigurado() {
+  return Boolean((process.env.ACS_ENDPOINT || '').trim() && (process.env.EMAIL_FROM || '').trim())
+}
+
+async function tokenIdentidadeAcs() {
+  if (tokenAcs && tokenAcs.expira - 5 * 60_000 > Date.now()) return tokenAcs.valor
+  const endereco = process.env.IDENTITY_ENDPOINT
+  const cabecalho = process.env.IDENTITY_HEADER
+  if (!endereco || !cabecalho) throw new Error('sem identidade gerenciada no container')
+  const r = await fetch(`${endereco}?api-version=2019-08-01&resource=${encodeURIComponent('https://communication.azure.com')}`, {
+    headers: { 'X-IDENTITY-HEADER': cabecalho },
+    signal: AbortSignal.timeout(10_000),
   })
-  return res.ok
+  if (!r.ok) throw new Error(`identidade gerenciada respondeu ${r.status}: ${(await r.text()).slice(0, 200)}`)
+  const dados = await r.json()
+  tokenAcs = { valor: dados.access_token, expira: Number(dados.expires_on) * 1000 }
+  return tokenAcs.valor
+}
+
+function textoDoHtml(html) {
+  return String(html)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+async function enviarEmail(para, assunto, html) {
+  if (!emailConfigurado()) return false
+  const endpoint = process.env.ACS_ENDPOINT.trim().replace(/\/+$/, '')
+  const remetente = process.env.EMAIL_FROM.trim()
+  try {
+    const r = await fetch(`${endpoint}/emails:send?api-version=${ACS_API_VERSION}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await tokenIdentidadeAcs()}` },
+      body: JSON.stringify({
+        senderAddress: remetente,
+        recipients: { to: [{ address: para }] },
+        content: { subject: assunto, plainText: textoDoHtml(html), html },
+      }),
+      signal: AbortSignal.timeout(20_000),
+    })
+    if (r.status === 202 || r.status === 200) return true
+    const detalhe = await r.text().catch(() => '')
+    console.error(`[email] Azure recusou o e-mail (${r.status}), remetente ${remetente}: ${detalhe.slice(0, 400)}`)
+  } catch (erro) {
+    console.error(`[email] Falha ao enviar pelo Azure: ${erro?.message || erro}`)
+  }
+  return false
 }
 
 async function guardarCodigo(finalidade, email) {
@@ -837,7 +884,7 @@ async function pix(req, res, corpo) {
       if (ping.ok) conta = { commercialInfo: ping.body.commercialInfo, documentation: ping.body.documentation, bankAccountInfo: ping.body.bankAccountInfo, general: ping.body.general }
       else contaErro = erroAsaas(ping.body, ping.status)
     }
-    json(res, 200, { ok: true, asaas: Boolean(chave), doca: false, resend: Boolean(process.env.RESEND_API_KEY), sandbox: chave.includes('aact_hmlg'), conta, contaErro })
+    json(res, 200, { ok: true, asaas: Boolean(chave), doca: false, resend: emailConfigurado(), sandbox: chave.includes('aact_hmlg'), conta, contaErro })
     return
   }
   if (action === 'criar') {
@@ -982,7 +1029,7 @@ async function push(res, corpo) {
 
 async function presente(res, corpo) {
   const action = String(corpo.action || '')
-  if (action === 'config') { json(res, 200, { ok: true, resend: Boolean(process.env.RESEND_API_KEY) }); return }
+  if (action === 'config') { json(res, 200, { ok: true, resend: emailConfigurado() }); return }
   if (action === 'listar') {
     const lista = await pool.query(
       `select id, email, creditos, criado_em, criado_por, aplicado_em, visto_em, email_enviado_em, email_erro
