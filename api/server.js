@@ -4,6 +4,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { atenderArquivo } from './arquivos.mjs'
 import { atenderSemSupabase } from './sem-supabase.mjs'
 import { pool } from './migrar.mjs'
+import { instalarCapturaGlobal, observarResposta } from './control-center.mjs'
 
 const port = Number(process.env.PORT || 8080)
 const tabelas = [
@@ -31,6 +32,32 @@ const tabelas = [
   'mapa_notificacoes',
 ]
 const copiaPermitida = new Set(tabelas)
+// Nomes das telas/áreas nos avisos do Control Center (ação que falhou).
+const rotulos = {
+  transportadores: 'Transportadores',
+  cargas: 'Cargas',
+  lances: 'Lances',
+  kanban_sync: 'Kanban',
+  usuarios: 'Usuários',
+  rotas: 'Rotas',
+  profiles: 'Perfis',
+  grupos_transportadores: 'Grupos de transportadores',
+  grupo_transportador_membros: 'Membros dos grupos',
+  veiculos: 'Veículos',
+  motoristas: 'Motoristas',
+  transportador_documentos: 'Documentos do transportador',
+  interacoes_pontuacao: 'Pontuação',
+  app_store: 'Configurações do app',
+  push_subscriptions: 'Notificações push',
+  mapa_empresas: 'Mapa: empresas',
+  mapa_usuarios: 'Mapa: usuários',
+  mapa_feed_posts: 'Mapa: publicações',
+  mapa_feed_curtidas: 'Mapa: curtidas',
+  mapa_feed_comentarios: 'Mapa: comentários',
+  mapa_feed_comentario_curtidas: 'Mapa: curtidas de comentários',
+  mapa_notificacoes: 'Mapa: notificações',
+}
+instalarCapturaGlobal()
 const prefixoArquivo = 'https://imnlbbfgaztfhwndfxwb.supabase.co/storage/v1/object/public/'
 const prefixoBlob = 'https://stofertacargaprod.blob.core.windows.net/'
 
@@ -173,9 +200,20 @@ function encaminhar(req, res, base, caminho, tirar = []) {
   const pre = lib.request(alvo, { method: req.method, headers }, (up) => {
     const saida = { ...up.headers, ...cors(req.headers.origin) }
     res.writeHead(up.statusCode || 502, saida)
+    if ((up.statusCode || 502) >= 500) {
+      // Guarda o começo da mensagem de erro do PostgREST para o aviso do Control Center.
+      let amostra = ''
+      up.on('data', (parte) => {
+        if (amostra.length < 300) {
+          amostra += parte.toString('utf8').slice(0, 300 - amostra.length)
+          res.erroDetalhe = amostra
+        }
+      })
+    }
     up.pipe(res)
   })
   pre.on('error', () => {
+    res.erroDetalhe = 'O serviço de dados (PostgREST) não respondeu'
     if (!res.headersSent) res.writeHead(502, { 'content-type': 'application/json' })
     res.end(JSON.stringify({ ok: false, erro: 'Falha ao encaminhar' }))
   })
@@ -183,6 +221,7 @@ function encaminhar(req, res, base, caminho, tirar = []) {
 }
 
 const server = http.createServer(async (req, res) => {
+  observarResposta(req, res, rotulos)
   const url = new URL(req.url || '/', 'http://local')
   const caminho = url.pathname
   if (req.method === 'OPTIONS') {
@@ -250,6 +289,7 @@ const server = http.createServer(async (req, res) => {
       const partes = erro && typeof erro === 'object'
         ? [erro.code, erro.table, erro.column, limpo].filter(Boolean)
         : []
+      res.erroDetalhe = partes.length ? partes.join(' ') : 'Falha ao gravar'
       res.writeHead(500, { 'content-type': 'application/json' })
       res.end(JSON.stringify({ ok: false, erro: partes.length ? partes.join(' ') : 'Falha ao gravar' }))
     }
@@ -292,7 +332,8 @@ const server = http.createServer(async (req, res) => {
     }
     try {
       await atenderArquivo(req, res, caminho)
-    } catch {
+    } catch (erroArquivo) {
+      res.erroDetalhe = erroArquivo instanceof Error ? erroArquivo.message : 'Falha no arquivo'
       if (!res.headersSent) res.writeHead(500, { 'content-type': 'application/json' })
       res.end(JSON.stringify({ message: 'Falha no arquivo' }))
     }
