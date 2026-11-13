@@ -66,8 +66,25 @@ const svgIcone = (cores) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${
 </svg>
 `
 
-// Aba do navegador: ícone grande para continuar legível em 16–32 px.
+// Base dos PNGs pequenos (fundo branco): ícone grande para continuar legível em 16–32 px.
 const svgAba = svgQuadrado(512, { fracao: 0.82, raio: 96 })
+
+/*
+ * Aba do navegador (favicon.svg): fundo transparente e moldura que acompanha o
+ * tema do navegador — azul-marinho com abas claras, branca com abas escuras —,
+ * igual ao Doca Livre Faz um Freela. As setas ficam amarelas nos dois.
+ */
+const MARCA_CONTORNO = '#010203'
+const svgAbaAdaptavel = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Doca Livre">
+  <style>
+    .contorno { fill: ${AZUL_MARCA}; }
+    @media (prefers-color-scheme: dark) {
+      .contorno { fill: ${BRANCO}; }
+    }
+  </style>
+  ${icone(512 * 0.9, 256, 256, { moldura: MARCA_CONTORNO, setas: AMARELO }).replaceAll(`fill="${MARCA_CONTORNO}"`, 'class="contorno"')}
+</svg>
+`
 // App instalado (PWA, inclusive "maskable"): margem para caber no recorte redondo.
 const svgApp = svgQuadrado(512, { fracao: 0.62, raio: 0 })
 // Selo da notificação (barra do Android): só a silhueta branca, fundo transparente.
@@ -76,7 +93,7 @@ const svgSelo = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" 
 </svg>
 `
 
-writeFileSync(join(publicDir, 'favicon.svg'), svgAba)
+writeFileSync(join(publicDir, 'favicon.svg'), svgAbaAdaptavel)
 writeFileSync(join(publicDir, 'logo-icone.svg'), svgIcone(CLARO))
 writeFileSync(join(publicDir, 'logo-icone-escuro.svg'), svgIcone(ESCURO))
 writeFileSync(join(publicDir, 'badge.svg'), svgSelo)

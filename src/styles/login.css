@@ -17,14 +17,14 @@
 }
 
 /*
- * Login do sistema com o fundo do WMS Doca Livre (ilustração do armazém,
- * escurecida nas bordas). Classe própria: o cadastro da Logística redefine
- * .portal-login e era ele que deixava o fundo cinza.
+ * Login do sistema com ilustração de fundo (porto e rodovia à noite, gerada por
+ * scripts/gerar-fundo-login.mjs), escurecida nas bordas. Classe própria: o
+ * cadastro da Logística redefine .portal-login e era ele que deixava o fundo cinza.
  */
 .portal-login.portal-login--fundo {
   background:
     radial-gradient(ellipse at center, rgb(8 11 22 / 0.15) 0%, rgb(8 11 22 / 0.55) 100%),
-    url('/login-bg.svg?v=marca9') center / cover no-repeat fixed,
+    url('/login-bg.svg?v=marca10') center / cover no-repeat fixed,
     #12172a;
 }
 

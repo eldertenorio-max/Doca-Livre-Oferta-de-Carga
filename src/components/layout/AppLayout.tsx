@@ -697,6 +697,17 @@ export function AppLayout() {
             )}
           </div>
 
+          {/* Tema claro/escuro, ao lado do sino (mesmo estilo dos botões de ícone). */}
+          <button
+            type="button"
+            className="app-topbar-refresh app-topbar-tema"
+            onClick={alternarTema}
+            title={tema === 'escuro' ? 'Tema claro' : 'Tema escuro'}
+            aria-label={tema === 'escuro' ? 'Mudar para o tema claro' : 'Mudar para o tema escuro'}
+          >
+            {tema === 'escuro' ? <Sun size={18} aria-hidden /> : <Moon size={18} aria-hidden />}
+          </button>
+
           <button
             type="button"
             className="app-topbar-refresh"
@@ -762,16 +773,6 @@ export function AppLayout() {
               </div>
             ) : null}
           </div>
-
-          <button
-            type="button"
-            className="app-topbar-tema"
-            onClick={alternarTema}
-            title={tema === 'escuro' ? 'Tema claro' : 'Tema escuro'}
-            aria-label={tema === 'escuro' ? 'Mudar para o tema claro' : 'Mudar para o tema escuro'}
-          >
-            {tema === 'escuro' ? <Sun size={18} aria-hidden /> : <Moon size={18} aria-hidden />}
-          </button>
 
           <button
             type="button"
