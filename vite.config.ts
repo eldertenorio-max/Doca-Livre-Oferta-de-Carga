@@ -30,46 +30,9 @@ export default defineConfig({
         'login-bg.svg',
         'earth-globe.jpg',
       ],
-      manifest: {
-        name: 'Doca Livre — Oferta de Carga',
-        short_name: 'Oferta de Carga',
-        description: 'Oferta de carga Doca Livre — negociação e mapa da frota.',
-        lang: 'pt-BR',
-        dir: 'ltr',
-        start_url: './',
-        scope: './',
-        display: 'standalone',
-        orientation: 'portrait-primary',
-        background_color: '#0f172a',
-        theme_color: '#0f172a',
-        categories: ['business', 'logistics'],
-        icons: [
-          {
-            src: 'icon-192.png?v=marca9',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any',
-          },
-          {
-            src: 'icon-512.png?v=marca9',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any',
-          },
-          {
-            src: 'icon-512.png?v=marca9',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable',
-          },
-          {
-            src: 'apple-touch-icon.png?v=marca9',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any',
-          },
-        ],
-      },
+      // Sem manifesto: o Chrome/Edge não oferecem mais "Instalar app" (no Android só o app de verdade, em
+      // android/). O iPhone, que não tem APK, recebe public/manifest-iphone.webmanifest pelo index.html.
+      manifest: false,
       workbox: {
         // HashRouter: a navegação é sempre /index.html. Não precachear HTML —
         // senão o SW entrega o site velho e o usuário acha que não atualizou.

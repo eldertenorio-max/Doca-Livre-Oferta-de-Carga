@@ -53,6 +53,8 @@ import {
 } from './lib/siteOfertaDeCarga'
 import { PerfilPage } from './pages/Perfil'
 import { AplicativoPage } from './pages/Aplicativo'
+import { AtalhoDesativado } from './components/AtalhoDesativado'
+import { ehAppDoNavegador } from './lib/aplicativo'
 import { PwaInstallBanner } from './components/PwaInstallBanner'
 import { PushEnableBanner } from './components/PushEnableBanner'
 import { motivoBloqueioPublico } from './lib/publicoProtecao'
@@ -140,6 +142,7 @@ function Protected({ role, children }: { role?: UserRole | UserRole[]; children:
 
 export default function App() {
   const [splashDone, setSplashDone] = useState(() => devePularSplash())
+  const [appDoNavegador] = useState(ehAppDoNavegador)
 
   const handleSplashComplete = useCallback(() => {
     setSplashDone(true)
@@ -194,6 +197,9 @@ export default function App() {
       </PublicoGuard>
     )
   }
+
+  // App instalado pelo navegador foi desativado: no Android só o APK abre o sistema.
+  if (appDoNavegador) return <AtalhoDesativado />
 
   return (
     <>

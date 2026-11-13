@@ -15,7 +15,21 @@
     <link rel="apple-touch-icon" sizes="192x192" href="/apple-touch-icon.png?v=marca9" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0f172a" />
-    <meta name="mobile-web-app-capable" content="yes" />
+    <!--
+      Instalar pelo navegador foi desativado (no Android vale só o app de verdade, pasta android/).
+      Só o iPhone, que não tem APK, recebe o manifesto: a Tela de Início é o único jeito de ter notificação lá.
+    -->
+    <script>
+      try {
+        var uaApp = navigator.userAgent || ''
+        if (/iphone|ipad|ipod/i.test(uaApp) || (/Macintosh/.test(uaApp) && 'ontouchend' in document)) {
+          var lm = document.createElement('link')
+          lm.rel = 'manifest'
+          lm.href = '/manifest-iphone.webmanifest'
+          document.head.appendChild(lm)
+        }
+      } catch (e) {}
+    </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Doca Livre Oferta" />

@@ -48,6 +48,29 @@ export function ehIphone() {
 export const QR_BAIXAR_URL = '/app/qr-baixar-app.svg'
 export const APK_URL_COMPLETA = `https://ofertadecarga.com.br${APK_URL}`
 
+/**
+ * Aberto como app instalado pelo navegador (Chrome/Edge no Android ou no computador) — desativado: agora só o
+ * app Android (APK) vale. O app de verdade também roda em tela cheia, mas chega com a marca de estaNoApp().
+ * iPhone fica de fora: lá não há APK, e o ícone da Tela de Início é o único jeito de receber notificação.
+ */
+export function ehAppDoNavegador(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
+  if (estaNoApp() || ehIphone()) return false
+  return ['standalone', 'fullscreen', 'minimal-ui', 'window-controls-overlay'].some(
+    (modo) => window.matchMedia(`(display-mode: ${modo})`).matches,
+  )
+}
+
+/**
+ * Abre o app Android já instalado (o Android entrega o link ao app). Sem o app, o Chrome baixa o instalador.
+ */
+export function linkAbrirApp() {
+  return (
+    `intent://ofertadecarga.com.br/#Intent;scheme=https;package=${PACOTE_ANDROID};` +
+    `S.browser_fallback_url=${encodeURIComponent(APK_URL_COMPLETA)};end`
+  )
+}
+
 export type VersaoDoApp = { versao: string; tamanhoMb?: number; geradoEm?: string }
 
 export async function lerVersaoDoApp(): Promise<VersaoDoApp | null> {

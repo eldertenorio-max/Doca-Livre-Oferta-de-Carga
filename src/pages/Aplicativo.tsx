@@ -142,8 +142,8 @@ export function AplicativoPage() {
             </li>
           </ol>
           <p className="mt-3 text-xs text-ink-muted">
-            Para atualizar, baixe de novo e instale por cima. O app usa o Google Chrome do celular. Se você tinha
-            instalado pelo Chrome (atalho na tela inicial), pode apagar aquele atalho.
+            Para atualizar, baixe de novo e instale por cima. O app usa o Google Chrome do celular. O app instalado
+            pelo Chrome foi desativado: se você tinha, apague aquele atalho e use este.
           </p>
         </section>
       </div>
