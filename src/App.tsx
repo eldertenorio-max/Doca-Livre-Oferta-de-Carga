@@ -52,6 +52,7 @@ import {
   urlSistemaComHash,
 } from './lib/siteOfertaDeCarga'
 import { PerfilPage } from './pages/Perfil'
+import { AplicativoPage } from './pages/Aplicativo'
 import { PwaInstallBanner } from './components/PwaInstallBanner'
 import { PushEnableBanner } from './components/PushEnableBanner'
 import { motivoBloqueioPublico } from './lib/publicoProtecao'
@@ -233,6 +234,7 @@ export default function App() {
         }
       >
         <Route path="/home" element={<HomeCadeiaPage />} />
+        <Route path="/aplicativo" element={<AplicativoPage />} />
         <Route
           path="/perfil"
           element={

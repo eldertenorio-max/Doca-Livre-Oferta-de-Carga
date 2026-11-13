@@ -85,7 +85,11 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
         runtimeCaching: [
           {
-            urlPattern: ({ request }) => request.mode === 'navigate',
+            // O instalador do app Android (/app/*.apk) e o assetlinks vão sempre direto ao servidor.
+            urlPattern: ({ request, url }) =>
+              request.mode === 'navigate' &&
+              !url.pathname.startsWith('/app/') &&
+              !url.pathname.startsWith('/.well-known/'),
             handler: 'NetworkFirst',
             options: {
               cacheName: 'doca-html-network-first',

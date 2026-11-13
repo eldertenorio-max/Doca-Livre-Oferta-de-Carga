@@ -186,6 +186,18 @@ function IconMalha() {
   )
 }
 
+function IconCelular() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="6.5" y="2.75" width="11" height="18.5" rx="2.2" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M10.5 18h3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** Baixar o app Android: aparece no fim do menu para todos os perfis. */
+const ITEM_APLICATIVO: NavItem = { to: '/aplicativo', label: 'Aplicativo', icon: <IconCelular /> }
+
 const minervaLinks: NavItem[] = [
   { to: '/embarcador', label: 'Cargas', icon: <IconGrid />, end: true },
   { to: '/embarcador/viagens', label: 'Viagens', icon: <IconTruck /> },
@@ -472,7 +484,7 @@ export function AppLayout() {
     { to: '/embarcador/mapa-logistica/perfil', label: 'Meu perfil', icon: <IconUsers /> },
   ]
 
-  const links = useMemo(() => {
+  const linksDoPerfil = useMemo(() => {
     if (user?.role === 'logistica') return logisticaLinks
     if (isSuper) {
       return [
@@ -502,6 +514,7 @@ export function AppLayout() {
       return canOpenModulo(user?.permissoes_modulos, mod)
     })
   }, [user, isSuper])
+  const links = useMemo(() => [...linksDoPerfil, ITEM_APLICATIVO], [linksDoPerfil])
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'light')

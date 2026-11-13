@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "br.com.docalivre.ofertadecarga",
+      "sha256_cert_fingerprints": [
+        "E5:90:A0:01:A7:BC:A6:AD:FF:3F:AE:C8:DA:C7:96:75:31:2E:15:53:91:51:7C:A0:51:FB:2C:DC:09:F4:D5:C3"
+      ]
+    }
+  }
+]

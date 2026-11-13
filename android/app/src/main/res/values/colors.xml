@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Barra de status e de navegacao: a mesma cor do app instalado pelo Chrome (theme_color do site). -->
+    <color name="barra">#FF0F172A</color>
+    <!-- Abertura e fundo do icone: branco, com o logo oficial (versao clara), igual ao icone que ja usavam. -->
+    <color name="abertura">#FFFFFFFF</color>
+    <color name="fundo_icone">#FFFFFFFF</color>
+</resources>

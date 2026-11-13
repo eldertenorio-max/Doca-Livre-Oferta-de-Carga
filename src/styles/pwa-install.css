@@ -67,6 +67,8 @@
   font-weight: 800;
   cursor: pointer;
   white-space: nowrap;
+  text-align: center;
+  text-decoration: none;
 }
 
 .pwa-install__btn:disabled {

@@ -7,6 +7,7 @@
  *   oficiais da versão clara (moldura azul-marinho, setas amarelas), em fundo branco.
  * - Selo das notificações: silhueta branca (exigência do Android).
  * - logo-icone.svg / logo-icone-escuro.svg: ícone puro, fundo transparente.
+ * - App Android (android/app/src/main/res): ícone do app e tela de abertura.
  *
  * Precisa do sharp (não fica nas dependências para não pesar o build do Render):
  *   npm i --no-save sharp && node scripts/generate-favicons.mjs
@@ -129,4 +130,39 @@ await raster(svgSelo, 96, 96, 'badge-96.png')
 // Quadrada: miniatura do WhatsApp. Larga: Facebook/LinkedIn.
 await previaDoLink(1200, 1200, 1000, 'og-square.png')
 await previaDoLink(1200, 630, 900, 'og-image.png')
+
+/*
+ * App Android (pasta android/): o mesmo ícone do app instalado pelo Chrome (fundo branco, moldura
+ * azul-marinho, setas amarelas), para quem já usava não estranhar.
+ * - ic_launcher_art: camada da frente do ícone adaptativo (o Android recorta redondo, gota, quadrado...).
+ * - mipmap-*: ícone pronto, para Android 7 (sem ícone adaptativo).
+ * - splash: tela de abertura enquanto o sistema carrega — o logo completo oficial em fundo branco.
+ */
+const resAndroid = join(root, 'android', 'app', 'src', 'main', 'res')
+const svgAppAndroid = svgQuadrado(512, { fracao: 0.72, raio: 112 })
+
+async function rasterAndroid(svg, tamanho, saida) {
+  await sharp(Buffer.from(svg), { density: 300 })
+    .resize(tamanho, tamanho)
+    .png({ compressionLevel: 9 })
+    .toFile(join(resAndroid, saida))
+  console.log('ok', `android/${saida}`, `${tamanho}x${tamanho}`)
+}
+
+await rasterAndroid(svgApp, 1024, 'drawable-nodpi/ic_launcher_art.png')
+for (const [pasta, tamanho] of [['mdpi', 48], ['hdpi', 72], ['xhdpi', 96], ['xxhdpi', 144], ['xxxhdpi', 192]]) {
+  await rasterAndroid(svgAppAndroid, tamanho, `mipmap-${pasta}/ic_launcher.png`)
+}
+{
+  const tamanho = 768
+  const larguraLogo = 560
+  const logo = await sharp(join(publicDir, 'logo-doca-livre.png')).resize({ width: larguraLogo }).png().toBuffer()
+  const { height: alturaLogo } = await sharp(logo).metadata()
+  await sharp({ create: { width: tamanho, height: tamanho, channels: 4, background: BRANCO } })
+    .composite([{ input: logo, left: Math.round((tamanho - larguraLogo) / 2), top: Math.round((tamanho - alturaLogo) / 2) }])
+    .flatten({ background: BRANCO })
+    .png({ compressionLevel: 9 })
+    .toFile(join(resAndroid, 'drawable-nodpi/splash.png'))
+  console.log('ok', 'android/drawable-nodpi/splash.png', `${tamanho}x${tamanho}`)
+}
 console.log('ícones da marca regenerados')

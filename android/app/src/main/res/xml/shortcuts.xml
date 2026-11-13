@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Atalhos ao segurar o icone do app. O sistema usa HashRouter: as telas ficam depois do "#". -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="inicio"
+        android:shortcutShortLabel="@string/shortcut_inicio">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://ofertadecarga.com.br/#/home"
+            android:targetClass="com.google.androidbrowserhelper.trusted.LauncherActivity"
+            android:targetPackage="br.com.docalivre.ofertadecarga" />
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="rota"
+        android:shortcutShortLabel="@string/shortcut_rota">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://ofertadecarga.com.br/#/calcular-rota"
+            android:targetClass="com.google.androidbrowserhelper.trusted.LauncherActivity"
+            android:targetPackage="br.com.docalivre.ofertadecarga" />
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutId="mapa"
+        android:shortcutShortLabel="@string/shortcut_mapa">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="https://ofertadecarga.com.br/#/mapa"
+            android:targetClass="com.google.androidbrowserhelper.trusted.LauncherActivity"
+            android:targetPackage="br.com.docalivre.ofertadecarga" />
+    </shortcut>
+</shortcuts>

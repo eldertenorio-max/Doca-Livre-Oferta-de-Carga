@@ -1,15 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { LOGO_DOCA_LIVRE_SRC } from '../lib/brandAssets'
+import { APK_URL, ehAndroid, estaNoApp, lerVersaoDoApp, type VersaoDoApp } from '../lib/aplicativo'
 import '../styles/pwa-install.css'
 
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
-}
-
-const DISMISS_KEY = 'doca-livre-pwa-install-dismissed'
-
-let earlyDeferred: BeforeInstallPromptEvent | null = null
+/** Chave nova: quem fechou o aviso antigo ("instalar pelo Chrome") ainda vê o do app de verdade. */
+const DISMISS_KEY = 'doca-livre-app-android-dismissed'
 
 function isStandalone(): boolean {
   if (typeof window === 'undefined') return false
@@ -28,7 +23,7 @@ function isIos(): boolean {
   )
 }
 
-/** Navegadores embutidos (WhatsApp, Instagram, etc.) não instalam PWA. */
+/** Navegadores embutidos (WhatsApp, Instagram, etc.) não adicionam à Tela de Início no iPhone. */
 function isInAppBrowser(): boolean {
   if (typeof navigator === 'undefined') return false
   const ua = navigator.userAgent || ''
@@ -56,124 +51,53 @@ function dismiss() {
   }
 }
 
-type Mode = 'native' | 'ios' | 'inapp' | 'manual'
+/**
+ * - apk: Android — baixar o app de verdade (android/, gerado por android/gerar-apk.ps1). Aparece também para
+ *   quem usa o atalho instalado pelo Chrome, para trocar pelo app.
+ * - ios: iPhone/iPad — não há app; adicionar à Tela de Início pelo Safari.
+ * - inapp: iPhone dentro do WhatsApp/Instagram — abrir no Safari primeiro.
+ */
+type Mode = 'apk' | 'ios' | 'inapp'
 
-/** Banner “Instalar app” no mobile (Chrome/Android + dicas no iOS / WebView). */
+function modoDoAparelho(): Mode | null {
+  if (estaNoApp()) return null
+  if (ehAndroid()) return 'apk'
+  if (isIos() && !isStandalone()) return isInAppBrowser() ? 'inapp' : 'ios'
+  return null
+}
+
+/** Aviso no celular: baixar o app Android, ou dicas para o iPhone. */
 export function PwaInstallBanner() {
-  const deferredRef = useRef<BeforeInstallPromptEvent | null>(earlyDeferred)
-  const [hasPrompt, setHasPrompt] = useState(() => Boolean(earlyDeferred))
+  const [mode] = useState<Mode | null>(modoDoAparelho)
   const [visible, setVisible] = useState(false)
-  const [mode, setMode] = useState<Mode>('native')
-  const [busy, setBusy] = useState(false)
-  const [erro, setErro] = useState('')
+  const [baixou, setBaixou] = useState(false)
+  const [versao, setVersao] = useState<VersaoDoApp | null>(null)
 
   useEffect(() => {
-    if (isStandalone() || wasDismissed()) return
-
-    const showNative = (ev: BeforeInstallPromptEvent) => {
-      deferredRef.current = ev
-      earlyDeferred = ev
-      setHasPrompt(true)
-      setMode('native')
-      setVisible(true)
-      setErro('')
+    if (!mode || wasDismissed()) return
+    // No Android o caminho é o app de verdade: não deixa o Chrome oferecer o atalho dele.
+    const onBip = (e: Event) => e.preventDefault()
+    if (mode === 'apk') {
+      window.addEventListener('beforeinstallprompt', onBip)
+      void lerVersaoDoApp().then(setVersao)
     }
-
-    if (earlyDeferred) {
-      showNative(earlyDeferred)
-    }
-
-    const onReady = () => {
-      if (earlyDeferred) showNative(earlyDeferred)
-    }
-    window.addEventListener('doca-pwa-install-ready', onReady)
-
-    const onBip = (e: Event) => {
-      if (!/Android/i.test(navigator.userAgent)) return
-      e.preventDefault()
-      showNative(e as BeforeInstallPromptEvent)
-    }
-    window.addEventListener('beforeinstallprompt', onBip)
-
-    if (isInAppBrowser()) {
-      const t = window.setTimeout(() => {
-        if (deferredRef.current) return
-        setMode('inapp')
-        setVisible(true)
-      }, 1600)
-      return () => {
-        window.clearTimeout(t)
-        window.removeEventListener('beforeinstallprompt', onBip)
-        window.removeEventListener('doca-pwa-install-ready', onReady)
-      }
-    }
-
-    if (isIos()) {
-      const t = window.setTimeout(() => {
-        if (deferredRef.current) return
-        setMode('ios')
-        setVisible(true)
-      }, 1800)
-      return () => {
-        window.clearTimeout(t)
-        window.removeEventListener('beforeinstallprompt', onBip)
-        window.removeEventListener('doca-pwa-install-ready', onReady)
-      }
-    }
-
-    // Android sem evento ainda: após um tempo, mostra atalho manual do Chrome
-    const manualTimer = window.setTimeout(() => {
-      if (deferredRef.current || isStandalone()) return
-      setMode('manual')
-      setVisible(true)
-    }, 8000)
-
+    const t = window.setTimeout(() => setVisible(true), mode === 'apk' ? 1200 : 1800)
     return () => {
-      window.clearTimeout(manualTimer)
+      window.clearTimeout(t)
       window.removeEventListener('beforeinstallprompt', onBip)
-      window.removeEventListener('doca-pwa-install-ready', onReady)
     }
-  }, [])
+  }, [mode])
 
-  if (!visible) return null
-
-  async function instalar() {
-    // Chamar prompt() no mesmo gesto do toque, SEM setState antes —
-    // qualquer re-render antes do prompt() cancela a instalação no Chrome Android.
-    const ev = deferredRef.current || earlyDeferred
-    if (!ev) {
-      setHasPrompt(false)
-      setMode('manual')
-      setErro('Use o menu do Chrome (⋮) → Instalar app / Adicionar à tela inicial.')
-      return
-    }
-
-    try {
-      await ev.prompt()
-      setBusy(true)
-      const choice = await ev.userChoice
-      deferredRef.current = null
-      earlyDeferred = null
-      setHasPrompt(false)
-      if (choice.outcome === 'accepted') {
-        setVisible(false)
-      } else {
-        dismiss()
-        setVisible(false)
-      }
-    } catch {
-      setHasPrompt(false)
-      setMode('manual')
-      setErro('Não abriu a instalação automática. No Chrome: menu ⋮ → Instalar app.')
-    } finally {
-      setBusy(false)
-    }
-  }
+  if (!visible || !mode) return null
 
   function fechar() {
     dismiss()
     setVisible(false)
   }
+
+  const detalheVersao = versao
+    ? ` (versão ${versao.versao}${versao.tamanhoMb ? `, ${String(versao.tamanhoMb).replace('.', ',')} MB` : ''})`
+    : ''
 
   const texto =
     mode === 'ios' ? (
@@ -182,51 +106,41 @@ export function PwaInstallBanner() {
       </span>
     ) : mode === 'inapp' ? (
       <span>
-        Abra este link no <em>Chrome</em> ou <em>Safari</em> (menu ⋮ do WhatsApp/Instagram → Abrir no
-        navegador) e depois instale o app.
+        Abra este link no <em>Safari</em> (menu do WhatsApp/Instagram → Abrir no navegador) e depois adicione à
+        Tela de Início.
       </span>
-    ) : mode === 'manual' ? (
+    ) : baixou ? (
       <span>
-        No Chrome, toque em <em>⋮</em> → <em>Instalar app</em> ou <em>Adicionar à tela inicial</em>.
-        {erro ? (
-          <>
-            <br />
-            <span className="pwa-install__err">{erro}</span>
-          </>
-        ) : null}
+        Abra o arquivo baixado e toque em <em>Instalar</em>. Se o Android pedir, permita instalar apps deste
+        navegador.
       </span>
     ) : (
       <span>
-        Adicione na tela inicial e abra como aplicativo.
-        {erro ? (
-          <>
-            <br />
-            <span className="pwa-install__err">{erro}</span>
-          </>
-        ) : null}
+        Baixe o app para Android{detalheVersao}: abre direto no sistema e avisa das ofertas como notificação do
+        celular.
       </span>
     )
 
   return (
-    <div className="pwa-install" role="dialog" aria-label="Instalar aplicativo">
+    <div className="pwa-install" role="dialog" aria-label={mode === 'apk' ? 'Baixar o aplicativo' : 'Instalar aplicativo'}>
       <img src={LOGO_DOCA_LIVRE_SRC} alt="" className="pwa-install__logo" />
       <div className="pwa-install__text">
-        <strong>Instalar Doca Livre</strong>
+        <strong>{mode === 'apk' ? 'App do Oferta de Carga' : 'Instalar Doca Livre'}</strong>
         {texto}
       </div>
       <div className="pwa-install__actions">
-        {mode === 'native' && hasPrompt ? (
-          <button
-            type="button"
+        {mode === 'apk' && !baixou ? (
+          <a
             className="pwa-install__btn"
-            disabled={busy}
-            onClick={() => void instalar()}
+            href={APK_URL}
+            download="oferta-de-carga.apk"
+            onClick={() => setBaixou(true)}
           >
-            {busy ? 'Abrindo…' : 'Instalar'}
-          </button>
+            Baixar o app
+          </a>
         ) : null}
         <button type="button" className="pwa-install__close" onClick={fechar} aria-label="Fechar">
-          Agora não
+          {baixou ? 'Fechar' : 'Agora não'}
         </button>
       </div>
     </div>
