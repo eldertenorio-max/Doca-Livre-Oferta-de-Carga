@@ -450,7 +450,7 @@ export function PortalConfigPage() {
   return (
     <div className="cadastro-page animate-fade-up">
       <h1 className="cadastro-page-title">Configuração do Portal</h1>
-      <p style={{ color: '#1a1d21', marginTop: -8, marginBottom: 16, fontSize: '0.92rem' }}>
+      <p style={{ color: 'var(--text-muted)', marginTop: -8, marginBottom: 16, fontSize: '0.92rem' }}>
         Super Usuário: {user.usuario || user.nome} — hierarquia e permissões deste sistema.
       </p>
 
@@ -703,7 +703,7 @@ export function PortalConfigPage() {
                           editing
                             ? { background: '#ecfdf5' }
                             : isSuperRole
-                              ? { background: '#f8fafc' }
+                              ? { background: 'var(--superficie-suave)' }
                               : undefined
                         }
                       >

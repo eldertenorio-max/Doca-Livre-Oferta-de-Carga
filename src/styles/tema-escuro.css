@@ -1,0 +1,169 @@
+/*
+ * Tema escuro (igual ao WMS Doca Livre): ajustes feitos à mão.
+ * As cores fixas do CSS são convertidas em tema-escuro.gerado.css
+ * (scripts/gerar-tema-escuro.mjs); aqui ficam as variáveis, as classes do
+ * Tailwind e o que o gerador não resolve sozinho.
+ */
+
+/* ---------- Paleta (mesmos valores do WMS) ---------- */
+:root[data-tema="escuro"] {
+  color-scheme: dark;
+  --bg: #111113;
+  --bg-panel: #18181b;
+  --bg-elevated: #1f1f23;
+  --border: #2e2e33;
+  --text: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --texto-forte: #f4f4f5;
+  --texto-medio: #a1a1aa;
+  --superficie-suave: #222226;
+  --content-bg: #111113;
+  --sidebar-bg: #0a0a0b;
+  --sidebar-border: #2e2e33;
+  --btn-surface-bg: #18181b;
+  --btn-surface-fg: #f4f4f5;
+  --btn-surface-border: #3f3f46;
+  --btn-surface-hover-bg: #222226;
+  --highlight-bg: rgb(245 197 24 / 0.14);
+  --shadow-sidebar: inset -1px 0 0 #2e2e33;
+
+  /* Tokens do Tailwind (text-ink, bg-panel, bg-sand-light...) */
+  --color-ink: #f4f4f5;
+  --color-ink-deep: #fafafa;
+  --color-ink-muted: #a1a1aa;
+  --color-sand-light: #222226;
+  --color-surface: #111113;
+  --color-panel: #18181b;
+  --color-brand-soft: rgb(249 219 0 / 0.18);
+}
+
+[data-tema="escuro"] body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ---------- Classes do Tailwind com cor literal ---------- */
+[data-tema="escuro"] .bg-white {
+  background-color: #18181b;
+}
+[data-tema="escuro"] [class*='bg-white/'] {
+  background-color: rgb(24 24 27 / 0.9);
+}
+[data-tema="escuro"] .text-black {
+  color: #f4f4f5;
+}
+/* bg-ink é fundo escuro com texto branco: continua escuro (não segue o token do texto). */
+[data-tema="escuro"] .bg-ink,
+[data-tema="escuro"] .bg-ink-deep,
+[data-tema="escuro"] .bg-black {
+  background-color: #26262b;
+}
+[data-tema="escuro"] .bg-ink:hover,
+[data-tema="escuro"] .hover\:bg-ink:hover {
+  background-color: #2e2e33;
+}
+[data-tema="escuro"] .bg-slate-200 {
+  background-color: #2e2e33;
+}
+[data-tema="escuro"] .border-slate-300 {
+  border-color: #3f3f46;
+}
+
+/* ---------- Campos ---------- */
+[data-tema="escuro"] ::placeholder,
+[data-tema="escuro"] ::-webkit-input-placeholder {
+  color: #71717a !important;
+}
+[data-tema="escuro"] ::-moz-placeholder {
+  color: #71717a !important;
+}
+[data-tema="escuro"] input:-webkit-autofill,
+[data-tema="escuro"] input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #f4f4f5;
+  box-shadow: 0 0 0 1000px #222226 inset;
+}
+[data-tema="escuro"] :focus-visible {
+  outline-color: #f5c518;
+}
+
+/* ---------- Telas que ficam claras (como no WMS: login e abertura) ---------- */
+[data-tema="escuro"] .tema-forcar-claro {
+  color-scheme: light;
+  --bg: #eef1f4;
+  --bg-panel: #ffffff;
+  --bg-elevated: #f8f9fb;
+  --border: #dde1e6;
+  --text: #000000;
+  --text-muted: #1a1d21;
+  --texto-forte: #0f172a;
+  --texto-medio: #64748b;
+  --superficie-suave: #f8fafc;
+  --color-ink: #000000;
+  --color-ink-deep: #0a0a0a;
+  --color-ink-muted: #1a1d21;
+  --color-sand-light: #eef1f4;
+  --color-surface: #eef1f4;
+  --color-panel: #ffffff;
+  --color-brand-soft: #fff3a8;
+  color: #000000;
+}
+[data-tema="escuro"] .tema-forcar-claro .bg-white {
+  background-color: #ffffff;
+}
+[data-tema="escuro"] .tema-forcar-claro .text-black {
+  color: #000000;
+}
+[data-tema="escuro"] .tema-forcar-claro .bg-ink,
+[data-tema="escuro"] .tema-forcar-claro .bg-ink-deep,
+[data-tema="escuro"] .tema-forcar-claro .bg-black {
+  background-color: #000000;
+}
+[data-tema="escuro"] .tema-forcar-claro ::placeholder {
+  color: #6e7781 !important;
+}
+[data-tema="escuro"] .tema-forcar-claro input,
+[data-tema="escuro"] .tema-forcar-claro select,
+[data-tema="escuro"] .tema-forcar-claro textarea {
+  color: #000000;
+}
+
+/* ---------- Botão de tema no topo ---------- */
+.app-topbar-tema {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  border: 1px solid #d0d7de;
+  background: #ffffff;
+  color: #1a1d21;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.app-topbar-tema:hover {
+  background: #eceef0;
+}
+[data-tema="escuro"] .app-topbar-tema {
+  border-color: #3f3f46;
+  background: #18181b;
+  color: #f5c518;
+}
+[data-tema="escuro"] .app-topbar-tema:hover {
+  background: #222226;
+}
+
+/* Marca d'água "Bem Vindo": só na tela inicial (sem conteúdo); no escuro ela vazava por trás das telas. */
+[data-tema="escuro"] .main-panel:has(> *)::before,
+[data-tema="escuro"] .main-panel:has(> *)::after {
+  display: none;
+}
+[data-tema="escuro"] .main-panel::after {
+  color: #a1a1aa;
+}
+
+/* Mapas: os blocos do mapa continuam com as cores originais. */
+[data-tema="escuro"] .leaflet-container {
+  background: #18181b;
+}

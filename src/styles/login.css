@@ -16,6 +16,26 @@
   box-shadow: 0 12px 32px rgb(15 23 42 / 0.08);
 }
 
+/*
+ * Login do sistema com o fundo do WMS Doca Livre (ilustração do armazém,
+ * escurecida nas bordas). Classe própria: o cadastro da Logística redefine
+ * .portal-login e era ele que deixava o fundo cinza.
+ */
+.portal-login.portal-login--fundo {
+  background:
+    radial-gradient(ellipse at center, rgb(8 11 22 / 0.15) 0%, rgb(8 11 22 / 0.55) 100%),
+    url('/login-bg.svg?v=marca9') center / cover no-repeat fixed,
+    #12172a;
+}
+
+.portal-login--fundo .portal-login__card {
+  background: rgb(248 250 252 / 0.96);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgb(255 255 255 / 0.5);
+  box-shadow: 0 24px 64px rgb(0 0 0 / 0.35);
+}
+
 .portal-login__header {
   text-align: center;
   margin-bottom: 20px;

@@ -287,7 +287,7 @@ export function LoginPage() {
             : 'Informe usuário ou e-mail cadastrado'
 
   return (
-    <div className={`portal-login${mode === 'cadastro' ? ' portal-login--wide' : ''}`}>
+    <div className={`portal-login portal-login--fundo tema-forcar-claro${mode === 'cadastro' ? ' portal-login--wide' : ''}`}>
       <div className="portal-login__card">
         <header className="portal-login__header">
           <img src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" className="portal-login__logo" />

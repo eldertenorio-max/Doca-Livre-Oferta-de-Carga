@@ -27,6 +27,7 @@ export default defineConfig({
         'logo-doca-livre-escuro.png',
         'logo-icone.svg',
         'logo-icone-escuro.svg',
+        'login-bg.svg',
         'earth-globe.jpg',
       ],
       manifest: {

@@ -25,7 +25,7 @@ export class AppErrorBoundary extends Component<Props, State> {
           placeItems: 'center',
           padding: 24,
           background: '#efe8dc',
-          color: '#0f172a',
+          color: 'var(--texto-forte)',
           fontFamily: 'system-ui, sans-serif',
           textAlign: 'center',
         }}

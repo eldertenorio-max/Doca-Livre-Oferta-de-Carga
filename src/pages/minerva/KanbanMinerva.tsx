@@ -59,7 +59,7 @@ const COLUMNS: {
   {
     key: 'canceladas',
     title: 'Canceladas',
-    color: '#64748b',
+    color: 'var(--texto-medio)',
     description: 'Publicação cancelada',
   },
   {

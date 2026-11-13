@@ -253,7 +253,7 @@ function FacialOverlay({ children }: { children: ReactNode }) {
         height: '100dvh',
         zIndex: 2147483000,
         margin: 0,
-        ...(movel ? { padding: 0, background: '#fff', alignItems: 'stretch', justifyContent: 'stretch' } : {}),
+        ...(movel ? { padding: 0, background: 'var(--bg-panel)', alignItems: 'stretch', justifyContent: 'stretch' } : {}),
       }}
     >
       {children}

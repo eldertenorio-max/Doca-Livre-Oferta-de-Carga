@@ -419,7 +419,7 @@ export function PontuacaoDashboard({
   const regras = useMemo(() => regrasPontuacao(cfg), [cfg])
   const funil = useMemo(
     () => [
-      { label: 'Visualizações', value: totais.visualizacoes, color: '#0f172a' },
+      { label: 'Visualizações', value: totais.visualizacoes, color: 'var(--texto-forte)' },
       { label: 'Deram lance', value: totais.lances, color: '#f9db00' },
       { label: 'Aceitaram', value: totais.aceitaram, color: '#16a34a' },
       { label: 'Recusou a carga', value: totais.recusaramCarga, color: '#dc2626' },
@@ -566,7 +566,7 @@ export function PontuacaoDashboard({
           <BarrasAgrupadas
             rows={cargasAgrupadas}
             series={[
-              { label: 'Visualizações', color: '#0f172a' },
+              { label: 'Visualizações', color: 'var(--texto-forte)' },
               { label: 'Lances', color: '#f9db00' },
               { label: 'Aceitaram', color: '#16a34a' },
             ]}

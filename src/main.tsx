@@ -8,6 +8,8 @@ import { isSiteOfertaDeCarga, isSitePublicoLimpo, redirecionarPainelOficial } fr
 import { supabase } from './lib/supabase'
 import { aplicarMetaDoSite } from './lib/siteMeta'
 import './index.css'
+import './styles/tema-escuro.gerado.css'
+import './styles/tema-escuro.css'
 
 const BUILD_ID = 'rota-publico-cache-v381'
 

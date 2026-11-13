@@ -9,6 +9,7 @@
     "typecheck": "tsc -b",
     "start": "serve -s dist -l tcp://0.0.0.0:$PORT",
     "lint": "oxlint",
+    "tema:escuro": "node scripts/gerar-tema-escuro.mjs",
     "test": "vitest run",
     "preview": "vite preview"
   },

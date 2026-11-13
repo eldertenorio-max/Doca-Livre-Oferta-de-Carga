@@ -287,7 +287,7 @@ export function OrgGruposPainel({
                           >
                             <strong>{g.nome}</strong>
                             {g.descricao ? (
-                              <span style={{ display: 'block', color: '#64748b', fontSize: 13 }}>{g.descricao}</span>
+                              <span style={{ display: 'block', color: 'var(--texto-medio)', fontSize: 13 }}>{g.descricao}</span>
                             ) : null}
                           </button>
                         </td>

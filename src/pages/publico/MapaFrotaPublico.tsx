@@ -699,7 +699,7 @@ export function MapaFrotaPublicoPage() {
       if (raioGeoAtivo) {
         raioLayerRef.current = L.circle([origemRaio.lat, origemRaio.lng], {
           radius: raioGeo * 1000,
-          color: '#0f172a',
+          color: 'var(--texto-forte)',
           weight: 1.5,
           fillColor: '#38bdf8',
           fillOpacity: 0.12,

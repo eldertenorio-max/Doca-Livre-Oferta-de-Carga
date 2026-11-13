@@ -380,7 +380,7 @@ export function NovaContaPortalPage() {
   return (
     <div className="cadastro-page animate-fade-up">
       <h1 className="cadastro-page-title">Nova conta</h1>
-      <p style={{ color: '#1a1d21', marginTop: -8, marginBottom: 16, fontSize: '0.92rem', maxWidth: 720 }}>
+      <p style={{ color: 'var(--text-muted)', marginTop: -8, marginBottom: 16, fontSize: '0.92rem', maxWidth: 720 }}>
         Você pode colocar a conta numa hierarquia já feita, ou criar um grupo novo neste cadastro.
         Também dá para criar só o grupo vazio em Hierarquia e incluir empresas depois.
       </p>

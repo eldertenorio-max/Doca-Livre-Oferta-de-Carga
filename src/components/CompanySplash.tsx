@@ -44,7 +44,7 @@ export function CompanySplash({ onComplete }: Props) {
   }, [exiting, onComplete])
 
   return (
-    <div className={`intro-splash company-splash ${exiting ? 'intro-splash--exit' : ''}`} aria-busy="true">
+    <div className={`intro-splash company-splash tema-forcar-claro ${exiting ? 'intro-splash--exit' : ''}`} aria-busy="true">
       <div className="intro-content company-splash__content">
         <div className="company-splash__brand">
           <img

@@ -68,7 +68,7 @@ function Carregando({ texto }: { texto: string }) {
         margin: 0,
         fontWeight: 800,
         background: '#efe8dc',
-        color: '#0f172a',
+        color: 'var(--texto-forte)',
         fontFamily: 'system-ui, sans-serif',
       }}
     >

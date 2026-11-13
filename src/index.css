@@ -31,6 +31,10 @@
   --border: #dde1e6;
   --text: #000000;
   --text-muted: #1a1d21;
+  /* Usadas em estilos direto nos componentes (trocam no tema escuro). */
+  --texto-forte: #0f172a;
+  --texto-medio: #64748b;
+  --superficie-suave: #f8fafc;
   --accent: var(--brand-yellow);
   --accent-hover: var(--brand-yellow-hover);
   --accent-fg: var(--brand-black);

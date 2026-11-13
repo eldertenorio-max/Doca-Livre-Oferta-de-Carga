@@ -363,7 +363,7 @@ export function VeiculoLocalizacaoFields({
           gap: 8,
           background: 'rgba(232, 197, 71, 0.12)',
           border: '1px solid rgba(232, 197, 71, 0.45)',
-          color: '#1a1d21',
+          color: 'var(--text-muted)',
           fontWeight: 600,
           fontSize: 13,
         }}

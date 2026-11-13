@@ -25,7 +25,7 @@ export function PontoMapPreview({ lat, lng, height = 320, className }: Props) {
     aplicarCamadaRuasPortugues(map)
     L.circleMarker([lat, lng], {
       radius: 9,
-      color: '#0f172a',
+      color: 'var(--texto-forte)',
       fillColor: '#f9db00',
       fillOpacity: 1,
       weight: 2,

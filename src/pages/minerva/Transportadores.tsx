@@ -633,7 +633,7 @@ export function TransportadoresPage() {
           ) : null}
           <span>
             {ficha.nome_fantasia}
-            <span style={{ marginLeft: 12, fontSize: '0.85rem', fontWeight: 600, color: '#1a1d21' }}>
+            <span style={{ marginLeft: 12, fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>
               {ficha.classificacao} · {ficha.pontuacao} pts
               {pos > 0 ? ` · ${pos}º` : ''}
             </span>
@@ -835,7 +835,7 @@ export function TransportadoresPage() {
                 }}
               />
               {error && <p style={{ color: '#dc2626', marginBottom: 10 }}>{error}</p>}
-              <p className="form-field-hint" style={{ marginBottom: 12, fontSize: 12, color: '#1a1d21' }}>
+              <p className="form-field-hint" style={{ marginBottom: 12, fontSize: 12, color: 'var(--text-muted)' }}>
                 {docsModo === 'ver'
                   ? 'Abra os arquivos enviados no cadastro. Para substituir ou incluir, use Editar.'
                   : 'Substitua um documento existente ou envie os que ainda faltam (PDF ou imagem).'}
@@ -852,7 +852,7 @@ export function TransportadoresPage() {
                             obrigatório
                           </span>
                         ) : (
-                          <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 600, color: '#64748b' }}>
+                          <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 600, color: 'var(--texto-medio)' }}>
                             opcional
                           </span>
                         )}
@@ -1207,7 +1207,7 @@ export function TransportadoresPage() {
                   placeholder="Escreva aqui se o motivo não for um documento, ou complemente a recusa."
                   rows={4}
                 />
-                <p className="form-field-hint" style={{ marginTop: 6, fontSize: 12, color: '#1a1d21' }}>
+                <p className="form-field-hint" style={{ marginTop: 6, fontSize: 12, color: 'var(--text-muted)' }}>
                   Marque o documento que não foi aceito, escreva outro motivo, ou os dois.
                   O transportador recebe isso no e-mail
                   {revisao.email ? ` (${revisao.email})` : ''} para corrigir e se cadastrar de novo.
@@ -1673,7 +1673,7 @@ export function TransportadoresPage() {
                 borderRadius: '50%',
                 overflow: 'hidden',
                 border: '2px solid #f9db00',
-                background: '#eef1f4',
+                background: 'var(--bg)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -1687,11 +1687,11 @@ export function TransportadoresPage() {
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               ) : (
-                <span style={{ fontSize: 12, color: '#1a1d21' }}>Sem foto</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Sem foto</span>
               )}
             </div>
             <div style={{ flex: 1, minWidth: 220 }}>
-              <p style={{ margin: '0 0 8px', fontSize: 13, color: '#1a1d21' }}>
+              <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--text-muted)' }}>
                 A imagem enviada aqui vira o avatar do transportador quando ele fizer login.
                 Use a logo da empresa ou uma foto do responsável (JPG, PNG ou WEBP, até 4 MB).
                 Ela aparece no login do sistema, no perfil e no mapa da frota.
@@ -1840,7 +1840,7 @@ export function TransportadoresPage() {
             <h2 className="form-card__title">Origem (residência)</h2>
           </header>
           <div className="form-card__body">
-            <p className="form-field-hint" style={{ marginBottom: 12, fontSize: 12, color: '#1a1d21' }}>
+            <p className="form-field-hint" style={{ marginBottom: 12, fontSize: 12, color: 'var(--text-muted)' }}>
               Onde o transportador mora — distinto do endereço do CNPJ.
             </p>
             <div className="form-fields">

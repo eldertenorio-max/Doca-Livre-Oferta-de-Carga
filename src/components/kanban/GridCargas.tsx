@@ -34,7 +34,7 @@ const METRICS_MINERVA: MetricDef[] = [
   { key: 'confirmadas', label: 'Confirmadas', color: '#ea580c' },
   { key: 'suspensas', label: 'Suspensas', color: '#8b5cf6' },
   { key: 'recusadas', label: 'Recusadas', color: '#e84752' },
-  { key: 'canceladas', label: 'Canceladas', color: '#64748b' },
+  { key: 'canceladas', label: 'Canceladas', color: 'var(--texto-medio)' },
   { key: 'alocadas', label: 'Alocadas', color: '#2f9e6a' },
 ]
 

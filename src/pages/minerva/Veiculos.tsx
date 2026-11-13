@@ -793,7 +793,7 @@ export function VeiculosPage() {
             </Field>
             <Field label="Frete mínimo (R$)" required>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontWeight: 700, color: '#1a1d21' }}>R$</span>
+                <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>R$</span>
                 <input
                   inputMode="numeric"
                   autoComplete="off"
@@ -803,7 +803,7 @@ export function VeiculosPage() {
                   aria-label="Frete mínimo em reais"
                 />
               </div>
-              <p className="form-field-hint" style={{ marginTop: 6, fontSize: 12, color: '#1a1d21' }}>
+              <p className="form-field-hint" style={{ marginTop: 6, fontSize: 12, color: 'var(--text-muted)' }}>
                 Valor mínimo de frete que este veículo/categoria aceita. Digite só números.
               </p>
             </Field>

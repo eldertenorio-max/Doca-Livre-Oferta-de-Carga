@@ -267,7 +267,7 @@ export function HierarquiaCadastroPage() {
   return (
     <div className="cadastro-page animate-fade-up">
       <h1 className="cadastro-page-title">Hierarquia</h1>
-      <p style={{ color: '#1a1d21', marginTop: -8, marginBottom: 16, fontSize: '0.92rem', maxWidth: 760 }}>
+      <p style={{ color: 'var(--text-muted)', marginTop: -8, marginBottom: 16, fontSize: '0.92rem', maxWidth: 760 }}>
         Cadastre a hierarquia como no Doca Livre: operador logístico, filial, embarcador, unidade
         e transportadora. Cada ponto só aceita o tipo que pode ficar abaixo dele. Quem está num
         ponto vê a si mesmo e quem está abaixo. Quem está acima vê esse ponto.

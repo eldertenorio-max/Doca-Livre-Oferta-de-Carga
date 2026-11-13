@@ -891,7 +891,7 @@ export function MapaFrotaPage() {
       if (raioGeoAtivo) {
         const circle = L.circle([origemRaio.lat, origemRaio.lng], {
           radius: raioGeo * 1000,
-          color: '#0f172a',
+          color: 'var(--texto-forte)',
           weight: 1.5,
           fillColor: '#38bdf8',
           fillOpacity: 0.12,
@@ -1025,7 +1025,7 @@ export function MapaFrotaPage() {
           idsVisiveis.add(p.id)
           ensureMarker(p, posicoes[i] ?? L.latLng(center))
           L.polyline([center, posicoes[i] ?? center], {
-            color: '#64748b',
+            color: 'var(--texto-medio)',
             weight: 1.5,
             opacity: 0.55,
             dashArray: '4 4',

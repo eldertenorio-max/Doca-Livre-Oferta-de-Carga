@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
-import { LOGO_DOCA_LIVRE_SRC } from '../../lib/brandAssets'
+import { Moon, Sun } from 'lucide-react'
+import { logoDocaLivre } from '../../lib/brandAssets'
+import { useTema } from '../../lib/tema'
 import { ProductMark } from '../ProductMark'
 import { ChatModal } from '../carga/ChatModal'
 import { PerfilPanel } from './PerfilPanel'
@@ -250,6 +252,9 @@ export function AppLayout() {
     transportadores,
   } = useData()
   const navigate = useNavigate()
+  // Tema claro/escuro como no WMS: logo azul no claro, logo com moldura branca no escuro.
+  const { tema, alternar: alternarTema } = useTema()
+  const logoDaMarca = logoDocaLivre(tema)
   /** Fixado expandido pelos 3 riscos; senão só ícones e hover abre temporário */
   const [sidebarPinned, setSidebarPinned] = useState(false)
   const [sidebarHover, setSidebarHover] = useState(false)
@@ -537,7 +542,7 @@ export function AppLayout() {
 
           <div className="app-topbar-brand">
             <Link to="/home" title="Home">
-              <img src={LOGO_DOCA_LIVRE_SRC} alt="Doca Livre" className="app-topbar-logo" />
+              <img src={logoDaMarca} alt="Doca Livre" className="app-topbar-logo" />
             </Link>
             <ProductMark size="md" className="app-topbar-wms" />
           </div>
@@ -760,6 +765,16 @@ export function AppLayout() {
 
           <button
             type="button"
+            className="app-topbar-tema"
+            onClick={alternarTema}
+            title={tema === 'escuro' ? 'Tema claro' : 'Tema escuro'}
+            aria-label={tema === 'escuro' ? 'Mudar para o tema claro' : 'Mudar para o tema escuro'}
+          >
+            {tema === 'escuro' ? <Sun size={18} aria-hidden /> : <Moon size={18} aria-hidden />}
+          </button>
+
+          <button
+            type="button"
             className="app-topbar-logout"
             onClick={() => {
               logout()
@@ -880,7 +895,7 @@ export function AppLayout() {
 
         <main
           className="main-panel"
-          style={{ ['--brand-logo-url' as string]: `url("${LOGO_DOCA_LIVRE_SRC}")` }}
+          style={{ ['--brand-logo-url' as string]: `url("${logoDaMarca}")` }}
         >
           <Outlet />
           <FacialGate />
