@@ -32,3 +32,9 @@ postgrest.on('exit', (codigo) => {
 })
 
 await import('./server.js')
+
+// Retrato dos usuários (Oferta, Mapa e Calculadora) enviado ao Control Center. Desligado sem as
+// variáveis DOCA_CC_*; uma falha ao carregar nunca derruba o servidor.
+await import('./cc-usuarios.mjs').catch((erro) => {
+  console.error(`[cc-usuarios] não carregou (${erro?.code || erro?.name || 'erro'})`)
+})
