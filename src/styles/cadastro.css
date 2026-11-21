@@ -95,12 +95,12 @@
 }
 
 .cadastro-btn--primary {
-  background: #0f172a;
+  background: var(--acao-fundo, #0f172a);
   color: #fff;
 }
 
 .cadastro-btn--primary:hover {
-  background: #1e293b;
+  background: var(--acao-fundo-hover, #1e293b);
 }
 
 .cadastro-btn--ghost {
@@ -113,14 +113,14 @@
   width: min(420px, 100%);
   margin: 8px auto 0;
   display: flex;
-  background: #0f172a;
+  background: var(--acao-fundo, #0f172a);
   color: #fff;
   font-size: 1rem;
   padding: 14px 24px;
 }
 
 .cadastro-btn--save:hover {
-  background: #1e293b;
+  background: var(--acao-fundo-hover, #1e293b);
 }
 
 .cadastro-table-wrap {
@@ -144,7 +144,7 @@
 .cadastro-table th {
   text-align: left;
   padding: 12px 14px;
-  background: #0f172a;
+  background: var(--acao-fundo, #0f172a);
   color: #f8fafc;
   font-size: 0.75rem;
   font-weight: 700;
@@ -493,7 +493,7 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #0f172a;
+  background: var(--acao-fundo, #0f172a);
   border: 3px solid #fff;
   box-shadow: 0 1px 4px rgb(15 23 42 / 0.35);
   cursor: grab;
@@ -503,7 +503,7 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #0f172a;
+  background: var(--acao-fundo, #0f172a);
   border: 3px solid #fff;
   box-shadow: 0 1px 4px rgb(15 23 42 / 0.35);
   cursor: grab;
@@ -1070,7 +1070,7 @@
 }
 
 .cadastro-ramificacao.is-on {
-  border-color: #0f172a;
+  border-color: var(--acao-borda, #0f172a);
   background: #fffbeb;
   box-shadow: 0 0 0 2px rgb(15 23 42 / 0.12);
 }
@@ -1997,7 +1997,7 @@
 }
 
 .financeiro-kpi--ink::before {
-  background: #0f172a;
+  background: var(--acao-fundo, #0f172a);
 }
 .financeiro-kpi--amber {
   background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
@@ -2017,7 +2017,7 @@
 }
 .financeiro-kpi--ink {
   background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
-  border-color: #111827;
+  border-color: var(--acao-borda, #111827);
 }
 
 .financeiro-kpi__label {
@@ -2055,7 +2055,7 @@
 .financeiro-filters {
   margin-bottom: 20px;
   border-radius: 16px;
-  border: 2px solid #0f172a;
+  border: 2px solid var(--acao-borda, #0f172a);
   background: linear-gradient(180deg, #fffef5 0%, #ffffff 55%);
   box-shadow:
     0 0 0 3px rgb(249 219 0 / 0.35),
@@ -2070,7 +2070,7 @@
   justify-content: space-between;
   gap: 8px;
   padding: 12px 16px;
-  background: #0f172a;
+  background: var(--acao-fundo, #0f172a);
   color: #fff;
 }
 
@@ -2125,13 +2125,13 @@
 }
 
 .financeiro-chip:hover {
-  border-color: #0f172a;
+  border-color: var(--acao-borda, #0f172a);
   background: #f8fafc;
 }
 
 .financeiro-chip--active {
-  border-color: #0f172a;
-  background: #0f172a;
+  border-color: var(--acao-borda, #0f172a);
+  background: var(--acao-fundo, #0f172a);
   color: #fff;
   box-shadow: 0 2px 8px rgb(15 23 42 / 0.25);
 }
@@ -2165,7 +2165,7 @@
 }
 
 .financeiro-input:focus {
-  border-color: #0f172a !important;
+  border-color: var(--acao-borda, #0f172a) !important;
   box-shadow: 0 0 0 3px rgb(249 219 0 / 0.45);
 }
 
@@ -2218,7 +2218,7 @@
 }
 
 .financeiro-table thead {
-  background: #0f172a;
+  background: var(--acao-fundo, #0f172a);
   color: #e2e8f0;
 }
 

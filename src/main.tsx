@@ -11,7 +11,6 @@ import './index.css'
 import './styles/tema-escuro.gerado.css'
 import './styles/tema-escuro.css'
 // Padrão visual do WMS Doca Livre: só vale com a classe padrao-wms no <html> (sistema: login e painel).
-import './styles/padrao-wms.gerado.css'
 import './styles/padrao-wms.css'
 
 const BUILD_ID = 'rota-publico-cache-v381'

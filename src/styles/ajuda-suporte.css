@@ -277,10 +277,10 @@
 }
 
 .ajuda-suporte__mail {
-  background: #0f172a;
+  background: var(--acao-fundo, #0f172a);
   color: #fff;
 }
 
 .ajuda-suporte__mail:hover {
-  background: #1e293b;
+  background: var(--acao-fundo-hover, #1e293b);
 }

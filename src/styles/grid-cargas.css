@@ -173,7 +173,7 @@
 }
 
 .grid-cargas__pill--longo {
-  background: #1e293b;
+  background: var(--acao-fundo-hover, #1e293b);
   color: #fff;
 }
 
@@ -235,12 +235,12 @@
   font-weight: 750;
   cursor: pointer;
   white-space: nowrap;
-  background: #0f172a;
+  background: var(--acao-fundo, #0f172a);
   color: #fff;
 }
 
 .grid-cargas__btn:hover {
-  background: #1e293b;
+  background: var(--acao-fundo-hover, #1e293b);
 }
 
 .grid-cargas__btn--ghost {

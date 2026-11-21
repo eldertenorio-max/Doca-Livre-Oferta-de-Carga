@@ -8,8 +8,9 @@
      valem nos dois temas.
    - Cores: só no tema claro, com html.padrao-wms:not([data-tema="escuro"]). O tema escuro já era o do WMS e continua
      vindo de tema-escuro.css e tema-escuro.gerado.css.
-   - Fundos quase pretos das telas internas (botões de ação, cabeçalho de tabela) viram azul-marinho no arquivo
-     padrao-wms.gerado.css, feito por scripts/gerar-padrao-wms.mjs.
+   - Fundos e bordas quase pretos das telas internas (botões de ação, cabeçalho de tabela) viram azul-marinho pelas
+     variáveis --acao-*: scripts/aplicar-padrao-wms.mjs põe as variáveis nos estilos das telas, com a cor de sempre
+     como reserva, e aqui elas ganham o valor do padrão. Nenhuma regra ganha peso novo.
    - As abas de mapa e as calculadoras dentro do sistema ficam iguais aos sites públicos: nenhuma regra daqui entra
      nelas (ver "fora dos mapas" mais abaixo).
    ==================================================================================================================== */
@@ -48,6 +49,11 @@ html.padrao-wms:not([data-tema="escuro"]) {
   /* fundo das telas que usam as classes de cor do tema (bg-surface, bg-sand-light) */
   --color-surface: #f8fafc;
   --color-sand-light: #f8fafc;
+  /* ações (botões, abas ativas, cabeçalho de tabela) das telas internas: azul-marinho no lugar do quase preto */
+  --acao-fundo: #1a237e;
+  --acao-fundo-hover: #283593;
+  --acao-borda: #1a237e;
+  --acao-borda-hover: #283593;
 }
 
 /* Barra superior */
@@ -72,19 +78,37 @@ html.padrao-wms:not([data-tema="escuro"]) .app-topbar-refresh:hover {
   border-color: #cbd5e1;
 }
 
-/* Ações em azul-marinho: as classes de cor escura usadas direto nas telas (botões, abas ativas, cabeçalhos).
+/* Ações em azul-marinho nas classes de cor escura usadas direto nas telas (botões, abas ativas, cabeçalhos).
+   Em vez de trocar o fundo "por cima", troca a cor da variável no próprio elemento: as variações (desativado,
+   passar o mouse, etc.) continuam valendo como antes.
    "Fora dos mapas": dentro das abas de mapa e das calculadoras nada muda, para elas continuarem iguais aos sites públicos. */
-html.padrao-wms:not([data-tema="escuro"])
-  :is(.bg-ink, .bg-ink-deep, .bg-black, .bg-slate-800, .bg-slate-900):not(:where(.mapa-frota, .mapa-pub, .rota-pub, .mapa-log, .frete-min) *) {
-  background-color: #1a237e;
+html.padrao-wms:not([data-tema="escuro"]) :where(.bg-ink, .hover\:bg-ink, .border-ink):not(:where(.mapa-frota, .mapa-pub, .rota-pub, .mapa-log, .frete-min) *) {
+  --color-ink: #1a237e;
 }
-html.padrao-wms:not([data-tema="escuro"])
-  :is(.hover\:bg-ink, .hover\:bg-ink-deep, .hover\:bg-black, .hover\:bg-slate-800, .hover\:bg-slate-900):hover:not(:where(.mapa-frota, .mapa-pub, .rota-pub, .mapa-log, .frete-min) *) {
-  background-color: #283593;
+html.padrao-wms:not([data-tema="escuro"]) :where(.hover\:bg-ink-deep):not(:where(.mapa-frota, .mapa-pub, .rota-pub, .mapa-log, .frete-min) *) {
+  --color-ink-deep: #283593;
 }
-html.padrao-wms:not([data-tema="escuro"])
-  :is(.border-ink, .border-ink-deep, .border-black):not(:where(.mapa-frota, .mapa-pub, .rota-pub, .mapa-log, .frete-min) *) {
-  border-color: #1a237e;
+html.padrao-wms:not([data-tema="escuro"]) :where(.bg-ink-deep, .border-ink-deep):not(:where(.mapa-frota, .mapa-pub, .rota-pub, .mapa-log, .frete-min) *) {
+  --color-ink-deep: #1a237e;
+}
+html.padrao-wms:not([data-tema="escuro"]) :where(.bg-black, .hover\:bg-black, .border-black):not(:where(.mapa-frota, .mapa-pub, .rota-pub, .mapa-log, .frete-min) *) {
+  --color-black: #1a237e;
+}
+html.padrao-wms:not([data-tema="escuro"]) :where(.bg-slate-800, .hover\:bg-slate-800):not(:where(.mapa-frota, .mapa-pub, .rota-pub, .mapa-log, .frete-min) *) {
+  --color-slate-800: #1a237e;
+}
+html.padrao-wms:not([data-tema="escuro"]) :where(.bg-slate-900, .hover\:bg-slate-900):not(:where(.mapa-frota, .mapa-pub, .rota-pub, .mapa-log, .frete-min) *) {
+  --color-slate-900: #1a237e;
+}
+
+/* "Nova carga": era verde; no padrão as ações são azul-marinho (as regras originais usam !important) */
+html.padrao-wms:not([data-tema="escuro"]) .app-topbar-nova-carga {
+  border-color: #1a237e !important;
+  background: #1a237e !important;
+}
+html.padrao-wms:not([data-tema="escuro"]) .app-topbar-nova-carga:hover {
+  border-color: #283593 !important;
+  background: #283593 !important;
 }
 
 /* ---------- Menu lateral: itens como os do WMS (nos dois temas) ---------- */

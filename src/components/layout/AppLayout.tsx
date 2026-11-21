@@ -144,7 +144,6 @@ function iniciais(nome: string) {
 export function AppLayout() {
   const {
     user,
-    logout,
     cargas,
     notificacoes,
     marcarNotificacaoLida,
@@ -664,17 +663,6 @@ export function AppLayout() {
               </div>
             ) : null}
           </div>
-
-          <button
-            type="button"
-            className="app-topbar-logout"
-            onClick={() => {
-              logout()
-              navigate('/login')
-            }}
-          >
-            Sair
-          </button>
         </div>
       </header>
 
@@ -684,8 +672,8 @@ export function AppLayout() {
             <strong>Foto de perfil</strong>
             <span>
               {podeEditarLogo
-                ? 'Adicione a logo da empresa ou uma foto sua: clique no seu nome (ao lado de Sair) para abrir o perfil. A imagem aparece no login, no perfil e no mapa da frota.'
-                : 'Transportadores podem adicionar logo ou foto no perfil (clique no nome ao lado de Sair) ou na edição da transportadora. A imagem vira o perfil no login.'}
+                ? 'Adicione a logo da empresa ou uma foto sua: clique no seu nome, no canto de cima, para abrir o perfil. A imagem aparece no login, no perfil e no mapa da frota.'
+                : 'Transportadores podem adicionar logo ou foto no perfil (clique no seu nome, no canto de cima) ou na edição da transportadora. A imagem vira o perfil no login.'}
             </span>
           </div>
           <div className="app-foto-aviso__actions">

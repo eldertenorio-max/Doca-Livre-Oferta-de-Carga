@@ -22,8 +22,8 @@ const SAIDA = join(root, 'src/styles/tema-escuro.gerado.css')
  * Telas que ficam claras (login, abertura) usam a classe .tema-forcar-claro, e nenhuma
  * regra gerada vale dentro dela.
  */
-// padrao-wms*.css só valem no tema claro (têm o próprio seletor); não entram na conta do tema escuro
-const IGNORAR = new Set(['tema-escuro.css', 'tema-escuro.gerado.css', 'padrao-wms.css', 'padrao-wms.gerado.css'])
+// padrao-wms.css só vale no tema claro (tem o próprio seletor); não entra na conta do tema escuro
+const IGNORAR = new Set(['tema-escuro.css', 'tema-escuro.gerado.css', 'padrao-wms.css'])
 const PASTAS = ['src/styles', 'src/logistica/styles', 'src/components/verificacao']
 const EXTRA = ['src/index.css']
 
