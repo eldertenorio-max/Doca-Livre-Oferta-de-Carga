@@ -10,6 +10,9 @@ import { aplicarMetaDoSite } from './lib/siteMeta'
 import './index.css'
 import './styles/tema-escuro.gerado.css'
 import './styles/tema-escuro.css'
+// Padrão visual do WMS Doca Livre: só vale com a classe padrao-wms no <html> (sistema: login e painel).
+import './styles/padrao-wms.gerado.css'
+import './styles/padrao-wms.css'
 
 const BUILD_ID = 'rota-publico-cache-v381'
 
@@ -99,6 +102,9 @@ async function boot() {
   aplicarMetaDoSite()
   const publico = isSitePublicoLimpo()
   const Router = publico ? BrowserRouter : HashRouter
+  // O padrão visual do WMS vale só no sistema (login e painel). Os sites públicos (calculadora de rota,
+  // mapa da frota, mapa da logística) não recebem a classe e continuam como estão.
+  document.documentElement.classList.toggle('padrao-wms', !publico)
 
   try {
     if (publico) {

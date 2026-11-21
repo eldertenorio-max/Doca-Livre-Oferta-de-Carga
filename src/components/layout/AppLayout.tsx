@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useData } from '../../context/DataContext'
-import { Moon, Sun } from 'lucide-react'
 import { logoDocaLivre } from '../../lib/brandAssets'
 import { useTema } from '../../lib/tema'
+import { IconePadrao } from './IconesPadrao'
 import { ProductMark } from '../ProductMark'
 import { ChatModal } from '../carga/ChatModal'
 import { PerfilPanel } from './PerfilPanel'
@@ -24,178 +24,67 @@ type NavItem = {
   icon: React.ReactNode
 }
 
+// Ícones do menu: os mesmos do WMS Doca Livre (ver IconesPadrao.tsx).
 function IconGrid() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.75" />
-      <rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.75" />
-      <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.75" />
-      <rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.75" />
-    </svg>
-  )
+  return <IconePadrao nome="table-cells-large" />
 }
 
 function IconMap() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
-      <path d="M9 4v14M15 6v14" stroke="currentColor" strokeWidth="1.75" />
-    </svg>
-  )
+  return <IconePadrao nome="map-location-dot" />
 }
 
 function IconLocation() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 21s7-5.5 7-12a7 7 0 1 0-14 0c0 6.5 7 12 7 12z"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinejoin="round"
-      />
-      <circle cx="12" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.75" />
-    </svg>
-  )
+  return <IconePadrao nome="location-dot" />
 }
 
 function IconRoute() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="6" cy="6" r="2.5" stroke="currentColor" strokeWidth="1.75" />
-      <circle cx="18" cy="18" r="2.5" stroke="currentColor" strokeWidth="1.75" />
-      <path
-        d="M8.2 8.2c3.2 1.2 4.4 6.4 7.6 7.6"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
+  return <IconePadrao nome="route" />
 }
 
 function IconUsers() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="1.75" />
-      <path d="M3 19c0-3 2.5-5 6-5s6 2 6 5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-      <circle cx="17" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.75" />
-      <path d="M16 14.5c2.5.3 5 1.8 5 4.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-    </svg>
-  )
+  return <IconePadrao nome="users" />
 }
 
 function IconGroups() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="8" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.75" />
-      <circle cx="16" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.75" />
-      <path d="M3 19c0-2.5 2-4 5-4M16 15c3 0 5 1.5 5 4M12 7a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-    </svg>
-  )
+  return <IconePadrao nome="people-group" />
 }
 
 function IconChart() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M4 19V5M4 19h16" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-      <path d="M8 15v-4M12 15V8M16 15v-7" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-    </svg>
-  )
+  return <IconePadrao nome="chart-column" />
 }
 
 function IconTruck() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M1 16V7h11v9M12 10h4l3 3v3h-7" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
-      <circle cx="5.5" cy="16.5" r="1.5" stroke="currentColor" strokeWidth="1.75" />
-      <circle cx="16.5" cy="16.5" r="1.5" stroke="currentColor" strokeWidth="1.75" />
-    </svg>
-  )
+  return <IconePadrao nome="truck" />
 }
 
 function IconShield() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M12 3 5 6v6c0 5 3.5 8 7 9 3.5-1 7-4 7-9V6l-7-3z" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
-    </svg>
-  )
+  return <IconePadrao nome="shield-halved" />
 }
 
 function IconStar() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 3.5 14.4 9l6.1.6-4.6 4 1.4 6-5.3-3.2L6.7 19.6l1.4-6-4.6-4L9.6 9 12 3.5z"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
+  return <IconePadrao nome="star" />
 }
 
 function IconWallet() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M3 7.5A2.5 2.5 0 0 1 5.5 5H18a1 1 0 0 1 1 1v1.5M3 7.5V17a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5.5a1.5 1.5 0 0 0-1.5-1.5H15a2 2 0 1 0 0 4h4.5"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path d="M3 7.5h15" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-    </svg>
-  )
+  return <IconePadrao nome="wallet" />
 }
 
 function IconRadar() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.75" />
-      <path
-        d="M12 3a9 9 0 0 1 9 9M12 6a6 6 0 0 1 6 6M5.6 5.6a9 9 0 1 0 12.8 0"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
+  return <IconePadrao nome="satellite-dish" />
 }
 
 function IconCredito() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.75" />
-      <path d="M12 8v8M9.5 10.5c.4-.8 1.2-1.2 2.5-1.2 1.5 0 2.4.7 2.4 1.7S13.5 12.6 12 12.6 9.6 13.3 9.6 14.4 10.6 16 12.2 16c1.2 0 2-.4 2.4-1.1" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-    </svg>
-  )
+  return <IconePadrao nome="coins" />
 }
 
 function IconMalha() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 3 21 8v8l-9 5-9-5V8l9-5z"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinejoin="round"
-      />
-      <path d="M12 3v18M3 8l18 8M21 8 3 16" stroke="currentColor" strokeWidth="1.75" />
-    </svg>
-  )
+  return <IconePadrao nome="diagram-project" />
 }
 
 function IconCelular() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="6.5" y="2.75" width="11" height="18.5" rx="2.2" stroke="currentColor" strokeWidth="1.75" />
-      <path d="M10.5 18h3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-    </svg>
-  )
+  return <IconePadrao nome="mobile-screen-button" />
 }
 
-/** Baixar o app Android: aparece no fim do menu para todos os perfis. */
 const ITEM_APLICATIVO: NavItem = { to: '/aplicativo', label: 'Aplicativo', icon: <IconCelular /> }
 
 const minervaLinks: NavItem[] = [
@@ -550,7 +439,7 @@ export function AppLayout() {
                 : 'Expandir e fixar menu'
             }
           >
-            <span className="app-topbar-menu-icon" aria-hidden />
+            <IconePadrao nome="bars" tamanho={20} />
           </button>
 
           <div className="app-topbar-brand">
@@ -610,15 +499,7 @@ export function AppLayout() {
               aria-label="Notificações"
               aria-expanded={notifOpen}
             >
-              <svg viewBox="0 0 24 24" fill="none" width="18" height="18" aria-hidden>
-                <path
-                  d="M15 17H9m6 0a3 3 0 0 1-6 0m6 0h2.2c.9 0 1.3 0 1.5-.16.2-.14.35-.4.4-.7.05-.32-.1-.7-.4-1.45L17 12.5V10a5 5 0 1 0-10 0v2.5l-.7 2.2c-.3.74-.45 1.12-.4 1.44.05.3.2.56.4.7.2.16.6.16 1.5.16H9"
-                  stroke="currentColor"
-                  strokeWidth="1.75"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
+              <IconePadrao nome="bell" tamanho={17} />
               {unread > 0 && <span className="app-topbar-notif-badge">{unread > 99 ? '99+' : unread}</span>}
             </button>
             {notifOpen && (
@@ -718,7 +599,7 @@ export function AppLayout() {
             title={tema === 'escuro' ? 'Tema claro' : 'Tema escuro'}
             aria-label={tema === 'escuro' ? 'Mudar para o tema claro' : 'Mudar para o tema escuro'}
           >
-            {tema === 'escuro' ? <Sun size={18} aria-hidden /> : <Moon size={18} aria-hidden />}
+            <IconePadrao nome={tema === 'escuro' ? 'sun' : 'moon'} tamanho={17} />
           </button>
 
           <button
@@ -728,10 +609,7 @@ export function AppLayout() {
             title="Atualizar página"
             aria-label="Atualizar página"
           >
-            <svg viewBox="0 0 24 24" fill="none" width="18" height="18" aria-hidden>
-              <path d="M20 6v5h-5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M19 11a7 7 0 1 0-2.05 4.95" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <IconePadrao nome="rotate-right" tamanho={17} />
           </button>
 
           <div className="app-topbar-meta" aria-label="Data e hora">
@@ -905,6 +783,9 @@ export function AppLayout() {
               </NavLink>
             ))}
           </nav>
+          <div className="sidebar-footer">
+            <span>Oferta de Carga Doca Livre</span>
+          </div>
         </aside>
 
         <main
