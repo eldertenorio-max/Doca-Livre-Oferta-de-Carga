@@ -1,0 +1,233 @@
+/* ====================================================================================================================
+   PADRÃO VISUAL DO WMS DOCA LIVRE NO SISTEMA (login e painel)
+
+   Tudo aqui só vale com a classe padrao-wms no <html>, que o main.tsx põe quando o endereço é o do sistema. Os sites
+   públicos (calculadora de rota, mapa da frota, mapa da logística) não recebem a classe e continuam como estão.
+
+   - Medidas e formato (menu de 70px que abre para 260px, barra de 60px, itens do menu como os do WMS, fonte Inter):
+     valem nos dois temas.
+   - Cores: só no tema claro, com html.padrao-wms:not([data-tema="escuro"]). O tema escuro já era o do WMS e continua
+     vindo de tema-escuro.css e tema-escuro.gerado.css.
+   - Fundos e bordas quase pretos das telas internas (botões de ação, cabeçalho de tabela) viram azul-marinho pelas
+     variáveis --acao-*: scripts/aplicar-padrao-wms.mjs põe as variáveis nos estilos das telas, com a cor de sempre
+     como reserva, e aqui elas ganham o valor do padrão. Nenhuma regra ganha peso novo.
+   - As abas de mapa e as calculadoras dentro do sistema ficam iguais aos sites públicos: nenhuma regra daqui entra
+     nelas (ver "fora dos mapas" mais abaixo).
+   ==================================================================================================================== */
+
+/* Fonte do padrão (a mesma do WMS), servida pelo próprio site. Só é baixada onde é usada. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/inter-latin.woff2') format('woff2');
+}
+
+html.padrao-wms {
+  font-family: 'Inter', 'Segoe UI', Roboto, system-ui, sans-serif;
+}
+html.padrao-wms .app-topbar-meta,
+html.padrao-wms .app-topbar-user-text {
+  font-family: inherit;
+}
+
+/* ---------- Tema claro: cores do padrão ---------- */
+html.padrao-wms:not([data-tema="escuro"]) {
+  --sidebar-bg: #1a1f2e;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-text: rgba(255, 255, 255, 0.9);
+  --sidebar-text-muted: rgba(255, 255, 255, 0.55);
+  --shadow-sidebar: 2px 0 12px rgba(0, 0, 0, 0.35);
+  --bg: #f8fafc;
+  --bg-elevated: #f1f5f9;
+  --border: #e2e8f0;
+  --text: #1e293b;
+  --content-bg: #f8fafc;
+  --btn-surface-border: #cbd5e1;
+  --btn-surface-hover-bg: #f1f5f9;
+  /* fundo das telas que usam as classes de cor do tema (bg-surface, bg-sand-light) */
+  --color-surface: #f8fafc;
+  --color-sand-light: #f8fafc;
+  /* ações (botões, abas ativas, cabeçalho de tabela) das telas internas: azul-marinho no lugar do quase preto */
+  --acao-fundo: #1a237e;
+  --acao-fundo-hover: #283593;
+  --acao-borda: #1a237e;
+  --acao-borda-hover: #283593;
+}
+
+/* Barra superior */
+html.padrao-wms:not([data-tema="escuro"]) .app-topbar {
+  border-bottom-color: #e2e8f0;
+  box-shadow: none;
+}
+html.padrao-wms:not([data-tema="escuro"]) .app-topbar-menu {
+  color: #0f172a;
+}
+html.padrao-wms:not([data-tema="escuro"]) .app-topbar-menu:hover {
+  background: #f1f5f9;
+}
+html.padrao-wms:not([data-tema="escuro"]) .app-topbar-refresh {
+  background: transparent;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+html.padrao-wms:not([data-tema="escuro"]) .app-topbar-refresh:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+/* Ações em azul-marinho nas classes de cor escura usadas direto nas telas (botões, abas ativas, cabeçalhos).
+   Em vez de trocar o fundo "por cima", troca a cor da variável no próprio elemento: as variações (desativado,
+   passar o mouse, etc.) continuam valendo como antes.
+   "Fora dos mapas": dentro das abas de mapa e das calculadoras nada muda, para elas continuarem iguais aos sites públicos. */
+html.padrao-wms:not([data-tema="escuro"]) :where(.bg-ink, .hover\:bg-ink, .border-ink):not(:where(.mapa-frota, .mapa-pub, .rota-pub, .mapa-log, .frete-min) *) {
+  --color-ink: #1a237e;
+}
+html.padrao-wms:not([data-tema="escuro"]) :where(.hover\:bg-ink-deep):not(:where(.mapa-frota, .mapa-pub, .rota-pub, .mapa-log, .frete-min) *) {
+  --color-ink-deep: #283593;
+}
+html.padrao-wms:not([data-tema="escuro"]) :where(.bg-ink-deep, .border-ink-deep):not(:where(.mapa-frota, .mapa-pub, .rota-pub, .mapa-log, .frete-min) *) {
+  --color-ink-deep: #1a237e;
+}
+html.padrao-wms:not([data-tema="escuro"]) :where(.bg-black, .hover\:bg-black, .border-black):not(:where(.mapa-frota, .mapa-pub, .rota-pub, .mapa-log, .frete-min) *) {
+  --color-black: #1a237e;
+}
+html.padrao-wms:not([data-tema="escuro"]) :where(.bg-slate-800, .hover\:bg-slate-800):not(:where(.mapa-frota, .mapa-pub, .rota-pub, .mapa-log, .frete-min) *) {
+  --color-slate-800: #1a237e;
+}
+html.padrao-wms:not([data-tema="escuro"]) :where(.bg-slate-900, .hover\:bg-slate-900):not(:where(.mapa-frota, .mapa-pub, .rota-pub, .mapa-log, .frete-min) *) {
+  --color-slate-900: #1a237e;
+}
+
+/* "Nova carga": era verde; no padrão as ações são azul-marinho (as regras originais usam !important) */
+html.padrao-wms:not([data-tema="escuro"]) .app-topbar-nova-carga {
+  border-color: #1a237e !important;
+  background: #1a237e !important;
+}
+html.padrao-wms:not([data-tema="escuro"]) .app-topbar-nova-carga:hover {
+  border-color: #283593 !important;
+  background: #283593 !important;
+}
+
+/* ---------- Menu lateral: itens como os do WMS (nos dois temas) ---------- */
+html.padrao-wms a.sidebar-section {
+  border-top: 0;
+}
+html.padrao-wms .sidebar-section-trigger,
+html.padrao-wms .sidebar.sidebar--wide .sidebar-section-trigger {
+  justify-content: flex-start;
+  gap: 20px;
+  padding: 11px 20px;
+}
+/* a cor fica numa regra só, mais leve, para o item ativo (amarelo) valer também com o menu aberto */
+html.padrao-wms .sidebar-section-trigger {
+  color: var(--sidebar-text-muted);
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+html.padrao-wms .sidebar-section-trigger:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.9);
+  border-left-color: rgba(255, 255, 255, 0.15);
+}
+html.padrao-wms .sidebar-section--open .sidebar-section-trigger,
+html.padrao-wms .sidebar-section-trigger.active {
+  background: rgba(245, 197, 24, 0.1);
+  color: #f5c518;
+  border-left-color: #f5c518;
+}
+html.padrao-wms .sidebar-section-icon,
+html.padrao-wms .sidebar-section--open .sidebar-section-icon,
+html.padrao-wms .sidebar-section-trigger:hover .sidebar-section-icon,
+html.padrao-wms .sidebar-section-trigger.active .sidebar-section-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 0;
+  color: inherit;
+}
+html.padrao-wms .sidebar-section-icon svg {
+  width: 18px;
+  height: 18px;
+}
+html.padrao-wms .sidebar-section-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: inherit;
+}
+html.padrao-wms .sidebar-section--open .sidebar-section-title,
+html.padrao-wms .sidebar-section-trigger.active .sidebar-section-title {
+  font-weight: 600;
+}
+/* no WMS os itens simples não têm seta */
+html.padrao-wms .sidebar-section-chevron {
+  display: none;
+}
+html.padrao-wms .sidebar-footer {
+  flex-shrink: 0;
+  min-height: 37px;
+  padding: 10px 23px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.4);
+  white-space: nowrap;
+  overflow: hidden;
+}
+html.padrao-wms .sidebar-footer span {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+html.padrao-wms .sidebar.sidebar--wide .sidebar-footer span {
+  opacity: 1;
+}
+
+/* ---------- Computador: medidas do WMS ---------- */
+@media (min-width: 1201px) {
+  html.padrao-wms {
+    --sidebar-w: 260px;
+    --sidebar-w-collapsed: 70px;
+    --app-topbar-h: 60px;
+  }
+  html.padrao-wms .app-topbar {
+    padding: 0 16px 0 0;
+    gap: 12px;
+  }
+  /* o botão do menu ocupa a mesma largura do menu recolhido, e a logo começa logo depois (como no WMS) */
+  html.padrao-wms .app-topbar-menu {
+    width: var(--sidebar-w-collapsed);
+    height: var(--app-topbar-h);
+    border-radius: 0;
+  }
+  html.padrao-wms .app-topbar-logo {
+    height: 36px;
+  }
+  html.padrao-wms .app-topbar-refresh {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+  html.padrao-wms .sidebar,
+  html.padrao-wms .sidebar.sidebar--wide {
+    padding: 8px 0 0;
+    border-right: 0;
+    box-shadow: var(--shadow-sidebar);
+  }
+}
+
+/* ---------- Celular e tablet: o menu abre como gaveta, com os mesmos itens ---------- */
+@media (max-width: 1200px) {
+  html.padrao-wms .sidebar.sidebar--pinned,
+  html.padrao-wms .sidebar.sidebar--wide.sidebar--pinned {
+    padding: 8px 0 0 !important;
+  }
+}
+
+/* ---------- Login: botão azul do padrão (o login fica claro nos dois temas) ---------- */
+html.padrao-wms .portal-login__submit {
+  background: #2563eb;
+  transition: background 0.2s ease;
+}
+html.padrao-wms .portal-login__submit:hover:not(:disabled) {
+  background: #1d4ed8;
+}

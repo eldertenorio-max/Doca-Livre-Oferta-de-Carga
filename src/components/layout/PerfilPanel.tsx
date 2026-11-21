@@ -42,6 +42,7 @@ export function PerfilPanel({ onClose, autoOpenFoto }: Props) {
     motoristas,
     atualizarAvatarPerfil,
     effectiveTransportadorId,
+    logout,
   } = useData()
   const [aba, setAba] = useState<Aba>('sobre')
   const [busy, setBusy] = useState(false)
@@ -170,6 +171,13 @@ export function PerfilPanel({ onClose, autoOpenFoto }: Props) {
   function go(path: string) {
     onClose?.()
     navigate(path)
+  }
+
+  /** Sai do sistema. Fica aqui, na aba Conta, como no WMS (a barra de cima não tem mais o botão solto). */
+  function sair() {
+    onClose?.()
+    logout()
+    navigate('/login')
   }
 
   return (
@@ -381,6 +389,9 @@ export function PerfilPanel({ onClose, autoOpenFoto }: Props) {
                 Painel do transportador
               </button>
             )}
+            <button type="button" className="perfil-btn perfil-btn--ghost" onClick={sair}>
+              Sair
+            </button>
             {onClose && (
               <button type="button" className="perfil-btn perfil-btn--ghost" onClick={onClose}>
                 Fechar

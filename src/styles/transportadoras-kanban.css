@@ -14,7 +14,7 @@
   gap: 10px;
   padding: 12px 14px;
   border-radius: 12px;
-  background: #0f172a;
+  background: var(--acao-fundo, #0f172a);
   color: #fff;
 }
 
@@ -361,7 +361,7 @@
   background:
     linear-gradient(135deg, rgb(15 23 42 / 0.88), rgb(29 78 216 / 0.55)),
     radial-gradient(circle at 20% 20%, #f9db00 0, transparent 40%),
-    #0f172a;
+    var(--acao-fundo, #0f172a);
   color: #fff;
 }
 
@@ -521,7 +521,7 @@
 }
 
 .transp-perfil__cta button {
-  background: #0f172a;
+  background: var(--acao-fundo, #0f172a);
   color: #fff;
 }
 

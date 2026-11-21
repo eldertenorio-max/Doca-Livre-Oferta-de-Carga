@@ -90,7 +90,7 @@
 
 .perfil-tabs button.is-active {
   color: #0f172a;
-  border-bottom-color: #0f172a;
+  border-bottom-color: var(--acao-borda, #0f172a);
 }
 
 .perfil-panel {
@@ -427,8 +427,8 @@
 
 .perfil-btn {
   appearance: none;
-  border: 1px solid #0f172a;
-  background: #0f172a;
+  border: 1px solid var(--acao-borda, #0f172a);
+  background: var(--acao-fundo, #0f172a);
   color: #fff;
   border-radius: 10px;
   padding: 10px 14px;
@@ -438,7 +438,7 @@
 }
 
 .perfil-btn:hover {
-  background: #1e293b;
+  background: var(--acao-fundo-hover, #1e293b);
 }
 
 .perfil-btn--ghost {

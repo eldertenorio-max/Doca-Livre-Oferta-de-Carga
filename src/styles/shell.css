@@ -51,7 +51,7 @@
 .app-foto-aviso__btn {
   border: 0;
   border-radius: 8px;
-  background: #0f172a;
+  background: var(--acao-fundo, #0f172a);
   color: #fff;
   font-size: 0.78rem;
   font-weight: 650;
@@ -60,7 +60,7 @@
 }
 
 .app-foto-aviso__btn:hover {
-  background: #1e293b;
+  background: var(--acao-fundo-hover, #1e293b);
 }
 
 .app-foto-aviso__fechar {
@@ -544,7 +544,7 @@
   width: min(280px, 72vw);
   padding: 10px 12px;
   border-radius: 10px;
-  background: #0f172a;
+  background: var(--acao-fundo, #0f172a);
   color: #f8fafc;
   font-size: 0.75rem;
   font-weight: 600;
